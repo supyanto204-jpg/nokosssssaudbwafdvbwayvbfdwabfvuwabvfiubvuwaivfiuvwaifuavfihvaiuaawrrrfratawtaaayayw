@@ -10,7 +10,8 @@
     { "source": "/login.html", "destination": "/login", "permanent": true },
     { "source": "/daftar.html", "destination": "/daftar", "permanent": true },
     { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true },
-    { "source": "/profile.html", "destination": "/profile", "permanent": true }
+    { "source": "/profile.html", "destination": "/profile", "permanent": true },
+    { "source": "/nokos.html", "destination": "/nokos", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
@@ -19,6 +20,7 @@
     { "source": "/daftar", "destination": "/public/daftar.html" },
     { "source": "/dashboard", "destination": "/public/dashboard.html" },
     { "source": "/profile", "destination": "/public/profile.html" },
+    { "source": "/nokos", "destination": "/public/nokos.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
