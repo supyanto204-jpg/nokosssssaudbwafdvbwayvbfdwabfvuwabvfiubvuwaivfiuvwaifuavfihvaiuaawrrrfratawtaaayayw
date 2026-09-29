@@ -12,10 +12,6 @@
     { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/landing", "destination": "/landing.html" },
-    { "source": "/login", "destination": "/login.html" },
-    { "source": "/daftar", "destination": "/daftar.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" }
+    { "source": "/api/(.*)", "destination": "/api/index.js" }
   ]
 }
