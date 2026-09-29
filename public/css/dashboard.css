@@ -84,6 +84,49 @@ body {
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+
+    /* Page enter animation */
+    animation: pageEnter 0.4s var(--ease) both;
+}
+
+/* ===== PAGE TRANSITION ===== */
+@view-transition {
+    navigation: auto;
+}
+
+::view-transition-old(root) {
+    animation: pageExit 0.25s var(--ease) both;
+}
+
+::view-transition-new(root) {
+    animation: pageEnter 0.35s var(--ease) both;
+}
+
+@keyframes pageEnter {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pageExit {
+    from {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+/* Fallback exit class (Firefox/Safari) */
+body.page-exit {
+    animation: pageExit 0.25s var(--ease) both;
 }
 
 /* ===== TYPOGRAPHY ===== */
