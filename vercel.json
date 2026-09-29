@@ -1,15 +1,13 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/index.js",
-      "use": "@vercel/node",
-      "config": {
-        "includeFiles": "public/**"
-      }
-    }
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "destination": "/landing", "permanent": false },
+    { "source": "/landing.html", "destination": "/landing", "permanent": true },
+    { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true }
   ],
-  "routes": [
-    { "src": "/(.*)", "dest": "/api/index.js" }
+  "rewrites": [
+    { "source": "/landing", "destination": "/landing.html" },
+    { "source": "/dashboard", "destination": "/dashboard.html" }
   ]
 }
