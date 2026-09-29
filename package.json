@@ -5,7 +5,9 @@
   "description": "AsyrofOTP - Layanan OTP Cepat & Terpercaya",
   "dependencies": {
     "express": "^4.19.2",
-    "@supabase/supabase-js": "^2.39.0"
+    "pg": "^8.11.3",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2"
   },
   "engines": {
     "node": ">=18.x"
