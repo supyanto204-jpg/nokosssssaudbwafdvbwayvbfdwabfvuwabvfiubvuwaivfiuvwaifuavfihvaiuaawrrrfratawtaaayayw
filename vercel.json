@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/landing.html", "destination": "/landing", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/landing", "destination": "/landing.html" }
+  ]
+}
