@@ -4,10 +4,16 @@
   "redirects": [
     { "source": "/", "destination": "/landing", "permanent": false },
     { "source": "/landing.html", "destination": "/landing", "permanent": true },
-    { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true }
+    { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true },
+    { "source": "/deposit.html", "destination": "/deposit", "permanent": true },
+    { "source": "/nokos.html", "destination": "/nokos", "permanent": true },
+    { "source": "/inbox.html", "destination": "/inbox", "permanent": true }
   ],
   "rewrites": [
     { "source": "/landing", "destination": "/landing.html" },
-    { "source": "/dashboard", "destination": "/dashboard.html" }
+    { "source": "/dashboard", "destination": "/dashboard.html" },
+    { "source": "/deposit", "destination": "/deposit.html" },
+    { "source": "/nokos", "destination": "/nokos.html" },
+    { "source": "/inbox", "destination": "/inbox.html" }
   ]
 }
