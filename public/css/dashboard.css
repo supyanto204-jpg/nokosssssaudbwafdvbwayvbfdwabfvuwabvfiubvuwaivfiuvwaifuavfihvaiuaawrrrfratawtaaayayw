@@ -79,7 +79,7 @@ body {
 }
 
 .sidebar-header {
-    padding: 20px 20px;
+    padding: 20px;
     border-bottom: 2px solid var(--border-dark);
 }
 
@@ -176,7 +176,6 @@ body {
     border-radius: var(--radius-sm);
     background: var(--bg-light);
     border: 2px solid var(--border-dark);
-    margin-bottom: 10px;
 }
 
 .user-avatar {
@@ -718,11 +717,15 @@ select.form-control {
     border: 2px solid var(--border-dark);
     box-shadow: var(--shadow-hard-sm);
     margin-bottom: 20px;
-    display: flex;
+    display: none;
     align-items: flex-start;
     gap: 10px;
     font-size: 0.88rem;
     font-weight: 500;
+}
+
+.alert.show {
+    display: flex;
 }
 
 .alert .icon-svg {
