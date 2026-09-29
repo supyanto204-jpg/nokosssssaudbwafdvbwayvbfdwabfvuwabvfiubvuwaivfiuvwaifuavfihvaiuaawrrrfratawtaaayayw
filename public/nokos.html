@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beli Nokos - AsyrofOTP</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        /* ===== NOKOS-SPECIFIC ===== */
+
+        .server-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .server-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px;
+            background: white;
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+            text-align: left;
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .server-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+            opacity: 0;
+            transition: opacity var(--transition);
+        }
+
+        .server-card:hover::before,
+        .server-card.active::before {
+            opacity: 1;
+        }
+
+        .server-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .server-card.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .server-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: 900;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-hard-sm);
+            transition: all var(--transition);
+        }
+
+        .server-card:hover .server-icon {
+            transform: rotate(-5deg) scale(1.05);
+        }
+
+        .server-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .server-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 2px;
+        }
+
+        .server-desc {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+        }
+
+        .server-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 50px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            background: #dcfce7;
+            color: #166534;
+            border: 1.5px solid var(--border-dark);
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+
+        /* ===== SERVICE GRID ===== */
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .service-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 18px 14px;
+            background: white;
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard-sm);
+            cursor: pointer;
+            transition: all var(--transition);
+            font-family: inherit;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .service-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .service-card.active {
+            background: var(--primary-light);
+            border-color: var(--primary);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .service-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: var(--bg-light);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all var(--transition);
+        }
+
+        .service-card:hover .service-logo {
+            transform: scale(1.1) rotate(5deg);
+        }
+
+        .service-card.active .service-logo {
+            background: white;
+        }
+
+        .service-name {
+            font-weight: 700;
+            font-size: 0.85rem;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        /* ===== PRICE LIST ===== */
+        .price-item {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            padding: 18px 20px;
+            background: white;
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard-sm);
+            margin-bottom: 12px;
+            transition: all var(--transition);
+        }
+
+        .price-item:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .price-stock-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+            font-size: 1.2rem;
+        }
+
+        .price-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .price-title {
+            font-weight: 800;
+            font-size: 1rem;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 2px;
+        }
+
+        .price-meta {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+        }
+
+        .price-stock {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 50px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            border: 1.5px solid var(--border-dark);
+            background: #dcfce7;
+            color: #166534;
+            margin-left: 8px;
+        }
+
+        .price-stock.low {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .price-amount {
+            font-size: 1.15rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--primary);
+            white-space: nowrap;
+            margin-right: 4px;
+        }
+
+        /* ===== MODAL SUCCESS ===== */
+        .success-modal {
+            text-align: center;
+        }
+
+        .success-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: #dcfce7;
+            border: 3px solid var(--border-dark);
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            box-shadow: var(--shadow-hard);
+            animation: bounceIn 0.6s var(--ease-bounce);
+        }
+
+        .success-icon .icon-svg {
+            width: 36px;
+            height: 36px;
+        }
+
+        .phone-display {
+            background: var(--bg-light);
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius-sm);
+            padding: 16px;
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .phone-display .label {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 4px;
+        }
+
+        .phone-display .number {
+            font-size: 1.2rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            color: var(--text-dark);
+            letter-spacing: 0.02em;
+        }
+
+        .copy-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: white;
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+        }
+
+        .copy-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .copy-btn .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ===== STEP INDICATOR ===== */
+        .steps-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .step-dot {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 50px;
+            background: white;
+            border: 2px solid var(--border);
+            font-size: 0.78rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-light);
+            transition: all var(--transition);
+        }
+
+        .step-dot.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .step-dot.done {
+            background: #dcfce7;
+            color: #166534;
+            border-color: var(--border-dark);
+        }
+
+        .step-num {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(15, 23, 42, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 800;
+        }
+
+        .step-dot.active .step-num {
+            background: rgba(255, 255, 255, 0.25);
+            color: white;
+        }
+
+        .step-dot.done .step-num {
+            background: var(--success);
+            color: white;
+        }
+
+        /* ===== LOADING ===== */
+        .loading-block {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            gap: 16px;
+            color: var(--text-gray);
+        }
+
+        .loading-block .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border-width: 3px;
+        }
+
+        /* ===== EMPTY ===== */
+        .empty-block {
+            text-align: center;
+            padding: 48px 20px;
+            color: var(--text-gray);
+        }
+
+        .empty-block .icon-box {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            box-shadow: var(--shadow-hard-sm);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .empty-block .icon-box .icon-svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .empty-block h3 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .empty-block p {
+            font-size: 0.88rem;
+            max-width: 320px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 640px) {
+            .service-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .price-item {
+                flex-wrap: wrap;
+            }
+
+            .price-amount {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-layout">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">A</div>
+                <div>Asyrof<span>OTP</span></div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Home
+            </a>
+            <a href="/nokos" class="nav-item active">
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                Beli Nokos
+            </a>
+            <a href="/inbox" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                Inbox
+            </a>
+            <a href="/deposit" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Deposit
+            </a>
+
+            <div class="nav-section-label">Akun</div>
+            <a href="/profile" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                Profile
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userInitial">
+                    <span class="loading-spinner loading-spinner-sm"></span>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName">
+                        <span class="skeleton skeleton-text-sm"></span>
+                    </div>
+                    <div class="user-balance" id="userBalance">
+                        <span class="skeleton skeleton-text-sm"></span>
+                    </div>
+                </div>
+                <button class="logout-btn" id="logoutBtn" title="Keluar">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay"></div>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main-content">
+        <div class="topbar">
+            <div class="topbar-left">
+                <h1>Beli Nokos</h1>
+                <p>Pilih server, layanan, lalu beli nomor OTP</p>
+            </div>
+            <div class="topbar-right">
+                <button class="mobile-toggle">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div class="balance-pill">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span class="label">Saldo:</span>
+                    <span class="amount" id="balancePill">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP INDICATOR -->
+        <div class="steps-indicator">
+            <div class="step-dot active" id="step1">
+                <span class="step-num">1</span>
+                Pilih Server
+            </div>
+            <div class="step-dot" id="step2">
+                <span class="step-num">2</span>
+                Pilih Layanan
+            </div>
+            <div class="step-dot" id="step3">
+                <span class="step-num">3</span>
+                Pilih Harga
+            </div>
+        </div>
+
+        <!-- STEP 1: SERVER -->
+        <div class="card card-gradient card-corner" id="sectionServer">
+            <div class="card-header">
+                <div>
+                    <h2>Pilih Server</h2>
+                    <p>Pilih server yang ingin kamu gunakan</p>
+                </div>
+            </div>
+            <div class="server-grid" id="serverGrid">
+                <div class="loading-block">
+                    <span class="loading-spinner"></span>
+                    <span>Memuat server...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: SERVICE -->
+        <div class="card card-gradient card-corner" id="sectionService" style="display:none;">
+            <div class="card-header">
+                <div>
+                    <h2>Pilih Layanan</h2>
+                    <p id="serviceSubtitle">Pilih layanan yang ingin kamu beli</p>
+                </div>
+            </div>
+            <div class="service-grid" id="serviceGrid">
+                <div class="loading-block">
+                    <span class="loading-spinner"></span>
+                    <span>Memuat layanan...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 3: PRICE -->
+        <div class="card card-gradient card-corner" id="sectionPrice" style="display:none;">
+            <div class="card-header">
+                <div>
+                    <h2>Pilih Harga</h2>
+                    <p id="priceSubtitle">Pilih harga yang sesuai</p>
+                </div>
+            </div>
+            <div id="priceList">
+                <div class="loading-block">
+                    <span class="loading-spinner"></span>
+                    <span>Memuat harga...</span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<!-- ===== MODAL KONFIRMASI ===== -->
+<div class="modal-overlay" id="modalConfirm">
+    <div class="modal">
+        <div class="modal-icon">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </div>
+        <h2>Konfirmasi Pembelian</h2>
+        <p class="modal-subtitle">Pastikan data di bawah sudah benar</p>
+
+        <div class="alert" id="alertConfirm">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span id="alertConfirmText"></span>
+        </div>
+
+        <div id="confirmDetails" style="background:var(--bg-light);border:2px solid var(--border-dark);border-radius:var(--radius-sm);padding:16px;margin-bottom:20px;">
+            <!-- diisi JS -->
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button type="button" class="btn btn-block" data-modal-close>Batal</button>
+            <button type="button" class="btn btn-primary btn-block" id="btnConfirmOrder">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Konfirmasi & Beli
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL SUKSES ===== -->
+<div class="modal-overlay" id="modalSuccess">
+    <div class="modal">
+        <div class="success-modal">
+            <div class="success-icon">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <h2>Order Berhasil!</h2>
+            <p class="modal-subtitle">Nomor kamu sudah siap. Tunggu OTP masuk ya.</p>
+
+            <div class="phone-display">
+                <div style="flex:1;text-align:left;">
+                    <div class="label">Nomor Kamu</div>
+                    <div class="number" id="successPhone">—</div>
+                </div>
+                <button class="copy-btn" id="copyPhone" title="Copy nomor">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                </button>
+            </div>
+
+            <div class="alert alert-info" style="display:flex;">
+                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                <div>
+                    OTP biasanya masuk dalam <strong>1-5 menit</strong>. Cek di <strong>Inbox</strong> untuk lihat kode OTP.
+                </div>
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="button" class="btn btn-block" data-modal-close>Tutup</button>
+                <a href="/inbox" class="btn btn-primary btn-block">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    Lihat Inbox
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/cache.js"></script>
+<script>
+    // ===== HELPERS =====
+    function formatRupiah(angka) {
+        if (!angka) return 'Rp0';
+        return 'Rp' + Number(angka).toLocaleString('id-ID');
+    }
+
+    function getInitial(name) {
+        return name ? name.charAt(0).toUpperCase() : '?';
+    }
+
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/login';
+
+    // ===== STATE =====
+    let state = {
+        server: null,
+        service: null,
+        serviceName: null,
+        price: null,        // provider object { id, price_idr, stock }
+    };
+
+    // ===== SERVER LABEL MAPPING =====
+    const SERVER_META = {
+        ekonomi: { icon: '💰', desc: 'Harga terjangkau, khusus Indonesia', badge: 'ID' },
+        murah: { icon: '⚡', desc: 'Harga murah, proses cepat', badge: null },
+        premium: { icon: '⭐', desc: 'Prioritas & stok banyak', badge: null },
+        global: { icon: '🌍', desc: 'Server internasional', badge: null },
+    };
+
+    // ===== LOAD USER (SWR) =====
+    swrFetch('/api/user', 'user_profile', (user, meta) => {
+        if (!user) return;
+
+        document.getElementById('userName').textContent = user.name || user.username;
+        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+        document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
+        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+    });
+
+    // ===== LOAD SERVERS =====
+    async function loadServers() {
+        const grid = document.getElementById('serverGrid');
+
+        try {
+            const res = await fetch('/api/nokos/servers', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (!data.servers || data.servers.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-block" style="grid-column: 1 / -1;">
+                        <div class="icon-box">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </div>
+                        <h3>Belum ada server</h3>
+                        <p>Server sedang tidak tersedia. Coba lagi nanti.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = data.servers.map(s => {
+                const meta = SERVER_META[s.id] || { icon: '🖥️', desc: 'Server', badge: null };
+                return `
+                    <button class="server-card" data-server="${s.id}">
+                        <div class="server-icon">${meta.icon}</div>
+                        <div class="server-info">
+                            <div class="server-title">
+                                ${s.label}
+                                ${meta.badge ? `<span class="server-badge">${meta.badge}</span>` : ''}
+                            </div>
+                            <div class="server-desc">${meta.desc}</div>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+
+            // Event listener
+            grid.querySelectorAll('.server-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    grid.querySelectorAll('.server-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+
+                    state.server = card.dataset.server;
+                    state.service = null;
+                    state.serviceName = null;
+                    state.price = null;
+
+                    // Update step indicator
+                    document.getElementById('step1').classList.add('done');
+                    document.getElementById('step2').classList.add('active');
+
+                    // Show section 2 & hide 3
+                    document.getElementById('sectionService').style.display = 'block';
+                    document.getElementById('sectionPrice').style.display = 'none';
+
+                    // Scroll
+                    document.getElementById('sectionService').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    // Load services
+                    loadServices(state.server);
+                });
+            });
+        } catch (err) {
+            console.error('Load servers error:', err);
+            grid.innerHTML = `
+                <div class="empty-block" style="grid-column: 1 / -1;">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                    <h3>Gagal memuat server</h3>
+                    <p>${err.message || 'Coba refresh halaman'}</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===== LOAD SERVICES =====
+    async function loadServices(serverId) {
+        const grid = document.getElementById('serviceGrid');
+        grid.innerHTML = `
+            <div class="loading-block" style="grid-column: 1 / -1;">
+                <span class="loading-spinner"></span>
+                <span>Memuat layanan...</span>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(`/api/nokos/services?server=${serverId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+
+            if (!data.services || data.services.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-block" style="grid-column: 1 / -1;">
+                        <div class="icon-box">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </div>
+                        <h3>Belum ada layanan</h3>
+                        <p>Server ini belum punya layanan tersedia.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const SERVICE_ICONS = {
+                wa: '💬',
+                tg: '✈️',
+                go: '🔍',
+                ig: '📷',
+                fb: '👥',
+                tt: '🎵',
+                tw: '🐦',
+            };
+
+            grid.innerHTML = data.services.map(s => {
+                const icon = SERVICE_ICONS[s.code] || '📱';
+                return `
+                    <button class="service-card" data-service="${s.code}" data-name="${s.name}">
+                        <div class="service-logo">${icon}</div>
+                        <div class="service-name">${s.name}</div>
+                    </button>
+                `;
+            }).join('');
+
+            grid.querySelectorAll('.service-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    grid.querySelectorAll('.service-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+
+                    state.service = card.dataset.service;
+                    state.serviceName = card.dataset.name;
+                    state.price = null;
+
+                    document.getElementById('step2').classList.add('done');
+                    document.getElementById('step3').classList.add('active');
+
+                    document.getElementById('sectionPrice').style.display = 'block';
+                    document.getElementById('sectionPrice').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                    document.getElementById('priceSubtitle').textContent =
+                        `Harga ${state.serviceName} di ${SERVER_META[state.server]?.desc || state.server}`;
+
+                    loadPrices(state.server, state.service, 'id');
+                });
+            });
+        } catch (err) {
+            console.error('Load services error:', err);
+            grid.innerHTML = `
+                <div class="empty-block" style="grid-column: 1 / -1;">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                    <h3>Gagal memuat layanan</h3>
+                    <p>${err.message || 'Coba lagi nanti'}</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===== LOAD PRICES =====
+    async function loadPrices(serverId, serviceCode, countryCode) {
+        const list = document.getElementById('priceList');
+        list.innerHTML = `
+            <div class="loading-block">
+                <span class="loading-spinner"></span>
+                <span>Memuat harga...</span>
+            </div>
+        `;
+
+        try {
+            const res = await fetch(
+                `/api/nokos/prices?server=${serverId}&service=${serviceCode}&country=${countryCode}`,
+                { headers: { 'Authorization': `Bearer ${token}` } }
+            );
+            const data = await res.json();
+
+            if (!data.providers || data.providers.length === 0) {
+                list.innerHTML = `
+                    <div class="empty-block">
+                        <div class="icon-box">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </div>
+                        <h3>Stok habis</h3>
+                        <p>Belum ada stok tersedia untuk layanan ini. Coba lagi nanti.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Sort by price ASC
+            const sorted = [...data.providers].sort((a, b) => a.price_idr - b.price_idr);
+
+            list.innerHTML = sorted.map((p, i) => {
+                const stockClass = p.stock < 50 ? 'low' : '';
+                return `
+                    <div class="price-item">
+                        <div class="price-stock-icon">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        </div>
+                        <div class="price-info">
+                            <div class="price-title">
+                                ${state.serviceName} - Opsi ${i + 1}
+                                <span class="price-stock ${stockClass}">
+                                    ${p.stock} stok
+                                </span>
+                            </div>
+                            <div class="price-meta">Server: ${SERVER_META[state.server]?.desc || state.server}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div class="price-amount">${formatRupiah(p.price_idr)}</div>
+                            <button class="btn btn-primary btn-sm" data-buy='${JSON.stringify(p)}'>
+                                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+                                Beli
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            list.querySelectorAll('[data-buy]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const priceData = JSON.parse(btn.dataset.buy);
+                    openConfirmModal(priceData);
+                });
+            });
+        } catch (err) {
+            console.error('Load prices error:', err);
+            list.innerHTML = `
+                <div class="empty-block">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </div>
+                    <h3>Gagal memuat harga</h3>
+                    <p>${err.message || 'Coba lagi nanti'}</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===== CONFIRM MODAL =====
+    let pendingPrice = null;
+
+    function openConfirmModal(priceData) {
+        pendingPrice = priceData;
+
+        const details = document.getElementById('confirmDetails');
+        details.innerHTML = `
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:var(--text-gray);font-size:0.85rem;">Server</span>
+                <strong>${SERVER_META[state.server]?.desc || state.server}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:var(--text-gray);font-size:0.85rem;">Layanan</span>
+                <strong>${state.serviceName}</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <span style="color:var(--text-gray);font-size:0.85rem;">Negara</span>
+                <strong>🇮🇩 Indonesia</strong>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);">
+                <span style="color:var(--text-gray);font-size:0.85rem;">Harga</span>
+                <strong style="color:var(--primary);font-family:var(--font-mono);font-size:1.1rem;">
+                    ${formatRupiah(priceData.price_idr)}
+                </strong>
+            </div>
+        `;
+
+        document.getElementById('modalConfirm').classList.add('active');
+    }
+
+    // ===== KONFIRMASI ORDER =====
+    document.getElementById('btnConfirmOrder').addEventListener('click', async () => {
+        if (!pendingPrice) return;
+
+        const btn = document.getElementById('btnConfirmOrder');
+        const original = btn.innerHTML;
+        const alertEl = document.getElementById('alertConfirm');
+
+        alertEl.classList.remove('show');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Memproses...';
+
+        try {
+            const res = await fetch('/api/nokos/order', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    id: pendingPrice.id,
+                    server: state.server,
+                    service: state.service,
+                    service_name: state.serviceName,
+                    country: 'id',
+                    country_flag: '🇮🇩',
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.error || 'Order gagal');
+            }
+
+            // Tutup modal konfirmasi, buka modal sukses
+            document.getElementById('modalConfirm').classList.remove('active');
+            document.getElementById('successPhone').textContent = data.order.phone_number;
+
+            // Update saldo di cache (hapus aja, biar next load fresh)
+            CacheManager.remove('user_profile');
+
+            document.getElementById('modalSuccess').classList.add('active');
+
+            // Reset state
+            state.price = null;
+            pendingPrice = null;
+
+        } catch (err) {
+            alertEl.className = 'alert show alert-danger';
+            document.getElementById('alertConfirmText').textContent = err.message;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    });
+
+    // ===== COPY PHONE =====
+    document.getElementById('copyPhone').addEventListener('click', () => {
+        const phone = document.getElementById('successPhone').textContent;
+        navigator.clipboard.writeText(phone).then(() => {
+            const btn = document.getElementById('copyPhone');
+            const original = btn.innerHTML;
+            btn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => btn.innerHTML = original, 1200);
+        });
+    });
+
+    // ===== MODAL CLOSE =====
+    document.querySelectorAll('[data-modal-close]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.closest('.modal-overlay');
+            if (modal) modal.classList.remove('active');
+        });
+    });
+
+    document.querySelectorAll('.modal-overlay').forEach(overlay => {
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+
+    // ===== LOGOUT =====
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (err) {}
+
+        CacheManager.clear();
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+
+        window.location.href = '/landing';
+    });
+
+    // ===== MOBILE SIDEBAR =====
+    const mobileToggle = document.querySelector('.mobile-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        });
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+    }
+
+    // ===== INIT =====
+    loadServers();
+</script>
+
+</body>
+</html>
