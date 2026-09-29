@@ -1,0 +1,13 @@
+{
+  "name": "asyrofotp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AsyrofOTP - Layanan OTP Cepat & Terpercaya",
+  "dependencies": {
+    "express": "^4.19.2",
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}
