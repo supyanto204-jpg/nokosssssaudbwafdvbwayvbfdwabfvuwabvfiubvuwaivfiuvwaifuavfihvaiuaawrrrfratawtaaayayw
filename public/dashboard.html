@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AsyrofOTP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/dashboard.css">
+</head>
+<body>
+
+<div class="dashboard-layout">
+
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">A</div>
+                <div>Asyrof<span>OTP</span></div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item active">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                Home
+            </a>
+            <a href="/nokos" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                Beli Nokos
+            </a>
+            <a href="/inbox" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                Inbox
+            </a>
+            <a href="/deposit" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                Deposit
+            </a>
+
+            <div class="nav-section-label">Lainnya</div>
+            <a href="#" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                Bantuan
+            </a>
+            <a href="/landing" class="nav-item">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                Keluar
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">Y</div>
+                <div class="user-details">
+                    <div class="user-name">Yanto</div>
+                    <div class="user-balance">Rp1.110</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay"></div>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="main-content">
+
+        <!-- TOP BAR -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <h1>Dashboard</h1>
+                <p>Selamat datang kembali, Yanto 👋</p>
+            </div>
+            <div class="topbar-right">
+                <button class="mobile-toggle">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div class="balance-pill">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span class="label">Saldo:</span>
+                    <span class="amount">Rp1.110</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </div>
+                <div class="stat-label">Total Nokos</div>
+                <div class="stat-value">24</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="stat-label">Berhasil</div>
+                <div class="stat-value">21</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon yellow">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <div class="stat-label">Pending</div>
+                <div class="stat-value">2</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </div>
+                <div class="stat-label">Gagal</div>
+                <div class="stat-value">1</div>
+            </div>
+        </div>
+
+        <!-- QUICK ACTIONS -->
+        <div class="quick-actions">
+            <a href="/nokos" class="quick-action">
+                <div class="icon-box">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                </div>
+                Beli Nokos
+            </a>
+            <a href="/deposit" class="quick-action">
+                <div class="icon-box">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                Deposit
+            </a>
+            <a href="/inbox" class="quick-action">
+                <div class="icon-box">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                </div>
+                Inbox
+            </a>
+            <a href="#" class="quick-action">
+                <div class="icon-box">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                Bantuan
+            </a>
+        </div>
+
+        <!-- TRANSAKSI TERAKHIR -->
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <h2>Transaksi Terakhir</h2>
+                    <p>5 transaksi terakhir kamu</p>
+                </div>
+                <a href="/inbox" class="btn btn-sm">Lihat Semua</a>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tanggal</th>
+                            <th>Layanan</th>
+                            <th>Negara</th>
+                            <th>Harga</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>29 Sep, 14:32</td>
+                            <td>WhatsApp</td>
+                            <td>🇮🇩 Indonesia</td>
+                            <td>Rp3.685</td>
+                            <td><span class="badge success">Berhasil</span></td>
+                        </tr>
+                        <tr>
+                            <td>29 Sep, 13:15</td>
+                            <td>Telegram</td>
+                            <td>🇷🇺 Russia</td>
+                            <td>Rp2.500</td>
+                            <td><span class="badge success">Berhasil</span></td>
+                        </tr>
+                        <tr>
+                            <td>29 Sep, 11:48</td>
+                            <td>Google</td>
+                            <td>🇮🇩 Indonesia</td>
+                            <td>Rp4.200</td>
+                            <td><span class="badge warning">Pending</span></td>
+                        </tr>
+                        <tr>
+                            <td>28 Sep, 22:10</td>
+                            <td>TikTok</td>
+                            <td>🇺🇸 USA</td>
+                            <td>Rp5.000</td>
+                            <td><span class="badge danger">Gagal</span></td>
+                        </tr>
+                        <tr>
+                            <td>28 Sep, 20:05</td>
+                            <td>Instagram</td>
+                            <td>🇮🇩 Indonesia</td>
+                            <td>Rp3.200</td>
+                            <td><span class="badge success">Berhasil</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
