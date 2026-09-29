@@ -1,0 +1,1290 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* ===== RESET & VARIABLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --telegram: #229ED9;
+            --whatsapp: #25D366;
+            --text-dark: #0f172a;
+            --text-gray: #64748b;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --border: #e2e8f0;
+            --border-dark: #0f172a;
+            --radius: 16px;
+            --radius-sm: 10px;
+            --shadow-hard: 4px 4px 0px rgba(15, 23, 42, 1);
+            --shadow-hard-sm: 3px 3px 0px rgba(15, 23, 42, 1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* ===== DOT GRID BACKGROUND ===== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 24px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== SVG ICON DEFAULT ===== */
+        .icon-svg {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            vertical-align: middle;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .icon-svg.fill {
+            fill: currentColor;
+            stroke: none;
+        }
+
+        /* ===== NAVBAR ===== */
+        nav {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            border-bottom: 2px solid var(--border-dark);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 72px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.25rem;
+            color: var(--text-dark);
+            text-decoration: none;
+        }
+
+        .logo-icon {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            border: 2px solid var(--border-dark);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+        }
+
+        .logo-icon .icon-svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 32px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--text-gray);
+            font-weight: 500;
+            font-size: 0.95rem;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--primary);
+            transition: width 0.25s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .btn-nav {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-nav .icon-svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .btn-nav:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+        }
+
+        .btn-nav:active {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+
+        /* ===== HERO ===== */
+        .hero {
+            padding: 90px 0 70px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Sunburst tipis di belakang hero */
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 200%;
+            height: 200%;
+            transform: translate(-50%, -50%);
+            background: conic-gradient(
+                from 0deg,
+                transparent 0deg, transparent 10deg,
+                rgba(37, 99, 235, 0.05) 10deg, rgba(37, 99, 235, 0.05) 20deg,
+                transparent 20deg, transparent 30deg,
+                rgba(124, 58, 237, 0.04) 30deg, rgba(124, 58, 237, 0.04) 40deg,
+                transparent 40deg, transparent 50deg,
+                rgba(37, 99, 235, 0.05) 50deg, rgba(37, 99, 235, 0.05) 60deg,
+                transparent 60deg, transparent 70deg,
+                rgba(124, 58, 237, 0.04) 70deg, rgba(124, 58, 237, 0.04) 80deg,
+                transparent 80deg, transparent 90deg,
+                rgba(37, 99, 235, 0.05) 90deg, rgba(37, 99, 235, 0.05) 100deg,
+                transparent 100deg, transparent 110deg,
+                rgba(124, 58, 237, 0.04) 110deg, rgba(124, 58, 237, 0.04) 120deg,
+                transparent 120deg, transparent 130deg,
+                rgba(37, 99, 235, 0.05) 130deg, rgba(37, 99, 235, 0.05) 140deg,
+                transparent 140deg, transparent 150deg,
+                rgba(124, 58, 237, 0.04) 150deg, rgba(124, 58, 237, 0.04) 160deg,
+                transparent 160deg, transparent 170deg,
+                rgba(37, 99, 235, 0.05) 170deg, rgba(37, 99, 235, 0.05) 180deg,
+                transparent 180deg, transparent 190deg,
+                rgba(124, 58, 237, 0.04) 190deg, rgba(124, 58, 237, 0.04) 200deg,
+                transparent 200deg, transparent 210deg,
+                rgba(37, 99, 235, 0.05) 210deg, rgba(37, 99, 235, 0.05) 220deg,
+                transparent 220deg, transparent 230deg,
+                rgba(124, 58, 237, 0.04) 230deg, rgba(124, 58, 237, 0.04) 240deg,
+                transparent 240deg, transparent 250deg,
+                rgba(37, 99, 235, 0.05) 250deg, rgba(37, 99, 235, 0.05) 260deg,
+                transparent 260deg, transparent 270deg,
+                rgba(124, 58, 237, 0.04) 270deg, rgba(124, 58, 237, 0.04) 280deg,
+                transparent 280deg, transparent 290deg,
+                rgba(37, 99, 235, 0.05) 290deg, rgba(37, 99, 235, 0.05) 300deg,
+                transparent 300deg, transparent 310deg,
+                rgba(124, 58, 237, 0.04) 310deg, rgba(124, 58, 237, 0.04) 320deg,
+                transparent 320deg, transparent 330deg,
+                rgba(37, 99, 235, 0.05) 330deg, rgba(37, 99, 235, 0.05) 340deg,
+                transparent 340deg, transparent 350deg,
+                rgba(124, 58, 237, 0.04) 350deg, rgba(124, 58, 237, 0.04) 360deg
+            );
+            animation: spin 90s linear infinite;
+            z-index: 0;
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        @keyframes spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .hero > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 24px;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .hero-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: #22c55e;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+
+        .hero h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+            margin-bottom: 20px;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            color: var(--text-gray);
+            font-size: 1.1rem;
+            max-width: 560px;
+            margin: 0 auto 36px;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            padding: 14px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 1rem;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-primary .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-primary:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+        }
+
+        .btn-primary:active {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+
+        .btn-outline {
+            background: white;
+            color: var(--text-dark);
+            padding: 14px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1rem;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard);
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-outline .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-outline:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            color: var(--primary);
+        }
+
+        .btn-outline:active {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+
+        /* ===== CONTACT CARDS (dengan parallax glow) ===== */
+        .contact-section {
+            padding: 0 0 90px;
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .contact-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 32px 28px;
+            text-align: center;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard);
+            transition: all 0.25s;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        /* Glow yang ngikutin kursor / gyroscope */
+        .contact-card .glow {
+            position: absolute;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s;
+            opacity: 0;
+            filter: blur(20px);
+        }
+
+        .contact-card.telegram-card .glow {
+            background: radial-gradient(circle, rgba(34, 158, 217, 0.3) 0%, transparent 70%);
+        }
+
+        .contact-card.whatsapp-card .glow {
+            background: radial-gradient(circle, rgba(37, 211, 102, 0.3) 0%, transparent 70%);
+        }
+
+        .contact-card:hover .glow {
+            opacity: 1;
+        }
+
+        /* Garis atas berwarna */
+        .contact-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--primary);
+            z-index: 1;
+        }
+
+        .contact-card.telegram-card::before {
+            background: var(--telegram);
+        }
+
+        .contact-card.whatsapp-card::before {
+            background: var(--whatsapp);
+        }
+
+        .contact-card:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 7px 7px 0px rgba(15, 23, 42, 1);
+        }
+
+        .contact-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+            position: relative;
+            z-index: 1;
+        }
+
+        .contact-icon.telegram {
+            background: #e8f4fd;
+            color: var(--telegram);
+        }
+
+        .contact-icon.whatsapp {
+            background: #e8f9ee;
+            color: var(--whatsapp);
+        }
+
+        .contact-icon .icon-svg {
+            width: 30px;
+            height: 30px;
+        }
+
+        .contact-card h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .contact-card p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            margin-bottom: 18px;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+
+        .contact-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 9px 22px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: 2px solid var(--border-dark);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            position: relative;
+            z-index: 1;
+        }
+
+        .contact-btn .icon-svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        .contact-btn.telegram {
+            background: var(--telegram);
+            color: white;
+        }
+
+        .contact-btn.whatsapp {
+            background: var(--whatsapp);
+            color: white;
+        }
+
+        .contact-btn:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+        }
+
+        /* ===== FEATURES ===== */
+        .features {
+            padding: 90px 0;
+            background: white;
+            border-top: 2px solid var(--border-dark);
+            border-bottom: 2px solid var(--border-dark);
+            position: relative;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .features .container {
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 56px;
+        }
+
+        .section-badge {
+            display: inline-block;
+            background: var(--primary-light);
+            color: var(--primary);
+            padding: 5px 14px;
+            border-radius: 50px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+
+        .section-header h2 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 12px;
+        }
+
+        .section-header p {
+            color: var(--text-gray);
+            font-size: 1rem;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-light);
+            border-radius: var(--radius);
+            padding: 32px 28px;
+            border: 2px solid var(--border-dark);
+            transition: all 0.25s;
+            box-shadow: var(--shadow-hard-sm);
+            position: relative;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        .feature-card .glow {
+            position: absolute;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, transparent 70%);
+            pointer-events: none;
+            z-index: -1;
+            transform: translate(-50%, -50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            filter: blur(20px);
+        }
+
+        .feature-card:hover .glow {
+            opacity: 1;
+        }
+
+        .feature-card:hover {
+            background: white;
+            transform: translate(-3px, -3px);
+            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+        }
+
+        .feature-icon {
+            width: 52px;
+            height: 52px;
+            background: var(--primary-light);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            color: var(--primary);
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-icon .icon-svg {
+            width: 24px;
+            height: 24px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .feature-card p {
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== STEPS ===== */
+        .steps {
+            padding: 90px 0;
+            position: relative;
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+
+        .step-card {
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 52px;
+            height: 52px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 1.1rem;
+            margin: 0 auto 20px;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .step-card h3 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .step-card p {
+            color: var(--text-gray);
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        /* ===== FAQ ===== */
+        .faq {
+            padding: 90px 0;
+            background: white;
+            border-top: 2px solid var(--border-dark);
+            border-bottom: 2px solid var(--border-dark);
+            position: relative;
+        }
+
+        .faq::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
+            background-size: 24px 24px;
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .faq .container {
+            position: relative;
+            z-index: 1;
+        }
+
+        .faq-list {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius-sm);
+            margin-bottom: 12px;
+            overflow: hidden;
+            transition: all 0.2s;
+            background: white;
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .faq-item:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+        }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 20px 24px;
+            text-align: left;
+            font-family: inherit;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .faq-question .icon-plus {
+            width: 20px;
+            height: 20px;
+            color: var(--primary);
+            transition: transform 0.3s;
+            flex-shrink: 0;
+        }
+
+        .faq-item.active .faq-question .icon-plus {
+            transform: rotate(45deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .faq-answer-inner {
+            padding: 0 24px 20px;
+            color: var(--text-gray);
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .faq-item.active .faq-answer {
+            max-height: 250px;
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: var(--text-dark);
+            color: #94a3b8;
+            padding: 48px 0 32px;
+            position: relative;
+            z-index: 1;
+            border-top: 2px solid var(--border-dark);
+        }
+
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+
+        .footer-logo .logo-icon {
+            width: 32px;
+            height: 32px;
+            box-shadow: 2px 2px 0px rgba(255, 255, 255, 0.15);
+        }
+
+        .footer-logo .logo-icon .icon-svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 24px;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: white;
+        }
+
+        .footer-copy {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #1e293b;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .footer-copy a {
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .section-header h2 {
+                font-size: 1.7rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .steps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-primary, .btn-outline {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== NAVBAR ===== -->
+    <nav>
+        <div class="container nav-inner">
+            <a href="#" class="logo">
+                <div class="logo-icon">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                </div>
+                AsyrofOTP
+            </a>
+            <ul class="nav-links">
+                <li><a href="#beranda">Beranda</a></li>
+                <li><a href="#fitur">Fitur</a></li>
+                <li><a href="#cara-kerja">Cara Kerja</a></li>
+                <li><a href="#faq">FAQ</a></li>
+            </ul>
+            <div class="nav-cta">
+                <a href="https://t.me/AsyrofC" target="_blank" class="btn-nav">
+                    <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    Hubungi Kami
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ===== HERO ===== -->
+    <section class="hero" id="beranda">
+        <div class="container">
+            <div class="hero-badge">
+                <span class="dot"></span>
+                Layanan Aktif 24 Jam
+            </div>
+            <h1>Digital Mudah,<br><span>Tanpa Perlu Ribet</span></h1>
+            <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
+            <div class="hero-buttons">
+                <a href="https://t.me/AsyrofC" target="_blank" class="btn-primary">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+                    Mulai Sekarang
+                </a>
+                <a href="#cara-kerja" class="btn-outline">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                    Cara Kerja
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== CONTACT CARDS ===== -->
+    <section class="contact-section">
+        <div class="container">
+            <div class="contact-grid">
+                <!-- Telegram -->
+                <a href="https://t.me/AsyrofC" target="_blank" class="contact-card telegram-card">
+                    <div class="glow"></div>
+                    <div class="contact-icon telegram">
+                        <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                    </div>
+                    <h3>Telegram</h3>
+                    <p>@AsyrofC</p>
+                    <span class="contact-btn telegram">
+                        Chat Sekarang
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </span>
+                </a>
+
+                <!-- WhatsApp -->
+                <a href="https://wa.me/AsyrofC_" target="_blank" class="contact-card whatsapp-card">
+                    <div class="glow"></div>
+                    <div class="contact-icon whatsapp">
+                        <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    </div>
+                    <h3>WhatsApp</h3>
+                    <p>wa.me/AsyrofC_</p>
+                    <span class="contact-btn whatsapp">
+                        Chat Sekarang
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FEATURES ===== -->
+    <section class="features" id="fitur">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-badge">Fitur Unggulan</div>
+                <h2>Layanan Terbaik Kami</h2>
+                <p>Fitur terbaik untuk solusi digital yang cepat, aman, dan mudah.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="glow"></div>
+                    <div class="feature-icon">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                    <h3>Fast Receive</h3>
+                    <p>Layanan OTP kami menjamin penerimaan SMS instan tanpa delay atau gangguan jaringan.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="glow"></div>
+                    <div class="feature-icon">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                    <h3>Terpercaya</h3>
+                    <p>AsyrofOTP berkomitmen untuk menjaga kepercayaan pengguna dengan terus meningkatkan kualitas layanan.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="glow"></div>
+                    <div class="feature-icon">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3>Dukungan Prima</h3>
+                    <p>Tim support kami siap membantu 24/7 untuk memastikan kelancaran layanan dan kepuasan pengguna.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== STEPS ===== -->
+    <section class="steps" id="cara-kerja">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-badge">Langkah Demi Langkah</div>
+                <h2>Bagaimana Cara Kerjanya</h2>
+                <p>4 langkah mudah mendapatkan Jasa OTP secara instan!</p>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h3>Pilih Layanan</h3>
+                    <p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h3>Pilih Negara</h3>
+                    <p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h3>Gunakan Layanan</h3>
+                    <p>Masukkan dan tunggu hingga pesan text masuk.</p>
+                </div>
+                <div class="step-card">
+                    <div class="step-number">4</div>
+                    <h3>Terima Pesan</h3>
+                    <p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="faq" id="faq">
+        <div class="container">
+            <div class="section-header">
+                <div class="section-badge">FAQ</div>
+                <h2>Frequently Asked Questions</h2>
+                <p>Beberapa pertanyaan yang sering di tanyakan oleh pengguna layanan kami.</p>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Untuk apa ini?
+                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP (One-Time Password) dari berbagai aplikasi dan layanan digital. Cocok untuk verifikasi akun tanpa menggunakan nomor pribadi.
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Bagaimana proses top-up dan keamanan saldo?
+                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi. Kami tidak menyimpan data pembayaran sensitif Anda.
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Saldo tidak bertambah meskipun pembayaran sudah berhasil?
+                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Silakan hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp. Sertakan bukti pembayaran Anda, dan tim kami akan segera memprosesnya.
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Pesanan gagal, apakah saldo tetap terpotong?
+                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Tidak. Jika pesanan gagal atau OTP tidak diterima, saldo Anda akan dikembalikan secara otomatis (refund) sesuai dengan kebijakan kami.
+                        </div>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">
+                        Apakah layanan ini terpercaya?
+                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    </button>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan. Kami mengutamakan keamanan dan kepuasan pengguna.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== FOOTER ===== -->
+    <footer>
+        <div class="container">
+            <div class="footer-inner">
+                <div class="footer-logo">
+                    <div class="logo-icon">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                    </div>
+                    AsyrofOTP
+                </div>
+                <ul class="footer-links">
+                    <li><a href="#beranda">Beranda</a></li>
+                    <li><a href="#fitur">Fitur</a></li>
+                    <li><a href="#cara-kerja">Cara Kerja</a></li>
+                    <li><a href="#faq">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="footer-copy">
+                &copy; 2025 AsyrofOTP. All rights reserved. | Support via 
+                <a href="https://t.me/AsyrofC" target="_blank" style="color: #229ED9;">Telegram</a> & 
+                <a href="https://wa.me/AsyrofC_" target="_blank" style="color: #25D366;">WhatsApp</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ===== SCRIPT ===== -->
+    <script>
+        // ===== FAQ ACCORDION =====
+        document.querySelectorAll('.faq-question').forEach(button => {
+            button.addEventListener('click', () => {
+                const item = button.parentElement;
+                const isActive = item.classList.contains('active');
+                
+                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+                
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
+
+        // ===== PARALLAX GLOW (Mouse + Gyroscope) =====
+        (function() {
+            const cards = document.querySelectorAll('.contact-card, .feature-card');
+            
+            // Desktop: Mouse move
+            cards.forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    const glow = card.querySelector('.glow');
+                    if (glow) {
+                        glow.style.left = x + 'px';
+                        glow.style.top = y + 'px';
+                        glow.style.opacity = '1';
+                    }
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    const glow = card.querySelector('.glow');
+                    if (glow) glow.style.opacity = '0';
+                });
+            });
+
+            // Mobile: Gyroscope (device orientation)
+            let lastX = 0, lastY = 0;
+            
+            function handleOrientation(event) {
+                // beta = depan-belakang (-180 to 180), gamma = kiri-kanan (-90 to 90)
+                const beta = event.beta || 0;
+                const gamma = event.gamma || 0;
+                
+                // Normalisasi ke -1 s/d 1
+                const normX = Math.max(-1, Math.min(1, gamma / 45));
+                const normY = Math.max(-1, Math.min(1, (beta - 45) / 45));
+                
+                // Smoothing
+                lastX += (normX - lastX) * 0.1;
+                lastY += (normY - lastY) * 0.1;
+                
+                cards.forEach(card => {
+                    const glow = card.querySelector('.glow');
+                    if (!glow) return;
+                    
+                    const rect = card.getBoundingClientRect();
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    // Geser glow berdasarkan kemiringan HP
+                    const offsetX = lastX * (rect.width * 0.4);
+                    const offsetY = lastY * (rect.height * 0.4);
+                    
+                    glow.style.left = (centerX + offsetX) + 'px';
+                    glow.style.top = (centerY + offsetY) + 'px';
+                    glow.style.opacity = '0.8';
+                });
+            }
+            
+            // Cek apakah device orientation didukung
+            if (window.DeviceOrientationEvent) {
+                // iOS 13+ butuh permission
+                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                    // Tambahkan tombol permission (opsional)
+                    // Untuk sekarang, coba langsung
+                    window.addEventListener('deviceorientation', handleOrientation);
+                } else {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            }
+        })();
+    </script>
+
+</body>
+</html>
