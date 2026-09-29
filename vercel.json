@@ -4,6 +4,13 @@
     { "src": "api/index.js", "use": "@vercel/node" },
     { "src": "public/**", "use": "@vercel/static" }
   ],
+  "redirects": [
+    { "source": "/", "destination": "/landing", "permanent": false },
+    { "source": "/landing.html", "destination": "/landing", "permanent": true },
+    { "source": "/login.html", "destination": "/login", "permanent": true },
+    { "source": "/daftar.html", "destination": "/daftar", "permanent": true },
+    { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/landing", "destination": "/public/landing.html" },
