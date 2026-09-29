@@ -7,13 +7,464 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/dashboard.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary: #2563eb;
+            --primary-light: #eff6ff;
+            --primary-dark: #1d4ed8;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-dark: #0f172a;
+            --text-gray: #64748b;
+            --bg-light: #f8fafc;
+            --border: #e2e8f0;
+            --border-dark: #0f172a;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-light);
+            color: var(--text-dark);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .icon-svg {
+            width: 20px;
+            height: 20px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            flex-shrink: 0;
+        }
+
+        .dashboard-layout { display: flex; min-height: 100vh; }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 2px solid var(--border-dark);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            top: 0; left: 0;
+            height: 100vh;
+            z-index: 100;
+            transition: transform 0.3s;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 2px solid var(--border-dark);
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 800;
+            font-size: 1.15rem;
+        }
+
+        .sidebar-logo .logo-icon {
+            width: 36px; height: 36px;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 900; font-size: 1.3rem;
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            transform: rotate(-3deg);
+        }
+
+        .sidebar-logo span { color: var(--primary); }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--text-gray);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+
+        .nav-item:hover { background: var(--primary-light); color: var(--primary); }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--border-dark);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+
+        .nav-section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 16px 14px 8px;
+        }
+
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 2px solid var(--border-dark);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: 10px;
+            background: var(--bg-light);
+            border: 2px solid var(--border-dark);
+        }
+
+        .user-avatar {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-weight: 800; font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .user-details { flex: 1; min-width: 0; }
+
+        .user-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-balance {
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+
+        /* MAIN */
+        .main-content {
+            flex: 1;
+            margin-left: 260px;
+            padding: 24px 32px 60px;
+            min-height: 100vh;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 28px;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .topbar-left h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+        }
+
+        .topbar-left p { color: var(--text-gray); font-size: 0.9rem; }
+
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+
+        .balance-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 8px 16px;
+            border-radius: 50px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .balance-pill .label { color: var(--text-gray); font-weight: 500; font-size: 0.8rem; }
+        .balance-pill .amount { color: var(--primary); font-family: 'Courier New', monospace; }
+        .balance-pill .icon-svg { width: 16px; height: 16px; color: var(--warning); }
+
+        .mobile-toggle {
+            display: none;
+            background: white;
+            border: 2px solid var(--border-dark);
+            border-radius: 10px;
+            padding: 8px 10px;
+            cursor: pointer;
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            color: var(--text-dark);
+        }
+
+        /* CARDS */
+        .card {
+            background: white;
+            border-radius: 14px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .card-header h2 { font-size: 1.1rem; font-weight: 800; }
+        .card-header p { color: var(--text-gray); font-size: 0.85rem; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 14px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0px rgba(15, 23, 42, 1); }
+
+        .stat-icon {
+            width: 40px; height: 40px;
+            border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--border-dark);
+            margin-bottom: 4px;
+        }
+
+        .stat-icon.blue { background: #dbeafe; color: var(--primary); }
+        .stat-icon.green { background: #dcfce7; color: var(--success); }
+        .stat-icon.yellow { background: #fef3c7; color: var(--warning); }
+        .stat-icon.red { background: #fee2e2; color: var(--danger); }
+
+        .stat-label { font-size: 0.8rem; color: var(--text-gray); font-weight: 500; }
+        .stat-value { font-size: 1.4rem; font-weight: 800; font-family: 'Courier New', monospace; letter-spacing: -0.02em; }
+
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: white;
+            border-radius: 14px;
+            border: 2px solid var(--border-dark);
+            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            text-decoration: none;
+            color: var(--text-dark);
+            font-weight: 700;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .quick-action:hover { transform: translate(-2px, -2px); box-shadow: 5px 5px 0px rgba(15, 23, 42, 1); background: var(--primary-light); color: var(--primary); }
+
+        .quick-action .icon-box {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .quick-action:hover .icon-box { background: white; }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 2px solid var(--border-dark);
+        }
+
+        table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
+        thead { background: var(--bg-light); border-bottom: 2px solid var(--border-dark); }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-gray);
+            white-space: nowrap;
+        }
+
+        td { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--primary-light); }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 50px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            border: 1.5px solid var(--border-dark);
+            white-space: nowrap;
+        }
+
+        .badge.success { background: #dcfce7; color: #166534; }
+        .badge.warning { background: #fef3c7; color: #92400e; }
+        .badge.danger { background: #fee2e2; color: #991b1b; }
+        .badge.gray { background: #f1f5f9; color: #475569; }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.88rem;
+            text-decoration: none;
+            cursor: pointer;
+            border: 2px solid var(--border-dark);
+            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            transition: all 0.2s;
+            background: white;
+            color: var(--text-dark);
+            white-space: nowrap;
+        }
+
+        .btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0px rgba(15, 23, 42, 1); }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); color: white; }
+
+        .btn-sm { padding: 6px 14px; font-size: 0.78rem; box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-gray);
+        }
+
+        .empty-state h3 { font-size: 1rem; font-weight: 700; color: var(--text-dark); margin-bottom: 6px; }
+
+        /* LOADING */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(248, 250, 252, 0.9);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .loading-overlay.hidden { display: none; }
+
+        .loading-spinner {
+            width: 48px; height: 48px;
+            border: 4px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .loading-text { color: var(--text-gray); font-weight: 600; font-size: 0.9rem; }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .quick-actions { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 16px 16px 60px; }
+            .mobile-toggle { display: flex; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .quick-actions { grid-template-columns: 1fr; }
+            .topbar-left h1 { font-size: 1.3rem; }
+        }
+
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            z-index: 99;
+        }
+
+        .sidebar-overlay.active { display: block; }
+    </style>
 </head>
 <body>
 
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Memuat dashboard...</div>
+</div>
+
 <div class="dashboard-layout">
 
-    <!-- ===== SIDEBAR ===== -->
+    <!-- SIDEBAR -->
     <aside class="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -45,7 +496,7 @@
                 <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 Bantuan
             </a>
-            <a href="/landing" class="nav-item">
+            <a href="#" class="nav-item" id="logoutBtn">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                 Keluar
             </a>
@@ -53,10 +504,10 @@
 
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="user-avatar">Y</div>
+                <div class="user-avatar" id="userInitial">?</div>
                 <div class="user-details">
-                    <div class="user-name">Yanto</div>
-                    <div class="user-balance">Rp1.110</div>
+                    <div class="user-name" id="userName">Memuat...</div>
+                    <div class="user-balance" id="userBalance">—</div>
                 </div>
             </div>
         </div>
@@ -64,14 +515,12 @@
 
     <div class="sidebar-overlay"></div>
 
-    <!-- ===== MAIN CONTENT ===== -->
+    <!-- MAIN -->
     <main class="main-content">
-
-        <!-- TOP BAR -->
         <div class="topbar">
             <div class="topbar-left">
                 <h1>Dashboard</h1>
-                <p>Selamat datang kembali, Yanto 👋</p>
+                <p>Selamat datang kembali, <span id="greetingName">—</span> 👋</p>
             </div>
             <div class="topbar-right">
                 <button class="mobile-toggle">
@@ -80,7 +529,7 @@
                 <div class="balance-pill">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     <span class="label">Saldo:</span>
-                    <span class="amount">Rp1.110</span>
+                    <span class="amount" id="balancePill">—</span>
                 </div>
             </div>
         </div>
@@ -92,28 +541,28 @@
                     <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 </div>
                 <div class="stat-label">Total Nokos</div>
-                <div class="stat-value">24</div>
+                <div class="stat-value" id="statTotal">—</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon green">
                     <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <div class="stat-label">Berhasil</div>
-                <div class="stat-value">21</div>
+                <div class="stat-value" id="statSuccess">—</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon yellow">
                     <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
                 <div class="stat-label">Pending</div>
-                <div class="stat-value">2</div>
+                <div class="stat-value" id="statPending">—</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon red">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </div>
                 <div class="stat-label">Gagal</div>
-                <div class="stat-value">1</div>
+                <div class="stat-value" id="statFailed">—</div>
             </div>
         </div>
 
@@ -145,7 +594,7 @@
             </a>
         </div>
 
-        <!-- TRANSAKSI TERAKHIR -->
+        <!-- TRANSAKSI -->
         <div class="card">
             <div class="card-header">
                 <div>
@@ -154,7 +603,6 @@
                 </div>
                 <a href="/inbox" class="btn btn-sm">Lihat Semua</a>
             </div>
-
             <div class="table-wrapper">
                 <table>
                     <thead>
@@ -166,50 +614,160 @@
                             <th>Status</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="transactionsTable">
                         <tr>
-                            <td>29 Sep, 14:32</td>
-                            <td>WhatsApp</td>
-                            <td>🇮🇩 Indonesia</td>
-                            <td>Rp3.685</td>
-                            <td><span class="badge success">Berhasil</span></td>
-                        </tr>
-                        <tr>
-                            <td>29 Sep, 13:15</td>
-                            <td>Telegram</td>
-                            <td>🇷🇺 Russia</td>
-                            <td>Rp2.500</td>
-                            <td><span class="badge success">Berhasil</span></td>
-                        </tr>
-                        <tr>
-                            <td>29 Sep, 11:48</td>
-                            <td>Google</td>
-                            <td>🇮🇩 Indonesia</td>
-                            <td>Rp4.200</td>
-                            <td><span class="badge warning">Pending</span></td>
-                        </tr>
-                        <tr>
-                            <td>28 Sep, 22:10</td>
-                            <td>TikTok</td>
-                            <td>🇺🇸 USA</td>
-                            <td>Rp5.000</td>
-                            <td><span class="badge danger">Gagal</span></td>
-                        </tr>
-                        <tr>
-                            <td>28 Sep, 20:05</td>
-                            <td>Instagram</td>
-                            <td>🇮🇩 Indonesia</td>
-                            <td>Rp3.200</td>
-                            <td><span class="badge success">Berhasil</span></td>
+                            <td colspan="5" class="empty-state">Memuat...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
-
     </main>
 </div>
 
-<script src="/js/dashboard.js"></script>
+<script>
+    // ===== FORMAT HELPERS =====
+    function formatRupiah(angka) {
+        if (angka === null || angka === undefined) return '—';
+        return 'Rp' + Number(angka).toLocaleString('id-ID');
+    }
+
+    function formatTanggal(date) {
+        if (!date) return '—';
+        const d = new Date(date);
+        return d.toLocaleString('id-ID', {
+            day: '2-digit', month: 'short',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+
+    function getInitial(name) {
+        return name ? name.charAt(0).toUpperCase() : '?';
+    }
+
+    // ===== AUTH =====
+    const token = localStorage.getItem('access_token');
+
+    if (!token) {
+        window.location.href = '/login';
+    }
+
+    // ===== API HELPER =====
+    async function apiFetch(url, options = {}) {
+        const res = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                ...(options.headers || {})
+            }
+        });
+
+        if (res.status === 401) {
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            throw new Error('Unauthorized');
+        }
+
+        return res.json();
+    }
+
+    // ===== LOAD USER =====
+    async function loadUser() {
+        try {
+            const user = await apiFetch('/api/user');
+
+            document.getElementById('userName').textContent = user.name || user.username;
+            document.getElementById('greetingName').textContent = user.name || user.username;
+            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+            document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
+        } catch (err) {
+            console.error('Failed to load user:', err);
+        }
+    }
+
+    // ===== LOAD DASHBOARD =====
+    async function loadDashboard() {
+        try {
+            const data = await apiFetch('/api/dashboard');
+
+            document.getElementById('statTotal').textContent = data.stats.total;
+            document.getElementById('statSuccess').textContent = data.stats.success;
+            document.getElementById('statPending').textContent = data.stats.pending;
+            document.getElementById('statFailed').textContent = data.stats.failed;
+
+            const tbody = document.getElementById('transactionsTable');
+
+            if (!data.transactions || data.transactions.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" style="text-align:center;padding:40px;color:var(--text-gray);">
+                            Belum ada transaksi
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            const statusMap = {
+                success: { class: 'success', label: 'Berhasil' },
+                pending: { class: 'warning', label: 'Pending' },
+                failed: { class: 'danger', label: 'Gagal' },
+                expired: { class: 'gray', label: 'Expired' }
+            };
+
+            tbody.innerHTML = data.transactions.map(t => {
+                const s = statusMap[t.status] || { class: 'gray', label: t.status };
+                return `
+                    <tr>
+                        <td>${formatTanggal(t.created_at)}</td>
+                        <td><strong>${t.service_name || '—'}</strong></td>
+                        <td>${t.country_flag || ''} ${t.country || '—'}</td>
+                        <td>${formatRupiah(t.price)}</td>
+                        <td><span class="badge ${s.class}">${s.label}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        } catch (err) {
+            console.error('Failed to load dashboard:', err);
+        }
+    }
+
+    // ===== LOGOUT =====
+    document.getElementById('logoutBtn').addEventListener('click', async (e) => {
+        e.preventDefault();
+        try {
+            await apiFetch('/api/auth/logout', { method: 'POST' });
+        } catch (err) {}
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        window.location.href = '/landing';
+    });
+
+    // ===== MOBILE SIDEBAR =====
+    const mobileToggle = document.querySelector('.mobile-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.querySelector('.sidebar-overlay');
+
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            overlay.classList.toggle('active');
+        });
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+        });
+    }
+
+    // ===== INIT =====
+    (async () => {
+        await Promise.all([loadUser(), loadDashboard()]);
+        document.getElementById('loadingOverlay').classList.add('hidden');
+    })();
+</script>
+
 </body>
 </html>
