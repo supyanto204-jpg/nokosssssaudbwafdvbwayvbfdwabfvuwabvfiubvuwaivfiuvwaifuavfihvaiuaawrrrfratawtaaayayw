@@ -6,7 +6,7 @@
     <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         /* ===== RESET & VARIABLES ===== */
         * {
@@ -19,6 +19,7 @@
             --primary: #2563eb;
             --primary-light: #eff6ff;
             --primary-dark: #1d4ed8;
+            --primary-darker: #1e3a8a;
             --telegram: #229ED9;
             --whatsapp: #25D366;
             --text-dark: #0f172a;
@@ -44,21 +45,6 @@
             line-height: 1.6;
             overflow-x: hidden;
             position: relative;
-        }
-
-        /* ===== DOT GRID BACKGROUND ===== */
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
-            background-size: 24px 24px;
-            opacity: 0.4;
-            pointer-events: none;
-            z-index: 0;
         }
 
         /* ===== CONTAINER ===== */
@@ -93,6 +79,7 @@
         nav {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
             border-bottom: 2px solid var(--border-dark);
             position: sticky;
             top: 0;
@@ -109,29 +96,46 @@
         .logo {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             font-weight: 800;
             font-size: 1.25rem;
             color: var(--text-dark);
             text-decoration: none;
         }
 
+        /* Logo huruf "A" — biru gradient, gaya Artapedia */
         .logo-icon {
-            width: 38px;
-            height: 38px;
-            background: linear-gradient(135deg, var(--primary), #7c3aed);
-            border: 2px solid var(--border-dark);
-            border-radius: 10px;
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2.5px solid var(--border-dark);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
+            font-weight: 900;
+            font-size: 1.5rem;
+            font-family: 'Plus Jakarta Sans', sans-serif;
             box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
+            line-height: 1;
+            padding-bottom: 2px;
+            transform: rotate(-3deg);
+            transition: transform 0.2s;
         }
 
-        .logo-icon .icon-svg {
-            width: 20px;
-            height: 20px;
+        .logo:hover .logo-icon {
+            transform: rotate(3deg) scale(1.05);
+        }
+
+        .logo-text {
+            font-weight: 900;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-text span {
+            color: var(--primary);
         }
 
         .nav-links {
@@ -168,37 +172,6 @@
             width: 100%;
         }
 
-        .btn-nav {
-            background: var(--primary);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard-sm);
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .btn-nav .icon-svg {
-            width: 16px;
-            height: 16px;
-        }
-
-        .btn-nav:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
-        }
-
-        .btn-nav:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
-        }
-
         /* ===== HERO ===== */
         .hero {
             padding: 90px 0 70px;
@@ -207,7 +180,7 @@
             overflow: hidden;
         }
 
-        /* Sunburst tipis di belakang hero */
+        /* Sunburst tipis di belakang hero — muter, full biru */
         .hero::before {
             content: '';
             position: absolute;
@@ -219,45 +192,45 @@
             background: conic-gradient(
                 from 0deg,
                 transparent 0deg, transparent 10deg,
-                rgba(37, 99, 235, 0.05) 10deg, rgba(37, 99, 235, 0.05) 20deg,
+                rgba(37, 99, 235, 0.08) 10deg, rgba(37, 99, 235, 0.08) 20deg,
                 transparent 20deg, transparent 30deg,
-                rgba(124, 58, 237, 0.04) 30deg, rgba(124, 58, 237, 0.04) 40deg,
+                rgba(59, 130, 246, 0.06) 30deg, rgba(59, 130, 246, 0.06) 40deg,
                 transparent 40deg, transparent 50deg,
-                rgba(37, 99, 235, 0.05) 50deg, rgba(37, 99, 235, 0.05) 60deg,
+                rgba(37, 99, 235, 0.08) 50deg, rgba(37, 99, 235, 0.08) 60deg,
                 transparent 60deg, transparent 70deg,
-                rgba(124, 58, 237, 0.04) 70deg, rgba(124, 58, 237, 0.04) 80deg,
+                rgba(59, 130, 246, 0.06) 70deg, rgba(59, 130, 246, 0.06) 80deg,
                 transparent 80deg, transparent 90deg,
-                rgba(37, 99, 235, 0.05) 90deg, rgba(37, 99, 235, 0.05) 100deg,
+                rgba(37, 99, 235, 0.08) 90deg, rgba(37, 99, 235, 0.08) 100deg,
                 transparent 100deg, transparent 110deg,
-                rgba(124, 58, 237, 0.04) 110deg, rgba(124, 58, 237, 0.04) 120deg,
+                rgba(59, 130, 246, 0.06) 110deg, rgba(59, 130, 246, 0.06) 120deg,
                 transparent 120deg, transparent 130deg,
-                rgba(37, 99, 235, 0.05) 130deg, rgba(37, 99, 235, 0.05) 140deg,
+                rgba(37, 99, 235, 0.08) 130deg, rgba(37, 99, 235, 0.08) 140deg,
                 transparent 140deg, transparent 150deg,
-                rgba(124, 58, 237, 0.04) 150deg, rgba(124, 58, 237, 0.04) 160deg,
+                rgba(59, 130, 246, 0.06) 150deg, rgba(59, 130, 246, 0.06) 160deg,
                 transparent 160deg, transparent 170deg,
-                rgba(37, 99, 235, 0.05) 170deg, rgba(37, 99, 235, 0.05) 180deg,
+                rgba(37, 99, 235, 0.08) 170deg, rgba(37, 99, 235, 0.08) 180deg,
                 transparent 180deg, transparent 190deg,
-                rgba(124, 58, 237, 0.04) 190deg, rgba(124, 58, 237, 0.04) 200deg,
+                rgba(59, 130, 246, 0.06) 190deg, rgba(59, 130, 246, 0.06) 200deg,
                 transparent 200deg, transparent 210deg,
-                rgba(37, 99, 235, 0.05) 210deg, rgba(37, 99, 235, 0.05) 220deg,
+                rgba(37, 99, 235, 0.08) 210deg, rgba(37, 99, 235, 0.08) 220deg,
                 transparent 220deg, transparent 230deg,
-                rgba(124, 58, 237, 0.04) 230deg, rgba(124, 58, 237, 0.04) 240deg,
+                rgba(59, 130, 246, 0.06) 230deg, rgba(59, 130, 246, 0.06) 240deg,
                 transparent 240deg, transparent 250deg,
-                rgba(37, 99, 235, 0.05) 250deg, rgba(37, 99, 235, 0.05) 260deg,
+                rgba(37, 99, 235, 0.08) 250deg, rgba(37, 99, 235, 0.08) 260deg,
                 transparent 260deg, transparent 270deg,
-                rgba(124, 58, 237, 0.04) 270deg, rgba(124, 58, 237, 0.04) 280deg,
+                rgba(59, 130, 246, 0.06) 270deg, rgba(59, 130, 246, 0.06) 280deg,
                 transparent 280deg, transparent 290deg,
-                rgba(37, 99, 235, 0.05) 290deg, rgba(37, 99, 235, 0.05) 300deg,
+                rgba(37, 99, 235, 0.08) 290deg, rgba(37, 99, 235, 0.08) 300deg,
                 transparent 300deg, transparent 310deg,
-                rgba(124, 58, 237, 0.04) 310deg, rgba(124, 58, 237, 0.04) 320deg,
+                rgba(59, 130, 246, 0.06) 310deg, rgba(59, 130, 246, 0.06) 320deg,
                 transparent 320deg, transparent 330deg,
-                rgba(37, 99, 235, 0.05) 330deg, rgba(37, 99, 235, 0.05) 340deg,
+                rgba(37, 99, 235, 0.08) 330deg, rgba(37, 99, 235, 0.08) 340deg,
                 transparent 340deg, transparent 350deg,
-                rgba(124, 58, 237, 0.04) 350deg, rgba(124, 58, 237, 0.04) 360deg
+                rgba(59, 130, 246, 0.06) 350deg, rgba(59, 130, 246, 0.06) 360deg
             );
-            animation: spin 90s linear infinite;
+            animation: spin 60s linear infinite;
             z-index: 0;
-            opacity: 0.7;
+            opacity: 0.9;
             pointer-events: none;
         }
 
@@ -352,6 +325,7 @@
         .btn-primary:hover {
             transform: translate(-2px, -2px);
             box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            background: var(--primary-dark);
         }
 
         .btn-primary:active {
@@ -391,7 +365,7 @@
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
 
-        /* ===== CONTACT CARDS (dengan parallax glow) ===== */
+        /* ===== CONTACT CARDS ===== */
         .contact-section {
             padding: 0 0 90px;
         }
@@ -420,7 +394,6 @@
             isolation: isolate;
         }
 
-        /* Glow yang ngikutin kursor / gyroscope */
         .contact-card .glow {
             position: absolute;
             width: 220px;
@@ -447,7 +420,6 @@
             opacity: 1;
         }
 
-        /* Garis atas berwarna */
         .contact-card::before {
             content: '';
             position: absolute;
@@ -561,19 +533,6 @@
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
             position: relative;
-        }
-
-        .features::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
-            background-size: 24px 24px;
-            opacity: 0.5;
-            pointer-events: none;
         }
 
         .features .container {
@@ -746,19 +705,6 @@
             position: relative;
         }
 
-        .faq::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: radial-gradient(circle, #e2e8f0 1px, transparent 1px);
-            background-size: 24px 24px;
-            opacity: 0.5;
-            pointer-events: none;
-        }
-
         .faq .container {
             position: relative;
             z-index: 1;
@@ -860,12 +806,8 @@
         .footer-logo .logo-icon {
             width: 32px;
             height: 32px;
+            font-size: 1.2rem;
             box-shadow: 2px 2px 0px rgba(255, 255, 255, 0.15);
-        }
-
-        .footer-logo .logo-icon .icon-svg {
-            width: 16px;
-            height: 16px;
         }
 
         .footer-links {
@@ -957,11 +899,9 @@
     <!-- ===== NAVBAR ===== -->
     <nav>
         <div class="container nav-inner">
-            <a href="#" class="logo">
-                <div class="logo-icon">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                </div>
-                AsyrofOTP
+            <a href="/landing" class="logo">
+                <div class="logo-icon">A</div>
+                <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
             <ul class="nav-links">
                 <li><a href="#beranda">Beranda</a></li>
@@ -969,12 +909,6 @@
                 <li><a href="#cara-kerja">Cara Kerja</a></li>
                 <li><a href="#faq">FAQ</a></li>
             </ul>
-            <div class="nav-cta">
-                <a href="https://t.me/AsyrofC" target="_blank" class="btn-nav">
-                    <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                    Hubungi Kami
-                </a>
-            </div>
         </div>
     </nav>
 
@@ -988,7 +922,7 @@
             <h1>Digital Mudah,<br><span>Tanpa Perlu Ribet</span></h1>
             <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
             <div class="hero-buttons">
-                <a href="https://t.me/AsyrofC" target="_blank" class="btn-primary">
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener" class="btn-primary">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
                     Mulai Sekarang
                 </a>
@@ -1005,7 +939,7 @@
         <div class="container">
             <div class="contact-grid">
                 <!-- Telegram -->
-                <a href="https://t.me/AsyrofC" target="_blank" class="contact-card telegram-card">
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener" class="contact-card telegram-card">
                     <div class="glow"></div>
                     <div class="contact-icon telegram">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
@@ -1019,13 +953,13 @@
                 </a>
 
                 <!-- WhatsApp -->
-                <a href="https://wa.me/AsyrofC_" target="_blank" class="contact-card whatsapp-card">
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener" class="contact-card whatsapp-card">
                     <div class="glow"></div>
                     <div class="contact-icon whatsapp">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                     </div>
                     <h3>WhatsApp</h3>
-                    <p>wa.me/AsyrofC_</p>
+                    <p>@AsyrofC_</p>
                     <span class="contact-btn whatsapp">
                         Chat Sekarang
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -1143,7 +1077,7 @@
                     </button>
                     <div class="faq-answer">
                         <div class="faq-answer-inner">
-                            Silakan hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp. Sertakan bukti pembayaran Anda, dan tim kami akan segera memprosesnya.
+                            Silakan hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran Anda, dan tim kami akan segera memprosesnya.
                         </div>
                     </div>
                 </div>
@@ -1178,9 +1112,7 @@
         <div class="container">
             <div class="footer-inner">
                 <div class="footer-logo">
-                    <div class="logo-icon">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    </div>
+                    <div class="logo-icon">A</div>
                     AsyrofOTP
                 </div>
                 <ul class="footer-links">
@@ -1192,8 +1124,8 @@
             </div>
             <div class="footer-copy">
                 &copy; 2025 AsyrofOTP. All rights reserved. | Support via 
-                <a href="https://t.me/AsyrofC" target="_blank" style="color: #229ED9;">Telegram</a> & 
-                <a href="https://wa.me/AsyrofC_" target="_blank" style="color: #25D366;">WhatsApp</a>
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener" style="color: #229ED9;">Telegram</a> & 
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener" style="color: #25D366;">WhatsApp</a>
             </div>
         </div>
     </footer>
@@ -1242,15 +1174,12 @@
             let lastX = 0, lastY = 0;
             
             function handleOrientation(event) {
-                // beta = depan-belakang (-180 to 180), gamma = kiri-kanan (-90 to 90)
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
                 
-                // Normalisasi ke -1 s/d 1
                 const normX = Math.max(-1, Math.min(1, gamma / 45));
                 const normY = Math.max(-1, Math.min(1, (beta - 45) / 45));
                 
-                // Smoothing
                 lastX += (normX - lastX) * 0.1;
                 lastY += (normY - lastY) * 0.1;
                 
@@ -1262,7 +1191,6 @@
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
                     
-                    // Geser glow berdasarkan kemiringan HP
                     const offsetX = lastX * (rect.width * 0.4);
                     const offsetY = lastY * (rect.height * 0.4);
                     
@@ -1272,12 +1200,8 @@
                 });
             }
             
-            // Cek apakah device orientation didukung
             if (window.DeviceOrientationEvent) {
-                // iOS 13+ butuh permission
                 if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    // Tambahkan tombol permission (opsional)
-                    // Untuk sekarang, coba langsung
                     window.addEventListener('deviceorientation', handleOrientation);
                 } else {
                     window.addEventListener('deviceorientation', handleOrientation);
