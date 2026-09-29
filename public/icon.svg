@@ -1,0 +1,94 @@
+<svg width="512" height="512" viewBox="0 0 512 512"
+     xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="#0B3D91"/>
+
+  <!-- Retro stripes -->
+  <path d="M0 105H512V145H0Z" fill="#1558B0"/>
+  <path d="M0 175H512V200H0Z" fill="#2E78C7"/>
+  <path d="M0 312H512V340H0Z" fill="#1558B0"/>
+  <path d="M0 365H512V410H0Z" fill="#0A347A"/>
+
+  <!-- Inner retro border -->
+  <rect x="24" y="24" width="464" height="464"
+        rx="78"
+        fill="none"
+        stroke="#9ED8FF"
+        stroke-width="8"/>
+
+  <!-- A shadow -->
+  <text x="256" y="375"
+        text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="310"
+        font-weight="900"
+        font-style="italic"
+        fill="#06265C"
+        transform="translate(14 18)">
+    A
+  </text>
+
+  <!-- Main A -->
+  <text x="256" y="375"
+        text-anchor="middle"
+        font-family="Arial Black, Impact, sans-serif"
+        font-size="310"
+        font-weight="900"
+        font-style="italic"
+        fill="#F4F0D7"
+        stroke="#082F72"
+        stroke-width="7"
+        paint-order="stroke">
+    A
+  </text>
+
+  <!-- Retro swoosh -->
+  <path d="M92 337
+           C170 275 310 252 425 292"
+        fill="none"
+        stroke="#8ED6FF"
+        stroke-width="15"
+        stroke-linecap="round"/>
+
+  <!-- Small highlight -->
+  <path d="M108 125
+           C145 105 185 96 220 94"
+        fill="none"
+        stroke="#D5F1FF"
+        stroke-width="7"
+        stroke-linecap="round"
+        opacity="0.8"/>
+
+  <!-- Retro stars -->
+  <path d="M105 188
+           L112 205
+           L129 212
+           L112 219
+           L105 236
+           L98 219
+           L81 212
+           L98 205Z"
+        fill="#DDF5FF"/>
+
+  <path d="M414 160
+           L420 174
+           L434 180
+           L420 186
+           L414 200
+           L408 186
+           L394 180
+           L408 174Z"
+        fill="#DDF5FF"/>
+
+  <!-- Subtle grain-like dots -->
+  <g fill="#B8E5FF" opacity="0.25">
+    <circle cx="65" cy="75" r="3"/>
+    <circle cx="450" cy="92" r="3"/>
+    <circle cx="73" cy="430" r="2"/>
+    <circle cx="447" cy="435" r="3"/>
+    <circle cx="380" cy="62" r="2"/>
+    <circle cx="135" cy="455" r="2"/>
+  </g>
+
+</svg>
