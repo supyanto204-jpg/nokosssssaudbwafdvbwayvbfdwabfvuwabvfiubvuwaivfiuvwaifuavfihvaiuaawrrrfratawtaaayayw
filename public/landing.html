@@ -180,63 +180,33 @@
             overflow: hidden;
         }
 
-        /* Sunburst tipis di belakang hero — muter, full biru */
+        /* Sunburst tipis — pakai repeating-conic-gradient + mask radial */
         .hero::before {
             content: '';
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 200%;
-            height: 200%;
-            transform: translate(-50%, -50%);
-            background: conic-gradient(
+            width: 160vmax;
+            height: 160vmax;
+            transform: translate3d(-50%, -50%, 0);
+            background: repeating-conic-gradient(
                 from 0deg,
-                transparent 0deg, transparent 10deg,
-                rgba(37, 99, 235, 0.08) 10deg, rgba(37, 99, 235, 0.08) 20deg,
-                transparent 20deg, transparent 30deg,
-                rgba(59, 130, 246, 0.06) 30deg, rgba(59, 130, 246, 0.06) 40deg,
-                transparent 40deg, transparent 50deg,
-                rgba(37, 99, 235, 0.08) 50deg, rgba(37, 99, 235, 0.08) 60deg,
-                transparent 60deg, transparent 70deg,
-                rgba(59, 130, 246, 0.06) 70deg, rgba(59, 130, 246, 0.06) 80deg,
-                transparent 80deg, transparent 90deg,
-                rgba(37, 99, 235, 0.08) 90deg, rgba(37, 99, 235, 0.08) 100deg,
-                transparent 100deg, transparent 110deg,
-                rgba(59, 130, 246, 0.06) 110deg, rgba(59, 130, 246, 0.06) 120deg,
-                transparent 120deg, transparent 130deg,
-                rgba(37, 99, 235, 0.08) 130deg, rgba(37, 99, 235, 0.08) 140deg,
-                transparent 140deg, transparent 150deg,
-                rgba(59, 130, 246, 0.06) 150deg, rgba(59, 130, 246, 0.06) 160deg,
-                transparent 160deg, transparent 170deg,
-                rgba(37, 99, 235, 0.08) 170deg, rgba(37, 99, 235, 0.08) 180deg,
-                transparent 180deg, transparent 190deg,
-                rgba(59, 130, 246, 0.06) 190deg, rgba(59, 130, 246, 0.06) 200deg,
-                transparent 200deg, transparent 210deg,
-                rgba(37, 99, 235, 0.08) 210deg, rgba(37, 99, 235, 0.08) 220deg,
-                transparent 220deg, transparent 230deg,
-                rgba(59, 130, 246, 0.06) 230deg, rgba(59, 130, 246, 0.06) 240deg,
-                transparent 240deg, transparent 250deg,
-                rgba(37, 99, 235, 0.08) 250deg, rgba(37, 99, 235, 0.08) 260deg,
-                transparent 260deg, transparent 270deg,
-                rgba(59, 130, 246, 0.06) 270deg, rgba(59, 130, 246, 0.06) 280deg,
-                transparent 280deg, transparent 290deg,
-                rgba(37, 99, 235, 0.08) 290deg, rgba(37, 99, 235, 0.08) 300deg,
-                transparent 300deg, transparent 310deg,
-                rgba(59, 130, 246, 0.06) 310deg, rgba(59, 130, 246, 0.06) 320deg,
-                transparent 320deg, transparent 330deg,
-                rgba(37, 99, 235, 0.08) 330deg, rgba(37, 99, 235, 0.08) 340deg,
-                transparent 340deg, transparent 350deg,
-                rgba(59, 130, 246, 0.06) 350deg, rgba(59, 130, 246, 0.06) 360deg
+                rgba(37, 99, 235, 0.07) 0deg 10deg,
+                transparent 10deg 20deg
             );
+            -webkit-mask-image: radial-gradient(circle, black 0%, transparent 60%);
+            mask-image: radial-gradient(circle, black 0%, transparent 60%);
             animation: spin 60s linear infinite;
             z-index: 0;
-            opacity: 0.9;
             pointer-events: none;
+            will-change: transform;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
         }
 
         @keyframes spin {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
+            from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
+            to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
         }
 
         .hero > * {
