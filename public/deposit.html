@@ -1449,6 +1449,16 @@
         return name ? name.charAt(0).toUpperCase() : '?';
     }
 
+    // FIX: Safe JSON parse — handle response non-JSON
+    async function safeJson(res) {
+        const text = await res.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            throw new Error(`Server error ${res.status}: ${text.substring(0, 100)}`);
+        }
+    }
+
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
@@ -1461,7 +1471,37 @@
         pollingInterval: null,
         countdownInterval: null,
         presets: [],
+        isCreating: false,
     };
+
+    // FIX: Restore state dari sessionStorage (biar ga reset pas refresh)
+    function restoreState() {
+        try {
+            const saved = sessionStorage.getItem('deposit_state');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                // Cuma restore amount & method, jangan restore deposit (biar fresh)
+                if (parsed.amount) {
+                    state.amount = parsed.amount;
+                    document.getElementById('inputAmount').value = parsed.amount;
+                }
+            }
+        } catch (e) {}
+    }
+
+    function saveState() {
+        try {
+            sessionStorage.setItem('deposit_state', JSON.stringify({
+                amount: state.amount,
+            }));
+        } catch (e) {}
+    }
+
+    function clearState() {
+        try {
+            sessionStorage.removeItem('deposit_state');
+        } catch (e) {}
+    }
 
     // ===== LOAD USER (SWR) =====
     swrFetch('/api/user', 'user_profile', (user, meta) => {
@@ -1479,7 +1519,7 @@
             const res = await fetch('/api/deposit/presets', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await res.json();
+            const data = await safeJson(res);
             state.presets = data.presets || [];
         } catch (err) {
             console.error(err);
@@ -1508,6 +1548,7 @@
                 document.getElementById('inputAmount').value = btn.dataset.amount;
                 state.amount = Number(btn.dataset.amount);
                 updateButton();
+                saveState();
             });
         });
     }
@@ -1530,7 +1571,26 @@
     inputAmount.addEventListener('input', () => {
         document.querySelectorAll('.preset-item').forEach(b => b.classList.remove('active'));
         updateButton();
+        saveState();
     });
+
+    // ===== STEP INDICATOR FIX =====
+    function setStep(step) {
+        document.getElementById('step1').classList.remove('active', 'done');
+        document.getElementById('step2').classList.remove('active', 'done');
+        document.getElementById('step3').classList.remove('active', 'done');
+
+        if (step === 1) {
+            document.getElementById('step1').classList.add('active');
+        } else if (step === 2) {
+            document.getElementById('step1').classList.add('done');
+            document.getElementById('step2').classList.add('active');
+        } else if (step === 3) {
+            document.getElementById('step1').classList.add('done');
+            document.getElementById('step2').classList.add('done');
+            document.getElementById('step3').classList.add('active');
+        }
+    }
 
     // ===== LOAD METHODS =====
     async function loadMethods() {
@@ -1539,7 +1599,7 @@
             const res = await fetch('/api/deposit/methods', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await res.json();
+            const data = await safeJson(res);
 
             if (!data.methods || data.methods.length === 0) {
                 grid.innerHTML = `<div class="empty-block"><h3>Belum ada metode</h3><p>Coba lagi nanti.</p></div>`;
@@ -1567,6 +1627,7 @@
                     state.method = card.dataset.method;
                     state.methodLabel = card.dataset.label;
                     document.getElementById('modalMethod').classList.remove('active');
+                    setStep(3);
                     createDeposit();
                 });
             });
@@ -1578,75 +1639,71 @@
 
     // ===== CREATE DEPOSIT =====
     async function createDeposit() {
-    const btn = btnLanjut;
-    const original = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
+        if (state.isCreating) return;
+        state.isCreating = true;
 
-    try {
-        // 1. Generate reference ID
-        const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
+        const btn = btnLanjut;
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
 
-        // 2. Panggil Worker QRISPY langsung dari frontend
-        const workerUrl = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev/api/payment/qris/generate';
-        
-        const qrispyRes = await fetch(workerUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                amount: Number(state.amount),
-                payment_reference: referenceId,
-            }),
-        });
-
-        const text = await qrispyRes.text();
-        let qrispyData;
         try {
-            qrispyData = JSON.parse(text);
-        } catch (e) {
-            console.error('Worker response bukan JSON:', text.substring(0, 500));
-            throw new Error(`Worker error ${qrispyRes.status}. Cek console.`);
+            // Generate reference ID
+            const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
+
+            // Panggil Worker QRISPY langsung dari frontend
+            const workerUrl = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev/api/payment/qris/generate';
+
+            const qrispyRes = await fetch(workerUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: Number(state.amount),
+                    payment_reference: referenceId,
+                }),
+            });
+
+            const qrispyData = await safeJson(qrispyRes);
+
+            if (!qrispyRes.ok || qrispyData.status === 'error') {
+                throw new Error(qrispyData.message || 'Gagal membuat QRIS');
+            }
+
+            // Simpan ke database lewat backend
+            const saveRes = await fetch('/api/deposit/qrispy-save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    reference_id: referenceId,
+                    amount: Number(state.amount),
+                    qris_id: qrispyData.data.qris_id,
+                    qris_url: qrispyData.data.qris_image_url,
+                    expired_at: qrispyData.data.expired_at,
+                    expires_in_seconds: qrispyData.data.expires_in_seconds,
+                })
+            });
+
+            const saveData = await safeJson(saveRes);
+            if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
+
+            state.deposit = saveData.deposit;
+            showPaymentPanel();
+        } catch (err) {
+            alert('Gagal membuat deposit: ' + err.message);
+            setStep(1);
+            btn.disabled = false;
+            btn.innerHTML = original;
+        } finally {
+            state.isCreating = false;
         }
-
-        if (!qrispyRes.ok || qrispyData.status === 'error') {
-            throw new Error(qrispyData.message || 'Gagal membuat QRIS');
-        }
-
-        // 3. Simpan ke database lewat backend
-        const saveRes = await fetch('/api/deposit/qrispy-save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                reference_id: referenceId,
-                amount: Number(state.amount),
-                qris_id: qrispyData.data.qris_id,
-                qris_url: qrispyData.data.qris_image_url,
-                expired_at: qrispyData.data.expired_at,
-                expires_in_seconds: qrispyData.data.expires_in_seconds,
-            })
-        });
-
-        const saveData = await saveRes.json();
-        if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
-
-        state.deposit = saveData.deposit;
-        showPaymentPanel();
-    } catch (err) {
-        alert(err.message);
-        btn.disabled = false;
-        btn.innerHTML = original;
     }
-}
 
     // ===== SHOW PAYMENT PANEL =====
     function showPaymentPanel() {
-        document.getElementById('step1').classList.remove('active');
-        document.getElementById('step1').classList.add('done');
-        document.getElementById('step2').classList.add('done');
-        document.getElementById('step3').classList.add('active');
+        setStep(3);
 
         document.getElementById('panelNominal').style.display = 'none';
         const panelPayment = document.getElementById('panelPayment');
@@ -1708,7 +1765,14 @@
 
         document.getElementById('btnCancel').addEventListener('click', cancelDeposit);
 
-        startCountdown(d.expires_in_seconds || 1800);
+        // FIX: Countdown pake expires_at dari server (bukan cuma expires_in_seconds)
+        let countdownSeconds = d.expires_in_seconds || 1800;
+        if (d.expired_at) {
+            const expiresAt = new Date(d.expired_at).getTime();
+            const now = Date.now();
+            countdownSeconds = Math.max(0, Math.floor((expiresAt - now) / 1000));
+        }
+        startCountdown(countdownSeconds);
 
         if (!isManual) {
             startPolling(d.reference_id);
@@ -1717,18 +1781,22 @@
 
     // ===== POLLING =====
     function startPolling(referenceId) {
-        stopPolling();
+        stopPolling(); // FIX: Pastiin ga ada interval lama
         state.pollingInterval = setInterval(async () => {
             try {
                 const res = await fetch(`/api/deposit/${referenceId}/status`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                const data = await res.json();
+                const data = await safeJson(res);
 
                 if (data.status === 'success' || data.deposit?.status === 'success') {
                     stopPolling();
                     stopCountdown();
                     showSuccess(data.deposit);
+                } else if (data.deposit?.status === 'expired') {
+                    stopPolling();
+                    stopCountdown();
+                    showExpired();
                 }
             } catch (err) {
                 console.error('Polling error:', err);
@@ -1762,6 +1830,8 @@
                 if (el) el.textContent = 'EXPIRED';
                 stopCountdown();
                 stopPolling();
+                showExpired();
+                return;
             }
             remaining--;
         }
@@ -1775,6 +1845,27 @@
             clearInterval(state.countdownInterval);
             state.countdownInterval = null;
         }
+    }
+
+    // ===== EXPIRED =====
+    function showExpired() {
+        const panelPayment = document.getElementById('panelPayment');
+        panelPayment.innerHTML = `
+            <div style="text-align:center;padding:32px 20px;">
+                <div class="success-icon" style="background:#fee2e2;color:var(--danger);">
+                    ${ICONS.clock}
+                </div>
+                <h2 style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;margin-bottom:8px;">QRIS Kedaluwarsa</h2>
+                <p style="color:var(--text-gray);font-size:0.9rem;margin-bottom:24px;">
+                    Waktu pembayaran habis. Silakan buat deposit baru.
+                </p>
+                <button class="btn btn-primary btn-block" onclick="resetPanel()">
+                    ${ICONS.arrowRight}
+                    Buat Deposit Baru
+                </button>
+            </div>
+        `;
+        loadHistory();
     }
 
     // ===== CANCEL =====
@@ -1799,15 +1890,15 @@
 
     // ===== RESET PANEL =====
     function resetPanel() {
-        document.getElementById('step1').classList.add('active');
-        document.getElementById('step1').classList.remove('done');
-        document.getElementById('step2').classList.remove('done', 'active');
-        document.getElementById('step3').classList.remove('done', 'active');
+        stopPolling();
+        stopCountdown();
+        setStep(1);
         document.getElementById('panelNominal').style.display = 'block';
         document.getElementById('panelPayment').style.display = 'none';
         document.getElementById('panelPayment').innerHTML = '';
         state.deposit = null;
         state.method = null;
+        state.methodLabel = null;
         btnLanjut.disabled = !state.amount;
         btnLanjut.innerHTML = `${ICONS.arrowRight} <span>Pilih Metode Pembayaran</span>`;
     }
@@ -1816,6 +1907,7 @@
     function showSuccess(deposit) {
         stopPolling();
         stopCountdown();
+        clearState();
 
         const modal = document.getElementById('modalPayment');
         document.getElementById('modalPaymentContent').innerHTML = `
@@ -1834,7 +1926,7 @@
                     Saldo <strong style="color:var(--primary);font-family:var(--font-mono);">${formatRupiah(deposit.total_amount || deposit.amount)}</strong> udah masuk ke akun kamu.
                 </p>
 
-                <button class="btn btn-primary btn-block" onclick="location.reload()">
+                <button class="btn btn-primary btn-block" id="btnSelesai">
                     ${ICONS.check}
                     Selesai
                 </button>
@@ -1842,11 +1934,9 @@
         `;
         modal.classList.add('active');
 
-        document.querySelectorAll('[data-modal-close]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                modal.classList.remove('active');
-                location.reload();
-            });
+        document.getElementById('btnSelesai').addEventListener('click', () => {
+            modal.classList.remove('active');
+            location.reload();
         });
 
         CacheManager.remove('user_profile');
@@ -1869,7 +1959,7 @@
             const res = await fetch('/api/deposit/history?limit=10', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            const data = await res.json();
+            const data = await safeJson(res);
 
             if (!data.deposits || data.deposits.length === 0) {
                 container.innerHTML = `
@@ -1920,6 +2010,7 @@
     // ===== OPEN MODAL METHOD =====
     btnLanjut.addEventListener('click', () => {
         if (!state.amount || state.amount < 1000) return;
+        setStep(2); // FIX: Step 2 aktif pas modal kebuka
         document.getElementById('modalMethod').classList.add('active');
     });
 
@@ -1928,12 +2019,21 @@
         btn.addEventListener('click', () => {
             const modal = btn.closest('.modal-overlay');
             if (modal) modal.classList.remove('active');
+            // Kalo modal method ditutup tanpa pilih, balik ke step 1
+            if (modal && modal.id === 'modalMethod' && !state.method) {
+                setStep(1);
+            }
         });
     });
 
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) overlay.classList.remove('active');
+            if (e.target === overlay) {
+                overlay.classList.remove('active');
+                if (overlay.id === 'modalMethod' && !state.method) {
+                    setStep(1);
+                }
+            }
         });
     });
 
@@ -1977,9 +2077,17 @@
     }
 
     // ===== INIT =====
+    restoreState();
+    updateButton();
     loadPresets();
     loadMethods();
     loadHistory();
+
+    // FIX: Cleanup pas page unload
+    window.addEventListener('beforeunload', () => {
+        stopPolling();
+        stopCountdown();
+    });
 </script>
 
 </body>
