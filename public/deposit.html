@@ -12,34 +12,378 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/dashboard.css">
     <style>
-        /* ===== HIASAN BACKGROUND ===== */
-        .main-content::after {
-            content: '';
-            position: fixed;
-            bottom: -20%;
-            left: -20%;
-            width: 60vmax;
-            height: 60vmax;
-            background: radial-gradient(circle, rgba(34, 197, 94, 0.08) 0%, transparent 60%);
-            border-radius: 50%;
+        /* ===== LAYOUT FIX: Main content ngikutin sidebar ===== */
+        .dashboard-layout {
+            display: flex;
+            min-height: 100vh;
+            align-items: flex-start;
+        }
+
+        /* ===== SIDEBAR COLLAPSIBLE ===== */
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 2px solid var(--border-dark);
+            display: flex;
+            flex-direction: column;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            max-height: 100vh;
+            z-index: 100;
+            transition: width 0.3s var(--ease), transform 0.3s var(--ease);
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .sidebar.collapsed {
+            width: 72px;
+        }
+
+        .sidebar-header {
+            padding: 20px 16px;
+            border-bottom: 2px solid var(--border-dark);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            min-height: 72px;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-dark);
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.15rem;
+            white-space: nowrap;
+            overflow: hidden;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar-logo .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: var(--font-display);
+            font-weight: 900;
+            font-size: 1.3rem;
+            box-shadow: var(--shadow-hard-sm);
+            transform: rotate(-3deg);
+            transition: transform var(--transition);
+            flex-shrink: 0;
+        }
+
+        .sidebar-logo:hover .logo-icon {
+            transform: rotate(3deg) scale(1.05);
+        }
+
+        .sidebar-logo span {
+            color: var(--primary);
+        }
+
+        .sidebar-logo .logo-text {
+            transition: opacity 0.2s var(--ease), width 0.3s var(--ease);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .logo-text {
+            opacity: 0;
+            width: 0;
+        }
+
+        /* Tombol collapse */
+        .collapse-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--bg-light);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .collapse-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .collapse-btn .icon-svg {
+            width: 16px;
+            height: 16px;
+            transition: transform 0.3s var(--ease);
+        }
+
+        .sidebar.collapsed .collapse-btn .icon-svg {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            text-decoration: none;
+            color: var(--text-gray);
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all var(--transition);
+            border: 2px solid transparent;
+            position: relative;
+            white-space: nowrap;
+            overflow: hidden;
+            min-height: 44px;
+        }
+
+        .nav-item:hover {
+            background: var(--primary-light);
+            color: var(--primary);
+            transform: translateX(3px);
+        }
+
+        .nav-item.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .nav-item .icon-svg {
+            width: 18px;
+            height: 18px;
+            transition: transform var(--transition);
+            flex-shrink: 0;
+        }
+
+        .nav-item .nav-label {
+            transition: opacity 0.2s var(--ease);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .sidebar.collapsed .nav-label {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 12px 8px;
+        }
+
+        .sidebar.collapsed .nav-item:hover {
+            transform: translateX(0) scale(1.05);
+        }
+
+        /* Tooltip pas collapsed */
+        .sidebar.collapsed .nav-item::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            left: calc(100% + 12px);
+            top: 50%;
+            transform: translateY(-50%);
+            background: var(--text-dark);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            opacity: 0;
             pointer-events: none;
-            z-index: 0;
-            animation: floatBg 8s ease-in-out infinite;
+            transition: opacity 0.2s var(--ease);
+            z-index: 1000;
+            box-shadow: var(--shadow-hard-sm);
         }
 
-        @keyframes floatBg {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(20px, -20px) scale(1.05); }
+        .sidebar.collapsed .nav-item:hover::after {
+            opacity: 1;
         }
 
-        .main-content > * { position: relative; z-index: 1; }
+        .nav-section-label {
+            font-family: var(--font-mono);
+            font-size: 0.68rem;
+            font-weight: 700;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 16px 14px 8px;
+            transition: opacity 0.2s var(--ease);
+            white-space: nowrap;
+            overflow: hidden;
+        }
 
-        /* ===== HERO ===== */
+        .sidebar.collapsed .nav-section-label {
+            opacity: 0;
+            padding: 8px 0;
+            height: 4px;
+        }
+
+        /* Sidebar footer */
+        .sidebar-footer {
+            padding: 16px;
+            border-top: 2px solid var(--border-dark);
+            flex-shrink: 0;
+            background: white;
+            transition: padding 0.3s var(--ease);
+        }
+
+        .sidebar.collapsed .sidebar-footer {
+            padding: 12px 8px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            border-radius: var(--radius-sm);
+            background: var(--bg-light);
+            border: 2px solid var(--border-dark);
+            transition: all var(--transition);
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .user-info {
+            padding: 8px;
+            justify-content: center;
+            gap: 0;
+        }
+
+        .user-info:hover {
+            background: var(--primary-light);
+            box-shadow: var(--shadow-hard-sm);
+            transform: translate(-1px, -1px);
+        }
+
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .user-details {
+            flex: 1;
+            min-width: 0;
+            transition: opacity 0.2s var(--ease), width 0.3s var(--ease);
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .user-details {
+            opacity: 0;
+            width: 0;
+            display: none;
+        }
+
+        .user-name {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: var(--font-display);
+        }
+
+        .user-balance {
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .logout-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: #fee2e2;
+            border: 2px solid var(--border-dark);
+            color: var(--danger);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+            padding: 0;
+        }
+
+        .sidebar.collapsed .logout-btn {
+            display: none;
+        }
+
+        .logout-btn:hover {
+            background: var(--danger);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .logout-btn .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* ===== MAIN CONTENT ===== */
+        .main-content {
+            flex: 1;
+            padding: 24px 32px 60px;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+            min-width: 0;
+        }
+
+        /* ===== DEPOSIT HERO ===== */
         .deposit-hero {
             display: flex;
             align-items: center;
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
         }
 
         .deposit-hero-icon {
@@ -111,7 +455,7 @@
             margin-bottom: 32px;
         }
 
-        /* ===== CARD UTAMA ===== */
+        /* ===== DEPOSIT CARD ===== */
         .deposit-card {
             background: white;
             border: 2px solid var(--border-dark);
@@ -264,6 +608,7 @@
             font-size: 1.4rem;
             color: var(--text-dark);
             background: white;
+            min-width: 0;
         }
 
         .input-amount-big input::placeholder { color: var(--text-light); }
@@ -397,7 +742,7 @@
             font-weight: 800;
         }
 
-        /* ===== SIDEBAR KANAN ===== */
+        /* ===== DEPOSIT SIDEBAR INFO ===== */
         .deposit-sidebar {
             display: flex;
             flex-direction: column;
@@ -492,7 +837,6 @@
             color: var(--primary);
         }
 
-        /* ===== SIDE SECTION ===== */
         .side-title {
             display: flex;
             align-items: center;
@@ -512,94 +856,6 @@
             color: var(--primary);
         }
 
-        /* ===== VOUCHER ===== */
-        .voucher-form {
-            display: flex;
-            gap: 8px;
-        }
-
-        .voucher-form input {
-            flex: 1;
-            padding: 10px 14px;
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            font-family: var(--font-mono);
-            font-size: 0.82rem;
-            font-weight: 700;
-            outline: none;
-            transition: all var(--transition);
-        }
-
-        .voucher-form input:focus {
-            box-shadow: var(--shadow-hard-sm);
-            transform: translate(-1px, -1px);
-        }
-
-        .voucher-form button {
-            padding: 10px 18px;
-            border-radius: var(--radius-sm);
-            background: var(--primary);
-            color: white;
-            border: 2px solid var(--border-dark);
-            font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 0.82rem;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            cursor: pointer;
-            box-shadow: var(--shadow-hard-sm);
-            transition: all var(--transition);
-        }
-
-        .voucher-form button:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard);
-        }
-
-        /* ===== BONUS LIST ===== */
-        .bonus-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .bonus-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 14px;
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            font-size: 0.82rem;
-            font-family: var(--font-mono);
-            transition: all var(--transition);
-        }
-
-        .bonus-item:hover {
-            background: var(--primary-light);
-            transform: translateX(4px);
-        }
-
-        .bonus-range { color: var(--text-dark); font-weight: 600; }
-
-        .bonus-value {
-            color: var(--success);
-            font-weight: 800;
-            padding: 2px 10px;
-            background: #dcfce7;
-            border-radius: 50px;
-            font-size: 0.75rem;
-        }
-
-        .bonus-note {
-            margin-top: 12px;
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-style: italic;
-        }
-
-        /* ===== INFO LIST ===== */
         .info-list {
             display: flex;
             flex-direction: column;
@@ -629,6 +885,38 @@
             margin-top: 32px;
         }
 
+        .section-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .section-label .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+            flex-shrink: 0;
+        }
+
+        .section-label .text {
+            font-size: 0.85rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-gray);
+            white-space: nowrap;
+        }
+
+        .section-label .line {
+            flex: 1;
+            height: 2px;
+            background: repeating-linear-gradient(to right, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);
+        }
+
         .history-list {
             display: flex;
             flex-direction: column;
@@ -647,6 +935,10 @@
             transition: all var(--transition);
             position: relative;
             overflow: hidden;
+            cursor: pointer;
+            text-align: left;
+            font-family: inherit;
+            width: 100%;
         }
 
         .history-card::before {
@@ -698,6 +990,9 @@
             font-size: 0.78rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .history-right { text-align: right; flex-shrink: 0; }
@@ -738,16 +1033,6 @@
             position: relative;
         }
 
-        .empty-block .icon-box::after {
-            content: '';
-            position: absolute;
-            inset: -6px;
-            border-radius: 24px;
-            border: 2px dashed var(--primary);
-            opacity: 0.3;
-            animation: spinSlow 20s linear infinite;
-        }
-
         .empty-block .icon-box .icon-svg { width: 32px; height: 32px; }
 
         .empty-block h3 {
@@ -765,7 +1050,7 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* ===== MODAL — FIX TENGAH LAYAR ===== */
+        /* ===== MODAL — SELALU DI TENGAH LAYAR ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -774,35 +1059,35 @@
             -webkit-backdrop-filter: blur(6px);
             z-index: 1000;
             display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            overflow-y: auto;
         }
 
         .modal-overlay.active {
-            display: block;
+            display: flex;
         }
 
         .modal {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             background: white;
             border-radius: var(--radius);
             border: 2px solid var(--border-dark);
             box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
             padding: 28px;
-            width: calc(100% - 40px);
+            width: 100%;
             max-width: 480px;
             max-height: 90vh;
             overflow-y: auto;
-            animation: bounceIn 0.5s var(--ease-bounce);
-            z-index: 1001;
+            animation: bounceIn 0.4s var(--ease-bounce);
+            margin: auto;
+            position: relative;
         }
 
         @keyframes bounceIn {
-            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
-            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-            70% { transform: translate(-50%, -50%) scale(0.95); }
-            100% { transform: translate(-50%, -50%) scale(1); }
+            0% { opacity: 0; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
 
         .modal-header {
@@ -860,20 +1145,6 @@
             overflow: hidden;
         }
 
-        .method-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--primary);
-            opacity: 0;
-            transition: opacity var(--transition);
-        }
-
-        .method-card:hover::before { opacity: 1; }
-
         .method-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
@@ -889,7 +1160,6 @@
             justify-content: center;
             flex-shrink: 0;
             box-shadow: var(--shadow-hard-sm);
-            transition: all var(--transition);
         }
 
         .method-icon.qrispy {
@@ -900,10 +1170,6 @@
         .method-icon.dana {
             background: linear-gradient(135deg, #dbeafe, #93c5fd);
             color: #1d4ed8;
-        }
-
-        .method-card:hover .method-icon {
-            transform: scale(1.1) rotate(-5deg);
         }
 
         .method-icon .icon-svg { width: 22px; height: 22px; }
@@ -1020,6 +1286,8 @@
             font-weight: 800;
             font-family: var(--font-mono);
             color: var(--text-dark);
+            text-align: right;
+            word-break: break-all;
         }
 
         .qr-row .value.big {
@@ -1109,28 +1377,156 @@
             justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
-            animation: bounceIn 0.6s var(--ease-bounce);
             position: relative;
         }
 
-        .success-icon::before {
-            content: '';
-            position: absolute;
-            inset: -8px;
-            border-radius: 50%;
-            border: 2px dashed var(--success);
-            opacity: 0.4;
-            animation: spinSlow 10s linear infinite;
+        .success-icon .icon-svg { width: 36px; height: 36px; }
+
+        /* ===== DETAIL MODAL (buat riwayat) ===== */
+        .detail-header {
+            text-align: center;
+            margin-bottom: 20px;
         }
 
-        .success-icon .icon-svg { width: 36px; height: 36px; }
+        .detail-header .detail-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+            border: 3px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .detail-header .detail-icon.success { background: #dcfce7; color: var(--success); }
+        .detail-header .detail-icon.pending { background: #fef3c7; color: var(--warning); }
+        .detail-header .detail-icon.failed { background: #fee2e2; color: var(--danger); }
+
+        .detail-header .detail-icon .icon-svg { width: 30px; height: 30px; }
+
+        .detail-header h2 {
+            font-size: 1.3rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            margin-bottom: 4px;
+        }
+
+        .detail-header p {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+        }
+
+        .detail-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin-bottom: 16px;
+            background: white;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+        }
+
+        .detail-row:last-child { border-bottom: none; }
+
+        .detail-row .detail-label {
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+
+        .detail-row .detail-value {
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-dark);
+            text-align: right;
+            word-break: break-all;
+            min-width: 0;
+        }
+
+        .detail-row .detail-value.highlight {
+            color: var(--primary);
+            font-size: 1rem;
+            font-weight: 800;
+        }
+
+        .detail-row .detail-value.success { color: var(--success); }
+        .detail-row .detail-value.warning { color: var(--warning); }
+        .detail-row .detail-value.danger { color: var(--danger); }
+
+        .detail-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 1024px) {
             .deposit-layout { grid-template-columns: 1fr; }
         }
 
-        @media (max-width: 640px) {
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                max-height: 100vh;
+                transform: translateX(-100%);
+                z-index: 1000;
+                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
+                width: 280px;
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar.collapsed {
+                width: 280px;
+            }
+
+            .sidebar.collapsed .logo-text,
+            .sidebar.collapsed .nav-label,
+            .sidebar.collapsed .user-details {
+                opacity: 1;
+                width: auto;
+                display: block;
+            }
+
+            .sidebar.collapsed .nav-item {
+                justify-content: flex-start;
+                padding: 12px 14px;
+            }
+
+            .sidebar.collapsed .nav-item::after {
+                display: none;
+            }
+
+            .main-content {
+                padding: 16px 16px 60px;
+            }
+
+            .collapse-btn {
+                display: none;
+            }
+
             .deposit-hero-text h1 { font-size: 1.4rem; }
             .preset-grid { grid-template-columns: repeat(2, 1fr); }
             .step-label { display: none; }
@@ -1141,6 +1537,20 @@
             .input-amount-big input { font-size: 1.1rem; padding: 14px 16px; }
             .input-amount-big .prefix { font-size: 1rem; padding: 14px 16px; }
         }
+
+        @media (max-width: 480px) {
+            .preset-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+            .preset-item { padding: 12px 8px; font-size: 0.82rem; }
+            .deposit-card { padding: 16px; }
+            .detail-row { padding: 10px 12px; font-size: 0.8rem; }
+            .detail-row .detail-label { font-size: 0.68rem; }
+        }
+
+        /* Body lock pas modal/sidebar kebuka */
+        body.modal-open,
+        body.sidebar-open {
+            overflow: hidden;
+        }
     </style>
 </head>
 <body>
@@ -1148,36 +1558,39 @@
 <div class="dashboard-layout">
 
     <!-- ===== SIDEBAR ===== -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
                 <div class="logo-icon">A</div>
-                <div>Asyrof<span>OTP</span></div>
+                <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
+            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
         </div>
 
         <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item">
+            <a href="/dashboard" class="nav-item" data-tooltip="Home">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Home
+                <span class="nav-label">Home</span>
             </a>
-            <a href="/nokos" class="nav-item">
+            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
                 <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                Beli Nokos
+                <span class="nav-label">Beli Nokos</span>
             </a>
-            <a href="/inbox" class="nav-item">
+            <a href="/inbox" class="nav-item" data-tooltip="Inbox">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                Inbox
+                <span class="nav-label">Inbox</span>
             </a>
-            <a href="/deposit" class="nav-item active">
+            <a href="/deposit" class="nav-item active" data-tooltip="Deposit">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                Deposit
+                <span class="nav-label">Deposit</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
-            <a href="/profile" class="nav-item">
+            <a href="/profile" class="nav-item" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Profile
+                <span class="nav-label">Profile</span>
             </a>
         </nav>
 
@@ -1205,7 +1618,7 @@
         </div>
     </aside>
 
-    <div class="sidebar-overlay"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- ===== MAIN ===== -->
     <main class="main-content">
@@ -1215,7 +1628,7 @@
                 <p>Top-up saldo buat beli nokos</p>
             </div>
             <div class="topbar-right">
-                <button class="mobile-toggle">
+                <button class="mobile-toggle" id="mobileToggle">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <div class="balance-pill">
@@ -1308,45 +1721,6 @@
                     </svg>
                 </div>
 
-                <!-- VOUCHER -->
-                <div class="side-card">
-                    <div class="side-title">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 12v10H4V12"/><path d="M2 7h20v5H2z"/><path d="M12 22V7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-                        Punya Kode Voucher?
-                    </div>
-                    <div class="voucher-form">
-                        <input type="text" id="voucherInput" placeholder="ASYROF-XXXXXX">
-                        <button id="btnVoucher">Klaim</button>
-                    </div>
-                </div>
-
-                <!-- BONUS -->
-                <div class="side-card">
-                    <div class="side-title">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
-                        Bonus Deposit
-                    </div>
-                    <div class="bonus-list">
-                        <div class="bonus-item">
-                            <span class="bonus-range">Rp10.000 – Rp49.999</span>
-                            <span class="bonus-value">+2%</span>
-                        </div>
-                        <div class="bonus-item">
-                            <span class="bonus-range">Rp50.000 – Rp99.999</span>
-                            <span class="bonus-value">+3%</span>
-                        </div>
-                        <div class="bonus-item">
-                            <span class="bonus-range">Rp100.000 – Rp199.999</span>
-                            <span class="bonus-value">+5%</span>
-                        </div>
-                        <div class="bonus-item">
-                            <span class="bonus-range">Rp200.000+</span>
-                            <span class="bonus-value">+7%</span>
-                        </div>
-                    </div>
-                    <div class="bonus-note">*Bonus berupa cashback saldo langsung masuk ke akunmu.</div>
-                </div>
-
                 <!-- INFO -->
                 <div class="side-card">
                     <div class="side-title">
@@ -1368,7 +1742,7 @@
                         </div>
                         <div class="info-item">
                             <div class="bullet"></div>
-                            <div>Status semua deposit ada di <strong style="color:var(--primary);">Riwayat</strong>.</div>
+                            <div>Klik riwayat deposit buat lihat detail lengkap.</div>
                         </div>
                     </div>
                 </div>
@@ -1378,10 +1752,10 @@
 
         <!-- RIWAYAT -->
         <div class="history-section">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-                <div style="width:6px;height:6px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,0.2);"></div>
-                <div style="font-size:0.85rem;font-weight:800;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:0.08em;color:var(--text-gray);">Riwayat Deposit</div>
-                <div style="flex:1;height:2px;background:repeating-linear-gradient(to right, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);"></div>
+            <div class="section-label">
+                <div class="dot"></div>
+                <div class="text">Riwayat Deposit</div>
+                <div class="line"></div>
             </div>
 
             <div id="historyList">
@@ -1424,7 +1798,14 @@
     </div>
 </div>
 
-<script src="/js/cache.js"></script>
+<!-- ===== MODAL DETAIL (buat riwayat) ===== -->
+<div class="modal-overlay" id="modalDetail">
+    <div class="modal" id="modalDetailContent">
+        <!-- diisi JS -->
+    </div>
+</div>
+
+<script src="/js/main.js"></script>
 <script>
     // ===== SVG ICONS =====
     const ICONS = {
@@ -1435,29 +1816,12 @@
         clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
         warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
         arrowRight: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`,
-        arrowLeft: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>`,
         wallet: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`,
+        copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+        info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        trendUp: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+        fee: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
     };
-
-    // ===== HELPERS =====
-    function formatRupiah(angka) {
-        if (!angka && angka !== 0) return 'Rp0';
-        return 'Rp' + Number(angka).toLocaleString('id-ID');
-    }
-
-    function getInitial(name) {
-        return name ? name.charAt(0).toUpperCase() : '?';
-    }
-
-    // FIX: Safe JSON parse — handle response non-JSON
-    async function safeJson(res) {
-        const text = await res.text();
-        try {
-            return JSON.parse(text);
-        } catch (e) {
-            throw new Error(`Server error ${res.status}: ${text.substring(0, 100)}`);
-        }
-    }
 
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
@@ -1474,13 +1838,30 @@
         isCreating: false,
     };
 
-    // FIX: Restore state dari sessionStorage (biar ga reset pas refresh)
+    // ===== SIDEBAR COLLAPSE =====
+    (function initCollapse() {
+        const sidebar = document.getElementById('sidebar');
+        const collapseBtn = document.getElementById('collapseBtn');
+        if (!sidebar || !collapseBtn) return;
+
+        // Restore state
+        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        if (isCollapsed && window.innerWidth > 768) {
+            sidebar.classList.add('collapsed');
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+        });
+    })();
+
+    // ===== STATE RESTORE =====
     function restoreState() {
         try {
             const saved = sessionStorage.getItem('deposit_state');
             if (saved) {
                 const parsed = JSON.parse(saved);
-                // Cuma restore amount & method, jangan restore deposit (biar fresh)
                 if (parsed.amount) {
                     state.amount = parsed.amount;
                     document.getElementById('inputAmount').value = parsed.amount;
@@ -1503,7 +1884,7 @@
         } catch (e) {}
     }
 
-    // ===== LOAD USER (SWR) =====
+    // ===== LOAD USER =====
     swrFetch('/api/user', 'user_profile', (user, meta) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
@@ -1574,7 +1955,7 @@
         saveState();
     });
 
-    // ===== STEP INDICATOR FIX =====
+    // ===== STEP INDICATOR =====
     function setStep(step) {
         document.getElementById('step1').classList.remove('active', 'done');
         document.getElementById('step2').classList.remove('active', 'done');
@@ -1626,7 +2007,7 @@
                 card.addEventListener('click', () => {
                     state.method = card.dataset.method;
                     state.methodLabel = card.dataset.label;
-                    document.getElementById('modalMethod').classList.remove('active');
+                    closeModal('modalMethod');
                     setStep(3);
                     createDeposit();
                 });
@@ -1648,10 +2029,8 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
 
         try {
-            // Generate reference ID
             const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
 
-            // Panggil Worker QRISPY langsung dari frontend
             const workerUrl = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev/api/payment/qris/generate';
 
             const qrispyRes = await fetch(workerUrl, {
@@ -1669,7 +2048,6 @@
                 throw new Error(qrispyData.message || 'Gagal membuat QRIS');
             }
 
-            // Simpan ke database lewat backend
             const saveRes = await fetch('/api/deposit/qrispy-save', {
                 method: 'POST',
                 headers: {
@@ -1712,6 +2090,10 @@
         const d = state.deposit;
         const isManual = state.method === 'qris_dana';
 
+        const fee = 0;
+        const totalBayar = isManual ? d.total_amount : d.amount;
+        const saldoMasuk = d.amount;
+
         panelPayment.innerHTML = `
             <div class="form-title">Scan QR buat bayar</div>
 
@@ -1726,29 +2108,41 @@
 
             <div class="qr-info">
                 <div class="qr-row">
+                    <span class="label">Reference ID</span>
+                    <span class="value">${d.reference_id}</span>
+                </div>
+                <div class="qr-row">
                     <span class="label">Metode</span>
                     <span class="value">${state.methodLabel}</span>
                 </div>
                 <div class="qr-row">
-                    <span class="label">Nominal</span>
-                    <span class="value big">${formatRupiah(d.amount)}</span>
+                    <span class="label">Jumlah Pokok</span>
+                    <span class="value">${formatRupiah(d.amount)}</span>
+                </div>
+                <div class="qr-row">
+                    <span class="label">Fee</span>
+                    <span class="value">${formatRupiah(fee)}</span>
                 </div>
                 ${isManual ? `
                     <div class="qr-row">
                         <span class="label">Kode Unik</span>
                         <span class="value unique">+${d.unique_code}</span>
                     </div>
-                    <div class="qr-row" style="padding-top:10px;border-top:1px solid var(--border);">
-                        <span class="label">Total Bayar</span>
-                        <span class="value big">${formatRupiah(d.total_amount)}</span>
-                    </div>
                 ` : ''}
+                <div class="qr-row" style="padding-top:10px;border-top:1px solid var(--border);">
+                    <span class="label">Total Bayar</span>
+                    <span class="value big">${formatRupiah(totalBayar)}</span>
+                </div>
+                <div class="qr-row">
+                    <span class="label">Saldo Masuk</span>
+                    <span class="value success" style="color:var(--success);">${formatRupiah(saldoMasuk)}</span>
+                </div>
             </div>
 
             ${isManual ? `
                 <div class="info-box">
                     ${ICONS.warning}
-                    <span><strong>Penting:</strong> Transfer <strong>tepat ${formatRupiah(d.total_amount)}</strong> (termasuk kode unik +${d.unique_code}). Kode unik dipakai buat verifikasi otomatis.</span>
+                    <span><strong>Penting:</strong> Transfer <strong>tepat ${formatRupiah(totalBayar)}</strong> (termasuk kode unik +${d.unique_code}). Kode unik dipakai buat verifikasi otomatis.</span>
                 </div>
             ` : `
                 <div class="polling-indicator" id="pollingIndicator">
@@ -1765,7 +2159,6 @@
 
         document.getElementById('btnCancel').addEventListener('click', cancelDeposit);
 
-        // FIX: Countdown pake expires_at dari server (bukan cuma expires_in_seconds)
         let countdownSeconds = d.expires_in_seconds || 1800;
         if (d.expired_at) {
             const expiresAt = new Date(d.expired_at).getTime();
@@ -1781,7 +2174,7 @@
 
     // ===== POLLING =====
     function startPolling(referenceId) {
-        stopPolling(); // FIX: Pastiin ga ada interval lama
+        stopPolling();
         state.pollingInterval = setInterval(async () => {
             try {
                 const res = await fetch(`/api/deposit/${referenceId}/status`, {
@@ -1889,7 +2282,7 @@
     }
 
     // ===== RESET PANEL =====
-    function resetPanel() {
+    window.resetPanel = function() {
         stopPolling();
         stopCountdown();
         setStep(1);
@@ -1901,6 +2294,25 @@
         state.methodLabel = null;
         btnLanjut.disabled = !state.amount;
         btnLanjut.innerHTML = `${ICONS.arrowRight} <span>Pilih Metode Pembayaran</span>`;
+    };
+
+    // ===== MODAL HELPERS =====
+    function openModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+    }
+
+    function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) {
+            modal.classList.remove('active');
+            if (!document.querySelector('.modal-overlay.active')) {
+                document.body.classList.remove('modal-open');
+            }
+        }
     }
 
     // ===== SUCCESS =====
@@ -1922,20 +2334,39 @@
                     ${ICONS.check}
                 </div>
                 <h2 style="font-family:var(--font-display);font-size:1.4rem;font-weight:800;margin-bottom:8px;">Deposit Berhasil!</h2>
-                <p style="color:var(--text-gray);font-size:0.9rem;margin-bottom:24px;">
+                <p style="color:var(--text-gray);font-size:0.9rem;margin-bottom:20px;">
                     Saldo <strong style="color:var(--primary);font-family:var(--font-mono);">${formatRupiah(deposit.total_amount || deposit.amount)}</strong> udah masuk ke akun kamu.
                 </p>
 
-                <button class="btn btn-primary btn-block" id="btnSelesai">
+                <div class="detail-list" style="text-align:left;">
+                    <div class="detail-row">
+                        <span class="detail-label">Reference ID</span>
+                        <span class="detail-value">${deposit.reference_id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Metode</span>
+                        <span class="detail-value">${deposit.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Saldo Masuk</span>
+                        <span class="detail-value success">${formatRupiah(deposit.amount)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value success">BERHASIL</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" id="btnSelesai" style="margin-top:16px;">
                     ${ICONS.check}
                     Selesai
                 </button>
             </div>
         `;
-        modal.classList.add('active');
+        openModal('modalPayment');
 
         document.getElementById('btnSelesai').addEventListener('click', () => {
-            modal.classList.remove('active');
+            closeModal('modalPayment');
             location.reload();
         });
 
@@ -1956,7 +2387,7 @@
     async function loadHistory() {
         const container = document.getElementById('historyList');
         try {
-            const res = await fetch('/api/deposit/history?limit=10', {
+            const res = await fetch('/api/deposit/history?limit=20', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
@@ -1989,7 +2420,7 @@
                 });
                 const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : 'danger';
                 return `
-                    <div class="history-card ${s.class}">
+                    <button class="history-card ${s.class}" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}'>
                         <div class="history-icon ${s.class}">${s.icon}</div>
                         <div class="history-info">
                             <div class="history-title">${methodLabel}</div>
@@ -1999,29 +2430,156 @@
                             <div class="history-amount">${formatRupiah(d.total_amount || d.amount)}</div>
                             <span class="badge ${badgeClass}">${s.label}</span>
                         </div>
-                    </div>
+                    </button>
                 `;
             }).join('') + `</div>`;
+
+            // Klik history card → buka detail modal
+            container.querySelectorAll('.history-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
+                    showDetailModal(deposit);
+                });
+            });
         } catch (err) {
             console.error('Load history error:', err);
         }
     }
 
+    // ===== SHOW DETAIL MODAL =====
+    function showDetailModal(d) {
+        const statusMap = {
+            success: { class: 'success', label: 'BERHASIL', icon: ICONS.check },
+            pending: { class: 'pending', label: 'PENDING', icon: ICONS.clock },
+            failed: { class: 'failed', label: 'GAGAL', icon: ICONS.close },
+            cancelled: { class: 'failed', label: 'DIBATALKAN', icon: ICONS.close },
+            expired: { class: 'failed', label: 'EXPIRED', icon: ICONS.clock },
+        };
+
+        const s = statusMap[d.status] || { class: 'pending', label: d.status?.toUpperCase() || '—', icon: ICONS.clock };
+        const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA Manual';
+        const fee = 0;
+        const totalBayar = d.total_amount || d.amount;
+        const saldoMasuk = d.amount;
+
+        const formatDate = (date) => {
+            if (!date) return '—';
+            return new Date(date).toLocaleString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        };
+
+        const modal = document.getElementById('modalDetail');
+        document.getElementById('modalDetailContent').innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Detail Deposit</div>
+                <button class="modal-close" data-modal-close>
+                    ${ICONS.close}
+                </button>
+            </div>
+
+            <div class="detail-header">
+                <div class="detail-icon ${s.class}">${s.icon}</div>
+                <h2>${formatRupiah(saldoMasuk)}</h2>
+                <p>${methodLabel}</p>
+            </div>
+
+            <div class="detail-list">
+                <div class="detail-row">
+                    <span class="detail-label">Reference ID</span>
+                    <span class="detail-value">${d.reference_id || '—'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value ${s.class}">${s.label}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Metode</span>
+                    <span class="detail-value">${methodLabel}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Jumlah Pokok</span>
+                    <span class="detail-value">${formatRupiah(d.amount)}</span>
+                </div>
+                ${d.unique_code ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Kode Unik</span>
+                        <span class="detail-value warning">+${d.unique_code}</span>
+                    </div>
+                ` : ''}
+                <div class="detail-row">
+                    <span class="detail-label">Fee</span>
+                    <span class="detail-value">${formatRupiah(fee)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Bayar</span>
+                    <span class="detail-value highlight">${formatRupiah(totalBayar)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Saldo Masuk</span>
+                    <span class="detail-value success">${formatRupiah(saldoMasuk)}</span>
+                </div>
+                ${d.qris_id ? `
+                    <div class="detail-row">
+                        <span class="detail-label">QRIS ID</span>
+                        <span class="detail-value">${d.qris_id}</span>
+                    </div>
+                ` : ''}
+                <div class="detail-row">
+                    <span class="detail-label">Dibuat</span>
+                    <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.created_at)}</span>
+                </div>
+                ${d.expires_at ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Kedaluwarsa</span>
+                        <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.expires_at)}</span>
+                    </div>
+                ` : ''}
+                ${d.paid_at ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Dibayar</span>
+                        <span class="detail-value success" style="font-size:0.78rem;">${formatDate(d.paid_at)}</span>
+                    </div>
+                ` : ''}
+            </div>
+
+            <div class="detail-actions">
+                <button class="btn btn-block" id="btnCopyRef">
+                    ${ICONS.copy}
+                    Copy Reference ID
+                </button>
+            </div>
+        `;
+
+        openModal('modalDetail');
+
+        document.getElementById('btnCopyRef').addEventListener('click', () => {
+            navigator.clipboard.writeText(d.reference_id || '').then(() => {
+                const btn = document.getElementById('btnCopyRef');
+                const original = btn.innerHTML;
+                btn.innerHTML = `${ICONS.check} Copied!`;
+                setTimeout(() => btn.innerHTML = original, 1500);
+            });
+        });
+    }
+
     // ===== OPEN MODAL METHOD =====
     btnLanjut.addEventListener('click', () => {
         if (!state.amount || state.amount < 1000) return;
-        setStep(2); // FIX: Step 2 aktif pas modal kebuka
-        document.getElementById('modalMethod').classList.add('active');
+        setStep(2);
+        openModal('modalMethod');
     });
 
-    // ===== MODAL CLOSE =====
+    // ===== MODAL CLOSE HANDLERS =====
     document.querySelectorAll('[data-modal-close]').forEach(btn => {
         btn.addEventListener('click', () => {
             const modal = btn.closest('.modal-overlay');
-            if (modal) modal.classList.remove('active');
-            // Kalo modal method ditutup tanpa pilih, balik ke step 1
-            if (modal && modal.id === 'modalMethod' && !state.method) {
-                setStep(1);
+            if (modal) {
+                closeModal(modal.id);
+                if (modal.id === 'modalMethod' && !state.method) {
+                    setStep(1);
+                }
             }
         });
     });
@@ -2029,7 +2587,7 @@
     document.querySelectorAll('.modal-overlay').forEach(overlay => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) {
-                overlay.classList.remove('active');
+                closeModal(overlay.id);
                 if (overlay.id === 'modalMethod' && !state.method) {
                     setStep(1);
                 }
@@ -2037,44 +2595,18 @@
         });
     });
 
-    // ===== VOUCHER =====
-    document.getElementById('btnVoucher').addEventListener('click', () => {
-        const code = document.getElementById('voucherInput').value.trim();
-        if (!code) return alert('Masukkan kode voucher');
-        alert('Fitur voucher segera hadir!');
+    // ESC key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                closeModal(activeModal.id);
+                if (activeModal.id === 'modalMethod' && !state.method) {
+                    setStep(1);
+                }
+            }
+        }
     });
-
-    // ===== LOGOUT =====
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-        } catch (err) {}
-
-        CacheManager.clear();
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
-
-        window.location.href = '/landing';
-    });
-
-    // ===== MOBILE SIDEBAR =====
-    const mobileToggle = document.querySelector('.mobile-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-
-    if (mobileToggle) {
-        mobileToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('active');
-        });
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-    }
 
     // ===== INIT =====
     restoreState();
@@ -2083,7 +2615,7 @@
     loadMethods();
     loadHistory();
 
-    // FIX: Cleanup pas page unload
+    // Cleanup
     window.addEventListener('beforeunload', () => {
         stopPolling();
         stopCountdown();
