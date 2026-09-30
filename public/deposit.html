@@ -765,7 +765,7 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* ===== MODAL FIX — SELALU DI TENGAH LAYAR ===== */
+        /* ===== MODAL — FIX TENGAH LAYAR ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -774,30 +774,28 @@
             -webkit-backdrop-filter: blur(6px);
             z-index: 1000;
             display: none;
-            padding: 20px;
         }
 
         .modal-overlay.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: block;
         }
 
         .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             background: white;
             border-radius: var(--radius);
             border: 2px solid var(--border-dark);
             box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
             padding: 28px;
-            width: 100%;
+            width: calc(100% - 40px);
             max-width: 480px;
             max-height: 90vh;
             overflow-y: auto;
             animation: bounceIn 0.5s var(--ease-bounce);
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            z-index: 1001;
         }
 
         @keyframes bounceIn {
@@ -1142,7 +1140,6 @@
             .deposit-hero-icon .icon-svg { width: 26px; height: 26px; }
             .input-amount-big input { font-size: 1.1rem; padding: 14px 16px; }
             .input-amount-big .prefix { font-size: 1rem; padding: 14px 16px; }
-            .modal { max-width: calc(100% - 24px); }
         }
     </style>
 </head>
@@ -1600,7 +1597,15 @@
                 body: JSON.stringify({ amount: state.amount })
             });
 
-            const data = await res.json();
+            const text = await res.text();
+            let data;
+            try {
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Response bukan JSON:', text.substring(0, 500));
+                throw new Error(`Server error (${res.status}). Cek console untuk detail.`);
+            }
+
             if (!res.ok) throw new Error(data.error || 'Gagal membuat deposit');
 
             state.deposit = data.deposit;
