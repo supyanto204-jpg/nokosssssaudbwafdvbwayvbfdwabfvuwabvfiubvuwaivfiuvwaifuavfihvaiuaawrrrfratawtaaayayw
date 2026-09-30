@@ -397,7 +397,7 @@ async function initDatabase() {
 
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
-            await pool.query(`
+                        await pool.query(`
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
                     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -423,7 +423,32 @@ async function initDatabase() {
                 );
             `);
 
-            await pool.query(`
+            // ===== MIGRATION: Tambah kolom yang mungkin belum ada di tabel lama =====
+            const orderCols = [
+                'server TEXT',
+                'service TEXT',
+                'service_name TEXT',
+                'country TEXT',
+                'country_name TEXT',
+                'country_flag TEXT',
+                'operator TEXT',
+                'phone_number TEXT',
+                'otp_code TEXT',
+                'otp_code_2 TEXT',
+                'full_sms TEXT',
+                'price BIGINT',
+                'status TEXT DEFAULT \'pending\'',
+                'expires_in INTEGER DEFAULT 0',
+                'resend_count INTEGER DEFAULT 0',
+                'received_at TIMESTAMPTZ',
+                'created_at TIMESTAMPTZ DEFAULT NOW()',
+                'updated_at TIMESTAMPTZ DEFAULT NOW()',
+            ];
+            for (const col of orderCols) {
+                await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${col};`);
+            }
+
+                        await pool.query(`
                 CREATE TABLE IF NOT EXISTS transactions (
                     id SERIAL PRIMARY KEY,
                     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
@@ -439,6 +464,23 @@ async function initDatabase() {
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 );
             `);
+
+            // ===== MIGRATION: transactions =====
+            const txCols = [
+                'order_id TEXT',
+                'service_name TEXT',
+                'country TEXT',
+                'country_flag TEXT',
+                'phone_number TEXT',
+                'otp_code TEXT',
+                'status TEXT DEFAULT \'pending\'',
+                'price BIGINT',
+                'created_at TIMESTAMPTZ DEFAULT NOW()',
+                'updated_at TIMESTAMPTZ DEFAULT NOW()',
+            ];
+            for (const col of txCols) {
+                await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ${col};`);
+            }
 
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS deposits (
