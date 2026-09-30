@@ -19,7 +19,7 @@ app.use((req, res, next) => {
     next();
 });
 
-// ===== BODY PARSER (raw body buat webhook) =====
+// ===== BODY PARSER =====
 app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf.toString('utf8');
@@ -89,7 +89,7 @@ function cacheDelPattern(prefix) {
     for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k);
 }
 
-// ===== RATE LIMITER (in-memory, cukup buat single instance) =====
+// ===== RATE LIMITER =====
 const rateLimitStore = new Map();
 function rateLimit(maxRequests, windowMs) {
     return (req, res, next) => {
@@ -112,7 +112,6 @@ function rateLimit(maxRequests, windowMs) {
     };
 }
 
-// Cleanup rate limit store tiap 5 menit
 setInterval(() => {
     const now = Date.now();
     for (const [key, record] of rateLimitStore.entries()) {
@@ -450,6 +449,7 @@ async function initDatabase() {
                     amount BIGINT NOT NULL,
                     unique_code INTEGER,
                     total_amount BIGINT,
+                    fee BIGINT DEFAULT 0,
                     status TEXT DEFAULT 'pending',
                     qris_id TEXT,
                     qris_url TEXT,
@@ -465,6 +465,7 @@ async function initDatabase() {
             const depositCols = [
                 'unique_code INTEGER',
                 'total_amount BIGINT',
+                'fee BIGINT DEFAULT 0',
                 'qris_id TEXT',
                 'qris_url TEXT',
                 'qris_string TEXT',
@@ -495,41 +496,49 @@ async function initDatabase() {
 }
 
 // ============================================
-// ===== MARK DEPOSIT PAID (IDEMPOTENT - FIXED) =====
+// ===== MARK DEPOSIT PAID (IDEMPOTENT + FEE CALC) =====
 // ============================================
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
-    const amount = receivedAmount || deposit.total_amount || deposit.amount;
+    const saldoMasuk = Number(deposit.amount);
+    const totalBayar = Number(receivedAmount) || Number(deposit.total_amount) || saldoMasuk;
+    const fee = Math.max(0, totalBayar - saldoMasuk);
     const paidTime = paidAt ? new Date(paidAt) : new Date();
 
-    // FIX: Atomic update dengan syarat status masih 'pending'
-    // Ini mencegah race condition kalo webhook datang 2x
+    // Atomic update — idempotent guard
     const updateRes = await pool.query(
         `UPDATE deposits 
-         SET status = 'success', paid_at = $1, updated_at = NOW() 
-         WHERE id = $2 AND status = 'pending'`,
-        [paidTime, deposit.id]
+         SET status = 'success', paid_at = $1, updated_at = NOW(),
+             total_amount = $2, fee = $3
+         WHERE id = $4 AND status = 'pending'`,
+        [paidTime, totalBayar, fee, deposit.id]
     );
 
-    // Kalo ga ada row yang ke-update, berarti udah diproses sebelumnya
     if (updateRes.rowCount === 0) {
         console.log(`⚠️  Deposit ${deposit.reference_id} sudah diproses sebelumnya (idempotent skip)`);
-        return { alreadyProcessed: true };
+        return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
     }
 
-    // Kalo sampe sini, kita yang menang race — lanjut credit saldo
+    // Credit saldo = jumlah pokok (bukan total bayar)
     await pool.query(
         `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-        [amount, deposit.user_id]
+        [saldoMasuk, deposit.user_id]
     );
 
+    // Catat transaksi
     await pool.query(
         `INSERT INTO transactions (user_id, order_id, service_name, status, price)
          VALUES ($1, $2, $3, $4, $5)`,
-        [deposit.user_id, deposit.reference_id, 'Deposit ' + (deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'), 'success', amount]
+        [
+            deposit.user_id,
+            deposit.reference_id,
+            `Deposit ${deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
+            'success',
+            totalBayar
+        ]
     );
 
-    console.log(`✅ Deposit ${deposit.reference_id} sukses, saldo +${amount}`);
-    return { alreadyProcessed: false, amount };
+    console.log(`✅ Deposit ${deposit.reference_id} sukses | Saldo +${saldoMasuk} | Fee ${fee} | Total ${totalBayar}`);
+    return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
 }
 
 // ============================================
@@ -730,7 +739,7 @@ app.get('/api/deposit/presets', requireAuth, (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — SAVE QRISPY (dari frontend) =====
+// ===== DEPOSIT — SAVE QRISPY =====
 // ============================================
 app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
     try {
@@ -750,7 +759,6 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
     }
 
     try {
-        // Cek kalo reference_id udah ada (idempotent)
         const existing = await pool.query(
             'SELECT * FROM deposits WHERE reference_id = $1',
             [reference_id]
@@ -773,14 +781,15 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
         }
 
         await pool.query(
-            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, status, qris_id, qris_url, payment_reference, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 req.user.id,
                 reference_id,
                 'qrispy',
                 Number(amount),
                 Number(amount),
+                0,
                 'pending',
                 qris_id,
                 qris_url,
@@ -808,7 +817,97 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — QRISPY (SERVER-SIDE, LEGACY) =====
+// ===== DEPOSIT — GET QRISPY TRANSACTION DETAIL (NEW) =====
+// ============================================
+app.get('/api/deposit/:referenceId/qrispy-detail', requireAuth, async (req, res) => {
+    const { referenceId } = req.params;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            [referenceId, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
+        }
+
+        const deposit = result.rows[0];
+
+        // Kalo bukan qrispy, return data lokal aja
+        if (deposit.method !== 'qrispy' || !deposit.qris_id) {
+            return res.json({
+                source: 'local',
+                deposit: {
+                    ...deposit,
+                    fee: Number(deposit.fee) || 0,
+                    total_bayar: Number(deposit.total_amount) || Number(deposit.amount),
+                    saldo_masuk: Number(deposit.amount),
+                },
+            });
+        }
+
+        // Coba fetch dari QRISPY
+        try {
+            const qrispyData = await qrispyFetch(`/api/payment/transactions?qris_id=${deposit.qris_id}`);
+
+            let transaction = null;
+            if (Array.isArray(qrispyData.data)) {
+                transaction = qrispyData.data.find(t => 
+                    t.payment_reference === deposit.reference_id || 
+                    t.qris_id === deposit.qris_id
+                );
+            } else if (qrispyData.data && typeof qrispyData.data === 'object') {
+                transaction = qrispyData.data;
+            }
+
+            if (transaction) {
+                const totalBayar = Number(transaction.amount) || Number(deposit.amount);
+                const saldoMasuk = Number(deposit.amount);
+                const fee = Math.max(0, totalBayar - saldoMasuk);
+
+                // Update DB lokal kalo ada perubahan
+                if (Number(deposit.total_amount) !== totalBayar || Number(deposit.fee) !== fee) {
+                    await pool.query(
+                        `UPDATE deposits SET total_amount = $1, fee = $2, updated_at = NOW() WHERE id = $3`,
+                        [totalBayar, fee, deposit.id]
+                    );
+                }
+
+                return res.json({
+                    source: 'qrispy',
+                    deposit: {
+                        ...deposit,
+                        status: transaction.status || deposit.status,
+                        total_bayar: totalBayar,
+                        saldo_masuk: saldoMasuk,
+                        fee: fee,
+                        paid_at: transaction.paid_at || deposit.paid_at,
+                    },
+                });
+            }
+        } catch (err) {
+            console.error('QRISPY detail fetch error:', err.message);
+        }
+
+        // Fallback: pake data lokal
+        return res.json({
+            source: 'local',
+            deposit: {
+                ...deposit,
+                fee: Number(deposit.fee) || 0,
+                total_bayar: Number(deposit.total_amount) || Number(deposit.amount),
+                saldo_masuk: Number(deposit.amount),
+            },
+        });
+    } catch (err) {
+        console.error('Get qrispy detail error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== DEPOSIT — QRISPY (LEGACY, server-side) =====
 // ============================================
 app.post('/api/deposit/qrispy', requireAuth, async (req, res) => {
     try {
@@ -840,14 +939,15 @@ app.post('/api/deposit/qrispy', requireAuth, async (req, res) => {
         const qris = data.data;
 
         await pool.query(
-            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, status, qris_id, qris_url, payment_reference, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 req.user.id,
                 referenceId,
                 'qrispy',
                 Number(amount),
                 Number(amount),
+                0,
                 'pending',
                 qris.qris_id,
                 qris.qris_image_url,
@@ -908,8 +1008,8 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
 
         await pool.query(
-            `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, status, qris_string, qris_url, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, fee, status, qris_string, qris_url, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [
                 req.user.id,
                 referenceId,
@@ -917,6 +1017,7 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
                 Number(amount),
                 uniqueCode,
                 totalAmount,
+                uniqueCode,
                 'pending',
                 dynamicQRIS,
                 qrImageUrl,
@@ -932,6 +1033,7 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
                 amount: Number(amount),
                 unique_code: uniqueCode,
                 total_amount: totalAmount,
+                fee: uniqueCode,
                 qris_string: dynamicQRIS,
                 qris_url: qrImageUrl,
                 expired_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
@@ -962,12 +1064,10 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
 
         const deposit = result.rows[0];
 
-        // Kalo udah success, langsung return
         if (deposit.status === 'success') {
             return res.json({ status: 'success', deposit });
         }
 
-        // Kalo masih pending & metode qrispy, cek ke QRISPY
         if (deposit.method === 'qrispy' && deposit.status === 'pending' && deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
@@ -992,7 +1092,6 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
                 }
             } catch (err) {
                 console.error('QRISPY status check error:', err.message);
-                // Jangan throw — tetep return data dari DB
             }
         }
 
@@ -1004,10 +1103,12 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — LIST TRANSAKSI =====
+// ===== DEPOSIT — LIST TRANSAKSI (PAGINATION) =====
 // ============================================
 app.get('/api/deposit/history', requireAuth, async (req, res) => {
-    const { page = 1, limit = 20, status } = req.query;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 5));
+    const status = req.query.status;
 
     try {
         let query = 'SELECT * FROM deposits WHERE user_id = $1';
@@ -1019,16 +1120,21 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
         }
 
         query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(Number(limit), (Number(page) - 1) * Number(limit));
+        params.push(limit, (page - 1) * limit);
 
         const result = await pool.query(query, params);
         const countRes = await pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id]);
+        const total = Number(countRes.rows[0].count);
+        const totalPages = Math.ceil(total / limit);
 
         res.json({
             deposits: result.rows,
-            total: Number(countRes.rows[0].count),
-            page: Number(page),
-            limit: Number(limit),
+            total,
+            page,
+            limit,
+            totalPages,
+            hasNext: page < totalPages,
+            hasPrev: page > 1,
         });
     } catch (err) {
         console.error('List deposits error:', err);
@@ -1117,7 +1223,6 @@ app.post('/api/webhook/qrispy', async (req, res) => {
             .update(req.rawBody || JSON.stringify(req.body))
             .digest('hex');
 
-        // Timing-safe comparison
         const sigBuffer = Buffer.from(signature, 'hex');
         const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
@@ -1144,7 +1249,6 @@ app.post('/api/webhook/qrispy', async (req, res) => {
 
             const deposit = result.rows[0];
 
-            // markDepositPaid udah idempotent, jadi aman
             const { alreadyProcessed } = await markDepositPaid(
                 deposit,
                 received_amount || amount,
