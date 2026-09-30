@@ -1493,4 +1493,71 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
+// ============================================
+// ===== DEPOSIT — SYNC BATCH (cuma yg keliatan) =====
+// ============================================
+// Sync status deposit pending yang dikirim dari frontend (cuma yg visible)
+app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
+    const { reference_ids } = req.body;
+
+    if (!Array.isArray(reference_ids) || reference_ids.length === 0) {
+        return res.json({ updated: [], count: 0 });
+    }
+
+    // Batasi max 10 biar ga berat
+    const ids = reference_ids.slice(0, 10);
+
+    try {
+        const result = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE reference_id = ANY($1) 
+               AND user_id = $2 
+               AND status = 'pending'`,
+            [ids, req.user.id]
+        );
+
+        const updated = [];
+
+        for (const deposit of result.rows) {
+            // Auto-expire dulu
+            if (deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
+                await pool.query(
+                    `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
+                    [deposit.id]
+                );
+                const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                updated.push(fresh.rows[0]);
+                continue;
+            }
+
+            // Khusus qrispy, cek ke QRISPY
+            if (deposit.method === 'qrispy' && deposit.qris_id) {
+                try {
+                    const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
+
+                    if (data.data && data.data.status === 'paid') {
+                        await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                        const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                        updated.push(fresh.rows[0]);
+                    } else if (data.data && data.data.status === 'expired') {
+                        await pool.query(
+                            `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
+                            [deposit.id]
+                        );
+                        const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                        updated.push(fresh.rows[0]);
+                    }
+                } catch (err) {
+                    console.error(`Sync ${deposit.reference_id} error:`, err.message);
+                }
+            }
+        }
+
+        res.json({ updated, count: updated.length });
+    } catch (err) {
+        console.error('Sync batch error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
 module.exports = app;
