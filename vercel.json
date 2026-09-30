@@ -26,5 +26,9 @@
     { "source": "/deposit", "destination": "/public/deposit.html" },
     { "source": "/inbox", "destination": "/public/inbox.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
+  ],
+  "crons": [
+    { "path": "/api/cron/expire-pending-deposits", "schedule": "*/5 * * * *" },
+    { "path": "/api/cron/sync-pending-qrispy", "schedule": "*/2 * * * *" }
   ]
 }
