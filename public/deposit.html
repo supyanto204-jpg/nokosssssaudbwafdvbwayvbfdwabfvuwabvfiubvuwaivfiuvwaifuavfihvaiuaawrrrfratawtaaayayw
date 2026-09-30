@@ -12,372 +12,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/dashboard.css">
     <style>
-        /* ===== LAYOUT ===== */
-        .dashboard-layout {
-            display: flex;
-            min-height: 100vh;
-            align-items: flex-start;
-        }
-
-        /* ===== SIDEBAR — STICKY (ngikutin scroll) ===== */
-        .sidebar {
-            width: 260px;
-            background: white;
-            border-right: 2px solid var(--border-dark);
-            display: flex;
-            flex-direction: column;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            max-height: 100vh;
-            z-index: 100;
-            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            overflow: hidden;
-            flex-shrink: 0;
-            align-self: flex-start;
-        }
-
-        .sidebar.collapsed {
-            width: 72px;
-        }
-
-        .sidebar-header {
-            padding: 20px 16px;
-            border-bottom: 2px solid var(--border-dark);
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            min-height: 72px;
-            overflow: hidden;
-        }
-
-        .sidebar.collapsed .sidebar-header {
-            padding: 20px 0;
-            justify-content: center;
-        }
-
-        .sidebar-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            text-decoration: none;
-            color: var(--text-dark);
-            font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 1.15rem;
-            white-space: nowrap;
-            overflow: hidden;
-            flex: 1;
-            min-width: 0;
-            transition: opacity 0.2s, width 0.3s;
-        }
-
-        .sidebar.collapsed .sidebar-logo {
-            flex: 0;
-            opacity: 0;
-            width: 0;
-            pointer-events: none;
-        }
-
-        .sidebar-logo .logo-icon {
-            width: 36px;
-            height: 36px;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
-            border: 2px solid var(--border-dark);
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: var(--font-display);
-            font-weight: 900;
-            font-size: 1.3rem;
-            box-shadow: var(--shadow-hard-sm);
-            transform: rotate(-3deg);
-            flex-shrink: 0;
-        }
-
-        .sidebar-logo span { color: var(--primary); }
-
-        .collapse-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            flex-shrink: 0;
-            padding: 0;
-        }
-
-        .collapse-btn:hover {
-            background: var(--primary);
-            color: white;
-        }
-
-        .collapse-btn .icon-svg {
-            width: 16px;
-            height: 16px;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .sidebar.collapsed .collapse-btn .icon-svg {
-            transform: rotate(180deg);
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            padding: 16px 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            scrollbar-width: thin;
-        }
-
-        .sidebar-nav::-webkit-scrollbar { width: 4px; }
-        .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-        .sidebar.collapsed .sidebar-nav {
-            padding: 16px 8px;
-            align-items: center;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            border-radius: var(--radius-sm);
-            text-decoration: none;
-            color: var(--text-gray);
-            font-weight: 600;
-            font-size: 0.9rem;
-            transition: all var(--transition);
-            border: 2px solid transparent;
-            position: relative;
-            white-space: nowrap;
-            overflow: hidden;
-            min-height: 44px;
-            width: 100%;
-        }
-
-        .sidebar.collapsed .nav-item {
-            justify-content: center;
-            padding: 12px 0;
-            width: 44px;
-            gap: 0;
-        }
-
-        .nav-item:hover {
-            background: var(--primary-light);
-            color: var(--primary);
-            transform: translateX(3px);
-        }
-
-        .sidebar.collapsed .nav-item:hover {
-            transform: scale(1.05);
-        }
-
-        .nav-item.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--border-dark);
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .nav-item .icon-svg {
-            width: 20px;
-            height: 20px;
-            transition: transform var(--transition);
-            flex-shrink: 0;
-        }
-
-        .nav-item .nav-label {
-            transition: opacity 0.2s;
-            overflow: hidden;
-            white-space: nowrap;
-            flex: 1;
-        }
-
-        .sidebar.collapsed .nav-label {
-            opacity: 0;
-            width: 0;
-            display: none;
-        }
-
-        .sidebar.collapsed .nav-item::after {
-            content: attr(data-tooltip);
-            position: absolute;
-            left: calc(100% + 12px);
-            top: 50%;
-            transform: translateY(-50%);
-            background: var(--text-dark);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 8px;
-            font-size: 0.78rem;
-            font-weight: 600;
-            white-space: nowrap;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.2s;
-            z-index: 1000;
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .sidebar.collapsed .nav-item:hover::after {
-            opacity: 1;
-        }
-
-        .nav-section-label {
-            font-family: var(--font-mono);
-            font-size: 0.68rem;
-            font-weight: 700;
-            color: var(--text-light);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            padding: 16px 14px 8px;
-            transition: opacity 0.2s, height 0.3s, padding 0.3s;
-            white-space: nowrap;
-            overflow: hidden;
-        }
-
-        .sidebar.collapsed .nav-section-label {
-            opacity: 0;
-            padding: 8px 0;
-            height: 4px;
-            text-align: center;
-        }
-
-        .sidebar-footer {
-            padding: 16px;
-            border-top: 2px solid var(--border-dark);
-            flex-shrink: 0;
-            background: white;
-            transition: padding 0.3s;
-        }
-
-        .sidebar.collapsed .sidebar-footer {
-            padding: 12px 8px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px;
-            border-radius: var(--radius-sm);
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            transition: all var(--transition);
-            overflow: hidden;
-            width: 100%;
-        }
-
-        .sidebar.collapsed .user-info {
-            padding: 8px;
-            justify-content: center;
-            gap: 0;
-            width: 44px;
-        }
-
-        .user-info:hover {
-            background: var(--primary-light);
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
-            border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 0.9rem;
-            flex-shrink: 0;
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .user-details {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .sidebar.collapsed .user-details {
-            opacity: 0;
-            width: 0;
-            display: none;
-        }
-
-        .user-name {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-dark);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-family: var(--font-display);
-        }
-
-        .user-balance {
-            font-size: 0.75rem;
-            color: var(--text-gray);
-            font-family: var(--font-mono);
-            font-weight: 600;
-        }
-
-        .logout-btn {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: #fee2e2;
-            border: 2px solid var(--border-dark);
-            color: var(--danger);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            flex-shrink: 0;
-            padding: 0;
-        }
-
-        .sidebar.collapsed .logout-btn {
-            display: none;
-        }
-
-        .logout-btn:hover {
-            background: var(--danger);
-            color: white;
-        }
-
-        .logout-btn .icon-svg { width: 18px; height: 18px; }
-
-        /* ===== MAIN ===== */
-        .main-content {
-            flex: 1;
-            padding: 24px 32px 60px;
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-            min-width: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         /* ===== DEPOSIT HERO ===== */
         .deposit-hero {
             display: flex;
@@ -456,6 +90,7 @@
             margin-bottom: 32px;
         }
 
+        /* ===== DEPOSIT CARD ===== */
         .deposit-card {
             background: white;
             border: 2px solid var(--border-dark);
@@ -490,6 +125,7 @@
 
         .deposit-card > * { position: relative; z-index: 1; }
 
+        /* Step indicator */
         .step-indicator {
             display: flex;
             align-items: center;
@@ -517,6 +153,7 @@
 
         .step-item.active:not(:last-child)::after { background: var(--primary); }
         .step-item.done:not(:last-child)::after { background: var(--success); }
+        .step-item.expired:not(:last-child)::after { background: var(--danger); }
 
         .step-num {
             width: 32px;
@@ -563,6 +200,7 @@
         .step-item.done .step-label { color: var(--success); }
         .step-item.expired .step-label { color: var(--danger); }
 
+        /* Form */
         .form-title {
             font-size: 0.85rem;
             font-weight: 800;
@@ -816,9 +454,7 @@
         }
 
         /* ===== HISTORY ===== */
-        .history-section {
-            margin-top: 32px;
-        }
+        .history-section { margin-top: 32px; }
 
         .section-label {
             display: flex;
@@ -1030,88 +666,7 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* ===== MODAL — FIXED DI TENGAH LAYAR ===== */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            overflow-y: auto;
-        }
-
-        .modal-overlay.active {
-            display: flex !important;
-        }
-
-        .modal {
-            background: white;
-            border-radius: var(--radius);
-            border: 2px solid var(--border-dark);
-            box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
-            padding: 28px;
-            width: 100%;
-            max-width: 480px;
-            max-height: 90vh;
-            overflow-y: auto;
-            animation: bounceIn 0.4s var(--ease-bounce);
-            margin: auto;
-            position: relative;
-        }
-
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.9); }
-            50% { opacity: 1; transform: scale(1.02); }
-            100% { transform: scale(1); }
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-title {
-            font-size: 1.2rem;
-            font-weight: 800;
-            font-family: var(--font-display);
-        }
-
-        .modal-close {
-            background: none;
-            border: none;
-            cursor: pointer;
-            color: var(--text-gray);
-            padding: 4px;
-            border-radius: 6px;
-            transition: all var(--transition);
-            z-index: 10;
-            position: relative;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal-close:hover {
-            background: var(--bg-light);
-            color: var(--danger);
-            transform: rotate(90deg);
-        }
-
-        .modal-close .icon-svg { width: 22px; height: 22px; pointer-events: none; }
-
-        /* Method picker */
+        /* ===== METHOD PICKER ===== */
         .method-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -1189,12 +744,12 @@
             line-height: 1.5;
         }
 
-        /* QR display */
+        /* ===== QR DISPLAY ===== */
         .qr-display {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 28px 20px;
+            padding: 24px 20px;
             background: var(--bg-light);
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
@@ -1297,24 +852,14 @@
         .qr-row .value.big { font-size: 1.1rem; color: var(--primary); }
         .qr-row .value.unique { font-size: 1.1rem; color: var(--warning); }
         .qr-row .value.success { color: var(--success); }
+        .qr-row .value.danger { color: var(--danger); }
 
-        /* Loading spinner kecil inline */
-        .inline-loader {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border: 2px solid rgba(37, 99, 235, 0.2);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            vertical-align: middle;
-            margin-left: 6px;
+        .qr-row.total-row {
+            padding-top: 10px;
+            border-top: 2px dashed var(--border);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
+        /* Countdown */
         .countdown {
             display: inline-flex;
             align-items: center;
@@ -1376,7 +921,7 @@
             margin-top: 2px;
         }
 
-        /* Tombol Batalkan — merah */
+        /* Tombol Batalkan — MERAH */
         .btn-cancel-red {
             width: 100%;
             display: inline-flex;
@@ -1431,6 +976,11 @@
         }
 
         .success-icon .icon-svg { width: 36px; height: 36px; }
+
+        .success-icon.danger {
+            background: #fee2e2;
+            color: var(--danger);
+        }
 
         /* Detail modal */
         .detail-header {
@@ -1526,60 +1076,12 @@
             margin-top: 16px;
         }
 
-        /* ===== RESPONSIVE ===== */
+        /* Responsive */
         @media (max-width: 1024px) {
             .deposit-layout { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 768px) {
-            .sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                transform: translateX(-100%);
-                width: 280px;
-                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
-                z-index: 1000;
-            }
-
-            .sidebar.open {
-                transform: translateX(0);
-            }
-
-            .sidebar.collapsed {
-                width: 280px;
-            }
-
-            .sidebar.collapsed.open {
-                transform: translateX(0);
-            }
-
-            .sidebar.collapsed .logo-text,
-            .sidebar.collapsed .nav-label,
-            .sidebar.collapsed .user-details {
-                opacity: 1;
-                width: auto;
-                display: block;
-            }
-
-            .sidebar.collapsed .nav-item {
-                justify-content: flex-start;
-                padding: 12px 14px;
-                width: 100%;
-            }
-
-            .sidebar.collapsed .nav-item::after {
-                display: none;
-            }
-
-            .main-content {
-                padding: 16px 16px 60px;
-            }
-
-            .collapse-btn {
-                display: none;
-            }
-
             .deposit-hero-text h1 { font-size: 1.4rem; }
             .preset-grid { grid-template-columns: repeat(2, 1fr); }
             .step-label { display: none; }
@@ -1597,11 +1099,8 @@
             .qr-total .amount { font-size: 1.5rem; }
             .detail-row { padding: 10px 12px; font-size: 0.8rem; }
             .detail-row .detail-label { font-size: 0.68rem; }
-        }
-
-        body.modal-open,
-        body.sidebar-open {
-            overflow: hidden;
+            .deposit-hero-icon { width: 52px; height: 52px; }
+            .deposit-hero-icon .icon-svg { width: 26px; height: 26px; }
         }
     </style>
 </head>
@@ -1711,7 +1210,6 @@
             </div>
         </div>
 
-        <!-- LAYOUT 2 KOLOM -->
         <div class="deposit-layout">
             <div class="deposit-card">
                 <div class="step-indicator">
@@ -1781,7 +1279,7 @@
                         </div>
                         <div class="info-item">
                             <div class="bullet"></div>
-                            <div>QRIS kedaluwarsa? Buat yang baru — belum ada saldo yang terpotong.</div>
+                            <div>QRIS kedaluwarsa? Status akan otomatis update jadi expired.</div>
                         </div>
                         <div class="info-item">
                             <div class="bullet"></div>
@@ -1824,7 +1322,7 @@
     <div class="modal">
         <div class="modal-header">
             <div class="modal-title">Pilih Metode Pembayaran</div>
-            <button class="modal-close" data-modal-close>
+            <button class="modal-close" type="button" data-modal-close>
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
@@ -1858,7 +1356,7 @@
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
     };
 
-    // ===== QRISPY DIRECT URL (frontend, karena backend di-block) =====
+    // ===== QRISPY WORKER =====
     const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 
     const token = localStorage.getItem('access_token');
@@ -2058,45 +1556,11 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
 
         try {
-            const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
-
-            // Call QRISPY worker langsung dari frontend
-            const qrispyRes = await fetch(`${QRISPY_BASE}/api/payment/qris/generate`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    amount: Number(state.amount),
-                    payment_reference: referenceId,
-                }),
-            });
-
-            const qrispyData = await safeJson(qrispyRes);
-            if (!qrispyRes.ok || qrispyData.status === 'error') {
-                throw new Error(qrispyData.message || 'Gagal membuat QRIS');
+            if (state.method === 'qrispy') {
+                await createQrispyDeposit();
+            } else if (state.method === 'qris_dana') {
+                await createQrisDanaDeposit();
             }
-
-            // Simpan ke DB lokal
-            const saveRes = await fetch('/api/deposit/qrispy-save', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    reference_id: referenceId,
-                    amount: Number(state.amount),
-                    qris_id: qrispyData.data.qris_id,
-                    qris_url: qrispyData.data.qris_image_url,
-                    expired_at: qrispyData.data.expired_at,
-                    expires_in_seconds: qrispyData.data.expires_in_seconds,
-                })
-            });
-
-            const saveData = await safeJson(saveRes);
-            if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
-
-            state.deposit = saveData.deposit;
-            showPaymentPanel();
         } catch (err) {
             alert('Gagal membuat deposit: ' + err.message);
             setStep(1);
@@ -2105,6 +1569,65 @@
         } finally {
             state.isCreating = false;
         }
+    }
+
+    // ===== QRISPY DEPOSIT =====
+    async function createQrispyDeposit() {
+        const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
+
+        const qrispyRes = await fetch(`${QRISPY_BASE}/api/payment/qris/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: Number(state.amount),
+                payment_reference: referenceId,
+            }),
+        });
+
+        const qrispyData = await safeJson(qrispyRes);
+        if (!qrispyRes.ok || qrispyData.status === 'error') {
+            throw new Error(qrispyData.message || 'Gagal membuat QRIS');
+        }
+
+        const saveRes = await fetch('/api/deposit/qrispy-save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                reference_id: referenceId,
+                amount: Number(state.amount),
+                qris_id: qrispyData.data.qris_id,
+                qris_url: qrispyData.data.qris_image_url,
+                expired_at: qrispyData.data.expired_at,
+                expires_in_seconds: qrispyData.data.expires_in_seconds,
+            })
+        });
+
+        const saveData = await safeJson(saveRes);
+        if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
+
+        state.deposit = saveData.deposit;
+        showPaymentPanel();
+    }
+
+    // ===== QRIS DANA DEPOSIT =====
+    async function createQrisDanaDeposit() {
+        const res = await fetch('/api/deposit/qris-dana', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ amount: Number(state.amount) })
+        });
+
+        const data = await safeJson(res);
+        if (!res.ok) throw new Error(data.error || 'Gagal membuat QRIS DANA');
+
+        state.deposit = data.deposit;
+        showPaymentPanel();
     }
 
     // ===== SHOW PAYMENT PANEL =====
@@ -2116,8 +1639,17 @@
 
         const d = state.deposit;
         const isManual = state.method === 'qris_dana';
-        const saldoMasuk = d.amount;
-        const totalBayarLokal = isManual ? d.total_amount : d.amount;
+
+        const saldoMasuk = Number(d.amount);
+        let fee, totalBayar;
+
+        if (isManual) {
+            fee = Number(d.unique_code) || Number(d.fee) || 0;
+            totalBayar = Number(d.total_amount) || (saldoMasuk + fee);
+        } else {
+            fee = Number(d.fee) || 0;
+            totalBayar = Number(d.total_amount) || saldoMasuk;
+        }
 
         panelPayment.innerHTML = `
             <div class="countdown" id="countdown">
@@ -2128,7 +1660,7 @@
             <div class="qr-display">
                 <div class="qr-total">
                     <div class="label">Total yang harus dibayar</div>
-                    <div class="amount" id="qrAmount">${formatRupiah(totalBayarLokal)}</div>
+                    <div class="amount" id="qrAmount">${formatRupiah(totalBayar)}</div>
                 </div>
                 <img src="${d.qris_url}" alt="QR Code">
             </div>
@@ -2144,24 +1676,34 @@
                 </div>
                 <div class="qr-row">
                     <span class="label">Saldo Top Up</span>
-                    <span class="value success">${formatRupiah(saldoMasuk)}</span>
+                    <span class="value">${formatRupiah(saldoMasuk)}</span>
                 </div>
+                ${isManual ? `
+                    <div class="qr-row">
+                        <span class="label">Kode Unik</span>
+                        <span class="value unique">+${d.unique_code}</span>
+                    </div>
+                ` : ''}
                 <div class="qr-row">
                     <span class="label">Fee</span>
                     <span class="value" id="qrFee">
-                        <span class="inline-loader"></span>
+                        ${isManual ? formatRupiah(fee) : '<span class="inline-loader"></span>'}
                     </span>
                 </div>
-                <div class="qr-row" style="padding-top:10px;border-top:1px solid var(--border);">
+                <div class="qr-row total-row">
+                    <span class="label">Total Bayar</span>
+                    <span class="value big" id="qrTotal">${formatRupiah(totalBayar)}</span>
+                </div>
+                <div class="qr-row">
                     <span class="label">Saldo Diterima</span>
-                    <span class="value success" id="qrSaldo">${formatRupiah(saldoMasuk)}</span>
+                    <span class="value success">${formatRupiah(saldoMasuk)}</span>
                 </div>
             </div>
 
             ${isManual ? `
                 <div class="info-box">
                     ${ICONS.warning}
-                    <span><strong>Penting:</strong> Transfer <strong>tepat ${formatRupiah(totalBayarLokal)}</strong> (termasuk kode unik +${d.unique_code}). Kode unik dipakai buat verifikasi otomatis.</span>
+                    <span><strong>Penting:</strong> Transfer <strong>tepat ${formatRupiah(totalBayar)}</strong> (termasuk kode unik +${d.unique_code}). Kode unik dipakai buat verifikasi otomatis.</span>
                 </div>
             ` : `
                 <div class="polling-indicator">
@@ -2185,56 +1727,52 @@
         }
         startCountdown(countdownSeconds);
 
-        if (!isManual) {
+        if (isManual) {
+            startManualExpiryCheck(d.reference_id);
+        } else {
             startPolling(d.reference_id);
-            // Fetch detail dari QRISPY buat dapet fee (async, ga block UI)
-            fetchQrispyDetail(d.reference_id, d.qris_id);
+            fetchQrispyFeeAsync(d.reference_id, d.qris_id, saldoMasuk);
         }
     }
 
-    // ===== FETCH QRISPY DETAIL — LANGSUNG KE WORKER DARI FRONTEND =====
-    async function fetchQrispyDetail(referenceId, qrisId) {
+    // ===== FETCH QRISPY FEE ASYNC =====
+    async function fetchQrispyFeeAsync(referenceId, qrisId, saldoMasuk) {
         try {
-            // Coba endpoint QRISPY transactions
-            const res = await fetch(`${QRISPY_BASE}/api/payment/transactions?qris_id=${qrisId}`, {
-                headers: { 'Content-Type': 'application/json' }
-            });
-
-            let data;
-            try {
-                data = await safeJson(res);
-            } catch (e) {
-                // Kalo gagal, coba endpoint status
-                const res2 = await fetch(`${QRISPY_BASE}/api/payment/qris/${qrisId}/status`);
-                data = await safeJson(res2);
-            }
-
             let transaction = null;
-            if (Array.isArray(data.data)) {
-                transaction = data.data.find(t => t.payment_reference === referenceId || t.qris_id === qrisId);
-            } else if (data.data && typeof data.data === 'object') {
-                transaction = data.data;
+
+            try {
+                const res = await fetch(`${QRISPY_BASE}/api/payment/transactions?qris_id=${qrisId}`);
+                const data = await safeJson(res);
+                if (Array.isArray(data.data)) {
+                    transaction = data.data.find(t => t.payment_reference === referenceId || t.qris_id === qrisId);
+                } else if (data.data && typeof data.data === 'object') {
+                    transaction = data.data;
+                }
+            } catch (e) {
+                try {
+                    const res2 = await fetch(`${QRISPY_BASE}/api/payment/qris/${qrisId}/status`);
+                    const data2 = await safeJson(res2);
+                    transaction = data2.data;
+                } catch (e2) {
+                    console.error('Both QRISPY endpoints failed:', e2);
+                }
             }
+
+            const feeEl = document.getElementById('qrFee');
+            const totalEl = document.getElementById('qrTotal');
+            const amountEl = document.getElementById('qrAmount');
 
             if (transaction) {
-                const totalBayar = Number(transaction.amount) || Number(state.deposit.amount);
-                const saldoMasuk = Number(state.deposit.amount);
+                const totalBayar = Number(transaction.amount) || saldoMasuk;
                 const fee = Math.max(0, totalBayar - saldoMasuk);
-
-                // Update UI
-                const feeEl = document.getElementById('qrFee');
-                const totalEl = document.getElementById('qrAmount');
-                const saldoEl = document.getElementById('qrSaldo');
 
                 if (feeEl) feeEl.textContent = formatRupiah(fee);
                 if (totalEl) totalEl.textContent = formatRupiah(totalBayar);
-                if (saldoEl) saldoEl.textContent = formatRupiah(saldoMasuk);
+                if (amountEl) amountEl.textContent = formatRupiah(totalBayar);
 
-                // Update state
                 state.deposit.total_amount = totalBayar;
                 state.deposit.fee = fee;
 
-                // Kirim update ke backend (optional, biar DB konsisten)
                 fetch(`/api/deposit/${referenceId}/update-fee`, {
                     method: 'POST',
                     headers: {
@@ -2244,15 +1782,38 @@
                     body: JSON.stringify({ total_amount: totalBayar, fee })
                 }).catch(() => {});
             } else {
-                // Ga ada transaksi, tampilkan fee 0
-                const feeEl = document.getElementById('qrFee');
                 if (feeEl) feeEl.textContent = 'Rp0';
+                state.deposit.fee = 0;
             }
         } catch (err) {
-            console.error('Fetch qrispy detail error:', err);
+            console.error('Fetch QRISPY fee error:', err);
             const feeEl = document.getElementById('qrFee');
             if (feeEl) feeEl.textContent = 'Rp0';
         }
+    }
+
+    // ===== MANUAL EXPIRY CHECK =====
+    function startManualExpiryCheck(referenceId) {
+        if (window._manualExpiryInterval) {
+            clearInterval(window._manualExpiryInterval);
+        }
+        window._manualExpiryInterval = setInterval(async () => {
+            if (state.expired) {
+                clearInterval(window._manualExpiryInterval);
+                return;
+            }
+            try {
+                const res = await fetch(`/api/deposit/${referenceId}/status`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await safeJson(res);
+                if (data.deposit?.status === 'expired') {
+                    clearInterval(window._manualExpiryInterval);
+                    stopCountdown();
+                    showExpired();
+                }
+            } catch (err) {}
+        }, 30000);
     }
 
     // ===== POLLING =====
@@ -2284,6 +1845,10 @@
         if (state.pollingInterval) {
             clearInterval(state.pollingInterval);
             state.pollingInterval = null;
+        }
+        if (window._manualExpiryInterval) {
+            clearInterval(window._manualExpiryInterval);
+            window._manualExpiryInterval = null;
         }
     }
 
@@ -2325,19 +1890,24 @@
         }
     }
 
-    // ===== SHOW EXPIRED (ganti status QRIS) =====
+    // ===== SHOW EXPIRED =====
     function showExpired() {
         state.expired = true;
         stopPolling();
         stopCountdown();
-
-        // Update step indicator jadi expired
         setStep(3, true);
+
+        if (state.deposit?.reference_id) {
+            fetch(`/api/deposit/${state.deposit.reference_id}/expire`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => {});
+        }
 
         const panelPayment = document.getElementById('panelPayment');
         panelPayment.innerHTML = `
             <div style="text-align:center;padding:32px 20px;">
-                <div class="success-icon" style="background:#fee2e2;color:var(--danger);">
+                <div class="success-icon danger">
                     ${ICONS.clock}
                 </div>
                 <h2 style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;margin-bottom:8px;color:var(--danger);">QRIS Kedaluwarsa</h2>
@@ -2423,13 +1993,21 @@
         clearState();
 
         const saldoMasuk = Number(deposit.amount);
-        const totalBayar = Number(deposit.total_amount) || Number(state.deposit?.total_amount) || saldoMasuk;
-        const fee = Number(deposit.fee) || Number(state.deposit?.fee) || Math.max(0, totalBayar - saldoMasuk);
+        const isManual = deposit.method === 'qris_dana';
+        let totalBayar, fee;
+
+        if (isManual) {
+            fee = Number(deposit.unique_code) || Number(deposit.fee) || 0;
+            totalBayar = Number(deposit.total_amount) || (saldoMasuk + fee);
+        } else {
+            totalBayar = Number(deposit.total_amount) || Number(state.deposit?.total_amount) || saldoMasuk;
+            fee = Number(deposit.fee) || Number(state.deposit?.fee) || Math.max(0, totalBayar - saldoMasuk);
+        }
 
         document.getElementById('modalPaymentContent').innerHTML = `
             <div class="modal-header">
                 <div class="modal-title">Deposit Berhasil</div>
-                <button class="modal-close" data-modal-close>
+                <button class="modal-close" type="button" data-modal-close>
                     ${ICONS.close}
                 </button>
             </div>
@@ -2544,7 +2122,6 @@
                 `;
             }).join('') + `</div>`;
 
-            // Pagination
             if (data.totalPages > 1) {
                 paginationEl.style.display = 'flex';
                 paginationEl.innerHTML = `
@@ -2575,7 +2152,6 @@
                 paginationEl.style.display = 'none';
             }
 
-            // Klik history card → detail
             container.querySelectorAll('.history-card').forEach(card => {
                 card.addEventListener('click', () => {
                     const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
@@ -2589,7 +2165,6 @@
 
     // ===== SHOW DETAIL MODAL =====
     async function showDetailModal(d) {
-        // Data lokal dulu, biar langsung tampil
         const statusMap = {
             success: { class: 'success', label: 'BERHASIL', icon: ICONS.check },
             pending: { class: 'pending', label: 'PENDING', icon: ICONS.clock },
@@ -2601,8 +2176,15 @@
         const s = statusMap[d.status] || { class: 'pending', label: d.status?.toUpperCase() || '—', icon: ICONS.clock };
         const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA Manual';
         const saldoMasuk = Number(d.amount);
-        const totalBayarAwal = Number(d.total_amount) || saldoMasuk;
-        const feeAwal = Number(d.fee) || Math.max(0, totalBayarAwal - saldoMasuk);
+
+        let fee, totalBayar;
+        if (d.method === 'qris_dana') {
+            fee = Number(d.unique_code) || Number(d.fee) || 0;
+            totalBayar = Number(d.total_amount) || (saldoMasuk + fee);
+        } else {
+            totalBayar = Number(d.total_amount) || saldoMasuk;
+            fee = Number(d.fee) || Math.max(0, totalBayar - saldoMasuk);
+        }
 
         const formatDate = (date) => {
             if (!date) return '—';
@@ -2612,10 +2194,12 @@
             });
         };
 
+        const feeLoading = d.method === 'qrispy' && fee === 0 && d.status !== 'expired' && d.status !== 'cancelled' && d.status !== 'failed';
+
         document.getElementById('modalDetailContent').innerHTML = `
             <div class="modal-header">
                 <div class="modal-title">Detail Deposit</div>
-                <button class="modal-close" type="button" data-modal-close aria-label="Tutup">
+                <button class="modal-close" type="button" data-modal-close>
                     ${ICONS.close}
                 </button>
             </div>
@@ -2652,12 +2236,12 @@
                 <div class="detail-row">
                     <span class="detail-label">Fee</span>
                     <span class="detail-value warning" id="detailFee">
-                        ${feeAwal > 0 ? formatRupiah(feeAwal) : '<span class="inline-loader"></span>'}
+                        ${feeLoading ? '<span class="inline-loader"></span>' : formatRupiah(fee)}
                     </span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Total Bayar</span>
-                    <span class="detail-value highlight" id="detailTotal">${formatRupiah(totalBayarAwal)}</span>
+                    <span class="detail-value highlight" id="detailTotal">${formatRupiah(totalBayar)}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Saldo Diterima</span>
@@ -2691,7 +2275,6 @@
 
         openModal('modalDetail');
 
-        // Event: copy ref
         document.getElementById('btnCopyRef').addEventListener('click', () => {
             navigator.clipboard.writeText(d.reference_id || '').then(() => {
                 const btn = document.getElementById('btnCopyRef');
@@ -2701,32 +2284,46 @@
             });
         });
 
-        // Async: fetch detail dari QRISPY (kalo qrispy & fee belum ada)
-        if (d.method === 'qrispy' && (!d.fee || Number(d.fee) === 0) && d.qris_id) {
+        if (feeLoading && d.qris_id) {
             try {
-                const res = await fetch(`${QRISPY_BASE}/api/payment/transactions?qris_id=${d.qris_id}`);
-                const data = await safeJson(res);
-
                 let transaction = null;
-                if (Array.isArray(data.data)) {
-                    transaction = data.data.find(t => t.payment_reference === d.reference_id || t.qris_id === d.qris_id);
-                } else if (data.data && typeof data.data === 'object') {
-                    transaction = data.data;
+                try {
+                    const res = await fetch(`${QRISPY_BASE}/api/payment/transactions?qris_id=${d.qris_id}`);
+                    const data = await safeJson(res);
+                    if (Array.isArray(data.data)) {
+                        transaction = data.data.find(t => t.payment_reference === d.reference_id || t.qris_id === d.qris_id);
+                    } else if (data.data && typeof data.data === 'object') {
+                        transaction = data.data;
+                    }
+                } catch (e) {
+                    try {
+                        const res2 = await fetch(`${QRISPY_BASE}/api/payment/qris/${d.qris_id}/status`);
+                        const data2 = await safeJson(res2);
+                        transaction = data2.data;
+                    } catch (e2) {}
                 }
 
                 const feeEl = document.getElementById('detailFee');
                 const totalEl = document.getElementById('detailTotal');
 
                 if (transaction) {
-                    const total = Number(transaction.amount) || totalBayarAwal;
-                    const fee = Math.max(0, total - saldoMasuk);
-                    if (feeEl) feeEl.textContent = formatRupiah(fee);
+                    const total = Number(transaction.amount) || totalBayar;
+                    const feeCalc = Math.max(0, total - saldoMasuk);
+                    if (feeEl) feeEl.textContent = formatRupiah(feeCalc);
                     if (totalEl) totalEl.textContent = formatRupiah(total);
+
+                    fetch(`/api/deposit/${d.reference_id}/update-fee`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ total_amount: total, fee: feeCalc })
+                    }).catch(() => {});
                 } else {
                     if (feeEl) feeEl.textContent = 'Rp0';
                 }
             } catch (err) {
-                console.error('Fetch QRISPY detail error:', err);
                 const feeEl = document.getElementById('detailFee');
                 if (feeEl) feeEl.textContent = 'Rp0';
             }
@@ -2740,8 +2337,7 @@
         openModal('modalMethod');
     });
 
-    // ===== MODAL CLOSE HANDLERS (FIXED) =====
-    // Pake event delegation biar tombol X selalu jalan, bahkan di modal dinamis
+    // ===== MODAL CLOSE (EVENT DELEGATION) =====
     document.addEventListener('click', (e) => {
         const closeBtn = e.target.closest('[data-modal-close]');
         if (closeBtn) {
@@ -2757,7 +2353,6 @@
             return;
         }
 
-        // Klik overlay (bukan modal content) → tutup
         if (e.target.classList && e.target.classList.contains('modal-overlay')) {
             closeModal(e.target.id);
             if (e.target.id === 'modalMethod' && !state.method) {
@@ -2766,7 +2361,6 @@
         }
     });
 
-    // ESC key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             const activeModal = document.querySelector('.modal-overlay.active');
