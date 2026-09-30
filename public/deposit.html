@@ -461,6 +461,7 @@
             align-items: center;
             gap: 10px;
             margin-bottom: 14px;
+            flex-wrap: wrap;
         }
 
         .section-label .dot {
@@ -486,6 +487,29 @@
             flex: 1;
             height: 2px;
             background: repeating-linear-gradient(to right, var(--border) 0, var(--border) 6px, transparent 6px, transparent 12px);
+            min-width: 40px;
+        }
+
+        .history-updating {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 50px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            border: 2px solid var(--primary);
+        }
+
+        .history-updating .loading-spinner {
+            width: 12px;
+            height: 12px;
+            border-width: 2px;
+            border-color: rgba(37, 99, 235, 0.2);
+            border-top-color: var(--primary);
         }
 
         .history-list {
@@ -503,7 +527,7 @@
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
-            transition: all var(--transition);
+            transition: transform var(--transition), box-shadow var(--transition);
             position: relative;
             overflow: hidden;
             cursor: pointer;
@@ -574,6 +598,11 @@
             font-size: 0.95rem;
             color: var(--primary);
             margin-bottom: 4px;
+        }
+
+        .skeleton-card {
+            pointer-events: none;
+            opacity: 0.7;
         }
 
         /* Pagination */
@@ -1076,6 +1105,23 @@
             margin-top: 16px;
         }
 
+        /* Inline loader */
+        .inline-loader {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid rgba(37, 99, 235, 0.2);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Responsive */
         @media (max-width: 1024px) {
             .deposit-layout { grid-template-columns: 1fr; }
@@ -1386,11 +1432,22 @@
         const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
         if (isCollapsed && window.innerWidth > 768) {
             sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
         }
 
         collapseBtn.addEventListener('click', () => {
             const collapsed = sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
             localStorage.setItem('sidebar_collapsed', collapsed);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) {
+                document.body.classList.remove('sidebar-collapsed');
+            } else {
+                const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+                if (isCollapsed) document.body.classList.add('sidebar-collapsed');
+            }
         });
     })();
 
@@ -1571,7 +1628,6 @@
         }
     }
 
-    // ===== QRISPY DEPOSIT =====
     async function createQrispyDeposit() {
         const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
 
@@ -1612,7 +1668,6 @@
         showPaymentPanel();
     }
 
-    // ===== QRIS DANA DEPOSIT =====
     async function createQrisDanaDeposit() {
         const res = await fetch('/api/deposit/qris-dana', {
             method: 'POST',
@@ -1792,7 +1847,6 @@
         }
     }
 
-    // ===== MANUAL EXPIRY CHECK =====
     function startManualExpiryCheck(referenceId) {
         if (window._manualExpiryInterval) {
             clearInterval(window._manualExpiryInterval);
@@ -1816,7 +1870,6 @@
         }, 30000);
     }
 
-    // ===== POLLING =====
     function startPolling(referenceId) {
         stopPolling();
         state.pollingInterval = setInterval(async () => {
@@ -1953,7 +2006,6 @@
         loadHistory(state.historyPage);
     }
 
-    // ===== RESET =====
     window.resetPanel = function() {
         stopPolling();
         stopCountdown();
@@ -2057,8 +2109,7 @@
         });
 
         CacheManager.remove('user_profile');
-    invalidateHistoryCache();
-    loadHistory(state.historyPage);
+        invalidateHistoryCache();
         loadHistory(state.historyPage);
 
         setTimeout(() => {
@@ -2071,36 +2122,34 @@
         }, 500);
     }
 
-        // ===== HISTORY CACHE KEYS =====
+    // ===== HISTORY CACHE =====
     function getHistoryCacheKey(page) {
         return `deposit_history_p${page}_l${state.historyLimit}`;
     }
 
-    function getHistoryTimestampKey(page) {
-        return `deposit_history_ts_p${page}_l${state.historyLimit}`;
+    function invalidateHistoryCache() {
+        Object.keys(localStorage)
+            .filter(k => k.startsWith('asyrofotp_cache_deposit_history_'))
+            .forEach(k => localStorage.removeItem(k));
     }
 
-    // ===== LOAD HISTORY (SWR + AUTO SYNC) =====
+    // ===== LOAD HISTORY =====
     async function loadHistory(page = 1) {
         state.historyPage = page;
         const container = document.getElementById('historyList');
         const paginationEl = document.getElementById('pagination');
         const cacheKey = getHistoryCacheKey(page);
 
-        // 1. INSTANT: Tampilkan cache dulu kalo ada
         const cached = CacheManager.get(cacheKey);
         if (cached && cached.value) {
             renderHistory(cached.value, page);
-            // Mark "loading di background" — visual kecil
             if (cached.value.deposits && cached.value.deposits.length > 0) {
                 markHistoryUpdating(true);
             }
         } else {
-            // Kalo ga ada cache, tampilin skeleton
             renderHistorySkeleton();
         }
 
-        // 2. BACKGROUND: Fetch fresh data dari API
         try {
             const res = await fetch(`/api/deposit/history?page=${page}&limit=${state.historyLimit}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -2112,14 +2161,9 @@
                 return;
             }
 
-            // Simpan ke cache
             CacheManager.set(cacheKey, data);
-            localStorage.setItem(getHistoryTimestampKey(page), Date.now().toString());
-
-            // Render
             renderHistory(data, page);
 
-            // 3. SYNC: Kalo ada pending di halaman ini, sync status
             const pendingIds = data.deposits
                 .filter(d => d.status === 'pending')
                 .map(d => d.reference_id);
@@ -2129,7 +2173,6 @@
             }
         } catch (err) {
             console.error('Load history error:', err);
-            // Kalo gagal & ada cache, tetep tampil cache
             if (!cached) {
                 container.innerHTML = `
                     <div class="empty-block">
@@ -2185,7 +2228,6 @@
             `;
         }).join('') + `</div>`;
 
-        // Pagination
         if (data.totalPages > 1) {
             paginationEl.style.display = 'flex';
             paginationEl.innerHTML = `
@@ -2216,7 +2258,6 @@
             paginationEl.style.display = 'none';
         }
 
-        // Klik card → detail
         container.querySelectorAll('.history-card').forEach(card => {
             card.addEventListener('click', () => {
                 const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
@@ -2225,7 +2266,6 @@
         });
     }
 
-    // ===== RENDER SKELETON (kalo ga ada cache) =====
     function renderHistorySkeleton() {
         const container = document.getElementById('historyList');
         container.innerHTML = `
@@ -2249,7 +2289,6 @@
         `;
     }
 
-    // ===== RENDER EMPTY =====
     function renderHistoryEmpty() {
         const container = document.getElementById('historyList');
         const paginationEl = document.getElementById('pagination');
@@ -2263,7 +2302,6 @@
         paginationEl.style.display = 'none';
     }
 
-    // ===== MARK UPDATING (visual kecil) =====
     function markHistoryUpdating(isUpdating) {
         const section = document.querySelector('.history-section');
         if (!section) return;
@@ -2281,7 +2319,7 @@
         }
     }
 
-    // ===== SYNC VISIBLE DEPOSITS =====
+    // ===== SYNC VISIBLE =====
     async function syncVisibleDeposits(referenceIds, page) {
         if (!referenceIds || referenceIds.length === 0) return;
 
@@ -2299,22 +2337,17 @@
 
             if (!data.updated || data.updated.length === 0) return;
 
-            // Ada update — refresh dari cache + update UI
             const cacheKey = getHistoryCacheKey(page);
             const cached = CacheManager.get(cacheKey);
 
             if (cached && cached.value && cached.value.deposits) {
-                // Update cache dengan data terbaru
                 const updatedMap = new Map(data.updated.map(d => [d.reference_id, d]));
                 cached.value.deposits = cached.value.deposits.map(d => 
                     updatedMap.get(d.reference_id) || d
                 );
                 CacheManager.set(cacheKey, cached.value);
-
-                // Re-render
                 renderHistory(cached.value, page);
 
-                // Kalo ada yang success, update saldo juga
                 const hasSuccess = data.updated.some(d => d.status === 'success');
                 if (hasSuccess) {
                     CacheManager.remove('user_profile');
@@ -2329,13 +2362,6 @@
         } catch (err) {
             console.error('Sync visible error:', err);
         }
-    }
-
-    // ===== INVALIDATE HISTORY CACHE =====
-    function invalidateHistoryCache() {
-        Object.keys(localStorage)
-            .filter(k => k.startsWith('asyrofotp_cache_deposit_history_'))
-            .forEach(k => localStorage.removeItem(k));
     }
 
     // ===== SHOW DETAIL MODAL =====
@@ -2512,7 +2538,6 @@
         }
     }
 
-    // ===== OPEN MODAL METHOD =====
     btnLanjut.addEventListener('click', () => {
         if (!state.amount || state.amount < 1000) return;
         setStep(2);
