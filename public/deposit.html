@@ -12,26 +12,26 @@
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/dashboard.css">
     <style>
-        /* ===== LAYOUT FIX: Main content ngikutin sidebar ===== */
+        /* ===== LAYOUT ===== */
         .dashboard-layout {
             display: flex;
             min-height: 100vh;
             align-items: flex-start;
         }
 
-        /* ===== SIDEBAR COLLAPSIBLE ===== */
+        /* ===== SIDEBAR — FIXED, ICON CENTER, TOOLTIP ===== */
         .sidebar {
             width: 260px;
             background: white;
             border-right: 2px solid var(--border-dark);
             display: flex;
             flex-direction: column;
-            position: sticky;
+            position: fixed;
             top: 0;
+            left: 0;
             height: 100vh;
-            max-height: 100vh;
             z-index: 100;
-            transition: width 0.3s var(--ease), transform 0.3s var(--ease);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
             flex-shrink: 0;
         }
@@ -49,6 +49,12 @@
             justify-content: space-between;
             gap: 8px;
             min-height: 72px;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-header {
+            padding: 20px 0;
+            justify-content: center;
         }
 
         .sidebar-logo {
@@ -64,6 +70,14 @@
             overflow: hidden;
             flex: 1;
             min-width: 0;
+            transition: opacity 0.2s, width 0.3s;
+        }
+
+        .sidebar.collapsed .sidebar-logo {
+            flex: 0;
+            opacity: 0;
+            width: 0;
+            pointer-events: none;
         }
 
         .sidebar-logo .logo-icon {
@@ -81,30 +95,12 @@
             font-size: 1.3rem;
             box-shadow: var(--shadow-hard-sm);
             transform: rotate(-3deg);
-            transition: transform var(--transition);
             flex-shrink: 0;
         }
 
-        .sidebar-logo:hover .logo-icon {
-            transform: rotate(3deg) scale(1.05);
-        }
+        .sidebar-logo span { color: var(--primary); }
 
-        .sidebar-logo span {
-            color: var(--primary);
-        }
-
-        .sidebar-logo .logo-text {
-            transition: opacity 0.2s var(--ease), width 0.3s var(--ease);
-            overflow: hidden;
-            white-space: nowrap;
-        }
-
-        .sidebar.collapsed .logo-text {
-            opacity: 0;
-            width: 0;
-        }
-
-        /* Tombol collapse */
+        /* Collapse button */
         .collapse-btn {
             width: 32px;
             height: 32px;
@@ -124,20 +120,19 @@
         .collapse-btn:hover {
             background: var(--primary);
             color: white;
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
         }
 
         .collapse-btn .icon-svg {
             width: 16px;
             height: 16px;
-            transition: transform 0.3s var(--ease);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .sidebar.collapsed .collapse-btn .icon-svg {
             transform: rotate(180deg);
         }
 
+        /* Nav */
         .sidebar-nav {
             flex: 1;
             padding: 16px 12px;
@@ -146,6 +141,15 @@
             gap: 4px;
             overflow-y: auto;
             overflow-x: hidden;
+            scrollbar-width: thin;
+        }
+
+        .sidebar-nav::-webkit-scrollbar { width: 4px; }
+        .sidebar-nav::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        .sidebar.collapsed .sidebar-nav {
+            padding: 16px 8px;
+            align-items: center;
         }
 
         .nav-item {
@@ -164,12 +168,24 @@
             white-space: nowrap;
             overflow: hidden;
             min-height: 44px;
+            width: 100%;
+        }
+
+        .sidebar.collapsed .nav-item {
+            justify-content: center;
+            padding: 12px 0;
+            width: 44px;
+            gap: 0;
         }
 
         .nav-item:hover {
             background: var(--primary-light);
             color: var(--primary);
             transform: translateX(3px);
+        }
+
+        .sidebar.collapsed .nav-item:hover {
+            transform: scale(1.05);
         }
 
         .nav-item.active {
@@ -180,33 +196,26 @@
         }
 
         .nav-item .icon-svg {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             transition: transform var(--transition);
             flex-shrink: 0;
         }
 
         .nav-item .nav-label {
-            transition: opacity 0.2s var(--ease);
+            transition: opacity 0.2s;
             overflow: hidden;
             white-space: nowrap;
+            flex: 1;
         }
 
         .sidebar.collapsed .nav-label {
             opacity: 0;
             width: 0;
+            display: none;
         }
 
-        .sidebar.collapsed .nav-item {
-            justify-content: center;
-            padding: 12px 8px;
-        }
-
-        .sidebar.collapsed .nav-item:hover {
-            transform: translateX(0) scale(1.05);
-        }
-
-        /* Tooltip pas collapsed */
+        /* Tooltip */
         .sidebar.collapsed .nav-item::after {
             content: attr(data-tooltip);
             position: absolute;
@@ -222,7 +231,7 @@
             white-space: nowrap;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.2s var(--ease);
+            transition: opacity 0.2s;
             z-index: 1000;
             box-shadow: var(--shadow-hard-sm);
         }
@@ -239,7 +248,7 @@
             text-transform: uppercase;
             letter-spacing: 0.08em;
             padding: 16px 14px 8px;
-            transition: opacity 0.2s var(--ease);
+            transition: opacity 0.2s, height 0.3s, padding 0.3s;
             white-space: nowrap;
             overflow: hidden;
         }
@@ -248,15 +257,16 @@
             opacity: 0;
             padding: 8px 0;
             height: 4px;
+            text-align: center;
         }
 
-        /* Sidebar footer */
+        /* Footer */
         .sidebar-footer {
             padding: 16px;
             border-top: 2px solid var(--border-dark);
             flex-shrink: 0;
             background: white;
-            transition: padding 0.3s var(--ease);
+            transition: padding 0.3s;
         }
 
         .sidebar.collapsed .sidebar-footer {
@@ -273,18 +283,19 @@
             border: 2px solid var(--border-dark);
             transition: all var(--transition);
             overflow: hidden;
+            width: 100%;
         }
 
         .sidebar.collapsed .user-info {
             padding: 8px;
             justify-content: center;
             gap: 0;
+            width: 44px;
         }
 
         .user-info:hover {
             background: var(--primary-light);
             box-shadow: var(--shadow-hard-sm);
-            transform: translate(-1px, -1px);
         }
 
         .user-avatar {
@@ -307,8 +318,6 @@
         .user-details {
             flex: 1;
             min-width: 0;
-            transition: opacity 0.2s var(--ease), width 0.3s var(--ease);
-            overflow: hidden;
         }
 
         .sidebar.collapsed .user-details {
@@ -332,7 +341,6 @@
             color: var(--text-gray);
             font-family: var(--font-mono);
             font-weight: 600;
-            letter-spacing: -0.02em;
         }
 
         .logout-btn {
@@ -358,23 +366,24 @@
         .logout-btn:hover {
             background: var(--danger);
             color: white;
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
         }
 
-        .logout-btn .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
+        .logout-btn .icon-svg { width: 18px; height: 18px; }
 
-        /* ===== MAIN CONTENT ===== */
+        /* ===== MAIN — margin-left ikut sidebar ===== */
         .main-content {
             flex: 1;
+            margin-left: 260px;
             padding: 24px 32px 60px;
             min-height: 100vh;
             position: relative;
             overflow-x: hidden;
             min-width: 0;
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body.sidebar-collapsed .main-content {
+            margin-left: 72px;
         }
 
         /* ===== DEPOSIT HERO ===== */
@@ -390,7 +399,7 @@
             width: 64px;
             height: 64px;
             border-radius: 18px;
-            background: linear-gradient(135deg, #22c55e, #16a34a);
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             border: 2.5px solid var(--border-dark);
             display: flex;
             align-items: center;
@@ -419,8 +428,8 @@
         }
 
         .deposit-hero-icon .icon-svg {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             position: relative;
             z-index: 1;
         }
@@ -435,7 +444,7 @@
         }
 
         .deposit-hero-text h1 span {
-            background: linear-gradient(135deg, #22c55e, #16a34a);
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -490,7 +499,7 @@
 
         .deposit-card > * { position: relative; z-index: 1; }
 
-        /* ===== STEP INDICATOR ===== */
+        /* Step indicator */
         .step-indicator {
             display: flex;
             align-items: center;
@@ -546,13 +555,11 @@
         .step-item.done .step-num {
             background: var(--success);
             color: white;
-            box-shadow: var(--shadow-hard-sm);
         }
 
         .step-label {
             font-size: 0.82rem;
             font-weight: 700;
-            font-family: var(--font-body);
             color: var(--text-gray);
             white-space: nowrap;
         }
@@ -560,7 +567,7 @@
         .step-item.active .step-label { color: var(--text-dark); }
         .step-item.done .step-label { color: var(--success); }
 
-        /* ===== FORM ===== */
+        /* Form */
         .form-title {
             font-size: 0.85rem;
             font-weight: 800;
@@ -613,7 +620,6 @@
 
         .input-amount-big input::placeholder { color: var(--text-light); }
 
-        /* ===== PRESET GRID ===== */
         .preset-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -634,24 +640,7 @@
             font-size: 0.88rem;
             text-align: center;
             color: var(--text-dark);
-            position: relative;
-            overflow: hidden;
         }
-
-        .preset-item::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(37, 99, 235, 0.1);
-            transform: translate(-50%, -50%);
-            transition: width 0.4s, height 0.4s;
-        }
-
-        .preset-item:hover::before { width: 200px; height: 200px; }
 
         .preset-item:hover {
             transform: translate(-2px, -2px);
@@ -661,11 +650,9 @@
         .preset-item.active {
             background: var(--primary);
             color: white;
-            border-color: var(--border-dark);
             box-shadow: var(--shadow-hard);
         }
 
-        /* ===== CTA BUTTON ===== */
         .btn-deposit {
             width: 100%;
             display: inline-flex;
@@ -685,33 +672,11 @@
             box-shadow: var(--shadow-hard);
             cursor: pointer;
             transition: all var(--transition);
-            position: relative;
-            overflow: hidden;
         }
-
-        .btn-deposit::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .btn-deposit:hover::before { width: 500px; height: 500px; }
 
         .btn-deposit:hover {
             transform: translate(-3px, -3px);
             box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
-        }
-
-        .btn-deposit:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
 
         .btn-deposit:disabled {
@@ -720,14 +685,7 @@
             transform: none !important;
         }
 
-        .btn-deposit .icon-svg {
-            width: 20px;
-            height: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .btn-deposit span { position: relative; z-index: 1; }
+        .btn-deposit .icon-svg { width: 20px; height: 20px; }
 
         .balance-info {
             text-align: center;
@@ -742,7 +700,7 @@
             font-weight: 800;
         }
 
-        /* ===== DEPOSIT SIDEBAR INFO ===== */
+        /* ===== SIDEBAR INFO ===== */
         .deposit-sidebar {
             display: flex;
             flex-direction: column;
@@ -770,21 +728,7 @@
             padding: 24px;
         }
 
-        .side-card.banner::before {
-            content: '';
-            position: absolute;
-            top: -20%;
-            right: -20%;
-            width: 200px;
-            height: 200px;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.15) 0%, transparent 70%);
-            border-radius: 50%;
-        }
-
-        .banner-content {
-            position: relative;
-            z-index: 1;
-        }
+        .banner-content { position: relative; z-index: 1; }
 
         .banner-badge {
             display: inline-flex;
@@ -804,10 +748,7 @@
             margin-bottom: 12px;
         }
 
-        .banner-badge .icon-svg {
-            width: 10px;
-            height: 10px;
-        }
+        .banner-badge .icon-svg { width: 10px; height: 10px; }
 
         .banner-title {
             font-size: 1.1rem;
@@ -816,7 +757,6 @@
             letter-spacing: -0.02em;
             line-height: 1.2;
             margin-bottom: 8px;
-            color: var(--text-dark);
             text-transform: uppercase;
         }
 
@@ -1005,6 +945,60 @@
             margin-bottom: 4px;
         }
 
+        /* Pagination */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            min-width: 40px;
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 50px;
+            background: white;
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-btn.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .page-info {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--text-gray);
+            padding: 0 8px;
+        }
+
         /* ===== EMPTY ===== */
         .empty-block {
             text-align: center;
@@ -1013,8 +1007,6 @@
             border: 2px dashed var(--border);
             border-radius: var(--radius);
             color: var(--text-gray);
-            position: relative;
-            overflow: hidden;
         }
 
         .empty-block .icon-box {
@@ -1030,7 +1022,6 @@
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             animation: float 3s ease-in-out infinite;
-            position: relative;
         }
 
         .empty-block .icon-box .icon-svg { width: 32px; height: 32px; }
@@ -1050,7 +1041,7 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* ===== MODAL — SELALU DI TENGAH LAYAR ===== */
+        /* ===== MODAL — FIXED DI TENGAH LAYAR ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -1121,7 +1112,7 @@
 
         .modal-close .icon-svg { width: 22px; height: 22px; }
 
-        /* ===== METHOD PICKER ===== */
+        /* Method picker */
         .method-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -1141,8 +1132,6 @@
             transition: all var(--transition);
             text-align: left;
             font-family: inherit;
-            position: relative;
-            overflow: hidden;
         }
 
         .method-card:hover {
@@ -1159,18 +1148,10 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            box-shadow: var(--shadow-hard-sm);
         }
 
-        .method-icon.qrispy {
-            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
-            color: var(--primary);
-        }
-
-        .method-icon.dana {
-            background: linear-gradient(135deg, #dbeafe, #93c5fd);
-            color: #1d4ed8;
-        }
+        .method-icon.qrispy { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: var(--primary); }
+        .method-icon.dana { background: linear-gradient(135deg, #dbeafe, #93c5fd); color: #1d4ed8; }
 
         .method-icon .icon-svg { width: 22px; height: 22px; }
 
@@ -1190,7 +1171,6 @@
 
         .method-badge {
             display: inline-flex;
-            align-items: center;
             padding: 2px 8px;
             border-radius: 50px;
             font-size: 0.6rem;
@@ -1200,7 +1180,6 @@
             color: white;
             border: 1.5px solid var(--border-dark);
             text-transform: uppercase;
-            letter-spacing: 0.04em;
         }
 
         .method-badge.warning { background: var(--warning); }
@@ -1211,12 +1190,12 @@
             line-height: 1.5;
         }
 
-        /* ===== QR DISPLAY ===== */
+        /* QR display — ada padding */
         .qr-display {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding: 24px;
+            padding: 28px 20px;
             background: var(--bg-light);
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
@@ -1245,14 +1224,38 @@
 
         .qr-display img {
             width: 100%;
-            max-width: 260px;
+            max-width: 240px;
             height: auto;
-            border-radius: 12px;
+            padding: 12px;
+            border-radius: 16px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
             background: white;
             position: relative;
             z-index: 1;
+        }
+
+        .qr-total {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .qr-total .label {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .qr-total .amount {
+            font-size: 1.8rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            color: var(--primary);
+            letter-spacing: -0.03em;
+            margin-top: 4px;
         }
 
         .qr-info {
@@ -1290,17 +1293,11 @@
             word-break: break-all;
         }
 
-        .qr-row .value.big {
-            font-size: 1.1rem;
-            color: var(--primary);
-        }
+        .qr-row .value.big { font-size: 1.1rem; color: var(--primary); }
+        .qr-row .value.unique { font-size: 1.1rem; color: var(--warning); }
+        .qr-row .value.success { color: var(--success); }
 
-        .qr-row .value.unique {
-            font-size: 1.1rem;
-            color: var(--warning);
-        }
-
-        /* ===== COUNTDOWN ===== */
+        /* Countdown */
         .countdown {
             display: inline-flex;
             align-items: center;
@@ -1319,7 +1316,7 @@
         .countdown.expired { background: #fee2e2; color: #991b1b; }
         .countdown .icon-svg { width: 14px; height: 14px; }
 
-        /* ===== POLLING ===== */
+        /* Polling */
         .polling-indicator {
             display: flex;
             align-items: center;
@@ -1342,7 +1339,6 @@
             border-top-color: var(--primary);
         }
 
-        /* ===== INFO BOX ===== */
         .info-box {
             padding: 14px 16px;
             background: var(--primary-light);
@@ -1364,7 +1360,7 @@
             margin-top: 2px;
         }
 
-        /* ===== SUCCESS ===== */
+        /* Success */
         .success-icon {
             width: 72px;
             height: 72px;
@@ -1377,12 +1373,11 @@
             justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
-            position: relative;
         }
 
         .success-icon .icon-svg { width: 36px; height: 36px; }
 
-        /* ===== DETAIL MODAL (buat riwayat) ===== */
+        /* Detail modal */
         .detail-header {
             text-align: center;
             margin-bottom: 20px;
@@ -1483,15 +1478,9 @@
 
         @media (max-width: 768px) {
             .sidebar {
-                position: fixed;
-                top: 0;
-                left: 0;
-                height: 100vh;
-                max-height: 100vh;
                 transform: translateX(-100%);
-                z-index: 1000;
-                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
                 width: 280px;
+                box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
             }
 
             .sidebar.open {
@@ -1500,6 +1489,11 @@
 
             .sidebar.collapsed {
                 width: 280px;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.collapsed.open {
+                transform: translateX(0);
             }
 
             .sidebar.collapsed .logo-text,
@@ -1513,6 +1507,7 @@
             .sidebar.collapsed .nav-item {
                 justify-content: flex-start;
                 padding: 12px 14px;
+                width: 100%;
             }
 
             .sidebar.collapsed .nav-item::after {
@@ -1520,6 +1515,7 @@
             }
 
             .main-content {
+                margin-left: 0 !important;
                 padding: 16px 16px 60px;
             }
 
@@ -1530,10 +1526,7 @@
             .deposit-hero-text h1 { font-size: 1.4rem; }
             .preset-grid { grid-template-columns: repeat(2, 1fr); }
             .step-label { display: none; }
-            .step-item:not(:last-child)::after { margin: 0 6px; }
             .deposit-card { padding: 18px; }
-            .deposit-hero-icon { width: 52px; height: 52px; }
-            .deposit-hero-icon .icon-svg { width: 26px; height: 26px; }
             .input-amount-big input { font-size: 1.1rem; padding: 14px 16px; }
             .input-amount-big .prefix { font-size: 1rem; padding: 14px 16px; }
         }
@@ -1542,11 +1535,13 @@
             .preset-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
             .preset-item { padding: 12px 8px; font-size: 0.82rem; }
             .deposit-card { padding: 16px; }
+            .qr-display { padding: 20px 12px; }
+            .qr-display img { max-width: 200px; padding: 8px; }
+            .qr-total .amount { font-size: 1.5rem; }
             .detail-row { padding: 10px 12px; font-size: 0.8rem; }
             .detail-row .detail-label { font-size: 0.68rem; }
         }
 
-        /* Body lock pas modal/sidebar kebuka */
         body.modal-open,
         body.sidebar-open {
             overflow: hidden;
@@ -1639,12 +1634,18 @@
             </div>
         </div>
 
-        <!-- HERO -->
+        <!-- HERO — Icon QRIS -->
         <div class="deposit-hero">
             <div class="deposit-hero-icon">
-                <svg class="icon-svg" viewBox="0 0 24 24">
-                    <line x1="12" y1="1" x2="12" y2="23"/>
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="3" y="14" width="7" height="7" rx="1"/>
+                    <path d="M14 14h3v3h-3z"/>
+                    <path d="M21 14v3"/>
+                    <path d="M21 21h-3"/>
+                    <path d="M14 21h3"/>
+                    <path d="M17 17h.01"/>
                 </svg>
             </div>
             <div class="deposit-hero-text">
@@ -1656,9 +1657,8 @@
         <!-- LAYOUT 2 KOLOM -->
         <div class="deposit-layout">
 
-            <!-- KIRI: FORM DEPOSIT -->
+            <!-- KIRI: FORM -->
             <div class="deposit-card">
-                <!-- STEP INDICATOR -->
                 <div class="step-indicator">
                     <div class="step-item active" id="step1">
                         <div class="step-num">1</div>
@@ -1674,7 +1674,6 @@
                     </div>
                 </div>
 
-                <!-- STEP 1: NOMINAL -->
                 <div id="panelNominal">
                     <div class="form-title">Mau isi berapa?</div>
 
@@ -1683,9 +1682,7 @@
                         <input type="number" id="inputAmount" placeholder="0" min="1000" max="10000000">
                     </div>
 
-                    <div class="preset-grid" id="presetGrid">
-                        <!-- diisi JS -->
-                    </div>
+                    <div class="preset-grid" id="presetGrid"></div>
 
                     <button class="btn-deposit" id="btnLanjut" disabled>
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -1697,14 +1694,11 @@
                     </div>
                 </div>
 
-                <!-- STEP 3: PAYMENT (di-render JS) -->
                 <div id="panelPayment" style="display:none;"></div>
             </div>
 
-            <!-- KANAN: SIDEBAR INFO -->
+            <!-- KANAN: INFO -->
             <div class="deposit-sidebar">
-
-                <!-- BANNER -->
                 <div class="side-card banner">
                     <div class="banner-content">
                         <div class="banner-badge">
@@ -1721,7 +1715,6 @@
                     </svg>
                 </div>
 
-                <!-- INFO -->
                 <div class="side-card">
                     <div class="side-title">
                         <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
@@ -1746,7 +1739,6 @@
                         </div>
                     </div>
                 </div>
-
             </div>
         </div>
 
@@ -1770,6 +1762,8 @@
                     <p>Deposit pertama kamu bakal muncul di sini.</p>
                 </div>
             </div>
+
+            <div class="pagination" id="pagination" style="display:none;"></div>
         </div>
 
     </main>
@@ -1784,30 +1778,23 @@
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
-
-        <div class="method-grid" id="methodGrid">
-            <!-- diisi JS -->
-        </div>
+        <div class="method-grid" id="methodGrid"></div>
     </div>
 </div>
 
 <!-- ===== MODAL PAYMENT ===== -->
 <div class="modal-overlay" id="modalPayment">
-    <div class="modal" id="modalPaymentContent">
-        <!-- diisi JS -->
-    </div>
+    <div class="modal" id="modalPaymentContent"></div>
 </div>
 
-<!-- ===== MODAL DETAIL (buat riwayat) ===== -->
+<!-- ===== MODAL DETAIL ===== -->
 <div class="modal-overlay" id="modalDetail">
-    <div class="modal" id="modalDetailContent">
-        <!-- diisi JS -->
-    </div>
+    <div class="modal" id="modalDetailContent"></div>
 </div>
 
 <script src="/js/main.js"></script>
 <script>
-    // ===== SVG ICONS =====
+    // ===== ICONS =====
     const ICONS = {
         qrispy: `<svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
         dana: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="17" cy="15" r="1.5" fill="currentColor"/></svg>`,
@@ -1816,11 +1803,9 @@
         clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
         warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
         arrowRight: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>`,
+        arrowLeft: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>`,
         wallet: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
-        info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
-        trendUp: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
-        fee: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>`,
     };
 
     const token = localStorage.getItem('access_token');
@@ -1836,6 +1821,8 @@
         countdownInterval: null,
         presets: [],
         isCreating: false,
+        historyPage: 1,
+        historyLimit: 5,
     };
 
     // ===== SIDEBAR COLLAPSE =====
@@ -1844,19 +1831,20 @@
         const collapseBtn = document.getElementById('collapseBtn');
         if (!sidebar || !collapseBtn) return;
 
-        // Restore state
         const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
         if (isCollapsed && window.innerWidth > 768) {
             sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
         }
 
         collapseBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('collapsed');
-            localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+            const collapsed = sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('sidebar_collapsed', collapsed);
         });
     })();
 
-    // ===== STATE RESTORE =====
+    // ===== RESTORE STATE =====
     function restoreState() {
         try {
             const saved = sessionStorage.getItem('deposit_state');
@@ -1872,20 +1860,16 @@
 
     function saveState() {
         try {
-            sessionStorage.setItem('deposit_state', JSON.stringify({
-                amount: state.amount,
-            }));
+            sessionStorage.setItem('deposit_state', JSON.stringify({ amount: state.amount }));
         } catch (e) {}
     }
 
     function clearState() {
-        try {
-            sessionStorage.removeItem('deposit_state');
-        } catch (e) {}
+        try { sessionStorage.removeItem('deposit_state'); } catch (e) {}
     }
 
     // ===== LOAD USER =====
-    swrFetch('/api/user', 'user_profile', (user, meta) => {
+    swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
         document.getElementById('userBalance').textContent = formatRupiah(user.balance);
@@ -1903,7 +1887,6 @@
             const data = await safeJson(res);
             state.presets = data.presets || [];
         } catch (err) {
-            console.error(err);
             state.presets = [
                 { amount: 10000, label: 'Rp10.000' },
                 { amount: 20000, label: 'Rp20.000' },
@@ -1961,9 +1944,8 @@
         document.getElementById('step2').classList.remove('active', 'done');
         document.getElementById('step3').classList.remove('active', 'done');
 
-        if (step === 1) {
-            document.getElementById('step1').classList.add('active');
-        } else if (step === 2) {
+        if (step === 1) document.getElementById('step1').classList.add('active');
+        else if (step === 2) {
             document.getElementById('step1').classList.add('done');
             document.getElementById('step2').classList.add('active');
         } else if (step === 3) {
@@ -1981,11 +1963,6 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
-
-            if (!data.methods || data.methods.length === 0) {
-                grid.innerHTML = `<div class="empty-block"><h3>Belum ada metode</h3><p>Coba lagi nanti.</p></div>`;
-                return;
-            }
 
             grid.innerHTML = data.methods.map(m => {
                 const iconSvg = m.id === 'qrispy' ? ICONS.qrispy : ICONS.dana;
@@ -2013,7 +1990,6 @@
                 });
             });
         } catch (err) {
-            console.error(err);
             grid.innerHTML = `<div class="empty-block"><h3>Gagal memuat</h3><p>${err.message}</p></div>`;
         }
     }
@@ -2043,7 +2019,6 @@
             });
 
             const qrispyData = await safeJson(qrispyRes);
-
             if (!qrispyRes.ok || qrispyData.status === 'error') {
                 throw new Error(qrispyData.message || 'Gagal membuat QRIS');
             }
@@ -2082,27 +2057,27 @@
     // ===== SHOW PAYMENT PANEL =====
     function showPaymentPanel() {
         setStep(3);
-
         document.getElementById('panelNominal').style.display = 'none';
         const panelPayment = document.getElementById('panelPayment');
         panelPayment.style.display = 'block';
 
         const d = state.deposit;
         const isManual = state.method === 'qris_dana';
-
         const fee = 0;
         const totalBayar = isManual ? d.total_amount : d.amount;
         const saldoMasuk = d.amount;
 
         panelPayment.innerHTML = `
-            <div class="form-title">Scan QR buat bayar</div>
-
             <div class="countdown" id="countdown">
                 ${ICONS.clock}
                 <span id="countdownText">--:--</span>
             </div>
 
             <div class="qr-display">
+                <div class="qr-total">
+                    <div class="label">Total yang harus dibayar</div>
+                    <div class="amount" id="qrAmount">${formatRupiah(totalBayar)}</div>
+                </div>
                 <img src="${d.qris_url}" alt="QR Code">
             </div>
 
@@ -2121,7 +2096,7 @@
                 </div>
                 <div class="qr-row">
                     <span class="label">Fee</span>
-                    <span class="value">${formatRupiah(fee)}</span>
+                    <span class="value" id="qrFee">${formatRupiah(fee)}</span>
                 </div>
                 ${isManual ? `
                     <div class="qr-row">
@@ -2131,11 +2106,11 @@
                 ` : ''}
                 <div class="qr-row" style="padding-top:10px;border-top:1px solid var(--border);">
                     <span class="label">Total Bayar</span>
-                    <span class="value big">${formatRupiah(totalBayar)}</span>
+                    <span class="value big" id="qrTotal">${formatRupiah(totalBayar)}</span>
                 </div>
                 <div class="qr-row">
                     <span class="label">Saldo Masuk</span>
-                    <span class="value success" style="color:var(--success);">${formatRupiah(saldoMasuk)}</span>
+                    <span class="value success" id="qrSaldo">${formatRupiah(saldoMasuk)}</span>
                 </div>
             </div>
 
@@ -2145,7 +2120,7 @@
                     <span><strong>Penting:</strong> Transfer <strong>tepat ${formatRupiah(totalBayar)}</strong> (termasuk kode unik +${d.unique_code}). Kode unik dipakai buat verifikasi otomatis.</span>
                 </div>
             ` : `
-                <div class="polling-indicator" id="pollingIndicator">
+                <div class="polling-indicator">
                     <span class="loading-spinner"></span>
                     <span>Menunggu pembayaran... otomatis cek status</span>
                 </div>
@@ -2169,6 +2144,36 @@
 
         if (!isManual) {
             startPolling(d.reference_id);
+        }
+
+        // Fetch detail dari QRISPY buat dapet fee yang bener
+        if (state.method === 'qrispy') {
+            fetchQrispyDetail(d.reference_id);
+        }
+    }
+
+    // ===== FETCH QRISPY DETAIL (buat fee) =====
+    async function fetchQrispyDetail(referenceId) {
+        try {
+            const res = await fetch(`/api/deposit/${referenceId}/qrispy-detail`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+
+            if (data.deposit) {
+                const d = data.deposit;
+                const feeEl = document.getElementById('qrFee');
+                const totalEl = document.getElementById('qrTotal');
+                const amountEl = document.getElementById('qrAmount');
+                const saldoEl = document.getElementById('qrSaldo');
+
+                if (feeEl) feeEl.textContent = formatRupiah(d.fee || 0);
+                if (totalEl) totalEl.textContent = formatRupiah(d.total_bayar || d.amount);
+                if (amountEl) amountEl.textContent = formatRupiah(d.total_bayar || d.amount);
+                if (saldoEl) saldoEl.textContent = formatRupiah(d.saldo_masuk || d.amount);
+            }
+        } catch (err) {
+            console.error('Fetch qrispy detail error:', err);
         }
     }
 
@@ -2271,9 +2276,7 @@
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-        } catch (err) {
-            console.error(err);
-        }
+        } catch (err) {}
 
         stopPolling();
         stopCountdown();
@@ -2281,7 +2284,7 @@
         loadHistory();
     }
 
-    // ===== RESET PANEL =====
+    // ===== RESET =====
     window.resetPanel = function() {
         stopPolling();
         stopCountdown();
@@ -2322,6 +2325,10 @@
         clearState();
 
         const modal = document.getElementById('modalPayment');
+        const saldoMasuk = Number(deposit.amount);
+        const totalBayar = Number(deposit.total_amount) || saldoMasuk;
+        const fee = Number(deposit.fee) || Math.max(0, totalBayar - saldoMasuk);
+
         document.getElementById('modalPaymentContent').innerHTML = `
             <div class="modal-header">
                 <div class="modal-title">Deposit Berhasil</div>
@@ -2330,12 +2337,10 @@
                 </button>
             </div>
             <div style="text-align:center;padding:20px 0;">
-                <div class="success-icon">
-                    ${ICONS.check}
-                </div>
+                <div class="success-icon">${ICONS.check}</div>
                 <h2 style="font-family:var(--font-display);font-size:1.4rem;font-weight:800;margin-bottom:8px;">Deposit Berhasil!</h2>
                 <p style="color:var(--text-gray);font-size:0.9rem;margin-bottom:20px;">
-                    Saldo <strong style="color:var(--primary);font-family:var(--font-mono);">${formatRupiah(deposit.total_amount || deposit.amount)}</strong> udah masuk ke akun kamu.
+                    Saldo <strong style="color:var(--primary);font-family:var(--font-mono);">${formatRupiah(saldoMasuk)}</strong> udah masuk ke akun kamu.
                 </p>
 
                 <div class="detail-list" style="text-align:left;">
@@ -2348,12 +2353,16 @@
                         <span class="detail-value">${deposit.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Saldo Masuk</span>
-                        <span class="detail-value success">${formatRupiah(deposit.amount)}</span>
+                        <span class="detail-label">Total Bayar</span>
+                        <span class="detail-value">${formatRupiah(totalBayar)}</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Status</span>
-                        <span class="detail-value success">BERHASIL</span>
+                        <span class="detail-label">Fee</span>
+                        <span class="detail-value warning">${formatRupiah(fee)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Saldo Masuk</span>
+                        <span class="detail-value success">${formatRupiah(saldoMasuk)}</span>
                     </div>
                 </div>
 
@@ -2383,11 +2392,14 @@
         }, 500);
     }
 
-    // ===== LOAD HISTORY =====
-    async function loadHistory() {
+    // ===== LOAD HISTORY (PAGINATION) =====
+    async function loadHistory(page = 1) {
+        state.historyPage = page;
         const container = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+
         try {
-            const res = await fetch('/api/deposit/history?limit=20', {
+            const res = await fetch(`/api/deposit/history?page=${page}&limit=${state.historyLimit}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
@@ -2400,6 +2412,7 @@
                         <p>Deposit pertama kamu bakal muncul di sini.</p>
                     </div>
                 `;
+                paginationEl.style.display = 'none';
                 return;
             }
 
@@ -2434,7 +2447,35 @@
                 `;
             }).join('') + `</div>`;
 
-            // Klik history card → buka detail modal
+            // Render pagination
+            if (data.totalPages > 1) {
+                paginationEl.style.display = 'flex';
+                paginationEl.innerHTML = `
+                    <button class="page-btn" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
+                        ${ICONS.arrowLeft}
+                        Prev
+                    </button>
+                    <span class="page-info">Halaman ${data.page} dari ${data.totalPages}</span>
+                    <button class="page-btn" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
+                        Next
+                        ${ICONS.arrowRight}
+                    </button>
+                `;
+
+                paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const p = Number(btn.dataset.page);
+                        if (p >= 1 && p <= data.totalPages) {
+                            loadHistory(p);
+                            window.scrollTo({ top: document.querySelector('.history-section').offsetTop - 100, behavior: 'smooth' });
+                        }
+                    });
+                });
+            } else {
+                paginationEl.style.display = 'none';
+            }
+
+            // Klik history card → detail
             container.querySelectorAll('.history-card').forEach(card => {
                 card.addEventListener('click', () => {
                     const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
@@ -2447,7 +2488,21 @@
     }
 
     // ===== SHOW DETAIL MODAL =====
-    function showDetailModal(d) {
+    async function showDetailModal(d) {
+        // Fetch detail dari QRISPY kalo metode qrispy & belum ada fee
+        let detail = d;
+        if (d.method === 'qrispy' && (!d.fee || Number(d.fee) === 0) && d.qris_id) {
+            try {
+                const res = await fetch(`/api/deposit/${d.reference_id}/qrispy-detail`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await safeJson(res);
+                if (data.deposit) detail = { ...d, ...data.deposit };
+            } catch (err) {
+                console.error('Fetch detail error:', err);
+            }
+        }
+
         const statusMap = {
             success: { class: 'success', label: 'BERHASIL', icon: ICONS.check },
             pending: { class: 'pending', label: 'PENDING', icon: ICONS.clock },
@@ -2456,11 +2511,11 @@
             expired: { class: 'failed', label: 'EXPIRED', icon: ICONS.clock },
         };
 
-        const s = statusMap[d.status] || { class: 'pending', label: d.status?.toUpperCase() || '—', icon: ICONS.clock };
-        const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA Manual';
-        const fee = 0;
-        const totalBayar = d.total_amount || d.amount;
-        const saldoMasuk = d.amount;
+        const s = statusMap[detail.status] || { class: 'pending', label: detail.status?.toUpperCase() || '—', icon: ICONS.clock };
+        const methodLabel = detail.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA Manual';
+        const saldoMasuk = Number(detail.amount);
+        const totalBayar = Number(detail.total_amount) || saldoMasuk;
+        const fee = Number(detail.fee) || Math.max(0, totalBayar - saldoMasuk);
 
         const formatDate = (date) => {
             if (!date) return '—';
@@ -2470,7 +2525,6 @@
             });
         };
 
-        const modal = document.getElementById('modalDetail');
         document.getElementById('modalDetailContent').innerHTML = `
             <div class="modal-header">
                 <div class="modal-title">Detail Deposit</div>
@@ -2488,7 +2542,7 @@
             <div class="detail-list">
                 <div class="detail-row">
                     <span class="detail-label">Reference ID</span>
-                    <span class="detail-value">${d.reference_id || '—'}</span>
+                    <span class="detail-value">${detail.reference_id || '—'}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Status</span>
@@ -2500,17 +2554,17 @@
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Jumlah Pokok</span>
-                    <span class="detail-value">${formatRupiah(d.amount)}</span>
+                    <span class="detail-value">${formatRupiah(saldoMasuk)}</span>
                 </div>
-                ${d.unique_code ? `
+                ${detail.unique_code ? `
                     <div class="detail-row">
                         <span class="detail-label">Kode Unik</span>
-                        <span class="detail-value warning">+${d.unique_code}</span>
+                        <span class="detail-value warning">+${detail.unique_code}</span>
                     </div>
                 ` : ''}
                 <div class="detail-row">
                     <span class="detail-label">Fee</span>
-                    <span class="detail-value">${formatRupiah(fee)}</span>
+                    <span class="detail-value warning">${formatRupiah(fee)}</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Total Bayar</span>
@@ -2520,26 +2574,26 @@
                     <span class="detail-label">Saldo Masuk</span>
                     <span class="detail-value success">${formatRupiah(saldoMasuk)}</span>
                 </div>
-                ${d.qris_id ? `
+                ${detail.qris_id ? `
                     <div class="detail-row">
                         <span class="detail-label">QRIS ID</span>
-                        <span class="detail-value">${d.qris_id}</span>
+                        <span class="detail-value">${detail.qris_id}</span>
                     </div>
                 ` : ''}
                 <div class="detail-row">
                     <span class="detail-label">Dibuat</span>
-                    <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.created_at)}</span>
+                    <span class="detail-value" style="font-size:0.78rem;">${formatDate(detail.created_at)}</span>
                 </div>
-                ${d.expires_at ? `
+                ${detail.expires_at ? `
                     <div class="detail-row">
                         <span class="detail-label">Kedaluwarsa</span>
-                        <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.expires_at)}</span>
+                        <span class="detail-value" style="font-size:0.78rem;">${formatDate(detail.expires_at)}</span>
                     </div>
                 ` : ''}
-                ${d.paid_at ? `
+                ${detail.paid_at ? `
                     <div class="detail-row">
                         <span class="detail-label">Dibayar</span>
-                        <span class="detail-value success" style="font-size:0.78rem;">${formatDate(d.paid_at)}</span>
+                        <span class="detail-value success" style="font-size:0.78rem;">${formatDate(detail.paid_at)}</span>
                     </div>
                 ` : ''}
             </div>
@@ -2555,7 +2609,7 @@
         openModal('modalDetail');
 
         document.getElementById('btnCopyRef').addEventListener('click', () => {
-            navigator.clipboard.writeText(d.reference_id || '').then(() => {
+            navigator.clipboard.writeText(detail.reference_id || '').then(() => {
                 const btn = document.getElementById('btnCopyRef');
                 const original = btn.innerHTML;
                 btn.innerHTML = `${ICONS.check} Copied!`;
@@ -2571,7 +2625,7 @@
         openModal('modalMethod');
     });
 
-    // ===== MODAL CLOSE HANDLERS =====
+    // ===== MODAL CLOSE =====
     document.querySelectorAll('[data-modal-close]').forEach(btn => {
         btn.addEventListener('click', () => {
             const modal = btn.closest('.modal-overlay');
@@ -2595,7 +2649,6 @@
         });
     });
 
-    // ESC key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             const activeModal = document.querySelector('.modal-overlay.active');
@@ -2608,14 +2661,42 @@
         }
     });
 
+    // ===== MOBILE SIDEBAR =====
+    const mobileToggle = document.getElementById('mobileToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+    if (mobileToggle) {
+        mobileToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('active');
+            document.body.classList.toggle('sidebar-open');
+        });
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+        });
+
+        // Auto-close pas klik link
+        sidebar.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('active');
+                    document.body.classList.remove('sidebar-open');
+                }
+            });
+        });
+    }
+
     // ===== INIT =====
     restoreState();
     updateButton();
     loadPresets();
     loadMethods();
-    loadHistory();
+    loadHistory(1);
 
-    // Cleanup
     window.addEventListener('beforeunload', () => {
         stopPolling();
         stopCountdown();
