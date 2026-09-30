@@ -1930,6 +1930,7 @@
                 </button>
             </div>
         `;
+        invalidateHistoryCache();
         loadHistory(state.historyPage);
     }
 
@@ -1948,6 +1949,7 @@
         stopPolling();
         stopCountdown();
         resetPanel();
+        invalidateHistoryCache();
         loadHistory(state.historyPage);
     }
 
@@ -2055,6 +2057,8 @@
         });
 
         CacheManager.remove('user_profile');
+    invalidateHistoryCache();
+    loadHistory(state.historyPage);
         loadHistory(state.historyPage);
 
         setTimeout(() => {
@@ -2067,104 +2071,282 @@
         }, 500);
     }
 
-    // ===== LOAD HISTORY =====
+        // ===== HISTORY CACHE KEYS =====
+    function getHistoryCacheKey(page) {
+        return `deposit_history_p${page}_l${state.historyLimit}`;
+    }
+
+    function getHistoryTimestampKey(page) {
+        return `deposit_history_ts_p${page}_l${state.historyLimit}`;
+    }
+
+    // ===== LOAD HISTORY (SWR + AUTO SYNC) =====
     async function loadHistory(page = 1) {
         state.historyPage = page;
         const container = document.getElementById('historyList');
         const paginationEl = document.getElementById('pagination');
+        const cacheKey = getHistoryCacheKey(page);
 
+        // 1. INSTANT: Tampilkan cache dulu kalo ada
+        const cached = CacheManager.get(cacheKey);
+        if (cached && cached.value) {
+            renderHistory(cached.value, page);
+            // Mark "loading di background" — visual kecil
+            if (cached.value.deposits && cached.value.deposits.length > 0) {
+                markHistoryUpdating(true);
+            }
+        } else {
+            // Kalo ga ada cache, tampilin skeleton
+            renderHistorySkeleton();
+        }
+
+        // 2. BACKGROUND: Fetch fresh data dari API
         try {
             const res = await fetch(`/api/deposit/history?page=${page}&limit=${state.historyLimit}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
 
-            if (!data.deposits || data.deposits.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-block">
-                        <div class="icon-box">${ICONS.wallet}</div>
-                        <h3>Belum ada riwayat deposit</h3>
-                        <p>Deposit pertama kamu bakal muncul di sini.</p>
-                    </div>
-                `;
-                paginationEl.style.display = 'none';
+            if (!data.deposits) {
+                renderHistoryEmpty();
                 return;
             }
 
-            const statusMap = {
-                success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
-                pending: { class: 'pending', label: 'Pending', icon: ICONS.clock },
-                failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
-                cancelled: { class: 'failed', label: 'Dibatalkan', icon: ICONS.close },
-                expired: { class: 'failed', label: 'Expired', icon: ICONS.clock },
-            };
+            // Simpan ke cache
+            CacheManager.set(cacheKey, data);
+            localStorage.setItem(getHistoryTimestampKey(page), Date.now().toString());
 
-            container.innerHTML = `<div class="history-list">` + data.deposits.map(d => {
-                const s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
-                const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA';
-                const date = new Date(d.created_at).toLocaleString('id-ID', {
-                    day: '2-digit', month: 'short',
-                    hour: '2-digit', minute: '2-digit'
-                });
-                const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : 'danger';
-                return `
-                    <button class="history-card ${s.class}" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}'>
-                        <div class="history-icon ${s.class}">${s.icon}</div>
-                        <div class="history-info">
-                            <div class="history-title">${methodLabel}</div>
-                            <div class="history-meta">${date} · ${d.reference_id || '—'}</div>
-                        </div>
-                        <div class="history-right">
-                            <div class="history-amount">${formatRupiah(d.total_amount || d.amount)}</div>
-                            <span class="badge ${badgeClass}">${s.label}</span>
-                        </div>
-                    </button>
-                `;
-            }).join('') + `</div>`;
+            // Render
+            renderHistory(data, page);
 
-            if (data.totalPages > 1) {
-                paginationEl.style.display = 'flex';
-                paginationEl.innerHTML = `
-                    <button class="page-btn" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
-                        ${ICONS.arrowLeft}
-                        Prev
-                    </button>
-                    <span class="page-info">Halaman ${data.page} dari ${data.totalPages}</span>
-                    <button class="page-btn" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
-                        Next
-                        ${ICONS.arrowRight}
-                    </button>
-                `;
+            // 3. SYNC: Kalo ada pending di halaman ini, sync status
+            const pendingIds = data.deposits
+                .filter(d => d.status === 'pending')
+                .map(d => d.reference_id);
 
-                paginationEl.querySelectorAll('.page-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const p = Number(btn.dataset.page);
-                        if (p >= 1 && p <= data.totalPages) {
-                            loadHistory(p);
-                            const histSection = document.querySelector('.history-section');
-                            if (histSection) {
-                                window.scrollTo({ top: histSection.offsetTop - 100, behavior: 'smooth' });
-                            }
-                        }
-                    });
-                });
-            } else {
-                paginationEl.style.display = 'none';
+            if (pendingIds.length > 0) {
+                syncVisibleDeposits(pendingIds, page);
             }
-
-            container.querySelectorAll('.history-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
-                    showDetailModal(deposit);
-                });
-            });
         } catch (err) {
             console.error('Load history error:', err);
+            // Kalo gagal & ada cache, tetep tampil cache
+            if (!cached) {
+                container.innerHTML = `
+                    <div class="empty-block">
+                        <div class="icon-box">${ICONS.warning}</div>
+                        <h3>Gagal memuat riwayat</h3>
+                        <p>${err.message || 'Coba refresh halaman'}</p>
+                    </div>
+                `;
+            }
+        } finally {
+            markHistoryUpdating(false);
         }
+    }
+
+    // ===== RENDER HISTORY =====
+    function renderHistory(data, page) {
+        const container = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+
+        if (!data.deposits || data.deposits.length === 0) {
+            renderHistoryEmpty();
+            return;
+        }
+
+        const statusMap = {
+            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            pending: { class: 'pending', label: 'Pending', icon: ICONS.clock },
+            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
+            cancelled: { class: 'failed', label: 'Dibatalkan', icon: ICONS.close },
+            expired: { class: 'failed', label: 'Expired', icon: ICONS.clock },
+        };
+
+        container.innerHTML = `<div class="history-list">` + data.deposits.map(d => {
+            const s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
+            const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA';
+            const date = new Date(d.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : 'danger';
+            return `
+                <button class="history-card ${s.class}" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}' data-ref="${d.reference_id}">
+                    <div class="history-icon ${s.class}">${s.icon}</div>
+                    <div class="history-info">
+                        <div class="history-title">${methodLabel}</div>
+                        <div class="history-meta">${date} · ${d.reference_id || '—'}</div>
+                    </div>
+                    <div class="history-right">
+                        <div class="history-amount">${formatRupiah(d.total_amount || d.amount)}</div>
+                        <span class="badge ${badgeClass}">${s.label}</span>
+                    </div>
+                </button>
+            `;
+        }).join('') + `</div>`;
+
+        // Pagination
+        if (data.totalPages > 1) {
+            paginationEl.style.display = 'flex';
+            paginationEl.innerHTML = `
+                <button class="page-btn" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
+                    ${ICONS.arrowLeft}
+                    Prev
+                </button>
+                <span class="page-info">Halaman ${data.page} dari ${data.totalPages}</span>
+                <button class="page-btn" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
+                    Next
+                    ${ICONS.arrowRight}
+                </button>
+            `;
+
+            paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = Number(btn.dataset.page);
+                    if (p >= 1 && p <= data.totalPages) {
+                        loadHistory(p);
+                        const histSection = document.querySelector('.history-section');
+                        if (histSection) {
+                            window.scrollTo({ top: histSection.offsetTop - 100, behavior: 'smooth' });
+                        }
+                    }
+                });
+            });
+        } else {
+            paginationEl.style.display = 'none';
+        }
+
+        // Klik card → detail
+        container.querySelectorAll('.history-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
+                showDetailModal(deposit);
+            });
+        });
+    }
+
+    // ===== RENDER SKELETON (kalo ga ada cache) =====
+    function renderHistorySkeleton() {
+        const container = document.getElementById('historyList');
+        container.innerHTML = `
+            <div class="history-list">
+                ${Array(3).fill(0).map(() => `
+                    <div class="history-card skeleton-card">
+                        <div class="history-icon" style="background: var(--bg-light); border-color: var(--border);">
+                            <span class="loading-spinner loading-spinner-sm"></span>
+                        </div>
+                        <div class="history-info">
+                            <div class="skeleton" style="height: 14px; width: 60%; margin-bottom: 6px;"></div>
+                            <div class="skeleton" style="height: 11px; width: 80%;"></div>
+                        </div>
+                        <div class="history-right">
+                            <div class="skeleton" style="height: 14px; width: 70px; margin-bottom: 6px;"></div>
+                            <div class="skeleton" style="height: 18px; width: 60px; border-radius: 50px;"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    // ===== RENDER EMPTY =====
+    function renderHistoryEmpty() {
+        const container = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+        container.innerHTML = `
+            <div class="empty-block">
+                <div class="icon-box">${ICONS.wallet}</div>
+                <h3>Belum ada riwayat deposit</h3>
+                <p>Deposit pertama kamu bakal muncul di sini.</p>
+            </div>
+        `;
+        paginationEl.style.display = 'none';
+    }
+
+    // ===== MARK UPDATING (visual kecil) =====
+    function markHistoryUpdating(isUpdating) {
+        const section = document.querySelector('.history-section');
+        if (!section) return;
+
+        let indicator = section.querySelector('.history-updating');
+        if (isUpdating) {
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'history-updating';
+                indicator.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Sync...';
+                section.querySelector('.section-label').appendChild(indicator);
+            }
+        } else {
+            if (indicator) indicator.remove();
+        }
+    }
+
+    // ===== SYNC VISIBLE DEPOSITS =====
+    async function syncVisibleDeposits(referenceIds, page) {
+        if (!referenceIds || referenceIds.length === 0) return;
+
+        try {
+            const res = await fetch('/api/deposit/sync-batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ reference_ids: referenceIds })
+            });
+
+            const data = await safeJson(res);
+
+            if (!data.updated || data.updated.length === 0) return;
+
+            // Ada update — refresh dari cache + update UI
+            const cacheKey = getHistoryCacheKey(page);
+            const cached = CacheManager.get(cacheKey);
+
+            if (cached && cached.value && cached.value.deposits) {
+                // Update cache dengan data terbaru
+                const updatedMap = new Map(data.updated.map(d => [d.reference_id, d]));
+                cached.value.deposits = cached.value.deposits.map(d => 
+                    updatedMap.get(d.reference_id) || d
+                );
+                CacheManager.set(cacheKey, cached.value);
+
+                // Re-render
+                renderHistory(cached.value, page);
+
+                // Kalo ada yang success, update saldo juga
+                const hasSuccess = data.updated.some(d => d.status === 'success');
+                if (hasSuccess) {
+                    CacheManager.remove('user_profile');
+                    swrFetch('/api/user', 'user_profile', (user) => {
+                        if (!user) return;
+                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                        document.getElementById('saldoSekarang').textContent = formatRupiah(user.balance);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Sync visible error:', err);
+        }
+    }
+
+    // ===== INVALIDATE HISTORY CACHE =====
+    function invalidateHistoryCache() {
+        Object.keys(localStorage)
+            .filter(k => k.startsWith('asyrofotp_cache_deposit_history_'))
+            .forEach(k => localStorage.removeItem(k));
     }
 
     // ===== SHOW DETAIL MODAL =====
     async function showDetailModal(d) {
+        const cacheKey = getHistoryCacheKey(state.historyPage);
+        const cached = CacheManager.get(cacheKey);
+        if (cached && cached.value && cached.value.deposits) {
+            const fresh = cached.value.deposits.find(x => x.reference_id === d.reference_id);
+            if (fresh) d = { ...d, ...fresh };
+        }
+
         const statusMap = {
             success: { class: 'success', label: 'BERHASIL', icon: ICONS.check },
             pending: { class: 'pending', label: 'PENDING', icon: ICONS.clock },
