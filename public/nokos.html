@@ -15,6 +15,11 @@
     <style>
         /* ===== NOKOS PAGE ===== */
 
+        /* Body lock waktu sheet kebuka */
+        body.sheet-open {
+            overflow: hidden;
+        }
+
         /* Hero */
         .nokos-hero {
             display: flex;
@@ -260,7 +265,7 @@
 
         .empty-orders p {
             font-size: 0.85rem;
-            margin-bottom: 18px;
+            margin-bottom: 0;
         }
 
         /* CTA button */
@@ -367,6 +372,7 @@
             display: none;
             align-items: flex-end;
             justify-content: center;
+            padding: 0;
         }
 
         .bottom-sheet-overlay.active {
@@ -379,6 +385,7 @@
             width: 100%;
             max-width: 560px;
             max-height: 92vh;
+            height: 92vh;
             border-top-left-radius: 24px;
             border-top-right-radius: 24px;
             border: 2px solid var(--border-dark);
@@ -408,6 +415,7 @@
             border-radius: 50px;
             margin: 12px auto 8px;
             flex-shrink: 0;
+            cursor: grab;
         }
 
         /* Sheet header */
@@ -437,7 +445,7 @@
         }
 
         .sheet-title {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
@@ -465,11 +473,31 @@
             color: var(--primary);
         }
 
-        /* Sheet body */
+        /* Sheet body — SCROLL INTERNAL */
         .sheet-body {
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        /* Custom scrollbar buat sheet body */
+        .sheet-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .sheet-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .sheet-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .sheet-body::-webkit-scrollbar-thumb:hover {
+            background: var(--text-light);
         }
 
         /* Back button */
@@ -614,7 +642,7 @@
             height: 18px;
         }
 
-        /* App search */
+        /* Sheet search */
         .sheet-search {
             position: relative;
             margin-bottom: 18px;
@@ -869,18 +897,14 @@
             font-family: var(--font-mono);
         }
 
-        .country-price {
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-family: var(--font-mono);
-            text-align: right;
+        .country-arrow {
+            color: var(--text-light);
             flex-shrink: 0;
         }
 
-        .country-price .price {
-            font-weight: 800;
-            font-size: 0.82rem;
-            color: var(--primary);
+        .country-arrow .icon-svg {
+            width: 18px;
+            height: 18px;
         }
 
         /* Price list */
@@ -1076,7 +1100,7 @@
             margin: 0 auto;
         }
 
-        /* Success modal (centered, terpisah dari bottom sheet) */
+        /* Success modal (centered) */
         .success-modal {
             text-align: center;
         }
@@ -1183,6 +1207,11 @@
 
             .banner-emoji {
                 font-size: 3rem;
+            }
+
+            .bottom-sheet {
+                height: 95vh;
+                max-height: 95vh;
             }
         }
     </style>
@@ -1413,7 +1442,7 @@
         return name ? name.charAt(0).toUpperCase() : '?';
     }
 
-    // Map service name → Simple Icons slug (fallback)
+    // Map service name → Simple Icons slug
     const SIMPLE_ICONS_MAP = {
         whatsapp: 'whatsapp', wa: 'whatsapp',
         telegram: 'telegram', tg: 'telegram',
@@ -1431,14 +1460,12 @@
         const name = (service.name || '').toLowerCase();
         const code = (service.code || '').toLowerCase();
 
-        // Coba match dari name dulu
         for (const [key, slug] of Object.entries(SIMPLE_ICONS_MAP)) {
             if (name.includes(key) || code === key) {
                 return `https://cdn.simpleicons.org/${slug}`;
             }
         }
 
-        // Fallback: pakai google icon generic
         return `https://cdn.simpleicons.org/google`;
     }
 
@@ -1456,16 +1483,13 @@
     // ===== STATE =====
     let state = {
         step: 1,
-        server: null,
-        serverLabel: null,
-        requiresOperator: false,
         service: null,
         serviceName: null,
         country: null,
         countryName: null,
         operator: 'any',
         providers: [],
-        filter: 'sukses', // sukses | murah
+        filter: 'sukses',
     };
 
     // ===== LOAD USER (SWR) =====
@@ -1524,19 +1548,21 @@
         }
     }
 
-    // ===== OPEN SHEET =====
-    document.getElementById('btnOrder').addEventListener('click', () => {
-        openSheet();
-        goToStep(1);
-    });
-
+    // ===== OPEN/CLOSE SHEET =====
     function openSheet() {
         document.getElementById('sheetOverlay').classList.add('active');
+        document.body.classList.add('sheet-open');
     }
 
     function closeSheet() {
         document.getElementById('sheetOverlay').classList.remove('active');
+        document.body.classList.remove('sheet-open');
     }
+
+    document.getElementById('btnOrder').addEventListener('click', () => {
+        openSheet();
+        goToStep(1);
+    });
 
     document.getElementById('sheetOverlay').addEventListener('click', (e) => {
         if (e.target.id === 'sheetOverlay') closeSheet();
@@ -1548,6 +1574,9 @@
         const body = document.getElementById('sheetBody');
         const stepEl = document.getElementById('sheetStep');
         const titleEl = document.getElementById('sheetTitle');
+
+        // Reset scroll tiap ganti step
+        body.scrollTop = 0;
 
         if (step === 1) {
             stepEl.textContent = 'Langkah 1 · Pilih Server';
@@ -1568,62 +1597,30 @@
         }
     }
 
-    // ===== STEP 1: SERVER =====
-    async function renderServerStep() {
+    // ===== STEP 1: SERVER (cuma 1 card, gabungan semua server) =====
+    function renderServerStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `
-            <div class="loading-block">
-                <span class="loading-spinner"></span>
-                <span>Memuat server...</span>
+            <div class="server-list">
+                <button class="server-card active" id="serverEkonomiBtn">
+                    <div class="server-icon">⚡</div>
+                    <div class="server-info">
+                        <div class="server-title">
+                            Server Ekonomi
+                            <span class="server-badge">EKONOMI</span>
+                        </div>
+                        <div class="server-desc">Harga terjangkau, semua aplikasi tersedia</div>
+                    </div>
+                    <div class="server-arrow">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                </button>
             </div>
         `;
 
-        try {
-            const res = await fetch('/api/nokos/servers', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
-
-            if (!data.servers || data.servers.length === 0) {
-                body.innerHTML = `<div class="empty-block"><h3>Belum ada server</h3><p>Coba lagi nanti.</p></div>`;
-                return;
-            }
-
-            body.innerHTML = `
-                <div class="server-list">
-                    ${data.servers.map(s => `
-                        <button class="server-card" data-server="${s.id}" data-label="${s.label}" data-operator="${s.requiresOperator}">
-                            <div class="server-icon">⚡</div>
-                            <div class="server-info">
-                                <div class="server-title">
-                                    ${s.label}
-                                    <span class="server-badge">${s.badge || ''}</span>
-                                </div>
-                                <div class="server-desc">${s.desc || ''}</div>
-                            </div>
-                            <div class="server-arrow">
-                                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
-                            </div>
-                        </button>
-                    `).join('')}
-                </div>
-            `;
-
-            body.querySelectorAll('.server-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    state.server = card.dataset.server;
-                    state.serverLabel = card.dataset.label;
-                    state.requiresOperator = card.dataset.operator === 'true';
-                    state.service = null;
-                    state.country = null;
-
-                    goToStep(2);
-                });
-            });
-        } catch (err) {
-            console.error(err);
-            body.innerHTML = `<div class="empty-block"><h3>Gagal memuat server</h3><p>${err.message}</p></div>`;
-        }
+        document.getElementById('serverEkonomiBtn').addEventListener('click', () => {
+            goToStep(2);
+        });
     }
 
     // ===== STEP 2: APP =====
@@ -1651,7 +1648,7 @@
         document.getElementById('backBtn').addEventListener('click', () => goToStep(1));
 
         try {
-            const res = await fetch(`/api/nokos/services?server=${state.server}`, {
+            const res = await fetch(`/api/nokos/services`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -1676,11 +1673,10 @@
         const content = document.getElementById('appContent');
 
         if (!services || services.length === 0) {
-            content.innerHTML = `<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Server ini belum punya aplikasi tersedia.</p></div>`;
+            content.innerHTML = `<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Coba lagi nanti.</p></div>`;
             return;
         }
 
-        // Popular: 6 pertama
         const popular = services.slice(0, 6);
         const all = services;
 
@@ -1752,7 +1748,7 @@
         document.getElementById('appSelectedImg').src = getAppLogo({ name: state.serviceName, code: state.service });
 
         try {
-            const res = await fetch(`/api/nokos/countries?server=${state.server}&service=${state.service}`, {
+            const res = await fetch(`/api/nokos/countries?service=${state.service}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();
@@ -1776,7 +1772,7 @@
         const content = document.getElementById('countryContent');
 
         if (!countries || countries.length === 0) {
-            content.innerHTML = `<div class="empty-block"><h3>Belum ada negara</h3><p>Server ini belum punya negara tersedia.</p></div>`;
+            content.innerHTML = `<div class="empty-block"><h3>Belum ada negara</h3><p>Coba lagi nanti.</p></div>`;
             return;
         }
 
@@ -1791,9 +1787,8 @@
                                 <div class="country-name">${c.name}</div>
                                 <div class="country-meta">Kode: ${c.code.toUpperCase()}</div>
                             </div>
-                            <div class="country-price">
-                                <div>Mulai</div>
-                                <div class="price">—</div>
+                            <div class="country-arrow">
+                                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
                             </div>
                         </button>
                     `;
@@ -1827,16 +1822,14 @@
                 </div>
             </div>
 
-            ${state.requiresOperator ? `
-                <div class="section-label">Pilih Operator</div>
-                <div class="operator-grid" id="operatorGrid">
-                    ${['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'].map(op => `
-                        <button class="operator-item ${op === 'any' ? 'active' : ''}" data-op="${op}">
-                            ${op === 'any' ? '🎲 Any' : op}
-                        </button>
-                    `).join('')}
-                </div>
-            ` : ''}
+            <div class="section-label">Pilih Operator</div>
+            <div class="operator-grid" id="operatorGrid">
+                ${['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'].map(op => `
+                    <button class="operator-item ${op === 'any' ? 'active' : ''}" data-op="${op}">
+                        ${op === 'any' ? '🎲 Any' : op}
+                    </button>
+                `).join('')}
+            </div>
 
             <div class="sheet-tabs">
                 <button class="sheet-tab active" data-filter="sukses">Paling Sukses</button>
@@ -1857,15 +1850,13 @@
         document.getElementById('appSelectedImg2').src = getAppLogo({ name: state.serviceName, code: state.service });
 
         // Operator picker
-        if (state.requiresOperator) {
-            document.getElementById('operatorGrid').addEventListener('click', (e) => {
-                const btn = e.target.closest('.operator-item');
-                if (!btn) return;
-                document.querySelectorAll('.operator-item').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.operator = btn.dataset.op;
-            });
-        }
+        document.getElementById('operatorGrid').addEventListener('click', (e) => {
+            const btn = e.target.closest('.operator-item');
+            if (!btn) return;
+            document.querySelectorAll('.operator-item').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            state.operator = btn.dataset.op;
+        });
 
         // Filter tabs
         document.querySelectorAll('.sheet-tab').forEach(tab => {
@@ -1880,7 +1871,7 @@
         // Load prices
         try {
             const res = await fetch(
-                `/api/nokos/prices?server=${state.server}&service=${state.service}&country=${state.country}`,
+                `/api/nokos/prices?service=${state.service}&country=${state.country}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await res.json();
@@ -1900,12 +1891,10 @@
             return;
         }
 
-        // Sort berdasarkan filter
         let sorted = [...providers];
         if (state.filter === 'murah') {
             sorted.sort((a, b) => a.price_idr - b.price_idr);
         } else {
-            // "sukses" = urut by stock DESC (anggap stock banyak = lebih sukses)
             sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
         }
 
@@ -1923,7 +1912,7 @@
                                     Opsi ${i + 1}
                                     <span class="price-stock ${stockClass}">${p.stock || 0} stok</span>
                                 </div>
-                                <div class="price-meta">${state.operator !== 'any' && state.requiresOperator ? `Operator: ${state.operator}` : ''}</div>
+                                <div class="price-meta">${state.countryName}${state.operator !== 'any' ? ` · ${state.operator}` : ''}</div>
                             </div>
                             <div class="price-right">
                                 <div class="price-amount">${formatRupiah(p.price_idr)}</div>
@@ -1955,16 +1944,16 @@
 
         try {
             const body = {
-                server: state.server,
+                server: priceData.server, // server dari provider (hidden dari user)
                 service: state.service,
                 country: state.country,
                 service_name: state.serviceName,
             };
 
-            if (state.requiresOperator) {
+            if (priceData.price && priceData.id && priceData.server === 'premium') {
                 body.provider_id = priceData.id;
                 body.provider_price = priceData.price;
-                body.operator = state.operator;
+                body.operator = state.operator || 'any';
             } else {
                 body.id = priceData.id;
             }
@@ -1987,7 +1976,6 @@
             CacheManager.remove('user_profile');
             document.getElementById('modalSuccess').classList.add('active');
 
-            // Refresh saldo + active orders
             setTimeout(() => {
                 swrFetch('/api/user', 'user_profile', (user) => {
                     if (!user) return;
@@ -1997,7 +1985,6 @@
                 });
                 loadActiveOrders();
             }, 500);
-
         } catch (err) {
             alert(err.message);
             btn.disabled = false;
