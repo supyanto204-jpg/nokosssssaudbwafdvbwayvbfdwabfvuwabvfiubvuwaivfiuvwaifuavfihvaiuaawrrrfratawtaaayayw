@@ -7,14 +7,15 @@
 // ============================================
 const CacheManager = {
     prefix: 'asyrofotp_cache_',
+    defaultTTL: 5 * 60 * 1000, // 5 menit
 
     get(key) {
         try {
             const item = localStorage.getItem(this.prefix + key);
             if (!item) return null;
             const parsed = JSON.parse(item);
-            // Cache expire 5 menit
-            if (parsed.timestamp && Date.now() - parsed.timestamp > 5 * 60 * 1000) {
+            // Auto-expire kalo udah lewat TTL
+            if (parsed.timestamp && Date.now() - parsed.timestamp > this.defaultTTL) {
                 this.remove(key);
                 return null;
             }
