@@ -602,17 +602,17 @@ app.get('/api/deposit/methods', requireAuth, (req, res) => {
 // ===== GET DEPOSIT PRESETS =====
 app.get('/api/deposit/presets', requireAuth, (req, res) => {
     res.json({
-        presets: [
-            { amount: 10000, label: 'Rp10.000' },
-            { amount: 25000, label: 'Rp25.000' },
-            { amount: 50000, label: 'Rp50.000' },
-            { amount: 100000, label: 'Rp100.000' },
-            { amount: 250000, label: 'Rp250.000' },
-            { amount: 500000, label: 'Rp500.000' },
-        ],
-        min: 10000,
-        max: 10000000,
-    });
+    presets: [
+        { amount: 1000, label: 'Rp1.000' },
+        { amount: 2000, label: 'Rp2.000' },
+        { amount: 5000, label: 'Rp5.000' },
+        { amount: 10000, label: 'Rp10.000' },
+        { amount: 25000, label: 'Rp25.000' },
+        { amount: 50000, label: 'Rp50.000' },
+    ],
+    min: 1000,
+    max: 10000000,
+});
 });
 
 // ===== CREATE DEPOSIT (QRISPY) =====
@@ -621,12 +621,12 @@ app.post('/api/deposit/qrispy', requireAuth, async (req, res) => {
 
     const { amount } = req.body;
 
-    if (!amount || amount < 10000) {
-        return res.status(400).json({ error: 'Minimal deposit Rp10.000' });
-    }
-    if (amount > 10000000) {
-        return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
-    }
+    if (!amount || amount < 1000) {
+    return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
+}
+if (amount > 10000000) {
+    return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
+}
 
     try {
         const referenceId = generateReferenceId();
@@ -685,10 +685,13 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
 
     const { amount } = req.body;
 
-    if (!amount || amount < 10000) {
-        return res.status(400).json({ error: 'Minimal deposit Rp10.000' });
-    }
-
+    if (!amount || amount < 1000) {
+    return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
+}
+if (amount > 10000000) {
+    return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
+}
+    
     try {
         const uniqueCode = generateUniqueCode();
         const totalAmount = Number(amount) + uniqueCode;
