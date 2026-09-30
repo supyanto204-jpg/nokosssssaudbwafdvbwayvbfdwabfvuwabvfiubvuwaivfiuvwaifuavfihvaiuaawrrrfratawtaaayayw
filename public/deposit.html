@@ -1578,44 +1578,68 @@
 
     // ===== CREATE DEPOSIT =====
     async function createDeposit() {
-        const btn = btnLanjut;
-        const original = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
+    const btn = btnLanjut;
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Membuat QR...';
 
+    try {
+        // 1. Generate reference ID
+        const referenceId = 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
+
+        // 2. Panggil Worker QRISPY langsung dari frontend
+        const workerUrl = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev/api/payment/qris/generate';
+        
+        const qrispyRes = await fetch(workerUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                amount: Number(state.amount),
+                payment_reference: referenceId,
+            }),
+        });
+
+        const text = await qrispyRes.text();
+        let qrispyData;
         try {
-            const endpoint = state.method === 'qrispy'
-                ? '/api/deposit/qrispy'
-                : '/api/deposit/qris-dana';
-
-            const res = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ amount: state.amount })
-            });
-
-            const text = await res.text();
-            let data;
-            try {
-                data = JSON.parse(text);
-            } catch (e) {
-                console.error('Response bukan JSON:', text.substring(0, 500));
-                throw new Error(`Server error (${res.status}). Cek console untuk detail.`);
-            }
-
-            if (!res.ok) throw new Error(data.error || 'Gagal membuat deposit');
-
-            state.deposit = data.deposit;
-            showPaymentPanel();
-        } catch (err) {
-            alert(err.message);
-            btn.disabled = false;
-            btn.innerHTML = original;
+            qrispyData = JSON.parse(text);
+        } catch (e) {
+            console.error('Worker response bukan JSON:', text.substring(0, 500));
+            throw new Error(`Worker error ${qrispyRes.status}. Cek console.`);
         }
+
+        if (!qrispyRes.ok || qrispyData.status === 'error') {
+            throw new Error(qrispyData.message || 'Gagal membuat QRIS');
+        }
+
+        // 3. Simpan ke database lewat backend
+        const saveRes = await fetch('/api/deposit/qrispy-save', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                reference_id: referenceId,
+                amount: Number(state.amount),
+                qris_id: qrispyData.data.qris_id,
+                qris_url: qrispyData.data.qris_image_url,
+                expired_at: qrispyData.data.expired_at,
+                expires_in_seconds: qrispyData.data.expires_in_seconds,
+            })
+        });
+
+        const saveData = await saveRes.json();
+        if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
+
+        state.deposit = saveData.deposit;
+        showPaymentPanel();
+    } catch (err) {
+        alert(err.message);
+        btn.disabled = false;
+        btn.innerHTML = original;
     }
+}
 
     // ===== SHOW PAYMENT PANEL =====
     function showPaymentPanel() {
