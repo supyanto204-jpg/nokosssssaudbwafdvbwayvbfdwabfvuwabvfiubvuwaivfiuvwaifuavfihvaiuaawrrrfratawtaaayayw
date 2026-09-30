@@ -22,10 +22,37 @@ const JWT_EXPIRES = '7d';
 
 // ===== DIBANANA API =====
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
-const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
+const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI; // 1 key buat semua server
 
-// Semua server yang digabung
-const ALL_SERVERS = ['ekonomi', 'premium', 'khusus', 'wa_luar'];
+// Config tiap server
+const SERVER_CONFIG = {
+    ekonomi: {
+        label: 'Server Ekonomi',
+        desc: 'Harga terjangkau, khusus Indonesia',
+        badge: 'EKONOMI',
+        countries: ['id'],
+    },
+    premium: {
+        label: 'Server Premium',
+        desc: 'Bisa pilih operator, kualitas terjamin',
+        badge: 'PREMIUM',
+        countries: ['id'],
+        requiresOperator: true,
+    },
+    khusus: {
+        label: 'Server Khusus',
+        desc: 'Semua negara, stok lengkap',
+        badge: 'LENGKAP',
+        countries: null,
+    },
+    wa_luar: {
+        label: 'Server WA Luar',
+        desc: 'WhatsApp luar negeri (non-Indonesia)',
+        badge: 'LUAR',
+        countries: null,
+        excludeCountries: ['id'],
+    },
+};
 
 // Operator valid (khusus premium)
 const VALID_OPERATORS = ['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'];
@@ -53,6 +80,16 @@ function cacheGet(key) {
 
 function cacheSet(key, value, ttlMs) {
     cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+function cacheDel(key) {
+    cache.delete(key);
+}
+
+function cacheDelPattern(prefix) {
+    for (const k of cache.keys()) {
+        if (k.startsWith(prefix)) cache.delete(k);
+    }
 }
 
 // ===== DIBANANA FETCH =====
@@ -196,6 +233,7 @@ async function initDatabase() {
 
         await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
+        // Tabel orders
         await pool.query(`
             CREATE TABLE IF NOT EXISTS orders (
                 id SERIAL PRIMARY KEY,
@@ -222,6 +260,7 @@ async function initDatabase() {
             );
         `);
 
+        // Tabel transactions
         await pool.query(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
@@ -239,6 +278,7 @@ async function initDatabase() {
             );
         `);
 
+        // Tabel deposits
         await pool.query(`
             CREATE TABLE IF NOT EXISTS deposits (
                 id SERIAL PRIMARY KEY,
@@ -410,143 +450,127 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 });
 
 // ============================================
-// ===== NOKOS ROUTES (GABUNG SEMUA SERVER) =====
+// ===== NOKOS ROUTES =====
 // ============================================
 
-// ===== GET SERVICES (union dari semua server) =====
-app.get('/api/nokos/services', requireAuth, async (req, res) => {
-    const cacheKey = 'nokos_services';
-    const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);
-
-    const allServices = new Map(); // code → { code, name, servers: [] }
-
-    // Fetch dari semua server parallel
-    const results = await Promise.allSettled(
-        ALL_SERVERS.map(s => dibananaFetch(`/services?server=${s}`))
-    );
-
-    for (let i = 0; i < results.length; i++) {
-        const server = ALL_SERVERS[i];
-        const result = results[i];
-
-        if (result.status === 'fulfilled' && result.value.services) {
-            for (const svc of result.value.services) {
-                const key = svc.code;
-                if (!allServices.has(key)) {
-                    allServices.set(key, {
-                        code: svc.code,
-                        name: svc.name,
-                        servers: [server],
-                    });
-                } else {
-                    allServices.get(key).servers.push(server);
-                }
-            }
-        }
-    }
-
-    const response = {
-        services: Array.from(allServices.values()),
-    };
-
-    cacheSet(cacheKey, response, 5 * 60 * 1000); // 5 menit
-    res.json(response);
+// ===== GET SERVERS =====
+app.get('/api/nokos/servers', requireAuth, (req, res) => {
+    const servers = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
+        id: key,
+        label: config.label,
+        desc: config.desc,
+        badge: config.badge,
+        countries: config.countries,
+        requiresOperator: !!config.requiresOperator,
+    }));
+    res.json({ servers });
 });
 
-// ===== GET COUNTRIES (union dari semua server) =====
-app.get('/api/nokos/countries', requireAuth, async (req, res) => {
-    const { service } = req.query;
-    const cacheKey = `nokos_countries_${service || 'all'}`;
+// ===== GET SERVICES (per server) =====
+app.get('/api/nokos/services', requireAuth, async (req, res) => {
+    const { server = 'ekonomi' } = req.query;
+
+    if (!SERVER_CONFIG[server]) {
+        return res.status(400).json({ error: 'Server tidak valid' });
+    }
+
+    const cacheKey = `services_${server}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
 
-    const allCountries = new Map(); // code → { code, name }
+    try {
+        const data = await dibananaFetch(`/services?server=${server}`);
+        const response = {
+            server,
+            services: data.services || [],
+        };
+        cacheSet(cacheKey, response, 5 * 60 * 1000); // 5 menit
+        res.json(response);
+    } catch (err) {
+        console.error('Get services error:', err);
+        res.status(err.status || 500).json({ error: err.message, code: err.code });
+    }
+});
 
-    const results = await Promise.allSettled(
-        ALL_SERVERS.map(s => {
-            const params = new URLSearchParams({ server: s });
-            if (service) params.append('service', service);
-            return dibananaFetch(`/countries?${params.toString()}`);
-        })
-    );
+// ===== GET COUNTRIES (per server) =====
+app.get('/api/nokos/countries', requireAuth, async (req, res) => {
+    const { server = 'ekonomi', service } = req.query;
 
-    for (const result of results) {
-        if (result.status === 'fulfilled' && result.value.countries) {
-            for (const c of result.value.countries) {
-                if (!allCountries.has(c.code)) {
-                    allCountries.set(c.code, {
-                        code: c.code,
-                        name: c.name || COUNTRY_NAMES[c.code] || c.code.toUpperCase(),
-                    });
-                }
-            }
+    if (!SERVER_CONFIG[server]) {
+        return res.status(400).json({ error: 'Server tidak valid' });
+    }
+
+    const cacheKey = `countries_${server}_${service || 'all'}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    // Coba ambil dari provider dulu
+    try {
+        const params = new URLSearchParams({ server });
+        if (service) params.append('service', service);
+
+        const data = await dibananaFetch(`/countries?${params.toString()}`);
+        if (data.countries) {
+            const response = { server, countries: data.countries };
+            cacheSet(cacheKey, response, 5 * 60 * 1000);
+            return res.json(response);
+        }
+    } catch (err) {
+        // Fallback: pakai config lokal
+    }
+
+    // Fallback: daftar negara dari config
+    const config = SERVER_CONFIG[server];
+    let countries = [];
+
+    if (config.countries) {
+        countries = config.countries.map(c => ({
+            code: c,
+            name: COUNTRY_NAMES[c] || c.toUpperCase(),
+        }));
+    } else {
+        countries = Object.entries(COUNTRY_NAMES).map(([code, name]) => ({
+            code,
+            name,
+        }));
+
+        if (config.excludeCountries) {
+            countries = countries.filter(c => !config.excludeCountries.includes(c.code));
         }
     }
 
-    const response = {
-        countries: Array.from(allCountries.values()),
-    };
-
+    const response = { server, countries };
     cacheSet(cacheKey, response, 5 * 60 * 1000);
     res.json(response);
 });
 
-// ===== GET PRICES (union dari semua server) =====
+// ===== GET PRICES =====
 app.get('/api/nokos/prices', requireAuth, async (req, res) => {
-    const { service, country } = req.query;
+    const { server = 'ekonomi', service, country } = req.query;
 
+    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
     if (!service || !country) return res.status(400).json({ error: 'Service dan country wajib' });
 
-    const cacheKey = `nokos_prices_${service}_${country}`;
+    const cacheKey = `prices_${server}_${service}_${country}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
 
-    const allProviders = [];
-
-    const results = await Promise.allSettled(
-        ALL_SERVERS.map(async (s) => {
-            try {
-                const data = await dibananaFetch(
-                    `/prices?server=${s}&service=${service}&country=${country}`
-                );
-                return { server: s, providers: data.providers || [] };
-            } catch (err) {
-                return { server: s, providers: [], error: err.message };
-            }
-        })
-    );
-
-    for (const result of results) {
-        if (result.status === 'fulfilled') {
-            const { server, providers } = result.value;
-            for (const p of providers) {
-                allProviders.push({
-                    ...p,
-                    _server: server, // internal, nggak ditampilin ke user
-                });
-            }
-        }
+    try {
+        const data = await dibananaFetch(
+            `/prices?server=${server}&service=${service}&country=${country}`
+        );
+        const response = {
+            server,
+            service,
+            country,
+            providers: data.providers || [],
+        };
+        cacheSet(cacheKey, response, 2 * 60 * 1000); // 2 menit
+        res.json(response);
+    } catch (err) {
+        console.error('Get prices error:', err);
+        res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-
-    // Sort by harga termurah
-    allProviders.sort((a, b) => (a.price_idr || 0) - (b.price_idr || 0));
-
-    // Hide server dari response
-    const response = {
-        service,
-        country,
-        providers: allProviders.map(p => ({
-            id: p.id,
-            price_idr: p.price_idr,
-            price: p.price,
-            stock: p.stock,
-            server: p._server, // ini tetep dikirim, tapi frontend nggak nampilin
-        })),
-    };
-
-    cacheSet(cacheKey, response, 2 * 60 * 1000); // 2 menit
-    res.json(response);
 });
 
 // ===== CREATE ORDER =====
@@ -555,7 +579,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
 
     const {
         id,
-        server,             // server yang dipilih dari frontend (dari /prices)
+        server,
         service,
         country,
         service_name,
@@ -565,11 +589,12 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
         operator,
     } = req.body;
 
-    if (!server || !ALL_SERVERS.includes(server)) {
+    if (!server || !SERVER_CONFIG[server]) {
         return res.status(400).json({ error: 'Server tidak valid' });
     }
 
-    const isPremium = server === 'premium';
+    const config = SERVER_CONFIG[server];
+    const isPremium = !!config.requiresOperator;
 
     // Validasi
     if (isPremium) {
@@ -591,9 +616,16 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
 
         let orderBody;
         if (isPremium) {
-            orderBody = { server, service, country, provider_id, provider_price, operator };
+            orderBody = {
+                server,
+                service,
+                country,
+                provider_id,
+                provider_price,
+                operator,
+            };
         } else {
-            orderBody = { id, server };
+            orderBody = { id };
         }
 
         const data = await dibananaFetch('/order', {
@@ -641,12 +673,16 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             ]
         );
 
+        // Clear cache yang berkaitan (biar data fresh)
+        cacheDelPattern('prices_');
+
         res.json({
             message: 'Order berhasil!',
             order: {
                 order_id: data.order_id,
                 phone_number: data.phone_number,
                 price_idr: data.price_idr,
+                server: data.server,
                 service: data.service,
                 country: data.country,
                 operator: operator || null,
