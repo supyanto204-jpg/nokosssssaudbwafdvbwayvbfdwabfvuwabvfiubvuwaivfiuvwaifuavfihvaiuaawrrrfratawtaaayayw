@@ -40,7 +40,6 @@
             align-items: center;
             gap: 16px;
             margin-bottom: 20px;
-            position: relative;
         }
 
         .deposit-hero-icon {
@@ -123,7 +122,6 @@
             overflow: hidden;
         }
 
-        /* Hiasan sunburst di card */
         .deposit-card::before {
             content: '';
             position: absolute;
@@ -172,16 +170,10 @@
             height: 2px;
             background: var(--border);
             margin: 0 10px;
-            position: relative;
         }
 
-        .step-item.active:not(:last-child)::after {
-            background: var(--primary);
-        }
-
-        .step-item.done:not(:last-child)::after {
-            background: var(--success);
-        }
+        .step-item.active:not(:last-child)::after { background: var(--primary); }
+        .step-item.done:not(:last-child)::after { background: var(--success); }
 
         .step-num {
             width: 32px;
@@ -455,7 +447,7 @@
             gap: 4px;
             padding: 4px 12px;
             border-radius: 50px;
-            background: var(--danger);
+            background: var(--primary);
             color: white;
             font-size: 0.68rem;
             font-weight: 800;
@@ -465,6 +457,11 @@
             letter-spacing: 0.06em;
             box-shadow: var(--shadow-hard-sm);
             margin-bottom: 12px;
+        }
+
+        .banner-badge .icon-svg {
+            width: 10px;
+            height: 10px;
         }
 
         .banner-title {
@@ -490,8 +487,9 @@
             bottom: 16px;
             width: 60px;
             height: 60px;
-            opacity: 0.5;
+            opacity: 0.4;
             z-index: 0;
+            color: var(--primary);
         }
 
         /* ===== SIDE SECTION ===== */
@@ -767,7 +765,7 @@
             50% { transform: translateY(-8px); }
         }
 
-        /* ===== MODAL BAYAR ===== */
+        /* ===== MODAL FIX — SELALU DI TENGAH LAYAR ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -776,19 +774,13 @@
             -webkit-backdrop-filter: blur(6px);
             z-index: 1000;
             display: none;
-            align-items: center;
-            justify-content: center;
             padding: 20px;
         }
 
         .modal-overlay.active {
             display: flex;
-            animation: fadeIn 0.3s var(--ease);
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            align-items: center;
+            justify-content: center;
         }
 
         .modal {
@@ -802,14 +794,17 @@
             max-height: 90vh;
             overflow-y: auto;
             animation: bounceIn 0.5s var(--ease-bounce);
-            position: relative;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
 
         @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.3); }
-            50% { opacity: 1; transform: scale(1.05); }
-            70% { transform: scale(0.95); }
-            100% { transform: scale(1); }
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
+            70% { transform: translate(-50%, -50%) scale(0.95); }
+            100% { transform: translate(-50%, -50%) scale(1); }
         }
 
         .modal-header {
@@ -848,7 +843,6 @@
             display: grid;
             grid-template-columns: 1fr;
             gap: 12px;
-            margin-bottom: 20px;
         }
 
         .method-card {
@@ -880,17 +874,11 @@
             transition: opacity var(--transition);
         }
 
-        .method-card:hover::before,
-        .method-card.active::before { opacity: 1; }
+        .method-card:hover::before { opacity: 1; }
 
         .method-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
-        }
-
-        .method-card.active {
-            background: var(--primary-light);
-            border-color: var(--primary);
         }
 
         .method-icon {
@@ -993,7 +981,7 @@
 
         .qr-display img {
             width: 100%;
-            max-width: 280px;
+            max-width: 260px;
             height: auto;
             border-radius: 12px;
             border: 2px solid var(--border-dark);
@@ -1101,8 +1089,6 @@
             display: flex;
             gap: 10px;
             align-items: flex-start;
-            position: relative;
-            overflow: hidden;
         }
 
         .info-box .icon-svg {
@@ -1143,9 +1129,7 @@
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 1024px) {
-            .deposit-layout {
-                grid-template-columns: 1fr;
-            }
+            .deposit-layout { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 640px) {
@@ -1158,6 +1142,7 @@
             .deposit-hero-icon .icon-svg { width: 26px; height: 26px; }
             .input-amount-big input { font-size: 1.1rem; padding: 14px 16px; }
             .input-amount-big .prefix { font-size: 1rem; padding: 14px 16px; }
+            .modal { max-width: calc(100% - 24px); }
         }
     </style>
 </head>
@@ -1313,13 +1298,13 @@
                 <div class="side-card banner">
                     <div class="banner-content">
                         <div class="banner-badge">
-                            <svg class="icon-svg" viewBox="0 0 24 24" style="width:10px;height:10px;"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                            <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                             Nokos Termurah
                         </div>
-                        <div class="banner-title">Arta Pedia ID<br>Nokos OTP 24 Jam</div>
+                        <div class="banner-title">AsyrofOTP<br>Nokos OTP 24 Jam</div>
                         <div class="banner-sub">Mulai Rp2.000 · Refund otomatis</div>
                     </div>
-                    <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5" style="color: var(--primary);">
+                    <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                         <path d="M12 2L2 7l10 5 10-5-10-5z"/>
                         <path d="M2 17l10 5 10-5"/>
                         <path d="M2 12l10 5 10-5"/>
@@ -1333,7 +1318,7 @@
                         Punya Kode Voucher?
                     </div>
                     <div class="voucher-form">
-                        <input type="text" id="voucherInput" placeholder="ARTA-XXXXXX">
+                        <input type="text" id="voucherInput" placeholder="ASYROF-XXXXXX">
                         <button id="btnVoucher">Klaim</button>
                     </div>
                 </div>
@@ -1501,7 +1486,6 @@
             state.presets = data.presets || [];
         } catch (err) {
             console.error(err);
-            // Fallback preset
             state.presets = [
                 { amount: 10000, label: 'Rp10.000' },
                 { amount: 20000, label: 'Rp20.000' },
@@ -1630,13 +1614,11 @@
 
     // ===== SHOW PAYMENT PANEL =====
     function showPaymentPanel() {
-        // Update step indicator
         document.getElementById('step1').classList.remove('active');
         document.getElementById('step1').classList.add('done');
         document.getElementById('step2').classList.add('done');
         document.getElementById('step3').classList.add('active');
 
-        // Hide panel nominal, show payment
         document.getElementById('panelNominal').style.display = 'none';
         const panelPayment = document.getElementById('panelPayment');
         panelPayment.style.display = 'block';
@@ -1806,7 +1788,6 @@
         stopPolling();
         stopCountdown();
 
-        // Show modal payment content as success
         const modal = document.getElementById('modalPayment');
         document.getElementById('modalPaymentContent').innerHTML = `
             <div class="modal-header">
@@ -1832,7 +1813,6 @@
         `;
         modal.classList.add('active');
 
-        // Bind close
         document.querySelectorAll('[data-modal-close]').forEach(btn => {
             btn.addEventListener('click', () => {
                 modal.classList.remove('active');
