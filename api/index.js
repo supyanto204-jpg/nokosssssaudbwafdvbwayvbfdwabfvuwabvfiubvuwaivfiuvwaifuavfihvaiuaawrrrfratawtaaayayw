@@ -6,8 +6,6 @@ const crypto = require('crypto');
 
 const app = express();
 
-// ===== RAW BODY BUAT WEBHOOK VERIFY =====
-// Simpan raw body buat verify HMAC
 app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf.toString('utf8');
@@ -70,12 +68,12 @@ const COUNTRY_NAMES = {
     uk: 'United Kingdom', de: 'Germany', fr: 'France', br: 'Brazil', ng: 'Nigeria',
 };
 
-// ===== QRISPY API =====
+// ===== QRISPY =====
 const QRISPY_BASE = 'https://api.qrispy.id';
 const QRISPY_TOKEN = process.env.API_QRISPY;
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 
-// ===== QRIS MANUAL (DANA MoonRed) =====
+// ===== QRIS MANUAL DANA =====
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
 // ===== CACHE =====
@@ -95,10 +93,7 @@ function cacheDelPattern(prefix) {
     }
 }
 
-// ============================================
-// ===== QRIS EMVCo CONVERTER (STATIC → DYNAMIC) =====
-// ============================================
-
+// ===== QRIS EMVCo CONVERTER =====
 function crc16(str) {
     let crc = 0xFFFF;
     const poly = 0x1021;
@@ -122,8 +117,7 @@ function parseTLV(str) {
         const tag = str.substr(i, 2);
         const len = parseInt(str.substr(i + 2, 2), 10);
         const value = str.substr(i + 4, len);
-        const raw = str.substr(i, 4 + len);
-        result.push({ tag, length: len, value, raw });
+        result.push({ tag, length: len, value });
         i += 4 + len;
     }
     return result;
@@ -137,12 +131,8 @@ function buildTLV(tlvArray) {
 }
 
 function toDynamicQRIS(staticQRIS, amount) {
-    if (!staticQRIS || typeof staticQRIS !== 'string') {
-        throw new Error('QRIS string tidak valid');
-    }
-    if (!amount || amount <= 0) {
-        throw new Error('Nominal harus lebih dari 0');
-    }
+    if (!staticQRIS || typeof staticQRIS !== 'string') throw new Error('QRIS string tidak valid');
+    if (!amount || amount <= 0) throw new Error('Nominal harus lebih dari 0');
 
     let payload = staticQRIS;
     const crcIndex = payload.lastIndexOf('6304');
@@ -160,7 +150,6 @@ function toDynamicQRIS(staticQRIS, amount) {
     }
 
     tlv = tlv.filter(t => t.tag !== '54');
-
     const amountStr = amount.toString();
     const tag54 = { tag: '54', value: amountStr };
 
@@ -180,13 +169,9 @@ function toDynamicQRIS(staticQRIS, amount) {
     return withCRCHeader + newCRC;
 }
 
-// ============================================
-// ===== QRISPY API =====
-// ============================================
-
+// ===== FETCH PROVIDERS =====
 async function qrispyFetch(endpoint, options = {}) {
     if (!QRISPY_TOKEN) throw new Error('API_QRISPY belum di-set');
-
     const res = await fetch(`${QRISPY_BASE}${endpoint}`, {
         ...options,
         headers: {
@@ -195,22 +180,18 @@ async function qrispyFetch(endpoint, options = {}) {
             ...(options.headers || {}),
         },
     });
-
     const data = await res.json();
-
     if (!res.ok || data.status === 'error') {
         const err = new Error(data.message || 'QRISPY error');
         err.status = res.status;
         err.data = data;
         throw err;
     }
-
     return data;
 }
 
 async function dibananaFetch(endpoint, options = {}) {
     if (!DIBANANA_API_KEY) throw new Error('API_SERVER_EKONOMI belum di-set');
-
     const res = await fetch(`${DIBANANA_BASE}${endpoint}`, {
         ...options,
         headers: {
@@ -219,14 +200,12 @@ async function dibananaFetch(endpoint, options = {}) {
             ...(options.headers || {}),
         },
     });
-
     let data;
     try {
         data = await res.json();
     } catch (e) {
         throw new Error(`Provider error: ${res.status}`);
     }
-
     if (!res.ok || data.ok === false) {
         const err = new Error(data.message || data.error || 'Provider error');
         err.status = res.status;
@@ -234,7 +213,6 @@ async function dibananaFetch(endpoint, options = {}) {
         err.data = data;
         throw err;
     }
-
     return data;
 }
 
@@ -252,7 +230,7 @@ function signToken(user) {
 }
 
 function generateUniqueCode() {
-    return Math.floor(Math.random() * 900) + 100; // 100-999
+    return Math.floor(Math.random() * 900) + 100;
 }
 
 function generateReferenceId() {
@@ -287,6 +265,7 @@ async function initDatabase() {
     if (dbInitialized) return;
 
     try {
+        // Tabel users
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -397,7 +376,7 @@ async function initDatabase() {
             );
         `);
 
-        // Tabel deposits (UPDATED buat QRIS + DANA manual)
+        // Tabel deposits — LENGKAP dengan unique_code
         await pool.query(`
             CREATE TABLE IF NOT EXISTS deposits (
                 id SERIAL PRIMARY KEY,
@@ -418,6 +397,16 @@ async function initDatabase() {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
         `);
+
+        // Pastiin kolom ada (kalau tabel udah ada dari versi lama)
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS unique_code INTEGER;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS total_amount BIGINT;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS qris_id TEXT;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS qris_url TEXT;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS qris_string TEXT;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS payment_reference TEXT;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;`);
+        await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;`);
 
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC);`);
@@ -576,7 +565,6 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 // ===== DEPOSIT ROUTES =====
 // ============================================
 
-// ===== GET DEPOSIT METHODS =====
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({
         methods: [
@@ -584,14 +572,14 @@ app.get('/api/deposit/methods', requireAuth, (req, res) => {
                 id: 'qrispy',
                 label: 'QRIS Otomatis',
                 desc: 'Bayar pakai QRIS, saldo masuk otomatis',
-                icon: '⚡',
+                icon: 'qrispy',
                 fee: 0,
             },
             {
                 id: 'qris_dana',
                 label: 'QRIS DANA Manual',
                 desc: 'Scan QR DANA, butuh konfirmasi admin',
-                icon: '💰',
+                icon: 'dana',
                 fee: 0,
                 uniqueCode: true,
             },
@@ -599,39 +587,36 @@ app.get('/api/deposit/methods', requireAuth, (req, res) => {
     });
 });
 
-// ===== GET DEPOSIT PRESETS =====
 app.get('/api/deposit/presets', requireAuth, (req, res) => {
     res.json({
-    presets: [
-        { amount: 1000, label: 'Rp1.000' },
-        { amount: 2000, label: 'Rp2.000' },
-        { amount: 5000, label: 'Rp5.000' },
-        { amount: 10000, label: 'Rp10.000' },
-        { amount: 25000, label: 'Rp25.000' },
-        { amount: 50000, label: 'Rp50.000' },
-    ],
-    min: 1000,
-    max: 10000000,
-});
+        presets: [
+            { amount: 10000, label: 'Rp10.000' },
+            { amount: 20000, label: 'Rp20.000' },
+            { amount: 50000, label: 'Rp50.000' },
+            { amount: 100000, label: 'Rp100.000' },
+            { amount: 200000, label: 'Rp200.000' },
+            { amount: 500000, label: 'Rp500.000' },
+        ],
+        min: 1000,
+        max: 10000000,
+    });
 });
 
-// ===== CREATE DEPOSIT (QRISPY) =====
 app.post('/api/deposit/qrispy', requireAuth, async (req, res) => {
     await initDatabase();
 
     const { amount } = req.body;
 
     if (!amount || amount < 1000) {
-    return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
-}
-if (amount > 10000000) {
-    return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
-}
+        return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
+    }
+    if (amount > 10000000) {
+        return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
+    }
 
     try {
         const referenceId = generateReferenceId();
 
-        // Call QRISPY
         const data = await qrispyFetch('/api/payment/qris/generate', {
             method: 'POST',
             body: JSON.stringify({
@@ -642,7 +627,6 @@ if (amount > 10000000) {
 
         const qris = data.data;
 
-        // Simpan ke database
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, status, qris_id, qris_url, payment_reference, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -679,32 +663,24 @@ if (amount > 10000000) {
     }
 });
 
-// ===== CREATE DEPOSIT (QRIS DANA MANUAL) =====
 app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
     await initDatabase();
 
     const { amount } = req.body;
 
     if (!amount || amount < 1000) {
-    return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
-}
-if (amount > 10000000) {
-    return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
-}
-    
+        return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
+    }
+
     try {
         const uniqueCode = generateUniqueCode();
         const totalAmount = Number(amount) + uniqueCode;
         const referenceId = generateReferenceId();
 
-        // Convert static QRIS ke dynamic + amount
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
 
-        // Generate QR image via quickchart atau QR server
-        // Pakai QR Server API (gratis, nggak perlu library)
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
 
-        // Simpan ke database
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, status, qris_string, qris_url, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -718,7 +694,7 @@ if (amount > 10000000) {
                 'pending',
                 dynamicQRIS,
                 qrImageUrl,
-                new Date(Date.now() + 30 * 60 * 1000), // 30 menit
+                new Date(Date.now() + 30 * 60 * 1000),
             ]
         );
 
@@ -742,7 +718,6 @@ if (amount > 10000000) {
     }
 });
 
-// ===== CHECK DEPOSIT STATUS =====
 app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
     const { referenceId } = req.params;
 
@@ -758,25 +733,21 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
 
         const deposit = result.rows[0];
 
-        // Kalau method qrispy & masih pending, cek ke QRISPY
         if (deposit.method === 'qrispy' && deposit.status === 'pending' && deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
 
                 if (data.data && data.data.status === 'paid') {
-                    // Update deposit + saldo user
                     await pool.query(
                         `UPDATE deposits SET status = 'success', paid_at = NOW(), updated_at = NOW() WHERE id = $1`,
                         [deposit.id]
                     );
 
-                    // Tambah saldo user (cuma kalau belum pernah)
                     await pool.query(
                         `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
                         [deposit.total_amount || deposit.amount, req.user.id]
                     );
 
-                    // Log ke transactions
                     await pool.query(
                         `INSERT INTO transactions (user_id, order_id, service_name, status, price)
                          VALUES ($1, $2, $3, $4, $5)`,
@@ -804,7 +775,6 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
     }
 });
 
-// ===== LIST DEPOSITS =====
 app.get('/api/deposit/history', requireAuth, async (req, res) => {
     const { page = 1, limit = 20, status } = req.query;
 
@@ -836,7 +806,6 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
     }
 });
 
-// ===== CANCEL DEPOSIT =====
 app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
     const { referenceId } = req.params;
 
@@ -851,7 +820,6 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit nggak bisa dibatalkan' });
 
-        // Kalau qrispy, cancel di QRISPY juga
         if (deposit.method === 'qrispy' && deposit.qris_id) {
             try {
                 await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/cancel`, { method: 'POST' });
@@ -878,7 +846,6 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
 
 app.post('/api/webhook/qrispy', async (req, res) => {
     try {
-        // Verify signature
         const signature = req.headers['x-qrispy-signature'];
         if (!signature) {
             console.error('Webhook: no signature');
@@ -890,7 +857,6 @@ app.post('/api/webhook/qrispy', async (req, res) => {
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
-        // Hitung HMAC-SHA256 dari raw body
         const expectedSignature = crypto
             .createHmac('sha256', QRISPY_WEBHOOK_SECRET)
             .update(req.rawBody || JSON.stringify(req.body))
@@ -898,19 +864,15 @@ app.post('/api/webhook/qrispy', async (req, res) => {
 
         if (signature !== expectedSignature) {
             console.error('Webhook: invalid signature');
-            console.error('Got:', signature);
-            console.error('Expected:', expectedSignature);
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
-        // Process event
         const { event, data } = req.body;
         console.log('Webhook received:', event, data);
 
         if (event === 'payment.received') {
             const { qris_id, amount, received_amount, payment_reference, paid_at } = data;
 
-            // Cari deposit berdasarkan qris_id atau payment_reference
             const result = await pool.query(
                 `SELECT * FROM deposits WHERE qris_id = $1 OR reference_id = $2 OR payment_reference = $2`,
                 [qris_id, payment_reference]
@@ -923,24 +885,20 @@ app.post('/api/webhook/qrispy', async (req, res) => {
 
             const deposit = result.rows[0];
 
-            // Cek kalau udah success, skip
             if (deposit.status === 'success') {
                 return res.json({ status: 'ok', message: 'Already processed' });
             }
 
-            // Update deposit
             await pool.query(
                 `UPDATE deposits SET status = 'success', paid_at = $1, updated_at = NOW() WHERE id = $2`,
                 [paid_at ? new Date(paid_at) : new Date(), deposit.id]
             );
 
-            // Tambah saldo user
             await pool.query(
                 `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
                 [received_amount || amount, deposit.user_id]
             );
 
-            // Log ke transactions
             await pool.query(
                 `INSERT INTO transactions (user_id, order_id, service_name, status, price)
                  VALUES ($1, $2, $3, $4, $5)`,
@@ -957,7 +915,6 @@ app.post('/api/webhook/qrispy', async (req, res) => {
     }
 });
 
-// ===== ADMIN: APPROVE DEPOSIT MANUAL =====
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, async (req, res) => {
     const { referenceId } = req.params;
 
@@ -992,7 +949,7 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, a
 });
 
 // ============================================
-// ===== NOKOS ROUTES (sama kayak sebelumnya) =====
+// ===== NOKOS ROUTES =====
 // ============================================
 
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
