@@ -189,6 +189,40 @@ function toDynamicQRIS(staticQRIS, amount) {
 }
 
 // ============================================
+// ===== DEPOSIT — UPDATE FEE (dari frontend) =====
+// ============================================
+app.post('/api/deposit/:referenceId/update-fee', requireAuth, async (req, res) => {
+    const { referenceId } = req.params;
+    const { total_amount, fee } = req.body;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            [referenceId, req.user.id]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
+        }
+
+        const deposit = result.rows[0];
+        if (deposit.status !== 'pending') {
+            return res.status(400).json({ error: 'Deposit sudah diproses' });
+        }
+
+        await pool.query(
+            `UPDATE deposits SET total_amount = $1, fee = $2, updated_at = NOW() WHERE id = $3`,
+            [Number(total_amount), Number(fee), deposit.id]
+        );
+
+        res.json({ message: 'Fee updated' });
+    } catch (err) {
+        console.error('Update fee error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
 // ===== FETCH HELPERS =====
 // ============================================
 async function qrispyFetch(endpoint, options = {}) {
