@@ -142,7 +142,10 @@ function toDynamicQRIS(staticQRIS, amount) {
 
 // QRISPY via Cloudflare Worker — nggak perlu token
 async function qrispyFetch(endpoint, options = {}) {
-    const res = await fetch(`${QRISPY_BASE}${endpoint}`, {
+    const fullUrl = `${QRISPY_BASE}${endpoint}`;
+    console.log('🌐 QRISPY request:', fullUrl);
+
+    const res = await fetch(fullUrl, {
         ...options,
         headers: {
             'Content-Type': 'application/json',
