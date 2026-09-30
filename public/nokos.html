@@ -203,7 +203,6 @@
         .sheet-body::-webkit-scrollbar { width: 6px; }
         .sheet-body::-webkit-scrollbar-track { background: transparent; }
         .sheet-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        .sheet-body::-webkit-scrollbar-thumb:hover { background: var(--text-light); }
 
         .sheet-back {
             display: inline-flex; align-items: center; gap: 6px;
@@ -478,12 +477,44 @@
         }
         .copy-btn .icon-svg { width: 18px; height: 18px; }
 
+        /* Pop-up modal fix — SELALU di tengah layar */
+        .modal-overlay {
+            position: fixed; inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+            z-index: 1000;
+            display: none;
+            padding: 20px;
+        }
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal {
+            background: white;
+            border-radius: var(--radius);
+            border: 2px solid var(--border-dark);
+            box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
+            padding: 28px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            animation: bounceIn 0.5s var(--ease-bounce);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
         @media (max-width: 640px) {
             .banner-grid { grid-template-columns: 1fr; }
             .features-grid { grid-template-columns: 1fr; }
             .nokos-hero-text h1 { font-size: 1.4rem; }
             .banner-emoji { font-size: 3rem; }
             .bottom-sheet { height: 92vh; max-height: 92vh; }
+            .modal { max-width: calc(100% - 24px); }
         }
     </style>
 </head>
@@ -729,10 +760,10 @@
         return `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${codepoints}.svg`;
     }
 
-    function renderFlag(countryCode, className = 'flag-img') {
+    function renderFlag(countryCode) {
         const url = getFlagUrl(countryCode);
         if (!url) return '';
-        return `<img src="${url}" alt="${countryCode}" class="${className}" onerror="this.style.display='none'">`;
+        return `<img src="${url}" alt="${countryCode}" style="width:28px;height:21px;border-radius:4px;border:1.5px solid var(--border-dark);box-shadow:1px 1px 0px rgba(15,23,42,0.15);object-fit:cover;display:inline-block;vertical-align:middle;flex-shrink:0;" onerror="this.style.display='none'">`;
     }
 
     const token = localStorage.getItem('access_token');
