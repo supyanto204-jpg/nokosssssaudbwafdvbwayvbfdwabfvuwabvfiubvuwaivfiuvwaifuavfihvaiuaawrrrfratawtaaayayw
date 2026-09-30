@@ -68,6 +68,54 @@ function cacheDelPattern(prefix) {
 }
 
 // ============================================
+// ===== DEPOSIT — SAVE QRISPY (dari frontend) =====
+// ============================================
+app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
+    await initDatabase();
+
+    const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
+
+    if (!reference_id || !amount || !qris_id) {
+        return res.status(400).json({ error: 'Data tidak lengkap' });
+    }
+
+    try {
+        await pool.query(
+            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, status, qris_id, qris_url, payment_reference, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            [
+                req.user.id,
+                reference_id,
+                'qrispy',
+                Number(amount),
+                Number(amount),
+                'pending',
+                qris_id,
+                qris_url,
+                reference_id,
+                new Date(expired_at),
+            ]
+        );
+
+        res.json({
+            message: 'Deposit tercatat',
+            deposit: {
+                reference_id,
+                method: 'qrispy',
+                amount: Number(amount),
+                qris_id,
+                qris_url,
+                expired_at,
+                expires_in_seconds: expires_in_seconds || 900,
+            },
+        });
+    } catch (err) {
+        console.error('Save deposit error:', err);
+        res.status(500).json({ error: 'Gagal simpan deposit' });
+    }
+});
+
+// ============================================
 // ===== QRIS EMVCo CONVERTER =====
 // ============================================
 function crc16(str) {
