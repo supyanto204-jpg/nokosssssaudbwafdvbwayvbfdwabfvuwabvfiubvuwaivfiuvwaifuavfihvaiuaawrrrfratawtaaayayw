@@ -22,63 +22,40 @@ const JWT_EXPIRES = '7d';
 
 // ===== DIBANANA API =====
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
-const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI; // 1 key buat semua server
+const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
-// Config tiap server
-const SERVER_CONFIG = {
-    ekonomi: {
-        label: 'Server Ekonomis',
-        desc: 'Harga terjangkau, khusus Indonesia',
-        badge: 'EKONOMI',
-        countries: ['id'],
-    },
-    premium: {
-        label: 'Server Premium',
-        desc: 'Bisa pilih operator, kualitas terjamin',
-        badge: 'PREMIUM',
-        countries: ['id'],
-        requiresOperator: true,
-    },
-    khusus: {
-        label: 'Server Khusus',
-        desc: 'Semua negara, stok lengkap',
-        badge: 'LENGKAP',
-        countries: null, // semua negara
-    },
-    wa_luar: {
-        label: 'Server WA Luar',
-        desc: 'WhatsApp luar negeri (non-Indonesia)',
-        badge: 'LUAR',
-        countries: null,
-        excludeCountries: ['id'],
-    },
-};
+// Semua server yang digabung
+const ALL_SERVERS = ['ekonomi', 'premium', 'khusus', 'wa_luar'];
 
 // Operator valid (khusus premium)
 const VALID_OPERATORS = ['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'];
 
-// Country names (fallback kalau provider nggak kasih nama)
+// Country names
 const COUNTRY_NAMES = {
-    id: 'Indonesia',
-    ru: 'Russia',
-    us: 'United States',
-    my: 'Malaysia',
-    vn: 'Vietnam',
-    ph: 'Philippines',
-    th: 'Thailand',
-    sg: 'Singapore',
-    in: 'India',
-    cn: 'China',
-    jp: 'Japan',
-    kr: 'South Korea',
-    uk: 'United Kingdom',
-    de: 'Germany',
-    fr: 'France',
-    br: 'Brazil',
-    ng: 'Nigeria',
+    id: 'Indonesia', ru: 'Russia', us: 'United States', my: 'Malaysia',
+    vn: 'Vietnam', ph: 'Philippines', th: 'Thailand', sg: 'Singapore',
+    in: 'India', cn: 'China', jp: 'Japan', kr: 'South Korea',
+    uk: 'United Kingdom', de: 'Germany', fr: 'France', br: 'Brazil', ng: 'Nigeria',
 };
 
-// Helper: call dibanana API
+// ===== CACHE (in-memory) =====
+const cache = new Map();
+
+function cacheGet(key) {
+    const item = cache.get(key);
+    if (!item) return null;
+    if (Date.now() > item.expiresAt) {
+        cache.delete(key);
+        return null;
+    }
+    return item.value;
+}
+
+function cacheSet(key, value, ttlMs) {
+    cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
+// ===== DIBANANA FETCH =====
 async function dibananaFetch(endpoint, options = {}) {
     if (!DIBANANA_API_KEY) {
         throw new Error('API_SERVER_EKONOMI belum di-set');
@@ -143,9 +120,7 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
-    if (req.user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin only' });
-    }
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     next();
 }
 
@@ -176,9 +151,7 @@ async function initDatabase() {
         await pool.query(`
             DO $$
             BEGIN
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key'
-                ) THEN
+                IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key') THEN
                     ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
                 END IF;
             END $$;
@@ -223,7 +196,6 @@ async function initDatabase() {
 
         await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
-        // Tabel orders
         await pool.query(`
             CREATE TABLE IF NOT EXISTS orders (
                 id SERIAL PRIMARY KEY,
@@ -250,7 +222,6 @@ async function initDatabase() {
             );
         `);
 
-        // Tabel transactions
         await pool.query(`
             CREATE TABLE IF NOT EXISTS transactions (
                 id SERIAL PRIMARY KEY,
@@ -268,7 +239,6 @@ async function initDatabase() {
             );
         `);
 
-        // Tabel deposits
         await pool.query(`
             CREATE TABLE IF NOT EXISTS deposits (
                 id SERIAL PRIMARY KEY,
@@ -302,6 +272,7 @@ app.get('/api/health', async (req, res) => {
             status: 'ok',
             time: result.rows[0].time,
             hasDibananaKey: !!DIBANANA_API_KEY,
+            cacheSize: cache.size,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -439,109 +410,143 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 });
 
 // ============================================
-// ===== NOKOS ROUTES =====
+// ===== NOKOS ROUTES (GABUNG SEMUA SERVER) =====
 // ============================================
 
-// ===== GET SERVERS =====
-app.get('/api/nokos/servers', requireAuth, (req, res) => {
-    const servers = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
-        id: key,
-        label: config.label,
-        desc: config.desc,
-        badge: config.badge,
-        countries: config.countries,
-        requiresOperator: !!config.requiresOperator,
-    }));
-    res.json({ servers });
-});
-
-// ===== GET SERVICES (per server) =====
+// ===== GET SERVICES (union dari semua server) =====
 app.get('/api/nokos/services', requireAuth, async (req, res) => {
-    const { server = 'ekonomi' } = req.query;
+    const cacheKey = 'nokos_services';
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
-    if (!SERVER_CONFIG[server]) {
-        return res.status(400).json({ error: 'Server tidak valid' });
+    const allServices = new Map(); // code → { code, name, servers: [] }
+
+    // Fetch dari semua server parallel
+    const results = await Promise.allSettled(
+        ALL_SERVERS.map(s => dibananaFetch(`/services?server=${s}`))
+    );
+
+    for (let i = 0; i < results.length; i++) {
+        const server = ALL_SERVERS[i];
+        const result = results[i];
+
+        if (result.status === 'fulfilled' && result.value.services) {
+            for (const svc of result.value.services) {
+                const key = svc.code;
+                if (!allServices.has(key)) {
+                    allServices.set(key, {
+                        code: svc.code,
+                        name: svc.name,
+                        servers: [server],
+                    });
+                } else {
+                    allServices.get(key).servers.push(server);
+                }
+            }
+        }
     }
 
-    try {
-        const data = await dibananaFetch(`/services?server=${server}`);
-        res.json({
-            server,
-            services: data.services || [],
-        });
-    } catch (err) {
-        console.error('Get services error:', err);
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
-    }
+    const response = {
+        services: Array.from(allServices.values()),
+    };
+
+    cacheSet(cacheKey, response, 5 * 60 * 1000); // 5 menit
+    res.json(response);
 });
 
-// ===== GET COUNTRIES (per server) =====
+// ===== GET COUNTRIES (union dari semua server) =====
 app.get('/api/nokos/countries', requireAuth, async (req, res) => {
-    const { server = 'ekonomi', service } = req.query;
+    const { service } = req.query;
+    const cacheKey = `nokos_countries_${service || 'all'}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
 
-    if (!SERVER_CONFIG[server]) {
-        return res.status(400).json({ error: 'Server tidak valid' });
-    }
+    const allCountries = new Map(); // code → { code, name }
 
-    // Coba ambil dari provider dulu
-    try {
-        const params = new URLSearchParams({ server });
-        if (service) params.append('service', service);
+    const results = await Promise.allSettled(
+        ALL_SERVERS.map(s => {
+            const params = new URLSearchParams({ server: s });
+            if (service) params.append('service', service);
+            return dibananaFetch(`/countries?${params.toString()}`);
+        })
+    );
 
-        const data = await dibananaFetch(`/countries?${params.toString()}`);
-        if (data.countries) {
-            return res.json({ server, countries: data.countries });
-        }
-    } catch (err) {
-        // Fallback: pakai config lokal
-    }
-
-    // Fallback: daftar negara dari config
-    const config = SERVER_CONFIG[server];
-    let countries = [];
-
-    if (config.countries) {
-        countries = config.countries.map(c => ({
-            code: c,
-            name: COUNTRY_NAMES[c] || c.toUpperCase(),
-        }));
-    } else {
-        // Semua negara
-        countries = Object.entries(COUNTRY_NAMES).map(([code, name]) => ({
-            code,
-            name,
-        }));
-
-        // Kecuali exclude
-        if (config.excludeCountries) {
-            countries = countries.filter(c => !config.excludeCountries.includes(c.code));
+    for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.countries) {
+            for (const c of result.value.countries) {
+                if (!allCountries.has(c.code)) {
+                    allCountries.set(c.code, {
+                        code: c.code,
+                        name: c.name || COUNTRY_NAMES[c.code] || c.code.toUpperCase(),
+                    });
+                }
+            }
         }
     }
 
-    res.json({ server, countries });
+    const response = {
+        countries: Array.from(allCountries.values()),
+    };
+
+    cacheSet(cacheKey, response, 5 * 60 * 1000);
+    res.json(response);
 });
 
-// ===== GET PRICES =====
+// ===== GET PRICES (union dari semua server) =====
 app.get('/api/nokos/prices', requireAuth, async (req, res) => {
-    const { server = 'ekonomi', service, country } = req.query;
+    const { service, country } = req.query;
 
-    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
     if (!service || !country) return res.status(400).json({ error: 'Service dan country wajib' });
 
-    try {
-        const data = await dibananaFetch(
-            `/prices?server=${server}&service=${service}&country=${country}`
-        );
-        res.json({
-            server,
-            service,
-            country,
-            providers: data.providers || [],
-        });
-    } catch (err) {
-        console.error('Get prices error:', err);
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+    const cacheKey = `nokos_prices_${service}_${country}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+
+    const allProviders = [];
+
+    const results = await Promise.allSettled(
+        ALL_SERVERS.map(async (s) => {
+            try {
+                const data = await dibananaFetch(
+                    `/prices?server=${s}&service=${service}&country=${country}`
+                );
+                return { server: s, providers: data.providers || [] };
+            } catch (err) {
+                return { server: s, providers: [], error: err.message };
+            }
+        })
+    );
+
+    for (const result of results) {
+        if (result.status === 'fulfilled') {
+            const { server, providers } = result.value;
+            for (const p of providers) {
+                allProviders.push({
+                    ...p,
+                    _server: server, // internal, nggak ditampilin ke user
+                });
+            }
+        }
     }
+
+    // Sort by harga termurah
+    allProviders.sort((a, b) => (a.price_idr || 0) - (b.price_idr || 0));
+
+    // Hide server dari response
+    const response = {
+        service,
+        country,
+        providers: allProviders.map(p => ({
+            id: p.id,
+            price_idr: p.price_idr,
+            price: p.price,
+            stock: p.stock,
+            server: p._server, // ini tetep dikirim, tapi frontend nggak nampilin
+        })),
+    };
+
+    cacheSet(cacheKey, response, 2 * 60 * 1000); // 2 menit
+    res.json(response);
 });
 
 // ===== CREATE ORDER =====
@@ -549,23 +554,25 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
     await initDatabase();
 
     const {
-        id,                 // provider id (buat ekonomi/khusus/wa_luar)
-        server = 'ekonomi',
+        id,
+        server,             // server yang dipilih dari frontend (dari /prices)
         service,
         country,
         service_name,
         country_flag,
-        provider_id,        // khusus premium
-        provider_price,     // khusus premium
-        operator,           // khusus premium
+        provider_id,
+        provider_price,
+        operator,
     } = req.body;
 
-    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
+    if (!server || !ALL_SERVERS.includes(server)) {
+        return res.status(400).json({ error: 'Server tidak valid' });
+    }
 
-    const config = SERVER_CONFIG[server];
+    const isPremium = server === 'premium';
 
-    // Validasi khusus premium
-    if (config.requiresOperator) {
+    // Validasi
+    if (isPremium) {
         if (!provider_id || !provider_price || !operator) {
             return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
         }
@@ -573,34 +580,22 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(400).json({ error: `Operator tidak valid. Pilih: ${VALID_OPERATORS.join(', ')}` });
         }
     } else {
-        if (!id) {
-            return res.status(400).json({ error: 'ID provider wajib' });
-        }
+        if (!id) return res.status(400).json({ error: 'ID provider wajib' });
     }
 
     try {
-        // Cek saldo user
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
 
         const userBalance = Number(userRes.rows[0].balance);
 
-        // Build body buat dibanana
         let orderBody;
-        if (config.requiresOperator) {
-            orderBody = {
-                server,
-                service,
-                country,
-                provider_id,
-                provider_price,
-                operator,
-            };
+        if (isPremium) {
+            orderBody = { server, service, country, provider_id, provider_price, operator };
         } else {
-            orderBody = { id };
+            orderBody = { id, server };
         }
 
-        // Order ke dibanana
         const data = await dibananaFetch('/order', {
             method: 'POST',
             body: JSON.stringify(orderBody),
@@ -608,9 +603,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
 
         const price = data.price_idr;
 
-        // Cek saldo user cukup
         if (userBalance < price) {
-            // Cancel order
             try {
                 await dibananaFetch('/cancel', {
                     method: 'POST',
@@ -621,46 +614,30 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // Potong saldo user
         await pool.query(
             'UPDATE users SET balance = balance - $1, updated_at = NOW() WHERE id = $2',
             [price, req.user.id]
         );
 
-        // Simpan order
         await pool.query(
             `INSERT INTO orders (user_id, order_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
             [
-                req.user.id,
-                String(data.order_id),
-                server,
-                service || data.service,
-                service_name || null,
-                country || data.country,
-                COUNTRY_NAMES[country] || country,
-                country_flag || null,
-                operator || null,
-                data.phone_number,
-                price,
-                'pending',
-                1200,
+                req.user.id, String(data.order_id), server,
+                service || data.service, service_name || null,
+                country || data.country, COUNTRY_NAMES[country] || country,
+                country_flag || null, operator || null,
+                data.phone_number, price, 'pending', 1200,
             ]
         );
 
-        // Simpan ke transactions
         await pool.query(
             `INSERT INTO transactions (user_id, order_id, service_name, country, country_flag, phone_number, status, price)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
-                req.user.id,
-                String(data.order_id),
-                service_name || data.service,
-                country || data.country,
-                country_flag || null,
-                data.phone_number,
-                'pending',
-                price,
+                req.user.id, String(data.order_id),
+                service_name || data.service, country || data.country,
+                country_flag || null, data.phone_number, 'pending', price,
             ]
         );
 
@@ -670,7 +647,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 order_id: data.order_id,
                 phone_number: data.phone_number,
                 price_idr: data.price_idr,
-                server: data.server,
                 service: data.service,
                 country: data.country,
                 operator: operator || null,
@@ -694,35 +670,23 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
             [String(orderId), req.user.id]
         );
 
-        if (orderRes.rows.length === 0) {
-            return res.status(404).json({ error: 'Order tidak ditemukan' });
-        }
+        if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
 
-        // Kalau final, return dari DB
         if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
-                order_id: order.order_id,
-                status: order.status,
-                phone_number: order.phone_number,
-                otp_code: order.otp_code,
-                otp_code_2: order.otp_code_2,
-                full_sms: order.full_sms,
-                price_idr: order.price,
-                service: order.service,
-                country: order.country,
-                server: order.server,
-                operator: order.operator,
-                received_at: order.received_at,
-                expires_in: 0,
+                order_id: order.order_id, status: order.status,
+                phone_number: order.phone_number, otp_code: order.otp_code,
+                otp_code_2: order.otp_code_2, full_sms: order.full_sms,
+                price_idr: order.price, service: order.service,
+                country: order.country, operator: order.operator,
+                received_at: order.received_at, expires_in: 0,
             });
         }
 
-        // Cek ke dibanana
         const data = await dibananaFetch(`/status?order_id=${orderId}`);
 
-        // Update DB kalau status berubah
         if (data.status !== order.status || data.otp_code) {
             await pool.query(
                 `UPDATE orders
@@ -738,8 +702,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
                  SET status = CASE WHEN $1 = 'received' THEN 'success'
                                    WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed'
                                    ELSE status END,
-                     otp_code = $2,
-                     updated_at = NOW()
+                     otp_code = $2, updated_at = NOW()
                  WHERE order_id = $3`,
                 [data.status, data.otp_code, String(orderId)]
             );
@@ -793,14 +756,11 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
 
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
-        const order = orderRes.rows[0];
-
         const data = await dibananaFetch('/cancel', {
             method: 'POST',
             body: JSON.stringify({ order_id: Number(orderId) }),
         });
 
-        // Refund saldo user
         if (data.refunded) {
             await pool.query(
                 'UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
@@ -808,14 +768,8 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
             );
         }
 
-        await pool.query(
-            'UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2',
-            ['cancelled', String(orderId)]
-        );
-        await pool.query(
-            'UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2',
-            ['failed', String(orderId)]
-        );
+        await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
+        await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
 
         res.json(data);
     } catch (err) {
@@ -824,7 +778,7 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
     }
 });
 
-// ===== LIST ORDERS (buat pesanan aktif + inbox) =====
+// ===== LIST ORDERS =====
 app.get('/api/nokos/orders', requireAuth, async (req, res) => {
     const { page = 1, limit = 20, status } = req.query;
 
@@ -842,10 +796,7 @@ app.get('/api/nokos/orders', requireAuth, async (req, res) => {
 
         const result = await pool.query(query, params);
 
-        const countRes = await pool.query(
-            'SELECT COUNT(*) FROM orders WHERE user_id = $1',
-            [req.user.id]
-        );
+        const countRes = await pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]);
 
         res.json({
             orders: result.rows,
@@ -865,7 +816,6 @@ app.get('/api/admin/server-balance', requireAuth, requireAdmin, async (req, res)
         const data = await dibananaFetch('/balance');
         res.json(data);
     } catch (err) {
-        console.error('Server balance error:', err);
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
 });
