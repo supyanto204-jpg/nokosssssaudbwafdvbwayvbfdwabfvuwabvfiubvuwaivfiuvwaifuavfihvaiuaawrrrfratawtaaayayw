@@ -20,63 +20,37 @@
         })();
     </script>
     <style>
-        /* ============================================
-           GLOBAL ANTI-SELECT
-           ============================================ */
-        .dashboard-layout,
-        .dashboard-layout * {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
+        .dashboard-layout, .dashboard-layout * {
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-touch-callout: none;
         }
-
-        .dashboard-layout input,
-        .dashboard-layout textarea,
-        .dashboard-layout select,
-        .dashboard-layout code {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
+        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code {
+            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
         }
 
         body.sheet-open { overflow: hidden; }
 
-        /* ============================================
-           NOKKOS HERO
-           ============================================ */
+        /* ===== HERO ===== */
         .nokos-hero {
             display: flex;
             align-items: center;
             gap: 16px;
             margin-bottom: 20px;
         }
-
         .nokos-hero-icon {
-            width: 56px;
-            height: 56px;
+            width: 56px; height: 56px;
             border-radius: 16px;
             background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: white;
             box-shadow: var(--shadow-hard-sm);
             flex-shrink: 0;
             animation: iconPulse 3s ease-in-out infinite;
         }
-
-        .nokos-hero-icon .icon-svg {
-            width: 28px;
-            height: 28px;
-        }
-
+        .nokos-hero-icon .icon-svg { width: 28px; height: 28px; }
         .nokos-hero-text h1 {
-            font-size: 1.8rem;
-            font-weight: 900;
+            font-size: 1.8rem; font-weight: 900;
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             margin-bottom: 4px;
@@ -86,45 +60,31 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-
         .nokos-hero-text p {
             color: var(--text-gray);
             font-size: 0.88rem;
             max-width: 560px;
         }
 
-        /* ============================================
-           SECTION TITLE
-           ============================================ */
+        /* ===== SECTION TITLE ===== */
         .section-title {
-            font-size: 0.85rem;
-            font-weight: 800;
+            font-size: 0.85rem; font-weight: 800;
             font-family: var(--font-mono);
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: var(--text-gray);
             margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+            display: flex; align-items: center; gap: 8px;
         }
+        .section-title .icon-svg { width: 16px; height: 16px; color: var(--primary); }
 
-        .section-title .icon-svg {
-            width: 16px;
-            height: 16px;
-            color: var(--primary);
-        }
-
-        /* ============================================
-           ACTIVE ORDERS
-           ============================================ */
+        /* ===== ACTIVE ORDERS ===== */
         .active-orders {
             display: flex;
             flex-direction: column;
             gap: 12px;
             margin-bottom: 24px;
         }
-
         .active-order-card {
             display: flex;
             align-items: center;
@@ -135,34 +95,18 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             transition: all var(--transition);
-            text-decoration: none;
-            color: inherit;
             position: relative;
             overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
         }
-
         .active-order-card::before {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 4px;
-            height: 100%;
+            left: 0; top: 0;
+            width: 4px; height: 100%;
             background: var(--warning);
         }
-
-        .active-order-card::after {
-            content: '';
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--warning);
-            animation: pulse 2s infinite;
-        }
+        .active-order-card.has-otp::before { background: var(--success); }
+        .active-order-card.expired::before { background: #64748b; }
 
         .active-order-card:hover {
             transform: translate(-2px, -2px);
@@ -170,18 +114,12 @@
         }
 
         .active-order-flag {
-            width: 36px;
-            height: 27px;
+            width: 36px; height: 27px;
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .active-order-info {
-            flex: 1;
-            min-width: 0;
-        }
+        .active-order-info { flex: 1; min-width: 0; }
 
         .active-order-title {
             font-weight: 800;
@@ -191,28 +129,139 @@
             margin-bottom: 2px;
         }
 
-        .active-order-phone {
-            font-size: 0.85rem;
+        .active-order-meta {
+            font-size: 0.78rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
+        .active-order-otpid {
+            font-weight: 800;
+            color: var(--primary);
+            font-size: 0.72rem;
+        }
+
+        .active-order-otp {
+            margin-top: 8px;
+            padding: 6px 12px;
+            background: var(--success-light);
+            border: 1.5px solid var(--success-dark);
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            color: var(--success-dark);
+            letter-spacing: 0.15em;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            animation: bounceIn 0.5s var(--ease-bounce);
+        }
+        [data-theme="dark"] .active-order-otp {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--success);
+            color: var(--success);
+        }
+        .active-order-otp .copy-inline {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 2px;
+            display: flex;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .active-order-otp .copy-inline:hover { opacity: 1; }
+        .active-order-otp .copy-inline .icon-svg { width: 14px; height: 14px; }
+
+        .active-order-countdown {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            background: var(--warning-light);
+            border: 1.5px solid var(--warning-dark);
+            border-radius: 50px;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: var(--warning-dark);
+        }
+        [data-theme="dark"] .active-order-countdown {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+        .active-order-countdown.expired {
+            background: linear-gradient(135deg, #334155, #475569);
+            color: white;
+            border-color: var(--text-dark);
+        }
+        .active-order-countdown .icon-svg { width: 12px; height: 12px; }
 
         .active-order-right {
             text-align: right;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            align-items: flex-end;
         }
-
         .active-order-price {
             font-weight: 800;
             font-family: var(--font-mono);
             font-size: 0.9rem;
             color: var(--primary);
-            margin-bottom: 4px;
+        }
+        .active-order-actions {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
 
-        /* ============================================
-           EMPTY ORDERS
-           ============================================ */
+        .btn-mini {
+            padding: 4px 10px;
+            border-radius: 50px;
+            background: var(--bg-white);
+            border: 1.5px solid var(--border-dark);
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 0.65rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            box-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 1);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .btn-mini:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
+        .btn-mini:active {
+            transform: translate(1px, 1px);
+            box-shadow: none;
+        }
+        .btn-mini.primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-mini.danger {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-mini .icon-svg { width: 10px; height: 10px; }
+
+        /* ===== EMPTY ORDERS ===== */
         .empty-orders {
             text-align: center;
             padding: 48px 20px;
@@ -222,48 +271,28 @@
             color: var(--text-gray);
             margin-bottom: 24px;
         }
-
         .empty-orders .icon-box {
-            width: 64px;
-            height: 64px;
+            width: 64px; height: 64px;
             margin: 0 auto 14px;
             border-radius: 18px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             animation: float 3s ease-in-out infinite;
         }
-
-        .empty-orders .icon-box .icon-svg {
-            width: 28px;
-            height: 28px;
-        }
-
+        .empty-orders .icon-box .icon-svg { width: 28px; height: 28px; }
         .empty-orders h3 {
-            font-size: 1rem;
-            font-weight: 800;
+            font-size: 1rem; font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 4px;
         }
+        .empty-orders p { font-size: 0.85rem; margin-bottom: 0; }
 
-        .empty-orders p {
-            font-size: 0.85rem;
-            margin-bottom: 0;
-        }
-
-        /* ============================================
-           CTA BUTTON
-           ============================================ */
-        .cta-wrap {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
+        /* ===== CTA ===== */
+        .cta-wrap { text-align: center; margin-bottom: 32px; }
         .btn-cta {
             display: inline-flex;
             align-items: center;
@@ -287,50 +316,23 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .btn-cta::before {
             content: '';
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
+            top: 50%; left: 50%;
+            width: 0; height: 0;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.15);
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
         }
+        .btn-cta:hover::before { width: 400px; height: 400px; }
+        .btn-cta:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-hard-lg); }
+        .btn-cta:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
+        .btn-cta .icon-svg { width: 20px; height: 20px; position: relative; z-index: 1; }
+        .btn-cta span { position: relative; z-index: 1; }
 
-        .btn-cta:hover::before {
-            width: 400px;
-            height: 400px;
-        }
-
-        .btn-cta:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: var(--shadow-hard-lg);
-        }
-
-        .btn-cta:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
-        }
-
-        .btn-cta .icon-svg {
-            width: 20px;
-            height: 20px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .btn-cta span {
-            position: relative;
-            z-index: 1;
-        }
-
-        /* ============================================
-           FEATURES
-           ============================================ */
+        /* ===== FEATURES ===== */
         .features-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -341,48 +343,34 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
         }
-
         .feature-item {
             display: flex;
             gap: 10px;
             align-items: flex-start;
         }
-
         .feature-item .feature-icon {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             border-radius: 9px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
-
-        .feature-item .feature-icon .icon-svg {
-            width: 16px;
-            height: 16px;
-        }
-
+        .feature-item .feature-icon .icon-svg { width: 16px; height: 16px; }
         .feature-item h4 {
-            font-size: 0.88rem;
-            font-weight: 800;
+            font-size: 0.88rem; font-weight: 800;
             font-family: var(--font-display);
             margin-bottom: 4px;
             color: var(--text-dark);
         }
-
         .feature-item p {
             font-size: 0.78rem;
             color: var(--text-gray);
             line-height: 1.5;
         }
 
-        /* ============================================
-           BOTTOM SHEET
-           ============================================ */
+        /* ===== BOTTOM SHEET ===== */
         .bottom-sheet-overlay {
             position: fixed;
             inset: 0;
@@ -395,12 +383,10 @@
             justify-content: center;
             padding: 0;
         }
-
         .bottom-sheet-overlay.active {
             display: flex;
             animation: fadeIn 0.2s var(--ease);
         }
-
         .bottom-sheet {
             background: var(--bg-card);
             width: 100%;
@@ -417,21 +403,17 @@
             animation: slideUp 0.35s var(--ease-bounce);
             overflow: hidden;
         }
-
         @keyframes slideUp {
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
-
         .sheet-handle {
-            width: 40px;
-            height: 4px;
+            width: 40px; height: 4px;
             background: var(--border);
             border-radius: 50px;
             margin: 12px auto 8px;
             flex-shrink: 0;
         }
-
         .sheet-header {
             padding: 0 20px 16px;
             display: flex;
@@ -441,47 +423,31 @@
             flex-shrink: 0;
             gap: 12px;
         }
-
-        .sheet-header-left {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .sheet-header-left { flex: 1; min-width: 0; }
         .sheet-step {
-            font-size: 0.72rem;
-            font-weight: 700;
+            font-size: 0.72rem; font-weight: 700;
             font-family: var(--font-mono);
             color: var(--text-gray);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 2px;
         }
-
         .sheet-title {
-            font-size: 1.05rem;
-            font-weight: 800;
+            font-size: 1.05rem; font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
             letter-spacing: -0.01em;
         }
-
-        .sheet-balance {
-            text-align: right;
-            flex-shrink: 0;
-        }
-
+        .sheet-balance { text-align: right; flex-shrink: 0; }
         .sheet-balance .label {
-            font-size: 0.68rem;
-            font-weight: 700;
+            font-size: 0.68rem; font-weight: 700;
             font-family: var(--font-mono);
             color: var(--text-gray);
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
-
         .sheet-balance .amount {
-            font-size: 0.95rem;
-            font-weight: 800;
+            font-size: 0.95rem; font-weight: 800;
             font-family: var(--font-mono);
             color: var(--primary);
         }
@@ -493,7 +459,6 @@
             padding: 20px;
             -webkit-overflow-scrolling: touch;
         }
-
         .sheet-body::-webkit-scrollbar { width: 6px; }
         .sheet-body::-webkit-scrollbar-track { background: transparent; }
         .sheet-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -516,27 +481,15 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .sheet-back:hover {
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
             background: var(--bg-white);
         }
+        .sheet-back .icon-svg { width: 14px; height: 14px; }
 
-        .sheet-back .icon-svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        /* ============================================
-           SERVER LIST
-           ============================================ */
-        .server-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
+        /* ===== SERVER LIST ===== */
+        .server-list { display: flex; flex-direction: column; gap: 12px; }
         .server-card {
             display: flex;
             align-items: center;
@@ -555,66 +508,29 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
-        .server-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: var(--primary);
-            opacity: 0;
-            transition: opacity var(--transition);
-        }
-
-        .server-card:hover::before { opacity: 1; }
-
         .server-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
-
-        .server-card:active {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0px rgba(15, 23, 42, 1);
-        }
-
         .server-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 11px;
             background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
-
-        .server-icon .icon-svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .server-info {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .server-icon .icon-svg { width: 20px; height: 20px; }
+        .server-info { flex: 1; min-width: 0; }
         .server-title {
             font-weight: 800;
             font-size: 0.95rem;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-
         .server-badge {
             display: inline-flex;
             align-items: center;
@@ -629,48 +545,22 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+        .server-desc { font-size: 0.78rem; color: var(--text-gray); }
+        .server-arrow { color: var(--text-light); flex-shrink: 0; }
+        .server-arrow .icon-svg { width: 18px; height: 18px; }
 
-        .server-desc {
-            font-size: 0.78rem;
-            color: var(--text-gray);
-        }
-
-        .server-arrow {
-            color: var(--text-light);
-            flex-shrink: 0;
-        }
-
-        .server-arrow .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* ============================================
-           SEARCH
-           ============================================ */
-        .sheet-search {
-            position: relative;
-            margin-bottom: 18px;
-        }
-
+        /* ===== SEARCH ===== */
+        .sheet-search { position: relative; margin-bottom: 18px; }
         .sheet-search .icon-svg {
             position: absolute;
-            left: 14px;
-            top: 50%;
+            left: 14px; top: 50%;
             transform: translateY(-50%);
             color: var(--text-gray);
-            width: 18px;
-            height: 18px;
+            width: 18px; height: 18px;
             pointer-events: none;
         }
+        .sheet-search input { padding-left: 42px; }
 
-        .sheet-search input {
-            padding-left: 42px;
-        }
-
-        /* ============================================
-           APP SELECTED CARD
-           ============================================ */
         .app-selected-card {
             display: flex;
             align-items: center;
@@ -682,35 +572,26 @@
             margin-bottom: 18px;
             box-shadow: var(--shadow-hard-sm);
         }
-
-        .app-selected-card .info {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .app-selected-card .info { flex: 1; min-width: 0; }
         .app-selected-card .name {
             font-weight: 800;
             font-family: var(--font-display);
             font-size: 0.9rem;
             color: var(--text-dark);
         }
-
         .app-selected-card .sub {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
 
-        /* ============================================
-           APP GRID
-           ============================================ */
+        /* ===== APP GRID ===== */
         .app-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 20px;
         }
-
         .app-card {
             display: flex;
             align-items: center;
@@ -730,37 +611,11 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
-        .app-card::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(37, 99, 235, 0.08);
-            transform: translate(-50%, -50%);
-            transition: width 0.5s, height 0.5s;
-        }
-
-        .app-card:hover::before {
-            width: 300px;
-            height: 300px;
-        }
-
         .app-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
             border-color: var(--primary);
         }
-
-        .app-card.active {
-            background: var(--primary-light);
-            border-color: var(--primary);
-            box-shadow: var(--shadow-hard);
-        }
-
         .app-card .name {
             font-size: 0.88rem;
             font-weight: 700;
@@ -769,15 +624,10 @@
             line-height: 1.3;
             position: relative;
             z-index: 1;
-            transition: color var(--transition);
         }
-
         .app-card:hover .name { color: var(--primary); }
-        .app-card.active .name { color: var(--primary); }
 
-        /* ============================================
-           TABS
-           ============================================ */
+        /* ===== TABS ===== */
         .sheet-tabs {
             display: flex;
             gap: 6px;
@@ -787,7 +637,6 @@
             border-radius: 50px;
             border: 2px solid var(--border-dark);
         }
-
         .sheet-tab {
             flex: 1;
             padding: 8px 14px;
@@ -804,7 +653,6 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .sheet-tab.active {
             background: var(--bg-white);
             color: var(--primary);
@@ -812,15 +660,8 @@
             border: 2px solid var(--border-dark);
         }
 
-        /* ============================================
-           COUNTRY LIST
-           ============================================ */
-        .country-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
+        /* ===== COUNTRY LIST ===== */
+        .country-list { display: flex; flex-direction: column; gap: 8px; }
         .country-item {
             display: flex;
             align-items: center;
@@ -838,31 +679,16 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .country-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
-
-        .country-item:active {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0px rgba(15, 23, 42, 1);
-        }
-
         .country-flag {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
-
-        .country-info {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .country-info { flex: 1; min-width: 0; }
         .country-name {
             font-weight: 800;
             font-size: 0.88rem;
@@ -870,32 +696,16 @@
             color: var(--text-dark);
             margin-bottom: 2px;
         }
-
         .country-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
+        .country-arrow { color: var(--text-light); flex-shrink: 0; }
+        .country-arrow .icon-svg { width: 18px; height: 18px; }
 
-        .country-arrow {
-            color: var(--text-light);
-            flex-shrink: 0;
-        }
-
-        .country-arrow .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* ============================================
-           PRICE LIST
-           ============================================ */
-        .price-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
+        /* ===== PRICE LIST ===== */
+        .price-list { display: flex; flex-direction: column; gap: 10px; }
         .price-item {
             display: flex;
             align-items: center;
@@ -907,35 +717,21 @@
             box-shadow: var(--shadow-hard-sm);
             transition: all var(--transition);
         }
-
         .price-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
-
         .price-stock-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
-
-        .price-stock-icon .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .price-info {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .price-stock-icon .icon-svg { width: 18px; height: 18px; }
+        .price-info { flex: 1; min-width: 0; }
         .price-title {
             font-weight: 800;
             font-size: 0.88rem;
@@ -947,7 +743,6 @@
             gap: 6px;
             flex-wrap: wrap;
         }
-
         .price-stock {
             display: inline-flex;
             align-items: center;
@@ -960,28 +755,14 @@
             background: var(--success-light);
             color: var(--success-dark);
         }
-
-        .price-stock.low {
-            background: var(--warning-light);
-            color: var(--warning-dark);
-        }
-
-        .price-stock.out {
-            background: var(--danger-light);
-            color: var(--danger-dark);
-        }
-
+        .price-stock.low { background: var(--warning-light); color: var(--warning-dark); }
+        .price-stock.out { background: var(--danger-light); color: var(--danger-dark); }
         .price-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
-
-        .price-right {
-            text-align: right;
-            flex-shrink: 0;
-        }
-
+        .price-right { text-align: right; flex-shrink: 0; }
         .price-amount {
             font-size: 1rem;
             font-weight: 800;
@@ -991,16 +772,13 @@
             letter-spacing: -0.02em;
         }
 
-        /* ============================================
-           OPERATOR
-           ============================================ */
+        /* ===== OPERATOR ===== */
         .operator-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
             margin-bottom: 16px;
         }
-
         .operator-item {
             padding: 12px 14px;
             background: var(--bg-white);
@@ -1018,20 +796,16 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .operator-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
-
         .operator-item.active {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
         }
 
-        /* ============================================
-           LOADING & EMPTY
-           ============================================ */
+        /* ===== LOADING/EMPTY ===== */
         .loading-block {
             display: flex;
             flex-direction: column;
@@ -1041,38 +815,24 @@
             gap: 14px;
             color: var(--text-gray);
         }
-
-        .loading-block .loading-spinner {
-            width: 36px;
-            height: 36px;
-            border-width: 3px;
-        }
+        .loading-block .loading-spinner { width: 36px; height: 36px; border-width: 3px; }
 
         .empty-block {
             text-align: center;
             padding: 40px 20px;
             color: var(--text-gray);
         }
-
         .empty-block .icon-box {
-            width: 60px;
-            height: 60px;
+            width: 60px; height: 60px;
             margin: 0 auto 14px;
             border-radius: 16px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
         }
-
-        .empty-block .icon-box .icon-svg {
-            width: 26px;
-            height: 26px;
-        }
-
+        .empty-block .icon-box .icon-svg { width: 26px; height: 26px; }
         .empty-block h3 {
             font-size: 0.95rem;
             font-weight: 800;
@@ -1080,38 +840,22 @@
             color: var(--text-dark);
             margin-bottom: 4px;
         }
+        .empty-block p { font-size: 0.82rem; max-width: 280px; margin: 0 auto; }
 
-        .empty-block p {
-            font-size: 0.82rem;
-            max-width: 280px;
-            margin: 0 auto;
-        }
-
-        /* ============================================
-           SUCCESS MODAL
-           ============================================ */
+        /* ===== SUCCESS MODAL ===== */
         .success-modal { text-align: center; }
-
         .success-icon {
-            width: 72px;
-            height: 72px;
+            width: 72px; height: 72px;
             border-radius: 50%;
             background: var(--success-light);
             border: 3px solid var(--border-dark);
             color: var(--success);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
             animation: bounceIn 0.6s var(--ease-bounce);
         }
-
-        .success-icon .icon-svg {
-            width: 36px;
-            height: 36px;
-        }
-
+        .success-icon .icon-svg { width: 36px; height: 36px; }
         .phone-display {
             background: var(--bg-light);
             border: 2px solid var(--border-dark);
@@ -1124,7 +868,6 @@
             gap: 12px;
             flex-wrap: wrap;
         }
-
         .phone-display .label {
             font-size: 0.7rem;
             color: var(--text-gray);
@@ -1134,7 +877,6 @@
             margin-bottom: 4px;
             font-family: var(--font-mono);
         }
-
         .phone-display .number {
             font-size: 1.15rem;
             font-weight: 800;
@@ -1142,39 +884,28 @@
             color: var(--text-dark);
             letter-spacing: 0.02em;
         }
-
         .copy-btn {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
             color: var(--text-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             cursor: pointer;
             transition: all var(--transition);
             flex-shrink: 0;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .copy-btn:hover {
             background: var(--primary);
             color: white;
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
+        .copy-btn .icon-svg { width: 18px; height: 18px; }
 
-        .copy-btn .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* ============================================
-           MODAL OVERRIDE — biar bener-bener di tengah viewport
-           ============================================ */
+        /* ===== MODAL ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -1187,25 +918,17 @@
             justify-content: center;
             padding: 20px;
         }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
+        .modal-overlay.active { display: flex; }
         .modal-overlay .modal {
             position: relative;
-            top: auto;
-            left: auto;
+            top: auto; left: auto;
             transform: none;
             margin: 0;
         }
 
-        /* ============================================
-           FLAG IMG
-           ============================================ */
+        /* ===== FLAG ===== */
         .flag-img {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             border-radius: 4px;
             border: 1.5px solid var(--border-dark);
             box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
@@ -1215,9 +938,7 @@
             background: var(--bg-light);
         }
 
-        /* ============================================
-           RESPONSIVE
-           ============================================ */
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .features-grid { grid-template-columns: 1fr; }
             .nokos-hero-text h1 { font-size: 1.4rem; }
@@ -1225,10 +946,22 @@
             .nokos-hero-icon .icon-svg { width: 24px; height: 24px; }
             .bottom-sheet { height: 92vh; max-height: 92vh; }
 
-            .active-order-card { padding: 12px; gap: 10px; }
+            .active-order-card {
+                padding: 12px;
+                gap: 10px;
+                flex-wrap: wrap;
+            }
             .active-order-flag { width: 28px; height: 21px; }
             .active-order-title { font-size: 0.82rem; }
-            .active-order-phone { font-size: 0.75rem; }
+            .active-order-meta { font-size: 0.7rem; }
+            .active-order-otp { font-size: 0.82rem; padding: 4px 8px; letter-spacing: 0.1em; }
+            .active-order-right {
+                width: 100%;
+                text-align: left;
+                align-items: flex-start;
+                flex-direction: row;
+                justify-content: space-between;
+            }
             .active-order-price { font-size: 0.82rem; }
 
             .btn-cta { padding: 14px 24px; font-size: 0.88rem; width: 100%; }
@@ -1251,7 +984,7 @@
 
 <div class="dashboard-layout">
 
-    <!-- ===== SIDEBAR ===== -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -1281,6 +1014,16 @@
                 <span class="nav-label">Deposit</span>
             </a>
 
+            <div class="nav-section-label">Bantuan</div>
+            <a href="/ketentuan" class="nav-item" data-tooltip="Ketentuan">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span class="nav-label">Ketentuan</span>
+            </a>
+            <a href="/syarat" class="nav-item" data-tooltip="Syarat">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span class="nav-label">Syarat</span>
+            </a>
+
             <div class="nav-section-label">Akun</div>
             <a href="/profile" class="nav-item" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1294,12 +1037,8 @@
                     <span class="loading-spinner loading-spinner-sm"></span>
                 </div>
                 <div class="user-details">
-                    <div class="user-name" id="userName">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
-                    <div class="user-balance" id="userBalance">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
+                    <div class="user-name" id="userName"><span class="skeleton skeleton-text-sm"></span></div>
+                    <div class="user-balance" id="userBalance"><span class="skeleton skeleton-text-sm"></span></div>
                 </div>
                 <button class="logout-btn" id="logoutBtn" title="Keluar">
                     <svg class="icon-svg" viewBox="0 0 24 24">
@@ -1314,7 +1053,7 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- ===== MAIN ===== -->
+    <!-- MAIN -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -1344,11 +1083,11 @@
             </div>
             <div class="nokos-hero-text">
                 <h1>Beli Nokos</h1>
-                <p>Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri begitu masuk. Refund otomatis kalau kode ga masuk.</p>
+                <p>Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri. Expired dalam 15 menit & auto refund kalau ga masuk.</p>
             </div>
         </div>
 
-        <!-- PESANAN AKTIF (auto sync) -->
+        <!-- PESANAN AKTIF -->
         <div class="section-title">
             <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Pesanan Aktif
@@ -1380,8 +1119,8 @@
                     <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 </div>
                 <div>
-                    <h4>Batal setelah 3 menit</h4>
-                    <p>Kalau kode belum masuk, pesanan bisa dibatalkan dan saldo langsung kembali.</p>
+                    <h4>Expired 15 menit</h4>
+                    <p>Kalau kode belum masuk dalam 15 menit, pesanan auto-cancel dan saldo kembali penuh.</p>
                 </div>
             </div>
             <div class="feature-item">
@@ -1390,7 +1129,7 @@
                 </div>
                 <div>
                     <h4>Refund otomatis</h4>
-                    <p>Nomor yang kedaluwarsa tanpa kode dikembalikan penuh ke saldo.</p>
+                    <p>Nomor yang kedaluwarsa tanpa kode dikembalikan penuh ke saldo otomatis.</p>
                 </div>
             </div>
             <div class="feature-item">
@@ -1398,20 +1137,18 @@
                     <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
                 </div>
                 <div>
-                    <h4>Pilih server rate tinggi</h4>
-                    <p>Urutkan "Paling sukses" agar peluang kode masuk lebih besar.</p>
+                    <h4>Resend SMS</h4>
+                    <p>Kalau udah pernah dapat OTP, bisa resend SMS (max 3x per pesanan).</p>
                 </div>
             </div>
         </div>
-
     </main>
 </div>
 
-<!-- ===== BOTTOM SHEET ===== -->
+<!-- BOTTOM SHEET -->
 <div class="bottom-sheet-overlay" id="sheetOverlay">
     <div class="bottom-sheet" id="bottomSheet">
         <div class="sheet-handle"></div>
-
         <div class="sheet-header">
             <div class="sheet-header-left">
                 <div class="sheet-step" id="sheetStep">Langkah 1 · Pilih Server</div>
@@ -1422,12 +1159,11 @@
                 <div class="amount" id="sheetBalance">Rp0</div>
             </div>
         </div>
-
         <div class="sheet-body" id="sheetBody"></div>
     </div>
 </div>
 
-<!-- ===== SUCCESS MODAL ===== -->
+<!-- SUCCESS MODAL -->
 <div class="modal-overlay" id="modalSuccess">
     <div class="modal">
         <div class="success-modal">
@@ -1447,10 +1183,15 @@
                 </button>
             </div>
 
+            <div style="text-align:left;margin-bottom:16px;">
+                <div class="label" style="font-size:0.7rem;color:var(--text-gray);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;font-family:var(--font-mono);">OTP ID</div>
+                <div style="font-family:var(--font-mono);font-weight:800;color:var(--primary);font-size:1rem;" id="successOtpId">—</div>
+            </div>
+
             <div class="alert alert-info show">
                 <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                 <div>
-                    OTP biasanya masuk dalam <strong>1-5 menit</strong>. Pesanan aktif bisa dilihat di halaman ini.
+                    OTP biasanya masuk dalam <strong>1-5 menit</strong>. Kalo belum masuk dalam <strong>15 menit</strong>, pesanan auto-cancel & saldo refund.
                 </div>
             </div>
 
@@ -1465,7 +1206,7 @@
     </div>
 </div>
 
-<!-- ===== MOBILE BOTTOM TASKBAR ===== -->
+<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item" data-page="dashboard">
@@ -1493,7 +1234,7 @@
     </div>
 </nav>
 
-<!-- ===== CUSTOM ALERT ===== -->
+<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -1510,9 +1251,8 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       NOKOS PAGE SCRIPT
+       NOKOS SCRIPT
        ============================================ */
-
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
@@ -1522,6 +1262,9 @@
         info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
         warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
         server: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>`,
+        copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+        clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+        refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
     };
 
     /* ============================================
@@ -1641,15 +1384,11 @@
             if (isOpen) closeSidebar(); else openSidebar();
         });
 
-        if (sidebarOverlay) {
-            sidebarOverlay.addEventListener('click', closeSidebar);
-        }
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
 
         sidebar.querySelectorAll('.nav-item').forEach(link => {
             link.addEventListener('click', () => {
-                if (window.innerWidth <= 768 && isOpen) {
-                    setTimeout(closeSidebar, 100);
-                }
+                if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
             });
         });
 
@@ -1664,39 +1403,25 @@
     })();
 
     /* ============================================
-       FLAG RENDERER — MULTI FALLBACK (5+ sumber)
+       FLAG — MULTI FALLBACK
        ============================================ */
     function countryCodeToTwemoji(countryCode) {
         const code = (countryCode || '').toUpperCase();
         if (code.length !== 2) return null;
-        const codePoints = code.split('').map(char => {
-            return (0x1F1E6 + char.charCodeAt(0) - 65).toString(16);
-        });
-        return codePoints.join('-');
+        return code.split('').map(char => (0x1F1E6 + char.charCodeAt(0) - 65).toString(16)).join('-');
     }
 
-    // Sumber-sumber flag (fallback berurutan)
     function getFlagSources(countryCode) {
         const code = (countryCode || '').toLowerCase();
         if (code.length !== 2) return [];
-
         const twemoji = countryCodeToTwemoji(countryCode);
-
         return [
-            // 1. Twemoji SVG (jsdelivr)
             twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
-            // 2. FlagCDN (w40)
             `https://flagcdn.com/w40/${code}.png`,
-            // 3. FlagCDN (w80)
             `https://flagcdn.com/w80/${code}.png`,
-            // 4. flagpack (jsdelivr)
             `https://cdn.jsdelivr.net/npm/flagpack@latest/flags/4x3/${code}.svg`,
-            // 5. country-flag-icons (unpkg)
             `https://unpkg.com/country-flag-icons@1.5.7/3x2/${code.toUpperCase()}.svg`,
-            // 6. Flagpedia
             `https://flagpedia.net/data/flags/w40/${code}.png`,
-            // 7. Restcountries
-            `https://flagcdn.com/256x192/${code}.png`,
         ].filter(Boolean);
     }
 
@@ -1706,31 +1431,19 @@
             return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${(countryCode || '??').toUpperCase()}</div>`;
         }
         const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
-        return `<img
-            class="${className}"
-            src="${sources[0]}"
-            alt="${countryCode}"
-            loading="lazy"
-            data-sources="${sourcesAttr}"
-            data-source-idx="0"
-            onerror="handleFlagError(this)"
-        >`;
+        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
     }
 
-    // Global handler buat fallback flag
     window.handleFlagError = function(imgEl) {
         try {
             const sources = JSON.parse(imgEl.dataset.sources || '[]');
             const currentIdx = parseInt(imgEl.dataset.sourceIdx || '0', 10);
             const nextIdx = currentIdx + 1;
-
             if (nextIdx < sources.length) {
                 imgEl.dataset.sourceIdx = nextIdx.toString();
                 imgEl.src = sources[nextIdx];
             } else {
-                // Kalo semua gagal, tampilin placeholder
                 const code = (imgEl.alt || '??').toUpperCase();
-                const parent = imgEl.parentElement;
                 const placeholder = document.createElement('div');
                 placeholder.className = imgEl.className;
                 placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;';
@@ -1760,10 +1473,11 @@
     };
 
     let servicesCache = [];
-    let syncInterval = null;
+    let ordersPollingInterval = null;
+    let countdownIntervals = {};
 
     /* ============================================
-       LOAD USER (SWR)
+       LOAD USER
        ============================================ */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
@@ -1775,9 +1489,9 @@
     });
 
     /* ============================================
-       ACTIVE ORDERS + AUTO SYNC
+       LOAD ACTIVE ORDERS
        ============================================ */
-    async function loadActiveOrders() {
+    async function loadActiveOrders(silent = false) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
 
@@ -1807,59 +1521,280 @@
             }
 
             container.innerHTML = `<div class="active-orders">` + data.orders.map(o => {
+                const hasOtp = o.otp_code && o.otp_code.trim();
+                const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
+                const expiresIn = o.expires_in !== undefined ? o.expires_in : 900;
+                const mins = Math.floor(expiresIn / 60);
+                const secs = expiresIn % 60;
+                const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
                 return `
-                    <a href="/inbox" class="active-order-card">
-                        <div class="active-order-flag">
-                            ${renderFlag(o.country)}
-                        </div>
+                    <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
+                        <div class="active-order-flag">${renderFlag(o.country)}</div>
                         <div class="active-order-info">
                             <div class="active-order-title">${o.service_name || o.service || '—'}</div>
-                            <div class="active-order-phone">${o.phone_number || '—'}</div>
+                            <div class="active-order-meta">
+                                <span>${o.phone_number || '—'}</span>
+                                <span style="opacity:0.5;">·</span>
+                                <span class="active-order-otpid">${otpId}</span>
+                            </div>
+                            ${hasOtp ? `
+                                <div class="active-order-otp">
+                                    OTP: ${o.otp_code}
+                                    <button type="button" class="copy-inline" data-copy="${o.otp_code}">
+                                        ${ICONS.copy}
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="active-order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
+                                    ${ICONS.clock}
+                                    <span class="countdown-text">${timeText}</span>
+                                </div>
+                            `}
                         </div>
                         <div class="active-order-right">
                             <div class="active-order-price">${formatRupiah(o.price)}</div>
-                            <span class="badge warning badge-dot">Pending</span>
+                            <span class="badge ${hasOtp ? 'success' : 'warning'} ${hasOtp ? '' : 'badge-dot'}">${hasOtp ? 'OTP Masuk' : 'Pending'}</span>
+                            ${hasOtp ? `
+                                <div class="active-order-actions">
+                                    <button type="button" class="btn-mini primary" data-resend="${o.order_id}">
+                                        ${ICONS.refresh}
+                                        Resend
+                                    </button>
+                                    <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
+                                        ${ICONS.close}
+                                        Batal
+                                    </button>
+                                </div>
+                            ` : `
+                                <div class="active-order-actions">
+                                    <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
+                                        ${ICONS.close}
+                                        Batal
+                                    </button>
+                                </div>
+                            `}
                         </div>
-                    </a>
+                    </div>
                 `;
             }).join('') + `</div>`;
 
-            // Auto-sync status pending
-            syncPendingOrders(data.orders);
+            // Bind copy OTP
+            container.querySelectorAll('[data-copy]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.copy;
+                    navigator.clipboard.writeText(text).then(() => {
+                        const original = btn.innerHTML;
+                        btn.innerHTML = ICONS.check;
+                        setTimeout(() => btn.innerHTML = original, 1200);
+                    });
+                });
+            });
+
+            // Bind resend
+            container.querySelectorAll('[data-resend]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    resendOrder(btn.dataset.resend, btn);
+                });
+            });
+
+            // Bind cancel
+            container.querySelectorAll('[data-cancel]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cancelOrder(btn.dataset.cancel, btn);
+                });
+            });
+
+            // Start countdown per card
+            startCountdowns();
+
+            // Auto-poll each pending
+            pollPendingOrders(data.orders);
         } catch (err) {
             console.error('Load active orders error:', err);
+            if (!silent) {
+                container.innerHTML = `
+                    <div class="empty-orders">
+                        <div class="icon-box">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </div>
+                        <h3>Gagal memuat pesanan</h3>
+                        <p>${err.message || 'Coba refresh halaman'}</p>
+                    </div>
+                `;
+            }
         }
     }
 
-    async function syncPendingOrders(orders) {
-        if (!orders || orders.length === 0) return;
-        const pendingIds = orders.filter(o => o.status === 'pending').map(o => o.order_id);
-        if (pendingIds.length === 0) return;
+    /* ============================================
+       COUNTDOWN PER CARD
+       ============================================ */
+    function startCountdowns() {
+        // Clear existing
+        Object.values(countdownIntervals).forEach(clearInterval);
+        countdownIntervals = {};
+
+        document.querySelectorAll('.active-order-countdown').forEach(el => {
+            const orderId = el.dataset.orderId;
+            let remaining = parseInt(el.dataset.expires || '900', 10);
+            const textEl = el.querySelector('.countdown-text');
+
+            if (countdownIntervals[orderId]) clearInterval(countdownIntervals[orderId]);
+
+            function tick() {
+                if (remaining <= 0) {
+                    el.classList.add('expired');
+                    if (textEl) textEl.textContent = 'EXPIRED';
+                    clearInterval(countdownIntervals[orderId]);
+                    // Auto-refresh biar dapet status terbaru (auto-cancel dari backend)
+                    setTimeout(() => loadActiveOrders(true), 500);
+                    return;
+                }
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                if (textEl) textEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                remaining--;
+            }
+
+            tick();
+            countdownIntervals[orderId] = setInterval(tick, 1000);
+        });
+    }
+
+    /* ============================================
+       POLL PENDING ORDERS (via /api/cekotp)
+       ============================================ */
+    async function pollPendingOrders(orders) {
+        const pending = orders.filter(o => o.status === 'pending' && (!o.otp_code || !o.otp_code.trim()));
+        if (pending.length === 0) return;
+
+        for (const o of pending) {
+            try {
+                const res = await fetch('/api/cekotp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ order_id: o.order_id, otp_id: o.otp_id })
+                });
+                const data = await safeJson(res);
+
+                // Kalo ada update / dapet OTP
+                if (data.updated || data.otp_code || data.status !== 'pending') {
+                    console.log(`Order ${o.order_id} updated:`, data.status);
+                    loadActiveOrders(true);
+                    if (data.otp_code) {
+                        CacheManager.remove('user_profile');
+                        swrFetch('/api/user', 'user_profile', (user) => {
+                            if (!user) return;
+                            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                        });
+                    }
+                    return; // Cukup 1 yang update, refresh semua
+                }
+            } catch (err) {
+                console.error(`Poll order ${o.order_id} error:`, err);
+            }
+        }
+    }
+
+    /* ============================================
+       AUTO-REFRESH INTERVAL
+       ============================================ */
+    function startOrdersPolling() {
+        if (ordersPollingInterval) clearInterval(ordersPollingInterval);
+        ordersPollingInterval = setInterval(() => {
+            loadActiveOrders(true);
+        }, 5000);
+    }
+
+    /* ============================================
+       RESEND ORDER
+       ============================================ */
+    async function resendOrder(orderId, btn) {
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch('/api/nokos/sync-batch', {
+            const res = await fetch(`/api/nokos/order/${orderId}/resend`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ order_ids: pendingIds })
+                headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
-            if (data.updated && data.updated.length > 0) {
-                // Ada perubahan → refresh
-                loadActiveOrders();
-            }
+            if (!res.ok) throw new Error(data.error || 'Gagal resend');
+
+            await showCustomAlert({
+                title: 'Resend Berhasil',
+                message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.',
+                type: 'success'
+            });
+
+            loadActiveOrders(true);
         } catch (err) {
-            console.error('Sync pending orders error:', err);
+            await showCustomAlert({
+                title: 'Gagal Resend',
+                message: err.message,
+                type: 'danger'
+            });
+            btn.disabled = false;
+            btn.innerHTML = original;
         }
     }
 
-    function startAutoSync() {
-        if (syncInterval) clearInterval(syncInterval);
-        syncInterval = setInterval(() => {
-            loadActiveOrders();
-        }, 5000); // 5 detik
+    /* ============================================
+       CANCEL ORDER
+       ============================================ */
+    async function cancelOrder(orderId, btn) {
+        const ok = await showCustomAlert({
+            title: 'Batalkan Pesanan',
+            message: 'Yakin mau batalkan pesanan ini? Saldo akan dikembalikan sesuai kebijakan.',
+            type: 'warning',
+            okText: 'Ya, Batalkan',
+            showCancel: true
+        });
+        if (!ok) return;
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}/cancel`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
+
+            await showCustomAlert({
+                title: 'Dibatalkan',
+                message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.',
+                type: 'success'
+            });
+
+            CacheManager.remove('user_profile');
+            swrFetch('/api/user', 'user_profile', (user) => {
+                if (!user) return;
+                document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+            });
+
+            loadActiveOrders(true);
+        } catch (err) {
+            await showCustomAlert({
+                title: 'Gagal',
+                message: err.message,
+                type: 'danger'
+            });
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
     }
 
     /* ============================================
@@ -1919,12 +1854,7 @@
        ============================================ */
     async function renderServerStep() {
         const body = document.getElementById('sheetBody');
-        body.innerHTML = `
-            <div class="loading-block">
-                <span class="loading-spinner"></span>
-                <span>Memuat server...</span>
-            </div>
-        `;
+        body.innerHTML = `<div class="loading-block"><span class="loading-spinner"></span><span>Memuat server...</span></div>`;
 
         try {
             const res = await fetch('/api/nokos/servers', {
@@ -1974,7 +1904,7 @@
     }
 
     /* ============================================
-       STEP 2: APP (with cache)
+       STEP 2: APP
        ============================================ */
     async function renderAppStep() {
         const body = document.getElementById('sheetBody');
@@ -1987,17 +1917,11 @@
                 <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" class="form-control" id="appSearch" placeholder="Cari nama aplikasi...">
             </div>
-            <div id="appContent">
-                <div class="loading-block">
-                    <span class="loading-spinner"></span>
-                    <span>Memuat aplikasi...</span>
-                </div>
-            </div>
+            <div id="appContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat aplikasi...</span></div></div>
         `;
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(1));
 
-        // Cek cache dulu
         const cacheKey = `services_${state.server}`;
         const cached = CacheManager.get(cacheKey);
 
@@ -2006,7 +1930,6 @@
             renderApps(servicesCache);
         }
 
-        // Fetch fresh di background
         try {
             const res = await fetch(`/api/nokos/services?server=${state.server}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -2063,7 +1986,7 @@
     }
 
     /* ============================================
-       STEP 3: COUNTRY (with cache)
+       STEP 3: COUNTRY
        ============================================ */
     async function renderCountryStep() {
         const body = document.getElementById('sheetBody');
@@ -2082,12 +2005,7 @@
                 <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input type="text" class="form-control" id="countrySearch" placeholder="Cari nama negara...">
             </div>
-            <div id="countryContent">
-                <div class="loading-block">
-                    <span class="loading-spinner"></span>
-                    <span>Memuat negara...</span>
-                </div>
-            </div>
+            <div id="countryContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat negara...</span></div></div>
         `;
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
@@ -2161,7 +2079,7 @@
     }
 
     /* ============================================
-       STEP 4: PRICE (with cache)
+       STEP 4: PRICE
        ============================================ */
     async function renderPriceStep() {
         const body = document.getElementById('sheetBody');
@@ -2193,12 +2111,7 @@
                 <button class="sheet-tab" type="button" data-filter="murah">Termurah</button>
             </div>
 
-            <div id="priceContent">
-                <div class="loading-block">
-                    <span class="loading-spinner"></span>
-                    <span>Memuat harga...</span>
-                </div>
-            </div>
+            <div id="priceContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat harga...</span></div></div>
         `;
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(3));
@@ -2341,8 +2254,10 @@
             closeSheet();
 
             document.getElementById('successPhone').textContent = data.order.phone_number || '—';
+            document.getElementById('successOtpId').textContent = data.order.otp_id || '—';
+
             CacheManager.remove('user_profile');
-            CacheManager.clear(); // clear semua cache biar fresh
+            CacheManager.clear();
             document.getElementById('modalSuccess').classList.add('active');
 
             setTimeout(() => {
@@ -2390,7 +2305,6 @@
             if (modal) modal.classList.remove('active');
             return;
         }
-
         if (e.target.classList && e.target.classList.contains('modal-overlay')) {
             e.target.classList.remove('active');
         }
@@ -2426,7 +2340,12 @@
        INIT
        ============================================ */
     loadActiveOrders();
-    startAutoSync();
+    startOrdersPolling();
+
+    window.addEventListener('beforeunload', () => {
+        if (ordersPollingInterval) clearInterval(ordersPollingInterval);
+        Object.values(countdownIntervals).forEach(clearInterval);
+    });
 </script>
 
 </body>
