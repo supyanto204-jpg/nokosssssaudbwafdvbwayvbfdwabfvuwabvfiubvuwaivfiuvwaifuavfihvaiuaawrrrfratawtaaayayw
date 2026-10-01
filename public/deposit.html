@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
     <title>Deposit Saldo - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -249,6 +250,7 @@
             color: var(--text-dark);
             background: white;
             min-width: 0;
+            font-size: 16px; /* Prevent zoom iOS */
         }
 
         .input-amount-big input::placeholder { color: var(--text-light); }
@@ -273,6 +275,8 @@
             font-size: 0.88rem;
             text-align: center;
             color: var(--text-dark);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .preset-item:hover {
@@ -305,6 +309,8 @@
             box-shadow: var(--shadow-hard);
             cursor: pointer;
             transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .btn-deposit:hover {
@@ -534,6 +540,8 @@
             text-align: left;
             font-family: inherit;
             width: 100%;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .history-card::before {
@@ -632,6 +640,8 @@
             align-items: center;
             justify-content: center;
             gap: 6px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .page-btn:hover:not(:disabled) {
@@ -690,11 +700,6 @@
 
         .empty-block p { font-size: 0.85rem; margin-bottom: 0; }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-        }
-
         /* ===== METHOD PICKER ===== */
         .method-grid {
             display: grid;
@@ -715,6 +720,8 @@
             transition: all var(--transition);
             text-align: left;
             font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .method-card:hover {
@@ -971,6 +978,8 @@
             cursor: pointer;
             transition: all var(--transition);
             margin-top: 16px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .btn-cancel-red:hover {
@@ -1118,10 +1127,6 @@
             margin-left: 6px;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         /* Responsive */
         @media (max-width: 1024px) {
             .deposit-layout { grid-template-columns: 1fr; }
@@ -1147,6 +1152,11 @@
             .detail-row .detail-label { font-size: 0.68rem; }
             .deposit-hero-icon { width: 52px; height: 52px; }
             .deposit-hero-icon .icon-svg { width: 26px; height: 26px; }
+            .history-card { padding: 12px; gap: 10px; }
+            .history-icon { width: 36px; height: 36px; }
+            .history-title { font-size: 0.82rem; }
+            .history-meta { font-size: 0.7rem; }
+            .history-amount { font-size: 0.85rem; }
         }
     </style>
 </head>
@@ -1225,7 +1235,7 @@
                 <p>Top-up saldo buat beli nokos</p>
             </div>
             <div class="topbar-right">
-                <button class="mobile-toggle" id="mobileToggle">
+                <button class="mobile-toggle" id="mobileToggle" aria-label="Buka menu" type="button">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <div class="balance-pill">
@@ -1277,10 +1287,10 @@
                     <div class="form-title">Mau isi berapa?</div>
                     <div class="input-amount-big">
                         <div class="prefix">Rp</div>
-                        <input type="number" id="inputAmount" placeholder="0" min="1000" max="10000000">
+                        <input type="number" id="inputAmount" placeholder="0" min="1000" max="10000000" inputmode="numeric">
                     </div>
                     <div class="preset-grid" id="presetGrid"></div>
-                    <button class="btn-deposit" id="btnLanjut" disabled>
+                    <button class="btn-deposit" id="btnLanjut" disabled type="button">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         <span>Pilih Metode Pembayaran</span>
                     </button>
@@ -1368,7 +1378,7 @@
     <div class="modal">
         <div class="modal-header">
             <div class="modal-title">Pilih Metode Pembayaran</div>
-            <button class="modal-close" type="button" data-modal-close>
+            <button class="modal-close" type="button" data-modal-close aria-label="Tutup">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
         </div>
@@ -1402,7 +1412,6 @@
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
     };
 
-    // ===== QRISPY WORKER =====
     const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 
     const token = localStorage.getItem('access_token');
@@ -1423,19 +1432,22 @@
         expired: false,
     };
 
-    // ===== SIDEBAR COLLAPSE =====
+    // ===== SIDEBAR COLLAPSE (DESKTOP ONLY) =====
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
         if (!sidebar || !collapseBtn) return;
 
+        if (window.innerWidth <= 768) return;
+
         const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-        if (isCollapsed && window.innerWidth > 768) {
+        if (isCollapsed) {
             sidebar.classList.add('collapsed');
             document.body.classList.add('sidebar-collapsed');
         }
 
         collapseBtn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) return;
             const collapsed = sidebar.classList.toggle('collapsed');
             document.body.classList.toggle('sidebar-collapsed', collapsed);
             localStorage.setItem('sidebar_collapsed', collapsed);
@@ -1443,11 +1455,113 @@
 
         window.addEventListener('resize', () => {
             if (window.innerWidth <= 768) {
+                sidebar.classList.remove('collapsed');
                 document.body.classList.remove('sidebar-collapsed');
             } else {
                 const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-                if (isCollapsed) document.body.classList.add('sidebar-collapsed');
+                if (isCollapsed) {
+                    sidebar.classList.add('collapsed');
+                    document.body.classList.add('sidebar-collapsed');
+                }
             }
+        });
+    })();
+
+    // ===== MOBILE SIDEBAR (FIXED) =====
+    (function initMobileSidebar() {
+        const mobileToggle = document.getElementById('mobileToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        if (!mobileToggle || !sidebar) {
+            console.warn('Mobile sidebar elements not found');
+            return;
+        }
+
+        let isOpen = false;
+
+        function openSidebar() {
+            if (isOpen) return;
+            isOpen = true;
+
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
+            }
+
+            sidebar.classList.add('open');
+            if (sidebarOverlay) sidebarOverlay.classList.add('active');
+            document.body.classList.add('sidebar-open');
+
+            const scrollY = window.scrollY;
+            document.body.style.top = `-${scrollY}px`;
+        }
+
+        function closeSidebar() {
+            if (!isOpen) return;
+            isOpen = false;
+
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+
+            const scrollY = document.body.style.top;
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+
+        function handleToggle(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen) {
+                closeSidebar();
+            } else {
+                openSidebar();
+            }
+        }
+
+        mobileToggle.addEventListener('click', handleToggle);
+        mobileToggle.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+        }, { passive: true });
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeSidebar();
+            });
+        }
+
+        sidebar.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768 && isOpen) {
+                    setTimeout(closeSidebar, 100);
+                }
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) {
+                closeSidebar();
+            }
+        });
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (window.innerWidth > 768) {
+                    if (isOpen) closeSidebar();
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    document.body.classList.remove('sidebar-collapsed');
+                }
+            }, 150);
+        });
+
+        window.addEventListener('pageshow', () => {
+            document.body.style.top = '';
+            document.body.classList.remove('sidebar-open');
         });
     })();
 
@@ -1509,7 +1623,7 @@
     function renderPresets() {
         const grid = document.getElementById('presetGrid');
         grid.innerHTML = state.presets.map(p => `
-            <button class="preset-item" data-amount="${p.amount}">${p.label}</button>
+            <button class="preset-item" type="button" data-amount="${p.amount}">${p.label}</button>
         `).join('');
 
         grid.querySelectorAll('.preset-item').forEach(btn => {
@@ -1577,7 +1691,7 @@
                     ? `<span class="method-badge">OTOMATIS</span>`
                     : `<span class="method-badge warning">MANUAL</span>`;
                 return `
-                    <button class="method-card" data-method="${m.id}" data-label="${m.label}">
+                    <button class="method-card" type="button" data-method="${m.id}" data-label="${m.label}">
                         <div class="method-icon ${m.id === 'qrispy' ? 'qrispy' : 'dana'}">${iconSvg}</div>
                         <div class="method-info">
                             <div class="method-title">${m.label} ${badge}</div>
@@ -1767,7 +1881,7 @@
                 </div>
             `}
 
-            <button class="btn-cancel-red" id="btnCancel">
+            <button class="btn-cancel-red" id="btnCancel" type="button">
                 ${ICONS.close}
                 Batalkan
             </button>
@@ -1790,7 +1904,6 @@
         }
     }
 
-    // ===== FETCH QRISPY FEE ASYNC =====
     async function fetchQrispyFeeAsync(referenceId, qrisId, saldoMasuk) {
         try {
             let transaction = null;
@@ -1905,7 +2018,6 @@
         }
     }
 
-    // ===== COUNTDOWN =====
     function startCountdown(seconds) {
         stopCountdown();
         let remaining = seconds;
@@ -1943,7 +2055,6 @@
         }
     }
 
-    // ===== SHOW EXPIRED =====
     function showExpired() {
         state.expired = true;
         stopPolling();
@@ -1977,7 +2088,7 @@
                         <span class="detail-value danger">EXPIRED</span>
                     </div>
                 </div>
-                <button class="btn btn-primary btn-block" onclick="resetPanel()">
+                <button class="btn btn-primary btn-block" type="button" onclick="resetPanel()">
                     ${ICONS.arrowRight}
                     Buat Deposit Baru
                 </button>
@@ -1987,7 +2098,6 @@
         loadHistory(state.historyPage);
     }
 
-    // ===== CANCEL =====
     async function cancelDeposit() {
         if (!state.deposit) return;
         if (!confirm('Yakin mau batalkan deposit ini?')) return;
@@ -2021,7 +2131,6 @@
         btnLanjut.innerHTML = `${ICONS.arrowRight} <span>Pilih Metode Pembayaran</span>`;
     };
 
-    // ===== MODAL HELPERS =====
     function openModal(id) {
         const modal = document.getElementById(id);
         if (modal) {
@@ -2040,7 +2149,6 @@
         }
     }
 
-    // ===== SUCCESS =====
     function showSuccess(deposit) {
         stopPolling();
         stopCountdown();
@@ -2095,7 +2203,7 @@
                     </div>
                 </div>
 
-                <button class="btn btn-primary btn-block" id="btnSelesai" style="margin-top:16px;">
+                <button class="btn btn-primary btn-block" id="btnSelesai" type="button" style="margin-top:16px;">
                     ${ICONS.check}
                     Selesai
                 </button>
@@ -2122,7 +2230,6 @@
         }, 500);
     }
 
-    // ===== HISTORY CACHE =====
     function getHistoryCacheKey(page) {
         return `deposit_history_p${page}_l${state.historyLimit}`;
     }
@@ -2133,7 +2240,6 @@
             .forEach(k => localStorage.removeItem(k));
     }
 
-    // ===== LOAD HISTORY =====
     async function loadHistory(page = 1) {
         state.historyPage = page;
         const container = document.getElementById('historyList');
@@ -2187,7 +2293,6 @@
         }
     }
 
-    // ===== RENDER HISTORY =====
     function renderHistory(data, page) {
         const container = document.getElementById('historyList');
         const paginationEl = document.getElementById('pagination');
@@ -2214,7 +2319,7 @@
             });
             const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : 'danger';
             return `
-                <button class="history-card ${s.class}" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}' data-ref="${d.reference_id}">
+                <button class="history-card ${s.class}" type="button" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}' data-ref="${d.reference_id}">
                     <div class="history-icon ${s.class}">${s.icon}</div>
                     <div class="history-info">
                         <div class="history-title">${methodLabel}</div>
@@ -2231,12 +2336,12 @@
         if (data.totalPages > 1) {
             paginationEl.style.display = 'flex';
             paginationEl.innerHTML = `
-                <button class="page-btn" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
+                <button class="page-btn" type="button" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
                     ${ICONS.arrowLeft}
                     Prev
                 </button>
                 <span class="page-info">Halaman ${data.page} dari ${data.totalPages}</span>
-                <button class="page-btn" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
+                <button class="page-btn" type="button" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
                     Next
                     ${ICONS.arrowRight}
                 </button>
@@ -2319,7 +2424,6 @@
         }
     }
 
-    // ===== SYNC VISIBLE =====
     async function syncVisibleDeposits(referenceIds, page) {
         if (!referenceIds || referenceIds.length === 0) return;
 
@@ -2364,7 +2468,6 @@
         }
     }
 
-    // ===== SHOW DETAIL MODAL =====
     async function showDetailModal(d) {
         const cacheKey = getHistoryCacheKey(state.historyPage);
         const cached = CacheManager.get(cacheKey);
@@ -2544,7 +2647,6 @@
         openModal('modalMethod');
     });
 
-    // ===== MODAL CLOSE (EVENT DELEGATION) =====
     document.addEventListener('click', (e) => {
         const closeBtn = e.target.closest('[data-modal-close]');
         if (closeBtn) {
@@ -2579,34 +2681,6 @@
             }
         }
     });
-
-    // ===== MOBILE SIDEBAR =====
-    const mobileToggle = document.getElementById('mobileToggle');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-    if (mobileToggle) {
-        mobileToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            sidebarOverlay.classList.toggle('active');
-            document.body.classList.toggle('sidebar-open');
-        });
-        sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-        });
-
-        sidebar.querySelectorAll('.nav-item').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.remove('open');
-                    sidebarOverlay.classList.remove('active');
-                    document.body.classList.remove('sidebar-open');
-                }
-            });
-        });
-    }
 
     // ===== INIT =====
     restoreState();
