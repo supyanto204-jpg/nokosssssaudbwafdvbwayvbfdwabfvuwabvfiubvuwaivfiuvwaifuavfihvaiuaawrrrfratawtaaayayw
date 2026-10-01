@@ -30,10 +30,5 @@
     { "source": "/ketentuan", "destination": "/public/ketentuan.html" },
     { "source": "/syarat", "destination": "/public/syarat.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
-  ],
-  "crons": [
-    { "path": "/api/cron/validate-pending-orders", "schedule": "*/1 * * * *" },
-    { "path": "/api/cron/expire-pending-deposits", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/sync-pending-qrispy", "schedule": "*/2 * * * *" }
   ]
 }
