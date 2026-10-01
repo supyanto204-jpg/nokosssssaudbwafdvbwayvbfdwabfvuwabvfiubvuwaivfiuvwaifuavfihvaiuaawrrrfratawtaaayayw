@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <title>Inbox - AsyrofOTP</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="/css/core.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* ============================================
+           GLOBAL ANTI-SELECT
+           ============================================ */
+        .dashboard-layout,
+        .dashboard-layout * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .dashboard-layout input,
+        .dashboard-layout textarea,
+        .dashboard-layout select,
+        .dashboard-layout code {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
+        /* ============================================
+           INBOX-SPECIFIC
+           ============================================ */
+        .inbox-hero {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .inbox-hero-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--purple), var(--primary-dark));
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: var(--shadow-hard-sm);
+            flex-shrink: 0;
+            animation: iconPulse 3s ease-in-out infinite;
+        }
+
+        .inbox-hero-icon .icon-svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .inbox-hero-text h1 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--purple), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .inbox-hero-text p {
+            color: var(--text-gray);
+            font-size: 0.88rem;
+            max-width: 560px;
+        }
+
+        /* ============================================
+           TABS
+           ============================================ */
+        .inbox-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            background: var(--bg-light);
+            padding: 5px;
+            border-radius: 50px;
+            border: 2px solid var(--border-dark);
+            width: fit-content;
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+
+        .inbox-tabs::-webkit-scrollbar { display: none; }
+
+        .inbox-tab {
+            padding: 8px 18px;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-gray);
+            white-space: nowrap;
+            transition: all var(--transition);
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-family: var(--font-body);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .inbox-tab:hover {
+            color: var(--primary);
+            transform: translateY(-1px);
+        }
+
+        .inbox-tab.active {
+            background: var(--bg-white);
+            color: var(--primary);
+            box-shadow: var(--shadow-hard-sm);
+            border: 2px solid var(--border-dark);
+        }
+
+        /* ============================================
+           ORDER CARD
+           ============================================ */
+        .orders-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .order-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard-sm);
+            padding: 18px;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .order-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary);
+        }
+
+        .order-card.success::before { background: var(--success); }
+        .order-card.pending::before { background: var(--warning); }
+        .order-card.expired::before { background: #64748b; }
+        .order-card.failed::before { background: var(--danger); }
+        .order-card.cancelled::before { background: var(--danger); }
+        .order-card.refunded::before { background: var(--purple); }
+
+        [data-theme="dark"] .order-card.expired::before { background: #94a3b8; }
+
+        .order-card:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: var(--shadow-hard);
+        }
+
+        .order-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed var(--border);
+            flex-wrap: wrap;
+        }
+
+        .order-flag {
+            width: 32px;
+            height: 24px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .order-title-wrap {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .order-title {
+            font-weight: 800;
+            font-size: 0.95rem;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .order-ref {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            color: var(--text-gray);
+            word-break: break-all;
+        }
+
+        .order-status-badge {
+            flex-shrink: 0;
+        }
+
+        /* Order body */
+        .order-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .order-field {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .order-field-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-gray);
+        }
+
+        .order-field-value {
+            font-weight: 700;
+            font-size: 0.85rem;
+            font-family: var(--font-mono);
+            color: var(--text-dark);
+            word-break: break-all;
+        }
+
+        .order-field-value.price {
+            color: var(--primary);
+        }
+
+        .order-field-value.success {
+            color: var(--success);
+        }
+
+        /* OTP Box */
+        .otp-box {
+            background: var(--success-light);
+            border: 2px solid var(--success-dark);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: bounceIn 0.5s var(--ease-bounce);
+            position: relative;
+            overflow: hidden;
+        }
+
+        [data-theme="dark"] .otp-box {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--success);
+        }
+
+        .otp-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(34, 197, 94, 0.3) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+
+        .otp-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--success);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid var(--border-dark);
+            position: relative;
+            z-index: 1;
+        }
+
+        .otp-icon .icon-svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .otp-info {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .otp-info-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--success-dark);
+            margin-bottom: 2px;
+        }
+
+        .otp-info-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            color: var(--success-dark);
+            letter-spacing: 0.15em;
+            word-break: break-all;
+        }
+
+        [data-theme="dark"] .otp-info-value {
+            color: var(--success);
+        }
+
+        .otp-copy {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+            position: relative;
+            z-index: 1;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .otp-copy:hover {
+            background: var(--success);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .otp-copy .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        /* Pending state */
+        .pending-box {
+            background: var(--warning-light);
+            border: 2px dashed var(--warning);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--warning-dark);
+            font-size: 0.82rem;
+            font-weight: 600;
+        }
+
+        [data-theme="dark"] .pending-box {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--warning);
+        }
+
+        .pending-box .loading-spinner {
+            width: 18px;
+            height: 18px;
+            border-width: 2px;
+            border-color: rgba(245, 158, 11, 0.3);
+            border-top-color: var(--warning);
+        }
+
+        /* Order actions */
+        .order-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .order-actions .btn {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        /* ============================================
+           EMPTY & LOADING
+           ============================================ */
+        .empty-inbox {
+            text-align: center;
+            padding: 60px 20px;
+            background: var(--bg-card);
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            color: var(--text-gray);
+        }
+
+        .empty-inbox .icon-box {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            border-radius: 20px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            box-shadow: var(--shadow-hard-sm);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .empty-inbox .icon-box .icon-svg {
+            width: 32px;
+            height: 32px;
+        }
+
+        .empty-inbox h3 {
+            font-size: 1.05rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 6px;
+        }
+
+        .empty-inbox p {
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+
+        .skeleton-order {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border) 50%, var(--bg-hover) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+
+        /* ============================================
+           PAGINATION
+           ============================================ */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }
+
+        .page-btn {
+            min-width: 40px;
+            height: 40px;
+            padding: 0 14px;
+            border-radius: 50px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .page-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .page-btn:active:not(:disabled) {
+            transform: translate(1px, 1px);
+            box-shadow: none;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            color: var(--text-gray);
+            padding: 0 8px;
+        }
+
+        /* ============================================
+           FLAG
+           ============================================ */
+        .flag-img {
+            width: 32px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1.5px solid var(--border-dark);
+            box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
+            object-fit: cover;
+            display: block;
+            flex-shrink: 0;
+            background: var(--bg-light);
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 768px) {
+            .inbox-hero-text h1 { font-size: 1.4rem; }
+            .inbox-hero-icon { width: 48px; height: 48px; }
+            .inbox-hero-icon .icon-svg { width: 24px; height: 24px; }
+
+            .order-card { padding: 14px; }
+            .order-body { grid-template-columns: 1fr; gap: 8px; }
+            .order-title { font-size: 0.88rem; }
+            .otp-info-value { font-size: 1.2rem; }
+            .otp-icon { width: 36px; height: 36px; }
+            .otp-copy { width: 36px; height: 36px; }
+
+            .order-actions .btn {
+                min-width: 100%;
+                padding: 8px 12px;
+                font-size: 0.78rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .inbox-hero-text h1 { font-size: 1.2rem; }
+            .order-card { padding: 12px; }
+            .otp-info-value { font-size: 1.05rem; letter-spacing: 0.1em; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-pulse" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+</div>
+
+<div class="dashboard-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <a href="/dashboard" class="sidebar-logo">
+                <div class="logo-icon">A</div>
+                <div class="logo-text">Asyrof<span>OTP</span></div>
+            </a>
+            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="nav-item" data-tooltip="Home">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="nav-label">Home</span>
+            </a>
+            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <span class="nav-label">Beli Nokos</span>
+            </a>
+            <a href="/inbox" class="nav-item active" data-tooltip="Inbox">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                <span class="nav-label">Inbox</span>
+            </a>
+            <a href="/deposit" class="nav-item" data-tooltip="Deposit">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                <span class="nav-label">Deposit</span>
+            </a>
+            <div class="nav-section-label">Akun</div>
+            <a href="/profile" class="nav-item" data-tooltip="Profile">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="nav-label">Profile</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="userInitial">
+                    <span class="loading-spinner loading-spinner-sm"></span>
+                </div>
+                <div class="user-details">
+                    <div class="user-name" id="userName"><span class="skeleton skeleton-text-sm"></span></div>
+                    <div class="user-balance" id="userBalance"><span class="skeleton skeleton-text-sm"></span></div>
+                </div>
+                <button class="logout-btn" id="logoutBtn" title="Keluar">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- MAIN -->
+    <main class="main-content">
+        <div class="topbar">
+            <div class="topbar-left">
+                <h1>Inbox</h1>
+                <p>Riwayat pesanan & kode OTP kamu</p>
+            </div>
+            <div class="topbar-right">
+                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                </button>
+                <div class="balance-pill">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span class="label">Saldo:</span>
+                    <span class="amount" id="balancePill">—</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- HERO -->
+        <div class="inbox-hero">
+            <div class="inbox-hero-icon">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            </div>
+            <div class="inbox-hero-text">
+                <h1>Inbox</h1>
+                <p>Kode OTP muncul otomatis di sini. Refresh tiap 5 detik, kalo ada kode baru langsung tampil.</p>
+            </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="inbox-tabs" id="inboxTabs">
+            <button class="inbox-tab active" type="button" data-status="all">Semua</button>
+            <button class="inbox-tab" type="button" data-status="pending">Pending</button>
+            <button class="inbox-tab" type="button" data-status="success">Berhasil</button>
+            <button class="inbox-tab" type="button" data-status="failed">Gagal</button>
+        </div>
+
+        <!-- ORDERS -->
+        <div id="ordersContainer">
+            <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
+            <div class="skeleton-order"><div class="skeleton-line" style="width:55%"></div><div class="skeleton-line" style="width:45%"></div></div>
+            <div class="skeleton-order"><div class="skeleton-line" style="width:65%"></div><div class="skeleton-line" style="width:35%"></div></div>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="pagination" id="pagination" style="display:none;"></div>
+    </main>
+</div>
+
+<!-- MOBILE TASKBAR -->
+<nav class="mobile-taskbar" aria-label="Navigasi utama">
+    <div class="mobile-taskbar-inner">
+        <a href="/dashboard" class="taskbar-item" data-page="dashboard">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="taskbar-label">Home</span>
+        </a>
+        <a href="/nokos" class="taskbar-item" data-page="nokos">
+            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span class="taskbar-label">Nokos</span>
+        </a>
+        <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
+            <div class="icon-wrapper">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <span class="taskbar-label">Deposit</span>
+        </a>
+        <a href="/inbox" class="taskbar-item active" data-page="inbox">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            <span class="taskbar-label">Inbox</span>
+        </a>
+        <a href="/profile" class="taskbar-item" data-page="profile">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="taskbar-label">Profile</span>
+        </a>
+    </div>
+</nav>
+
+<!-- CUSTOM ALERT -->
+<div class="custom-alert-overlay" id="customAlert">
+    <div class="custom-alert">
+        <div class="custom-alert-icon info" id="customAlertIcon">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </div>
+        <h3 id="customAlertTitle">Informasi</h3>
+        <p id="customAlertMessage">—</p>
+        <div class="custom-alert-actions" id="customAlertActions">
+            <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/main.js"></script>
+<script>
+    /* ============================================
+       INBOX SCRIPT
+       ============================================ */
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/login';
+
+    const ICONS = {
+        check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+        close: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+        info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+        copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+        refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+    };
+
+    /* ============================================
+       CUSTOM ALERT
+       ============================================ */
+    function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('customAlert');
+            const iconEl = document.getElementById('customAlertIcon');
+            const titleEl = document.getElementById('customAlertTitle');
+            const msgEl = document.getElementById('customAlertMessage');
+            const actionsEl = document.getElementById('customAlertActions');
+
+            iconEl.className = 'custom-alert-icon ' + type;
+            iconEl.innerHTML = ICONS[type] || ICONS.info;
+            titleEl.textContent = title || 'Informasi';
+            msgEl.textContent = message || '';
+
+            actionsEl.innerHTML = '';
+            if (showCancel) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn';
+                cancelBtn.type = 'button';
+                cancelBtn.textContent = cancelText;
+                cancelBtn.addEventListener('click', () => {
+                    overlay.classList.remove('active');
+                    resolve(false);
+                });
+                actionsEl.appendChild(cancelBtn);
+            }
+
+            const okBtn = document.createElement('button');
+            okBtn.className = 'btn btn-primary';
+            okBtn.type = 'button';
+            okBtn.textContent = okText;
+            okBtn.addEventListener('click', () => {
+                overlay.classList.remove('active');
+                resolve(true);
+            });
+            actionsEl.appendChild(okBtn);
+
+            overlay.classList.add('active');
+        });
+    }
+
+    /* ============================================
+       THEME
+       ============================================ */
+    (function initTheme() {
+        const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('asyrofotp_theme', next);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+        });
+    })();
+
+    /* ============================================
+       SIDEBAR
+       ============================================ */
+    (function initCollapse() {
+        const sidebar = document.getElementById('sidebar');
+        const collapseBtn = document.getElementById('collapseBtn');
+        if (!sidebar || !collapseBtn) return;
+        if (window.innerWidth <= 768) return;
+
+        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) return;
+            const collapsed = sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('sidebar_collapsed', collapsed);
+        });
+    })();
+
+    (function initMobileSidebar() {
+        const mobileToggle = document.getElementById('mobileToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (!mobileToggle || !sidebar) return;
+
+        let isOpen = false;
+
+        function openSidebar() {
+            if (isOpen) return;
+            isOpen = true;
+            sidebar.classList.add('open');
+            if (sidebarOverlay) sidebarOverlay.classList.add('active');
+            document.body.classList.add('sidebar-open');
+            const scrollY = window.scrollY;
+            document.body.style.top = `-${scrollY}px`;
+        }
+
+        function closeSidebar() {
+            if (!isOpen) return;
+            isOpen = false;
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+            const scrollY = document.body.style.top;
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+
+        mobileToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen) closeSidebar(); else openSidebar();
+        });
+
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+        sidebar.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) closeSidebar();
+        });
+
+        window.addEventListener('pageshow', () => {
+            document.body.style.top = '';
+            document.body.classList.remove('sidebar-open');
+        });
+    })();
+
+    /* ============================================
+       FLAG RENDERER (multi fallback)
+       ============================================ */
+    function countryCodeToTwemoji(countryCode) {
+        const code = (countryCode || '').toUpperCase();
+        if (code.length !== 2) return null;
+        return code.split('').map(char => (0x1F1E6 + char.charCodeAt(0) - 65).toString(16)).join('-');
+    }
+
+    function getFlagSources(countryCode) {
+        const code = (countryCode || '').toLowerCase();
+        if (code.length !== 2) return [];
+        const twemoji = countryCodeToTwemoji(countryCode);
+        return [
+            twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
+            `https://flagcdn.com/w40/${code}.png`,
+            `https://flagcdn.com/w80/${code}.png`,
+            `https://cdn.jsdelivr.net/npm/flagpack@latest/flags/4x3/${code}.svg`,
+            `https://unpkg.com/country-flag-icons@1.5.7/3x2/${code.toUpperCase()}.svg`,
+            `https://flagpedia.net/data/flags/w40/${code}.png`,
+        ].filter(Boolean);
+    }
+
+    function renderFlag(countryCode, className = 'flag-img') {
+        const sources = getFlagSources(countryCode);
+        if (sources.length === 0) {
+            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${(countryCode || '??').toUpperCase()}</div>`;
+        }
+        const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
+        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
+    }
+
+    window.handleFlagError = function(imgEl) {
+        try {
+            const sources = JSON.parse(imgEl.dataset.sources || '[]');
+            const currentIdx = parseInt(imgEl.dataset.sourceIdx || '0', 10);
+            const nextIdx = currentIdx + 1;
+            if (nextIdx < sources.length) {
+                imgEl.dataset.sourceIdx = nextIdx.toString();
+                imgEl.src = sources[nextIdx];
+            } else {
+                const code = (imgEl.alt || '??').toUpperCase();
+                const placeholder = document.createElement('div');
+                placeholder.className = imgEl.className;
+                placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;';
+                placeholder.textContent = code;
+                imgEl.replaceWith(placeholder);
+            }
+        } catch (e) {
+            imgEl.style.display = 'none';
+        }
+    };
+
+    /* ============================================
+       STATE
+       ============================================ */
+    let state = {
+        status: 'all',
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        refreshInterval: null,
+    };
+
+    /* ============================================
+       LOAD USER
+       ============================================ */
+    swrFetch('/api/user', 'user_profile', (user) => {
+        if (!user) return;
+        document.getElementById('userName').textContent = user.name || user.username;
+        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+        document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
+        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+    });
+
+    /* ============================================
+       LOAD ORDERS
+       ============================================ */
+    async function loadOrders(silent = false) {
+        const container = document.getElementById('ordersContainer');
+        const paginationEl = document.getElementById('pagination');
+
+        if (!silent) {
+            container.innerHTML = `
+                <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
+                <div class="skeleton-order"><div class="skeleton-line" style="width:55%"></div><div class="skeleton-line" style="width:45%"></div></div>
+                <div class="skeleton-order"><div class="skeleton-line" style="width:65%"></div><div class="skeleton-line" style="width:35%"></div></div>
+            `;
+        }
+
+        try {
+            const statusParam = state.status === 'all' ? '' : `&status=${state.status}`;
+            const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}${statusParam}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+
+            renderOrders(data);
+        } catch (err) {
+            console.error('Load orders error:', err);
+            if (!silent) {
+                container.innerHTML = `
+                    <div class="empty-inbox">
+                        <div class="icon-box">${ICONS.warning}</div>
+                        <h3>Gagal memuat pesanan</h3>
+                        <p>${err.message || 'Coba refresh halaman'}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /* ============================================
+       RENDER ORDERS
+       ============================================ */
+    function renderOrders(data) {
+        const container = document.getElementById('ordersContainer');
+        const paginationEl = document.getElementById('pagination');
+
+        if (!data.orders || data.orders.length === 0) {
+            container.innerHTML = `
+                <div class="empty-inbox">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    </div>
+                    <h3>Belum ada pesanan</h3>
+                    <p>Mulai beli nokos buat lihat riwayat & kode OTP di sini.</p>
+                    <a href="/nokos" class="btn btn-primary">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                        Beli Nokos
+                    </a>
+                </div>
+            `;
+            paginationEl.style.display = 'none';
+            return;
+        }
+
+        const statusMap = {
+            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            received: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            pending: { class: 'pending', label: 'Pending', icon: ICONS.info },
+            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
+            cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
+            expired: { class: 'expired', label: 'Expired', icon: ICONS.info },
+            refunded: { class: 'refunded', label: 'Refund', icon: ICONS.refresh },
+        };
+
+        container.innerHTML = `<div class="orders-list">` + data.orders.map(o => {
+            const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
+            const hasOtp = o.otp_code && o.otp_code.trim();
+            const isPending = o.status === 'pending';
+
+            const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <div class="order-card ${s.class}" data-order-id="${o.order_id}">
+                    <div class="order-header">
+                        <div class="order-flag">${renderFlag(o.country)}</div>
+                        <div class="order-title-wrap">
+                            <div class="order-title">
+                                ${o.service_name || o.service || '—'}
+                                ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${o.operator}</span>` : ''}
+                            </div>
+                            <div class="order-ref">${o.order_id || '—'}</div>
+                        </div>
+                        <div class="order-status-badge">
+                            <span class="badge ${s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : s.class === 'expired' ? 'gray' : 'danger'}">${s.label}</span>
+                        </div>
+                    </div>
+
+                    <div class="order-body">
+                        <div class="order-field">
+                            <span class="order-field-label">Nomor</span>
+                            <span class="order-field-value">${o.phone_number || '—'}</span>
+                        </div>
+                        <div class="order-field">
+                            <span class="order-field-label">Negara</span>
+                            <span class="order-field-value">${o.country_name || o.country || '—'}</span>
+                        </div>
+                        <div class="order-field">
+                            <span class="order-field-label">Harga</span>
+                            <span class="order-field-value price">${formatRupiah(o.price)}</span>
+                        </div>
+                        <div class="order-field">
+                            <span class="order-field-label">Dibuat</span>
+                            <span class="order-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                        </div>
+                    </div>
+
+                    ${hasOtp ? `
+                        <div class="otp-box">
+                            <div class="otp-icon">${ICONS.key}</div>
+                            <div class="otp-info">
+                                <div class="otp-info-label">Kode OTP</div>
+                                <div class="otp-info-value" id="otp-${o.order_id}">${o.otp_code}</div>
+                            </div>
+                            <button class="otp-copy" type="button" data-copy-otp="${o.otp_code}" title="Copy OTP">
+                                ${ICONS.copy}
+                            </button>
+                        </div>
+                        ${o.full_sms ? `
+                            <div style="font-size:0.75rem;color:var(--text-gray);font-family:var(--font-mono);margin-bottom:12px;padding:10px;background:var(--bg-light);border-radius:8px;border:1px solid var(--border);word-break:break-all;">
+                                <strong style="color:var(--text-dark);font-size:0.68rem;text-transform:uppercase;">SMS:</strong> ${o.full_sms}
+                            </div>
+                        ` : ''}
+                    ` : isPending ? `
+                        <div class="pending-box">
+                            <span class="loading-spinner"></span>
+                            <span>Menunggu kode OTP masuk... Refresh otomatis tiap 5 detik.</span>
+                        </div>
+                    ` : ''}
+
+                    <div class="order-actions">
+                        ${isPending ? `
+                            <button class="btn" type="button" data-resend="${o.order_id}">
+                                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                                Resend SMS
+                            </button>
+                            <button class="btn btn-danger" type="button" data-cancel="${o.order_id}">
+                                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Batalkan
+                            </button>
+                        ` : `
+                            <button class="btn btn-primary" type="button" data-detail="${o.order_id}">
+                                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                Lihat Detail
+                            </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }).join('') + `</div>`;
+
+        // Pagination
+        if (data.total > state.limit) {
+            state.totalPages = Math.ceil(data.total / state.limit);
+            paginationEl.style.display = 'flex';
+            paginationEl.innerHTML = `
+                <button class="page-btn" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>
+                    Prev
+                </button>
+                <span class="page-info">Halaman ${state.page} dari ${state.totalPages}</span>
+                <button class="page-btn" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>
+                    Next
+                </button>
+            `;
+
+            paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = Number(btn.dataset.page);
+                    if (p >= 1 && p <= state.totalPages) {
+                        state.page = p;
+                        loadOrders();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                });
+            });
+        } else {
+            paginationEl.style.display = 'none';
+        }
+
+        // Bind action buttons
+        container.querySelectorAll('[data-copy-otp]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const otp = btn.dataset.copyOtp;
+                navigator.clipboard.writeText(otp).then(() => {
+                    const original = btn.innerHTML;
+                    btn.innerHTML = ICONS.check;
+                    setTimeout(() => btn.innerHTML = original, 1200);
+                });
+            });
+        });
+
+        container.querySelectorAll('[data-resend]').forEach(btn => {
+            btn.addEventListener('click', () => resendOrder(btn.dataset.resend, btn));
+        });
+
+        container.querySelectorAll('[data-cancel]').forEach(btn => {
+            btn.addEventListener('click', () => cancelOrder(btn.dataset.cancel, btn));
+        });
+
+        container.querySelectorAll('[data-detail]').forEach(btn => {
+            btn.addEventListener('click', () => showOrderDetail(btn.dataset.detail));
+        });
+    }
+
+    /* ============================================
+       RESEND / CANCEL / DETAIL
+       ============================================ */
+    async function resendOrder(orderId, btn) {
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}/resend`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal resend');
+
+            await showCustomAlert({
+                title: 'Berhasil',
+                message: 'Resend SMS berhasil. Tunggu kode OTP masuk.',
+                type: 'success'
+            });
+            loadOrders(true);
+        } catch (err) {
+            await showCustomAlert({
+                title: 'Gagal',
+                message: err.message,
+                type: 'danger'
+            });
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    }
+
+    async function cancelOrder(orderId, btn) {
+        const ok = await showCustomAlert({
+            title: 'Batalkan Pesanan',
+            message: 'Yakin mau batalkan pesanan ini? Saldo akan dikembalikan sesuai kebijakan.',
+            type: 'warning',
+            okText: 'Ya, Batalkan',
+            showCancel: true
+        });
+        if (!ok) return;
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}/cancel`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
+
+            await showCustomAlert({
+                title: 'Dibatalkan',
+                message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.',
+                type: 'success'
+            });
+
+            CacheManager.remove('user_profile');
+            swrFetch('/api/user', 'user_profile', (user) => {
+                if (!user) return;
+                document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+            });
+
+            loadOrders(true);
+        } catch (err) {
+            await showCustomAlert({
+                title: 'Gagal',
+                message: err.message,
+                type: 'danger'
+            });
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    }
+
+    async function showOrderDetail(orderId) {
+        const card = document.querySelector(`[data-order-id="${orderId}"]`);
+        if (!card) return;
+
+        // Ambil data dari API untuk detail lengkap
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const o = await safeJson(res);
+
+            const statusMap = {
+                success: 'Berhasil', received: 'Berhasil',
+                pending: 'Pending', failed: 'Gagal',
+                cancelled: 'Dibatalkan', expired: 'Expired',
+                refunded: 'Refund'
+            };
+
+            const createdDate = new Date(o.created_at || Date.now()).toLocaleString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            const detailHtml = `
+                <div style="text-align:center;margin-bottom:16px;">
+                    <div style="width:56px;height:56px;border-radius:50%;background:var(--primary-light);border:2px solid var(--border-dark);display:flex;align-items:center;justify-content:center;color:var(--primary);margin:0 auto 12px;">
+                        <svg class="icon-svg" viewBox="0 0 24 24" style="width:26px;height:26px;"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
+                    <h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:4px;">${o.service_name || o.service || '—'}</h3>
+                    <p style="color:var(--text-gray);font-size:0.82rem;">${statusMap[o.status] || o.status}</p>
+                </div>
+                <div style="border:2px solid var(--border-dark);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">ORDER ID</span>
+                        <span style="font-weight:700;font-family:var(--font-mono);word-break:break-all;text-align:right;">${o.order_id || '—'}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">NOMOR</span>
+                        <span style="font-weight:700;font-family:var(--font-mono);">${o.phone_number || '—'}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">NEGARA</span>
+                        <span style="font-weight:700;font-family:var(--font-mono);">${o.country_name || o.country || '—'}</span>
+                    </div>
+                    ${o.operator ? `
+                        <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                            <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">OPERATOR</span>
+                            <span style="font-weight:700;font-family:var(--font-mono);">${o.operator}</span>
+                        </div>
+                    ` : ''}
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">HARGA</span>
+                        <span style="font-weight:800;font-family:var(--font-mono);color:var(--primary);">${formatRupiah(o.price)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">DIBUAT</span>
+                        <span style="font-weight:700;font-family:var(--font-mono);font-size:0.72rem;text-align:right;">${createdDate}</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-block" type="button" onclick="document.getElementById('customAlert').classList.remove('active')">Tutup</button>
+            `;
+
+            const overlay = document.getElementById('customAlert');
+            const iconEl = document.getElementById('customAlertIcon');
+            const titleEl = document.getElementById('customAlertTitle');
+            const msgEl = document.getElementById('customAlertMessage');
+            const actionsEl = document.getElementById('customAlertActions');
+
+            iconEl.className = 'custom-alert-icon info';
+            iconEl.innerHTML = ICONS.info;
+            titleEl.textContent = 'Detail Pesanan';
+            msgEl.innerHTML = '';
+            msgEl.style.textAlign = 'left';
+            msgEl.insertAdjacentHTML('afterbegin', detailHtml);
+            actionsEl.innerHTML = '';
+
+            overlay.classList.add('active');
+        } catch (err) {
+            console.error(err);
+        }
+    }
+
+    /* ============================================
+       TABS
+       ============================================ */
+    document.getElementById('inboxTabs').addEventListener('click', (e) => {
+        const tab = e.target.closest('.inbox-tab');
+        if (!tab) return;
+
+        document.querySelectorAll('.inbox-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        state.status = tab.dataset.status;
+        state.page = 1;
+        loadOrders();
+    });
+
+    /* ============================================
+       AUTO REFRESH (5 detik)
+       ============================================ */
+    function startAutoRefresh() {
+        if (state.refreshInterval) clearInterval(state.refreshInterval);
+        state.refreshInterval = setInterval(() => {
+            if (state.status === 'all' || state.status === 'pending') {
+                loadOrders(true);
+            }
+        }, 5000);
+    }
+
+    /* ============================================
+       LOGOUT
+       ============================================ */
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (err) {}
+
+        CacheManager.clear();
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        window.location.href = '/landing';
+    });
+
+    /* ============================================
+       INIT
+       ============================================ */
+    loadOrders();
+    startAutoRefresh();
+
+    window.addEventListener('beforeunload', () => {
+        if (state.refreshInterval) clearInterval(state.refreshInterval);
+    });
+</script>
+
+</body>
+</html>
