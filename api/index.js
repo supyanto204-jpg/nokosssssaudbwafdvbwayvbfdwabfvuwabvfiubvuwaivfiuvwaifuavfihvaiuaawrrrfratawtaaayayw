@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED)
+// ASYROFOTP - BACKEND API (FULL FIXED v3)
 // ============================================
 
 const express = require('express');
@@ -44,7 +44,7 @@ pool.on('error', (err) => {
 // ===== JWT =====
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    console.error('⚠️  JWT_SECRET belum di-set! Pake default (TIDAK AMAN untuk production).');
+    console.error('⚠️  JWT_SECRET belum di-set!');
 }
 const JWT_SECRET_FINAL = JWT_SECRET || 'asyrofotp-secret-ganti-di-env';
 const JWT_EXPIRES = '7d';
@@ -293,8 +293,29 @@ function generateUniqueCode() {
     return Math.floor(Math.random() * 900) + 100;
 }
 
-function generateReferenceId() {
-    return 'DEP' + Date.now() + Math.floor(Math.random() * 1000);
+// ===== ANTI-DUPLIKAT REFERENCE ID =====
+async function generateUniqueReferenceId(maxRetries = 5) {
+    for (let i = 0; i < maxRetries; i++) {
+        const timestamp = Date.now();
+        const random1 = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const random2 = crypto.randomBytes(2).toString('hex').toUpperCase();
+        const referenceId = `DEP${timestamp}${random1}${random2}`;
+
+        // Cek di DB
+        try {
+            const check = await pool.query(
+                'SELECT 1 FROM deposits WHERE reference_id = $1 LIMIT 1',
+                [referenceId]
+            );
+            if (check.rows.length === 0) {
+                return referenceId;
+            }
+            console.log(`⚠️  Reference ID duplikat: ${referenceId}, retry...`);
+        } catch (err) {
+            console.error('Check reference ID error:', err.message);
+        }
+    }
+    throw new Error('Gagal generate unique reference ID setelah ' + maxRetries + ' percobaan');
 }
 
 // ============================================
@@ -332,7 +353,6 @@ async function initDatabase() {
 
     dbInitPromise = (async () => {
         try {
-            // ===== USERS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS users (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -398,7 +418,6 @@ async function initDatabase() {
 
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
-            // ===== ORDERS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -425,32 +444,19 @@ async function initDatabase() {
                 );
             `);
 
-            // Migration: pastiin semua kolom ada
             const orderCols = [
-                'server TEXT',
-                'service TEXT',
-                'service_name TEXT',
-                'country TEXT',
-                'country_name TEXT',
-                'country_flag TEXT',
-                'operator TEXT',
-                'phone_number TEXT',
-                'otp_code TEXT',
-                'otp_code_2 TEXT',
-                'full_sms TEXT',
-                'price BIGINT DEFAULT 0',
-                'status TEXT DEFAULT \'pending\'',
-                'expires_in INTEGER DEFAULT 0',
-                'resend_count INTEGER DEFAULT 0',
-                'received_at TIMESTAMPTZ',
-                'created_at TIMESTAMPTZ DEFAULT NOW()',
-                'updated_at TIMESTAMPTZ DEFAULT NOW()',
+                'server TEXT', 'service TEXT', 'service_name TEXT',
+                'country TEXT', 'country_name TEXT', 'country_flag TEXT',
+                'operator TEXT', 'phone_number TEXT', 'otp_code TEXT',
+                'otp_code_2 TEXT', 'full_sms TEXT', 'price BIGINT DEFAULT 0',
+                'status TEXT DEFAULT \'pending\'', 'expires_in INTEGER DEFAULT 0',
+                'resend_count INTEGER DEFAULT 0', 'received_at TIMESTAMPTZ',
+                'created_at TIMESTAMPTZ DEFAULT NOW()', 'updated_at TIMESTAMPTZ DEFAULT NOW()',
             ];
             for (const col of orderCols) {
                 await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
-            // ===== TRANSACTIONS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS transactions (
                     id SERIAL PRIMARY KEY,
@@ -469,22 +475,15 @@ async function initDatabase() {
             `);
 
             const txCols = [
-                'order_id TEXT',
-                'service_name TEXT',
-                'country TEXT',
-                'country_flag TEXT',
-                'phone_number TEXT',
-                'otp_code TEXT',
-                'status TEXT DEFAULT \'pending\'',
-                'price BIGINT DEFAULT 0',
-                'created_at TIMESTAMPTZ DEFAULT NOW()',
-                'updated_at TIMESTAMPTZ DEFAULT NOW()',
+                'order_id TEXT', 'service_name TEXT', 'country TEXT',
+                'country_flag TEXT', 'phone_number TEXT', 'otp_code TEXT',
+                'status TEXT DEFAULT \'pending\'', 'price BIGINT DEFAULT 0',
+                'created_at TIMESTAMPTZ DEFAULT NOW()', 'updated_at TIMESTAMPTZ DEFAULT NOW()',
             ];
             for (const col of txCols) {
                 await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
-            // ===== DEPOSITS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS deposits (
                     id SERIAL PRIMARY KEY,
@@ -508,21 +507,14 @@ async function initDatabase() {
             `);
 
             const depositCols = [
-                'unique_code INTEGER',
-                'total_amount BIGINT',
-                'fee BIGINT DEFAULT 0',
-                'qris_id TEXT',
-                'qris_url TEXT',
-                'qris_string TEXT',
-                'payment_reference TEXT',
-                'paid_at TIMESTAMPTZ',
-                'expires_at TIMESTAMPTZ',
+                'unique_code INTEGER', 'total_amount BIGINT', 'fee BIGINT DEFAULT 0',
+                'qris_id TEXT', 'qris_url TEXT', 'qris_string TEXT',
+                'payment_reference TEXT', 'paid_at TIMESTAMPTZ', 'expires_at TIMESTAMPTZ',
             ];
             for (const col of depositCols) {
                 await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
-            // ===== INDEXES =====
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC);`);
@@ -587,6 +579,95 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
 }
 
 // ============================================
+// ===== SYNC SINGLE DEPOSIT (cross-check QRISPY) =====
+// ===== Handle QRISPY + QRIS DANA, expired beneran =====
+// ============================================
+async function syncDepositStatus(deposit) {
+    // Skip kalo udah final
+    if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) {
+        return deposit;
+    }
+
+    const now = new Date();
+    const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
+
+    // ===== QRIS DANA (manual) =====
+    // Cuma bisa expired kalo lewat waktu (ga bisa auto-success, butuh admin approve)
+    if (deposit.method === 'qris_dana') {
+        if (deposit.status === 'pending' && expiresAt && expiresAt < now) {
+            const upd = await pool.query(
+                `UPDATE deposits SET status = 'expired', updated_at = NOW() 
+                 WHERE id = $1 AND status = 'pending' RETURNING *`,
+                [deposit.id]
+            );
+            return upd.rows[0] || deposit;
+        }
+        return deposit;
+    }
+
+    // ===== QRISPY =====
+    if (deposit.method === 'qrispy' && deposit.status === 'pending') {
+        // Cek expired lokal dulu
+        if (expiresAt && expiresAt < now) {
+            // Cross-check ke QRISPY — mungkin user bayar telat
+            if (deposit.qris_id) {
+                try {
+                    const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
+                    if (data.data && data.data.status === 'paid') {
+                        await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                        const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                        return fresh.rows[0];
+                    }
+                    if (data.data && data.data.status === 'expired') {
+                        const upd = await pool.query(
+                            `UPDATE deposits SET status = 'expired', updated_at = NOW() 
+                             WHERE id = $1 AND status = 'pending' RETURNING *`,
+                            [deposit.id]
+                        );
+                        return upd.rows[0] || deposit;
+                    }
+                } catch (err) {
+                    console.error(`Sync ${deposit.reference_id} error:`, err.message);
+                }
+            }
+            // Kalo QRISPY ga confirm paid, set expired
+            const upd = await pool.query(
+                `UPDATE deposits SET status = 'expired', updated_at = NOW() 
+                 WHERE id = $1 AND status = 'pending' RETURNING *`,
+                [deposit.id]
+            );
+            return upd.rows[0] || deposit;
+        }
+
+        // Belum expired — cek QRISPY
+        if (deposit.qris_id) {
+            try {
+                const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
+
+                if (data.data && data.data.status === 'paid') {
+                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                    return fresh.rows[0];
+                }
+
+                if (data.data && data.data.status === 'expired') {
+                    const upd = await pool.query(
+                        `UPDATE deposits SET status = 'expired', updated_at = NOW() 
+                         WHERE id = $1 AND status = 'pending' RETURNING *`,
+                        [deposit.id]
+                    );
+                    return upd.rows[0] || deposit;
+                }
+            } catch (err) {
+                console.error(`Sync ${deposit.reference_id} error:`, err.message);
+            }
+        }
+    }
+
+    return deposit;
+}
+
+// ============================================
 // ===== HEALTH =====
 // ============================================
 app.get('/api/health', async (req, res) => {
@@ -609,17 +690,14 @@ app.get('/api/health', async (req, res) => {
 // ===== AUTH =====
 // ============================================
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), async (req, res) => {
-    try {
-        await initDatabase();
-    } catch (err) {
-        return res.status(500).json({ error: 'Database belum siap' });
-    }
+    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
 
     const { username, password, name } = req.body;
 
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
     if (!isValidUsername(username)) return res.status(400).json({ error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
     if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    if (password.length > 100) return res.status(400).json({ error: 'Password maksimal 100 karakter' });
 
     try {
         const hash = await bcrypt.hash(password, 10);
@@ -638,14 +716,9 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), async (req, res) => {
 });
 
 app.post('/api/auth/login', rateLimit(20, 60 * 1000), async (req, res) => {
-    try {
-        await initDatabase();
-    } catch (err) {
-        return res.status(500).json({ error: 'Database belum siap' });
-    }
+    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
 
     const { username, password } = req.body;
-
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
 
     try {
@@ -783,6 +856,20 @@ app.get('/api/deposit/presets', requireAuth, (req, res) => {
 });
 
 // ============================================
+// ===== DEPOSIT — GENERATE REFERENCE ID =====
+// ============================================
+app.post('/api/deposit/generate-ref', requireAuth, async (req, res) => {
+    try {
+        await initDatabase();
+        const referenceId = await generateUniqueReferenceId();
+        res.json({ reference_id: referenceId });
+    } catch (err) {
+        console.error('Generate ref error:', err);
+        res.status(500).json({ error: 'Gagal generate reference ID' });
+    }
+});
+
+// ============================================
 // ===== DEPOSIT — SAVE QRISPY =====
 // ============================================
 app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
@@ -882,7 +969,7 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
     try {
         const uniqueCode = generateUniqueCode();
         const totalAmount = Number(amount) + uniqueCode;
-        const referenceId = generateReferenceId();
+        const referenceId = await generateUniqueReferenceId();
 
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
@@ -942,43 +1029,17 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'Deposit tidak ditemukan' });
         }
 
-        const deposit = result.rows[0];
+        let deposit = result.rows[0];
 
         if (deposit.status === 'success') {
             return res.json({ status: 'success', deposit });
         }
 
-        if (deposit.status === 'pending' && deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
-            await pool.query(
-                `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
-                [deposit.id]
-            );
-            const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-            return res.json({ status: 'ok', deposit: updated.rows[0] });
-        }
+        // Sync status (handle expired beneran + QRISPY)
+        deposit = await syncDepositStatus(deposit);
 
-        if (deposit.method === 'qrispy' && deposit.status === 'pending' && deposit.qris_id) {
-            try {
-                const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-
-                if (data.data && data.data.status === 'paid') {
-                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
-
-                    const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                    return res.json({ status: 'success', deposit: updated.rows[0] });
-                }
-
-                if (data.data && data.data.status === 'expired') {
-                    await pool.query(
-                        `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
-                        [deposit.id]
-                    );
-                    const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                    return res.json({ status: 'ok', deposit: updated.rows[0] });
-                }
-            } catch (err) {
-                console.error('QRISPY status check error:', err.message);
-            }
+        if (deposit.status === 'success') {
+            return res.json({ status: 'success', deposit });
         }
 
         res.json({ status: 'ok', deposit });
@@ -1030,18 +1091,41 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, async (req, res) => {
 
     try {
         const result = await pool.query(
-            `UPDATE deposits 
-             SET status = 'expired', updated_at = NOW() 
-             WHERE reference_id = $1 AND user_id = $2 AND status = 'pending'
-             RETURNING *`,
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
             [referenceId, req.user.id]
         );
 
         if (result.rows.length === 0) {
-            return res.status(400).json({ error: 'Deposit tidak bisa di-expire' });
+            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
         }
 
-        res.json({ message: 'Deposit expired', deposit: result.rows[0] });
+        const deposit = result.rows[0];
+
+        if (deposit.status !== 'pending') {
+            return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
+        }
+
+        // Kalo QRISPY, cross-check dulu — mungkin aja udah dibayar
+        if (deposit.method === 'qrispy' && deposit.qris_id) {
+            try {
+                const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
+                if (data.data && data.data.status === 'paid') {
+                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                    return res.json({ message: 'Deposit sudah dibayar', deposit: fresh.rows[0] });
+                }
+            } catch (err) {
+                console.error('Cross-check expire error:', err.message);
+            }
+        }
+
+        const upd = await pool.query(
+            `UPDATE deposits SET status = 'expired', updated_at = NOW() 
+             WHERE id = $1 AND status = 'pending' RETURNING *`,
+            [deposit.id]
+        );
+
+        res.json({ message: 'Deposit expired', deposit: upd.rows[0] });
     } catch (err) {
         console.error('Expire deposit error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -1086,7 +1170,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — LIST (PAGINATION) =====
+// ===== DEPOSIT — LIST TRANSAKSI (PAGINATION) =====
 // ============================================
 app.get('/api/deposit/history', requireAuth, async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -1126,7 +1210,7 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — SYNC BATCH =====
+// ===== DEPOSIT — SYNC BATCH (cuma yg keliatan) =====
 // ============================================
 app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
     const { reference_ids } = req.body;
@@ -1149,35 +1233,9 @@ app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
         const updated = [];
 
         for (const deposit of result.rows) {
-            if (deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
-                await pool.query(
-                    `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
-                    [deposit.id]
-                );
-                const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                updated.push(fresh.rows[0]);
-                continue;
-            }
-
-            if (deposit.method === 'qrispy' && deposit.qris_id) {
-                try {
-                    const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-
-                    if (data.data && data.data.status === 'paid') {
-                        await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
-                        const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                        updated.push(fresh.rows[0]);
-                    } else if (data.data && data.data.status === 'expired') {
-                        await pool.query(
-                            `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
-                            [deposit.id]
-                        );
-                        const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                        updated.push(fresh.rows[0]);
-                    }
-                } catch (err) {
-                    console.error(`Sync ${deposit.reference_id} error:`, err.message);
-                }
+            const fresh = await syncDepositStatus(deposit);
+            if (fresh.status !== 'pending') {
+                updated.push(fresh);
             }
         }
 
@@ -1277,24 +1335,37 @@ app.post('/api/webhook/qrispy', async (req, res) => {
 });
 
 // ============================================
-// ===== CRON: AUTO-EXPIRE PENDING =====
+// ===== CRON: AUTO-EXPIRE PENDING DEPOSITS =====
 // ============================================
 app.post('/api/cron/expire-pending-deposits', async (req, res) => {
     try {
         const result = await pool.query(
-            `UPDATE deposits 
-             SET status = 'expired', updated_at = NOW() 
+            `SELECT * FROM deposits 
              WHERE status = 'pending' 
                AND expires_at IS NOT NULL 
                AND expires_at < NOW()
-             RETURNING id, reference_id`
+             LIMIT 50`
         );
 
-        console.log(`⏰ Auto-expired ${result.rowCount} deposits`);
-        res.json({ 
-            message: `Expired ${result.rowCount} deposits`,
-            count: result.rowCount,
-            deposits: result.rows
+        let expired = 0;
+        let synced = 0;
+
+        for (const deposit of result.rows) {
+            // Cross-check dengan syncDepositStatus — bisa jadi udah dibayar telat
+            const fresh = await syncDepositStatus(deposit);
+            if (fresh.status === 'success') {
+                synced++;
+            } else if (fresh.status === 'expired') {
+                expired++;
+            }
+        }
+
+        console.log(`⏰ Cron: expired ${expired}, synced ${synced}`);
+        res.json({
+            message: `Checked ${result.rows.length} deposits`,
+            checked: result.rows.length,
+            expired,
+            synced,
         });
     } catch (err) {
         console.error('Cron expire error:', err);
@@ -1320,25 +1391,12 @@ app.post('/api/cron/sync-pending-qrispy', async (req, res) => {
         let expired = 0;
 
         for (const deposit of result.rows) {
-            try {
-                const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-
-                if (data.data && data.data.status === 'paid') {
-                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
-                    synced++;
-                } else if (data.data && data.data.status === 'expired') {
-                    await pool.query(
-                        `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
-                        [deposit.id]
-                    );
-                    expired++;
-                }
-            } catch (err) {
-                console.error(`Sync deposit ${deposit.reference_id} error:`, err.message);
-            }
+            const fresh = await syncDepositStatus(deposit);
+            if (fresh.status === 'success') synced++;
+            else if (fresh.status === 'expired') expired++;
         }
 
-        res.json({ 
+        res.json({
             message: `Synced ${synced}, expired ${expired}`,
             checked: result.rows.length,
             synced,
@@ -1443,16 +1501,7 @@ app.get('/api/nokos/prices', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== NOKOS — CREATE ORDER (FIXED) =====
-// ============================================
-// FLOW YANG BENER:
-// 1. Cek saldo cukup (pre-check, biar ga spam ke provider)
-// 2. Panggil provider /order → dapet order_id + price
-// 3. Validasi response provider (ada order_id, price, phone_number)
-// 4. Potong saldo ATOMIC: UPDATE users SET balance = balance - price WHERE id = $1 AND balance >= price
-//    → Kalo rowCount = 0, berarti saldo kurang (race condition) → cancel order dari provider → return error
-// 5. INSERT ke orders + transactions
-// 6. Kalo step 5 gagal, refund saldo + cancel order dari provider
+// ===== NOKOS — CREATE ORDER =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, async (req, res) => {
     try {
@@ -1485,20 +1534,17 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
     let userBalanceAtStart = 0;
 
     try {
-        // ===== STEP 1: Pre-check saldo =====
+        // STEP 1: Pre-check saldo
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         userBalanceAtStart = Number(userRes.rows[0].balance);
 
-        // Estimate price dari provider_price (buat pre-check)
         const estimatedPrice = isPremium ? Number(provider_price) : 0;
-
-        // Kalo premium, pre-check pake provider_price
         if (isPremium && userBalanceAtStart < estimatedPrice) {
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // ===== STEP 2: Panggil provider /order =====
+        // STEP 2: Panggil provider
         let orderBody;
         if (isPremium) {
             orderBody = { server, service, country, provider_id, provider_price, operator };
@@ -1517,7 +1563,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             });
         }
 
-        // ===== STEP 3: Validasi response provider =====
+        // STEP 3: Validasi response
         if (!data || !data.order_id) {
             console.error('Provider response invalid:', data);
             return res.status(500).json({ error: 'Provider response tidak valid (no order_id)' });
@@ -1528,7 +1574,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
         phoneNumber = data.phone_number || null;
 
         if (price <= 0) {
-            // Cancel order dari provider karena harga ga valid
             try {
                 await dibananaFetch('/cancel', {
                     method: 'POST',
@@ -1540,8 +1585,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid' });
         }
 
-        // ===== STEP 4: Potong saldo ATOMIC =====
-        // Cuma potong kalo balance >= price
+        // STEP 4: Potong saldo ATOMIC
         const deductRes = await pool.query(
             `UPDATE users 
              SET balance = balance - $1, updated_at = NOW() 
@@ -1551,8 +1595,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
         );
 
         if (deductRes.rowCount === 0) {
-            // Saldo kurang (race condition) → cancel order dari provider
-            console.warn(`⚠️  Saldo tidak cukup untuk user ${req.user.id} | price: ${price} | balance: ${userBalanceAtStart}`);
+            console.warn(`⚠️  Saldo tidak cukup untuk user ${req.user.id} | price: ${price}`);
             try {
                 await dibananaFetch('/cancel', {
                     method: 'POST',
@@ -1564,7 +1607,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // Saldo berhasil dipotong — sekarang insert ke DB
+        // STEP 5: Insert ke DB
         try {
             await pool.query(
                 `INSERT INTO orders 
@@ -1603,7 +1646,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 ]
             );
         } catch (dbErr) {
-            // INSERT gagal — REFUND saldo + cancel order dari provider
+            // ROLLBACK
             console.error('DB insert error, refunding:', dbErr.message);
 
             await pool.query(
@@ -1625,7 +1668,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
 
         cacheDelPattern('prices_');
 
-        // ===== STEP 6: Success =====
         const newBalance = Number(deductRes.rows[0].balance);
 
         res.json({
@@ -1647,12 +1689,9 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
     } catch (err) {
         console.error('Create order error:', err);
 
-        // Kalo ada providerOrderId tapi error di luar try-catch, coba cancel + refund
         if (providerOrderId && price > 0) {
             try {
-                // Cek apakah saldo udah kepotong (dari DB)
                 const checkRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
-                // Kalo saldo sekarang < userBalanceAtStart, berarti udah kepotong → refund
                 if (checkRes.rows.length > 0 && Number(checkRes.rows[0].balance) < userBalanceAtStart) {
                     await pool.query(
                         `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
@@ -1748,7 +1787,6 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
 // ============================================
 // ===== NOKOS — CANCEL ORDER =====
 // ============================================
-// FIXED: Refund cuma kalo order beneran di-cancel + provider refund
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -1757,14 +1795,12 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
 
         const order = orderRes.rows[0];
 
-        // Kalo order udah final, ga bisa cancel
         if (['cancelled', 'expired', 'refunded', 'received'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah tidak bisa dibatalkan' });
         }
 
         const data = await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: Number(orderId) }) });
 
-        // Refund kalo provider bilang refunded
         if (data.refunded && Number(data.refunded) > 0) {
             await pool.query(
                 'UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
@@ -1776,7 +1812,6 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
         await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
 
-        // Ambil balance terbaru
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
 
         res.json({
