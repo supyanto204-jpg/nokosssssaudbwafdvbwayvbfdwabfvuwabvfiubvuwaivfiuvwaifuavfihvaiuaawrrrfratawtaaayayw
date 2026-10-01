@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v4)
+// ASYROFOTP - BACKEND API (FULL FIXED v5)
 // ============================================
 
 const express = require('express');
@@ -77,7 +77,6 @@ const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 
 // ===== AUTO-VALIDATE CONFIG =====
-const AUTO_VALIDATE_INTERVAL_MS = 5000;
 const ORDER_EXPIRY_MS = 15 * 60 * 1000; // 15 menit
 
 // ===== QRIS DANA MANUAL =====
@@ -300,7 +299,7 @@ function generateUniqueCode() {
     return Math.floor(Math.random() * 900) + 100;
 }
 
-// ===== ANTI-DUPLIKAT REFERENCE ID =====
+// ===== ANTI-DUPLIKAT REFERENCE ID (DEPOSIT) =====
 async function generateUniqueReferenceId(maxRetries = 5) {
     for (let i = 0; i < maxRetries; i++) {
         const timestamp = Date.now();
@@ -343,6 +342,44 @@ async function generateOtpReferenceId(maxRetries = 5) {
 }
 
 // ============================================
+// ===== LOG STATUS CHANGE =====
+// ===== Simpen setiap perubahan status ke DB =====
+// ============================================
+async function logStatusChange({
+    entityType,
+    entityId,
+    userId = null,
+    oldStatus = null,
+    newStatus,
+    reason = null,
+    metadata = null,
+}) {
+    if (!newStatus) return;
+    if (oldStatus === newStatus) return;
+
+    try {
+        await pool.query(
+            `INSERT INTO status_logs 
+             (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                entityType,
+                String(entityId),
+                userId,
+                oldStatus,
+                newStatus,
+                reason,
+                metadata ? JSON.stringify(metadata) : null,
+            ]
+        );
+
+        console.log(`📝 Log: [${entityType}] ${entityId} ${oldStatus || 'null'} → ${newStatus} (${reason || 'unknown'})`);
+    } catch (err) {
+        console.error('Log status change error:', err.message);
+    }
+}
+
+// ============================================
 // ===== MIDDLEWARE =====
 // ============================================
 function requireAuth(req, res, next) {
@@ -377,6 +414,7 @@ async function initDatabase() {
 
     dbInitPromise = (async () => {
         try {
+            // ===== USERS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS users (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -442,6 +480,7 @@ async function initDatabase() {
 
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
+            // ===== ORDERS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS orders (
                     id SERIAL PRIMARY KEY,
@@ -485,6 +524,7 @@ async function initDatabase() {
                 await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
+            // ===== TRANSACTIONS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS transactions (
                     id SERIAL PRIMARY KEY,
@@ -512,6 +552,7 @@ async function initDatabase() {
                 await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
+            // ===== DEPOSITS =====
             await pool.query(`
                 CREATE TABLE IF NOT EXISTS deposits (
                     id SERIAL PRIMARY KEY,
@@ -543,6 +584,22 @@ async function initDatabase() {
                 await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS ${col};`);
             }
 
+            // ===== STATUS LOGS =====
+            await pool.query(`
+                CREATE TABLE IF NOT EXISTS status_logs (
+                    id SERIAL PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    old_status TEXT,
+                    new_status TEXT NOT NULL,
+                    reason TEXT,
+                    metadata JSONB,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            `);
+
+            // ===== INDEXES =====
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id);`);
@@ -552,6 +609,8 @@ async function initDatabase() {
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at);`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC);`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC);`);
 
             dbInitialized = true;
             console.log('✅ Database initialized');
@@ -603,6 +662,17 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
         ]
     );
 
+    // LOG
+    await logStatusChange({
+        entityType: 'deposit',
+        entityId: deposit.reference_id,
+        userId: deposit.user_id,
+        oldStatus: deposit.status,
+        newStatus: 'success',
+        reason: 'payment_received',
+        metadata: { saldoMasuk, totalBayar, fee, method: deposit.method },
+    });
+
     console.log(`✅ Deposit ${deposit.reference_id} sukses | Saldo +${saldoMasuk} | Fee ${fee}`);
     return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
 }
@@ -618,6 +688,7 @@ async function syncDepositStatus(deposit) {
     const now = new Date();
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
 
+    // ===== QRIS DANA (manual) =====
     if (deposit.method === 'qris_dana') {
         if (deposit.status === 'pending' && expiresAt && expiresAt < now) {
             const upd = await pool.query(
@@ -625,11 +696,22 @@ async function syncDepositStatus(deposit) {
                  WHERE id = $1 AND status = 'pending' RETURNING *`,
                 [deposit.id]
             );
+            if (upd.rows[0]) {
+                await logStatusChange({
+                    entityType: 'deposit',
+                    entityId: deposit.reference_id,
+                    userId: deposit.user_id,
+                    oldStatus: 'pending',
+                    newStatus: 'expired',
+                    reason: 'expired_qris_dana',
+                });
+            }
             return upd.rows[0] || deposit;
         }
         return deposit;
     }
 
+    // ===== QRISPY =====
     if (deposit.method === 'qrispy' && deposit.status === 'pending') {
         if (expiresAt && expiresAt < now) {
             if (deposit.qris_id) {
@@ -646,6 +728,16 @@ async function syncDepositStatus(deposit) {
                              WHERE id = $1 AND status = 'pending' RETURNING *`,
                             [deposit.id]
                         );
+                        if (upd.rows[0]) {
+                            await logStatusChange({
+                                entityType: 'deposit',
+                                entityId: deposit.reference_id,
+                                userId: deposit.user_id,
+                                oldStatus: 'pending',
+                                newStatus: 'expired',
+                                reason: 'expired_qrispy',
+                            });
+                        }
                         return upd.rows[0] || deposit;
                     }
                 } catch (err) {
@@ -657,6 +749,16 @@ async function syncDepositStatus(deposit) {
                  WHERE id = $1 AND status = 'pending' RETURNING *`,
                 [deposit.id]
             );
+            if (upd.rows[0]) {
+                await logStatusChange({
+                    entityType: 'deposit',
+                    entityId: deposit.reference_id,
+                    userId: deposit.user_id,
+                    oldStatus: 'pending',
+                    newStatus: 'expired',
+                    reason: 'expired_fallback',
+                });
+            }
             return upd.rows[0] || deposit;
         }
 
@@ -676,6 +778,16 @@ async function syncDepositStatus(deposit) {
                          WHERE id = $1 AND status = 'pending' RETURNING *`,
                         [deposit.id]
                     );
+                    if (upd.rows[0]) {
+                        await logStatusChange({
+                            entityType: 'deposit',
+                            entityId: deposit.reference_id,
+                            userId: deposit.user_id,
+                            oldStatus: 'pending',
+                            newStatus: 'expired',
+                            reason: 'expired_qrispy',
+                        });
+                    }
                     return upd.rows[0] || deposit;
                 }
             } catch (err) {
@@ -712,13 +824,16 @@ async function autoCancelAndRefund(order) {
         console.error(`Provider cancel error for ${o.order_id}:`, err.message);
     }
 
-    // Kalo expired tanpa OTP, refund full dari saldo kita
     const refundAmount = providerRefund > 0 ? providerRefund : Number(o.price);
 
-    await pool.query(
+    const updateRes = await pool.query(
         `UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
         [o.id]
     );
+
+    if (updateRes.rowCount === 0) {
+        return { refunded: false, alreadyProcessed: true };
+    }
 
     await pool.query(
         `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
@@ -729,6 +844,22 @@ async function autoCancelAndRefund(order) {
         `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
         [String(o.order_id)]
     );
+
+    // LOG
+    await logStatusChange({
+        entityType: 'order',
+        entityId: o.order_id,
+        userId: o.user_id,
+        oldStatus: 'pending',
+        newStatus: 'expired',
+        reason: 'auto_cancel_expired',
+        metadata: {
+            otp_id: o.otp_id,
+            refunded_amount: refundAmount,
+            provider_refund: providerRefund,
+            price: Number(o.price),
+        },
+    });
 
     console.log(`💰 Auto-refund Rp${refundAmount} to user ${o.user_id} (order ${o.order_id} expired)`);
 
@@ -966,6 +1097,17 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
             [req.user.id, reference_id, 'qrispy', Number(amount), Number(amount), 0, 'pending', qris_id, qris_url, reference_id, new Date(expired_at)]
         );
 
+        // LOG
+        await logStatusChange({
+            entityType: 'deposit',
+            entityId: reference_id,
+            userId: req.user.id,
+            oldStatus: null,
+            newStatus: 'pending',
+            reason: 'qrispy_created',
+            metadata: { amount: Number(amount), method: 'qrispy', qris_id },
+        });
+
         res.json({
             message: 'Deposit tercatat',
             deposit: {
@@ -1002,6 +1144,17 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
             [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, new Date(Date.now() + 30 * 60 * 1000)]
         );
+
+        // LOG
+        await logStatusChange({
+            entityType: 'deposit',
+            entityId: referenceId,
+            userId: req.user.id,
+            oldStatus: null,
+            newStatus: 'pending',
+            reason: 'qris_dana_created',
+            metadata: { amount: Number(amount), unique_code: uniqueCode, total_amount: totalAmount },
+        });
 
         res.json({
             message: 'QRIS DANA berhasil dibuat',
@@ -1113,6 +1266,17 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, async (req, res) => {
             [deposit.id]
         );
 
+        if (upd.rows[0]) {
+            await logStatusChange({
+                entityType: 'deposit',
+                entityId: deposit.reference_id,
+                userId: req.user.id,
+                oldStatus: 'pending',
+                newStatus: 'expired',
+                reason: 'manual_expire',
+            });
+        }
+
         res.json({ message: 'Deposit expired', deposit: upd.rows[0] });
     } catch (err) {
         console.error('Expire deposit error:', err);
@@ -1149,6 +1313,17 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
             `UPDATE deposits SET status = 'cancelled', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
             [deposit.id]
         );
+
+        // LOG
+        await logStatusChange({
+            entityType: 'deposit',
+            entityId: deposit.reference_id,
+            userId: req.user.id,
+            oldStatus: 'pending',
+            newStatus: 'cancelled',
+            reason: 'manual_cancel',
+            metadata: { method: deposit.method, amount: Number(deposit.amount) },
+        });
 
         res.json({ message: 'Deposit dibatalkan' });
     } catch (err) {
@@ -1384,6 +1559,22 @@ app.post('/api/webhook/otp1', async (req, res) => {
             [otpCode || null, String(order.order_id)]
         );
 
+        // LOG
+        await logStatusChange({
+            entityType: 'order',
+            entityId: String(order.order_id),
+            userId: order.user_id,
+            oldStatus: order.status,
+            newStatus: 'received',
+            reason: 'webhook_otp1',
+            metadata: {
+                otp_code: otpCode || null,
+                otp_code_2: otpCode2 || null,
+                has_full_sms: !!fullSms,
+                otp_id: order.otp_id,
+            },
+        });
+
         console.log(`✅ Webhook OTP1: order ${order.order_id} updated with OTP`);
         res.status(200).json({ status: 'ok', message: 'received' });
     } catch (err) {
@@ -1470,6 +1661,22 @@ app.post('/api/cekotp', requireAuth, async (req, res) => {
                     [data.status, data.otp_code, String(order.order_id)]
                 );
 
+                // LOG
+                if (data.status !== order.status) {
+                    await logStatusChange({
+                        entityType: 'order',
+                        entityId: String(order.order_id),
+                        userId: order.user_id,
+                        oldStatus: order.status,
+                        newStatus: data.status,
+                        reason: 'polling_provider',
+                        metadata: {
+                            otp_code: data.otp_code || null,
+                            otp_id: order.otp_id,
+                        },
+                    });
+                }
+
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
@@ -1509,6 +1716,49 @@ app.post('/api/cekotp', requireAuth, async (req, res) => {
         }
     } catch (err) {
         console.error('CekOTP error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== STATUS LOGS — LIHAT RIWAYAT =====
+// ============================================
+app.get('/api/status-logs', requireAuth, async (req, res) => {
+    const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+
+    try {
+        let query = 'SELECT * FROM status_logs WHERE user_id = $1';
+        const params = [req.user.id];
+
+        if (entity_type) {
+            query += ` AND entity_type = $${params.length + 1}`;
+            params.push(entity_type);
+        }
+
+        if (entity_id) {
+            query += ` AND entity_id = $${params.length + 1}`;
+            params.push(String(entity_id));
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limitNum, (pageNum - 1) * limitNum);
+
+        const result = await pool.query(query, params);
+        const countRes = await pool.query(
+            'SELECT COUNT(*) FROM status_logs WHERE user_id = $1',
+            [req.user.id]
+        );
+
+        res.json({
+            logs: result.rows,
+            total: Number(countRes.rows[0].count),
+            page: pageNum,
+            limit: limitNum,
+        });
+    } catch (err) {
+        console.error('Get status logs error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1559,6 +1809,22 @@ app.post('/api/cron/validate-pending-orders', async (req, res) => {
                          WHERE order_id = $3`,
                         [data.status, data.otp_code, String(order.order_id)]
                     );
+
+                    // LOG
+                    if (data.status !== order.status) {
+                        await logStatusChange({
+                            entityType: 'order',
+                            entityId: String(order.order_id),
+                            userId: order.user_id,
+                            oldStatus: order.status,
+                            newStatus: data.status,
+                            reason: 'cron_validate',
+                            metadata: {
+                                otp_code: data.otp_code || null,
+                                otp_id: order.otp_id,
+                            },
+                        });
+                    }
 
                     if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
                         await autoCancelAndRefund(order);
@@ -1846,6 +2112,25 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                     phoneNumber, 'pending', price
                 ]
             );
+
+            // LOG
+            await logStatusChange({
+                entityType: 'order',
+                entityId: String(providerOrderId),
+                userId: req.user.id,
+                oldStatus: null,
+                newStatus: 'pending',
+                reason: 'order_created',
+                metadata: {
+                    otp_id: otpId,
+                    service: service_name || data.service,
+                    country: country || data.country,
+                    price,
+                    phone_number: phoneNumber,
+                    server,
+                    operator: operator || null,
+                },
+            });
         } catch (dbErr) {
             console.error('DB insert error, refunding:', dbErr.message);
 
@@ -1938,9 +2223,25 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
                 `UPDATE transactions SET status = CASE WHEN $1 = 'received' THEN 'success' WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' ELSE status END, otp_code = $2, updated_at = NOW() WHERE order_id = $3`,
                 [data.status, data.otp_code, String(orderId)]
             );
+
+            // LOG
+            if (data.status !== order.status) {
+                await logStatusChange({
+                    entityType: 'order',
+                    entityId: String(order.order_id),
+                    userId: order.user_id,
+                    oldStatus: order.status,
+                    newStatus: data.status,
+                    reason: 'check_status',
+                    metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                });
+            }
         }
 
-        res.json(data);
+        res.json({
+            ...data,
+            otp_id: order.otp_id,
+        });
     } catch (err) {
         console.error('Check status error:', err);
         res.status(err.status || 500).json({ error: err.message, code: err.code });
@@ -1986,6 +2287,20 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
             [data.status, String(orderId)]
         );
 
+        // LOG
+        await logStatusChange({
+            entityType: 'order',
+            entityId: String(orderId),
+            userId: req.user.id,
+            oldStatus: order.status,
+            newStatus: data.status || order.status,
+            reason: 'resend_sms',
+            metadata: {
+                resend_count: order.resend_count + 1,
+                otp_id: order.otp_id,
+            },
+        });
+
         res.json(data);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message, code: err.code });
@@ -2019,6 +2334,20 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
 
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
         await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
+
+        // LOG
+        await logStatusChange({
+            entityType: 'order',
+            entityId: String(orderId),
+            userId: req.user.id,
+            oldStatus: order.status,
+            newStatus: 'cancelled',
+            reason: 'manual_cancel',
+            metadata: {
+                refunded_amount: Number(data.refunded) || 0,
+                otp_id: order.otp_id,
+            },
+        });
 
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
 
@@ -2097,6 +2426,19 @@ app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
                         [data.status, data.otp_code, String(order.order_id)]
                     );
 
+                    // LOG
+                    if (data.status !== order.status) {
+                        await logStatusChange({
+                            entityType: 'order',
+                            entityId: String(order.order_id),
+                            userId: order.user_id,
+                            oldStatus: order.status,
+                            newStatus: data.status,
+                            reason: 'sync_batch',
+                            metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                        });
+                    }
+
                     const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
                     updated.push(fresh.rows[0]);
                 }
@@ -2108,49 +2450,6 @@ app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
         res.json({ updated, count: updated.length });
     } catch (err) {
         console.error('Sync batch orders error:', err);
-        res.status(500).json({ error: 'Server error' });
-    }
-});
-
-// ============================================
-// ===== STATUS LOGS — LIHAT RIWAYAT =====
-// ============================================
-app.get('/api/status-logs', requireAuth, async (req, res) => {
-    const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
-
-    try {
-        let query = 'SELECT * FROM status_logs WHERE user_id = $1';
-        const params = [req.user.id];
-
-        if (entity_type) {
-            query += ` AND entity_type = $${params.length + 1}`;
-            params.push(entity_type);
-        }
-
-        if (entity_id) {
-            query += ` AND entity_id = $${params.length + 1}`;
-            params.push(String(entity_id));
-        }
-
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limitNum, (pageNum - 1) * limitNum);
-
-        const result = await pool.query(query, params);
-        const countRes = await pool.query(
-            'SELECT COUNT(*) FROM status_logs WHERE user_id = $1',
-            [req.user.id]
-        );
-
-        res.json({
-            logs: result.rows,
-            total: Number(countRes.rows[0].count),
-            page: pageNum,
-            limit: limitNum,
-        });
-    } catch (err) {
-        console.error('Get status logs error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
