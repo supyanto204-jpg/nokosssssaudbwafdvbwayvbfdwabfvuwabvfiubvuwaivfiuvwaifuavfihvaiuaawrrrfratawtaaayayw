@@ -20,61 +20,35 @@
         })();
     </script>
     <style>
-        /* ============================================
-           GLOBAL ANTI-SELECT
-           ============================================ */
-        .dashboard-layout,
-        .dashboard-layout * {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
+        .dashboard-layout, .dashboard-layout * {
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-touch-callout: none;
         }
-
-        .dashboard-layout input,
-        .dashboard-layout textarea,
-        .dashboard-layout select,
-        .dashboard-layout code {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
+        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code {
+            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
         }
 
-        /* ============================================
-           INBOX-SPECIFIC
-           ============================================ */
+        /* ===== HERO ===== */
         .inbox-hero {
             display: flex;
             align-items: center;
             gap: 16px;
             margin-bottom: 20px;
         }
-
         .inbox-hero-icon {
-            width: 56px;
-            height: 56px;
+            width: 56px; height: 56px;
             border-radius: 16px;
             background: linear-gradient(135deg, var(--purple), var(--primary-dark));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: white;
             box-shadow: var(--shadow-hard-sm);
             flex-shrink: 0;
             animation: iconPulse 3s ease-in-out infinite;
         }
-
-        .inbox-hero-icon .icon-svg {
-            width: 28px;
-            height: 28px;
-        }
-
+        .inbox-hero-icon .icon-svg { width: 28px; height: 28px; }
         .inbox-hero-text h1 {
-            font-size: 1.8rem;
-            font-weight: 900;
+            font-size: 1.8rem; font-weight: 900;
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             margin-bottom: 4px;
@@ -84,16 +58,13 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-
         .inbox-hero-text p {
             color: var(--text-gray);
             font-size: 0.88rem;
             max-width: 560px;
         }
 
-        /* ============================================
-           TABS
-           ============================================ */
+        /* ===== TABS ===== */
         .inbox-tabs {
             display: flex;
             gap: 6px;
@@ -108,9 +79,7 @@
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
         }
-
         .inbox-tabs::-webkit-scrollbar { display: none; }
-
         .inbox-tab {
             padding: 8px 18px;
             border-radius: 50px;
@@ -126,12 +95,10 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .inbox-tab:hover {
             color: var(--primary);
             transform: translateY(-1px);
         }
-
         .inbox-tab.active {
             background: var(--bg-white);
             color: var(--primary);
@@ -139,15 +106,12 @@
             border: 2px solid var(--border-dark);
         }
 
-        /* ============================================
-           ORDER CARD
-           ============================================ */
+        /* ===== ORDER CARD ===== */
         .orders-list {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
-
         .order-card {
             background: var(--bg-card);
             border: 2px solid var(--border-dark);
@@ -158,17 +122,13 @@
             position: relative;
             overflow: hidden;
         }
-
         .order-card::before {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 4px;
-            height: 100%;
+            left: 0; top: 0;
+            width: 4px; height: 100%;
             background: var(--primary);
         }
-
         .order-card.success::before { background: var(--success); }
         .order-card.pending::before { background: var(--warning); }
         .order-card.expired::before { background: #64748b; }
@@ -192,58 +152,67 @@
             border-bottom: 1px dashed var(--border);
             flex-wrap: wrap;
         }
-
         .order-flag {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
         }
-
-        .order-title-wrap {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .order-title-wrap { flex: 1; min-width: 0; }
         .order-title {
             font-weight: 800;
             font-size: 0.95rem;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-
         .order-ref {
             font-size: 0.7rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
             word-break: break-all;
         }
-
-        .order-status-badge {
-            flex-shrink: 0;
+        .order-ref .otp-id {
+            color: var(--primary);
+            font-weight: 800;
         }
+        .order-status-badge { flex-shrink: 0; }
 
-        /* Order body */
+        /* ===== COUNTDOWN ===== */
+        .order-countdown {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 50px;
+            background: var(--warning-light);
+            border: 1.5px solid var(--warning-dark);
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 0.72rem;
+            color: var(--warning-dark);
+            margin-top: 4px;
+        }
+        [data-theme="dark"] .order-countdown {
+            background: rgba(251, 191, 36, 0.15);
+            color: var(--warning);
+            border-color: var(--warning);
+        }
+        .order-countdown.expired {
+            background: linear-gradient(135deg, #334155, #475569);
+            color: white;
+            border-color: var(--text-dark);
+        }
+        .order-countdown .icon-svg { width: 12px; height: 12px; }
+
+        /* ===== ORDER BODY ===== */
         .order-body {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 12px;
         }
-
-        .order-field {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-
+        .order-field { display: flex; flex-direction: column; gap: 2px; }
         .order-field-label {
             font-size: 0.68rem;
             font-weight: 700;
@@ -252,7 +221,6 @@
             letter-spacing: 0.05em;
             color: var(--text-gray);
         }
-
         .order-field-value {
             font-weight: 700;
             font-size: 0.85rem;
@@ -260,16 +228,10 @@
             color: var(--text-dark);
             word-break: break-all;
         }
+        .order-field-value.price { color: var(--primary); }
+        .order-field-value.success { color: var(--success); }
 
-        .order-field-value.price {
-            color: var(--primary);
-        }
-
-        .order-field-value.success {
-            color: var(--success);
-        }
-
-        /* OTP Box */
+        /* ===== OTP BOX ===== */
         .otp-box {
             background: var(--success-light);
             border: 2px solid var(--success-dark);
@@ -283,51 +245,32 @@
             position: relative;
             overflow: hidden;
         }
-
         [data-theme="dark"] .otp-box {
             background: rgba(16, 185, 129, 0.15);
             border-color: var(--success);
         }
-
         .otp-box::before {
             content: '';
             position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 150px;
-            height: 150px;
+            top: -50%; right: -20%;
+            width: 150px; height: 150px;
             background: radial-gradient(circle, rgba(34, 197, 94, 0.3) 0%, transparent 70%);
             border-radius: 50%;
             animation: glowPulse 3s ease-in-out infinite;
         }
-
         .otp-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
             background: var(--success);
             color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border: 2px solid var(--border-dark);
             position: relative;
             z-index: 1;
         }
-
-        .otp-icon .icon-svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .otp-info {
-            flex: 1;
-            min-width: 0;
-            position: relative;
-            z-index: 1;
-        }
-
+        .otp-icon .icon-svg { width: 20px; height: 20px; }
+        .otp-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
         .otp-info-label {
             font-size: 0.68rem;
             font-weight: 700;
@@ -337,7 +280,6 @@
             color: var(--success-dark);
             margin-bottom: 2px;
         }
-
         .otp-info-value {
             font-size: 1.5rem;
             font-weight: 900;
@@ -346,21 +288,14 @@
             letter-spacing: 0.15em;
             word-break: break-all;
         }
-
-        [data-theme="dark"] .otp-info-value {
-            color: var(--success);
-        }
-
+        [data-theme="dark"] .otp-info-value { color: var(--success); }
         .otp-copy {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
             color: var(--text-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             cursor: pointer;
             transition: all var(--transition);
             flex-shrink: 0;
@@ -369,20 +304,15 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .otp-copy:hover {
             background: var(--success);
             color: white;
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
+        .otp-copy .icon-svg { width: 18px; height: 18px; }
 
-        .otp-copy .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        /* Pending state */
+        /* ===== PENDING ===== */
         .pending-box {
             background: var(--warning-light);
             border: 2px dashed var(--warning);
@@ -396,35 +326,29 @@
             font-size: 0.82rem;
             font-weight: 600;
         }
-
         [data-theme="dark"] .pending-box {
             background: rgba(251, 191, 36, 0.15);
             color: var(--warning);
         }
-
         .pending-box .loading-spinner {
-            width: 18px;
-            height: 18px;
+            width: 18px; height: 18px;
             border-width: 2px;
             border-color: rgba(245, 158, 11, 0.3);
             border-top-color: var(--warning);
         }
 
-        /* Order actions */
+        /* ===== ACTIONS ===== */
         .order-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
         }
-
         .order-actions .btn {
             flex: 1;
             min-width: 120px;
         }
 
-        /* ============================================
-           EMPTY & LOADING
-           ============================================ */
+        /* ===== EMPTY & LOADING ===== */
         .empty-inbox {
             text-align: center;
             padding: 60px 20px;
@@ -433,27 +357,18 @@
             border-radius: var(--radius);
             color: var(--text-gray);
         }
-
         .empty-inbox .icon-box {
-            width: 72px;
-            height: 72px;
+            width: 72px; height: 72px;
             margin: 0 auto 16px;
             border-radius: 20px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             animation: float 3s ease-in-out infinite;
         }
-
-        .empty-inbox .icon-box .icon-svg {
-            width: 32px;
-            height: 32px;
-        }
-
+        .empty-inbox .icon-box .icon-svg { width: 32px; height: 32px; }
         .empty-inbox h3 {
             font-size: 1.05rem;
             font-weight: 800;
@@ -461,11 +376,7 @@
             color: var(--text-dark);
             margin-bottom: 6px;
         }
-
-        .empty-inbox p {
-            font-size: 0.85rem;
-            margin-bottom: 16px;
-        }
+        .empty-inbox p { font-size: 0.85rem; margin-bottom: 16px; }
 
         .skeleton-order {
             background: var(--bg-card);
@@ -474,7 +385,6 @@
             padding: 18px;
             margin-bottom: 12px;
         }
-
         .skeleton-line {
             height: 14px;
             background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border) 50%, var(--bg-hover) 75%);
@@ -484,9 +394,7 @@
             margin-bottom: 8px;
         }
 
-        /* ============================================
-           PAGINATION
-           ============================================ */
+        /* ===== PAGINATION ===== */
         .pagination {
             display: flex;
             align-items: center;
@@ -495,7 +403,6 @@
             margin-top: 24px;
             flex-wrap: wrap;
         }
-
         .page-btn {
             min-width: 40px;
             height: 40px;
@@ -516,24 +423,20 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .page-btn:hover:not(:disabled) {
             background: var(--primary);
             color: white;
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
-
         .page-btn:active:not(:disabled) {
             transform: translate(1px, 1px);
             box-shadow: none;
         }
-
         .page-btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
         }
-
         .page-info {
             font-family: var(--font-mono);
             font-size: 0.82rem;
@@ -541,12 +444,9 @@
             padding: 0 8px;
         }
 
-        /* ============================================
-           FLAG
-           ============================================ */
+        /* ===== FLAG ===== */
         .flag-img {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             border-radius: 4px;
             border: 1.5px solid var(--border-dark);
             box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
@@ -556,9 +456,7 @@
             background: var(--bg-light);
         }
 
-        /* ============================================
-           RESPONSIVE
-           ============================================ */
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .inbox-hero-text h1 { font-size: 1.4rem; }
             .inbox-hero-icon { width: 48px; height: 48px; }
@@ -624,6 +522,17 @@
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <span class="nav-label">Deposit</span>
             </a>
+
+            <div class="nav-section-label">Bantuan</div>
+            <a href="/ketentuan" class="nav-item" data-tooltip="Ketentuan">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span class="nav-label">Ketentuan</span>
+            </a>
+            <a href="/syarat" class="nav-item" data-tooltip="Syarat">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span class="nav-label">Syarat</span>
+            </a>
+
             <div class="nav-section-label">Akun</div>
             <a href="/profile" class="nav-item" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -653,7 +562,6 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- MAIN -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -661,6 +569,9 @@
                 <p>Riwayat pesanan & kode OTP kamu</p>
             </div>
             <div class="topbar-right">
+                <button class="icon-btn" id="refreshBtn" title="Refresh" type="button">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
                 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
                     <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
                     <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
@@ -676,7 +587,6 @@
             </div>
         </div>
 
-        <!-- HERO -->
         <div class="inbox-hero">
             <div class="inbox-hero-icon">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
@@ -687,7 +597,6 @@
             </div>
         </div>
 
-        <!-- TABS -->
         <div class="inbox-tabs" id="inboxTabs">
             <button class="inbox-tab active" type="button" data-status="all">Semua</button>
             <button class="inbox-tab" type="button" data-status="pending">Pending</button>
@@ -695,19 +604,16 @@
             <button class="inbox-tab" type="button" data-status="failed">Gagal</button>
         </div>
 
-        <!-- ORDERS -->
         <div id="ordersContainer">
             <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
             <div class="skeleton-order"><div class="skeleton-line" style="width:55%"></div><div class="skeleton-line" style="width:45%"></div></div>
             <div class="skeleton-order"><div class="skeleton-line" style="width:65%"></div><div class="skeleton-line" style="width:35%"></div></div>
         </div>
 
-        <!-- PAGINATION -->
         <div class="pagination" id="pagination" style="display:none;"></div>
     </main>
 </div>
 
-<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item" data-page="dashboard">
@@ -735,7 +641,6 @@
     </div>
 </nav>
 
-<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -765,11 +670,9 @@
         key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+        clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
     };
 
-    /* ============================================
-       CUSTOM ALERT
-       ============================================ */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('customAlert');
@@ -810,9 +713,7 @@
         });
     }
 
-    /* ============================================
-       THEME
-       ============================================ */
+    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -826,9 +727,7 @@
         });
     })();
 
-    /* ============================================
-       SIDEBAR
-       ============================================ */
+    /* ===== SIDEBAR ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -902,9 +801,7 @@
         });
     })();
 
-    /* ============================================
-       FLAG RENDERER (multi fallback)
-       ============================================ */
+    /* ===== FLAG ===== */
     function countryCodeToTwemoji(countryCode) {
         const code = (countryCode || '').toUpperCase();
         if (code.length !== 2) return null;
@@ -955,20 +852,17 @@
         }
     };
 
-    /* ============================================
-       STATE
-       ============================================ */
+    /* ===== STATE ===== */
     let state = {
         status: 'all',
         page: 1,
         limit: 10,
         totalPages: 1,
         refreshInterval: null,
+        countdownIntervals: {},
     };
 
-    /* ============================================
-       LOAD USER
-       ============================================ */
+    /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
@@ -977,9 +871,7 @@
         document.getElementById('balancePill').textContent = formatRupiah(user.balance);
     });
 
-    /* ============================================
-       LOAD ORDERS
-       ============================================ */
+    /* ===== LOAD ORDERS ===== */
     async function loadOrders(silent = false) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
@@ -998,7 +890,6 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
-
             renderOrders(data);
         } catch (err) {
             console.error('Load orders error:', err);
@@ -1014,9 +905,7 @@
         }
     }
 
-    /* ============================================
-       RENDER ORDERS
-       ============================================ */
+    /* ===== RENDER ===== */
     function renderOrders(data) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
@@ -1045,7 +934,7 @@
             pending: { class: 'pending', label: 'Pending', icon: ICONS.info },
             failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
             cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
-            expired: { class: 'expired', label: 'Expired', icon: ICONS.info },
+            expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
             refunded: { class: 'refunded', label: 'Refund', icon: ICONS.refresh },
         };
 
@@ -1053,11 +942,18 @@
             const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
             const hasOtp = o.otp_code && o.otp_code.trim();
             const isPending = o.status === 'pending';
+            const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
+            const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
+            const mins = Math.floor(expiresIn / 60);
+            const secs = expiresIn % 60;
+            const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 
             const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
                 day: '2-digit', month: 'short', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
             });
+
+            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : 'danger');
 
             return `
                 <div class="order-card ${s.class}" data-order-id="${o.order_id}">
@@ -1068,10 +964,12 @@
                                 ${o.service_name || o.service || '—'}
                                 ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${o.operator}</span>` : ''}
                             </div>
-                            <div class="order-ref">${o.order_id || '—'}</div>
+                            <div class="order-ref">
+                                <span class="otp-id">${otpId}</span> · ${o.order_id || '—'}
+                            </div>
                         </div>
                         <div class="order-status-badge">
-                            <span class="badge ${s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : s.class === 'expired' ? 'gray' : 'danger'}">${s.label}</span>
+                            <span class="badge ${badgeClass}">${s.label}</span>
                         </div>
                     </div>
 
@@ -1094,6 +992,13 @@
                         </div>
                     </div>
 
+                    ${isPending && !hasOtp && expiresIn > 0 ? `
+                        <div class="order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
+                            ${ICONS.clock}
+                            <span class="countdown-text">${timeText}</span> tersisa
+                        </div>
+                    ` : ''}
+
                     ${hasOtp ? `
                         <div class="otp-box">
                             <div class="otp-icon">${ICONS.key}</div>
@@ -1113,16 +1018,18 @@
                     ` : isPending ? `
                         <div class="pending-box">
                             <span class="loading-spinner"></span>
-                            <span>Menunggu kode OTP masuk... Refresh otomatis tiap 5 detik.</span>
+                            <span>Menunggu kode OTP masuk... auto-refresh tiap 5 detik.</span>
                         </div>
                     ` : ''}
 
                     <div class="order-actions">
                         ${isPending ? `
-                            <button class="btn" type="button" data-resend="${o.order_id}">
-                                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-                                Resend SMS
-                            </button>
+                            ${hasOtp ? `
+                                <button class="btn" type="button" data-resend="${o.order_id}">
+                                    ${ICONS.refresh}
+                                    Resend SMS
+                                </button>
+                            ` : ''}
                             <button class="btn btn-danger" type="button" data-cancel="${o.order_id}">
                                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                 Batalkan
@@ -1166,7 +1073,7 @@
             paginationEl.style.display = 'none';
         }
 
-        // Bind action buttons
+        // Bind actions
         container.querySelectorAll('[data-copy-otp]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const otp = btn.dataset.copyOtp;
@@ -1189,11 +1096,84 @@
         container.querySelectorAll('[data-detail]').forEach(btn => {
             btn.addEventListener('click', () => showOrderDetail(btn.dataset.detail));
         });
+
+        // Countdown
+        startCountdowns();
     }
 
-    /* ============================================
-       RESEND / CANCEL / DETAIL
-       ============================================ */
+    /* ===== COUNTDOWN ===== */
+    function startCountdowns() {
+        Object.values(state.countdownIntervals).forEach(clearInterval);
+        state.countdownIntervals = {};
+
+        document.querySelectorAll('.order-countdown').forEach(el => {
+            const orderId = el.dataset.orderId;
+            let remaining = parseInt(el.dataset.expires || '0', 10);
+            const textEl = el.querySelector('.countdown-text');
+
+            if (remaining <= 0) {
+                el.classList.add('expired');
+                if (textEl) textEl.textContent = 'EXPIRED';
+                return;
+            }
+
+            if (state.countdownIntervals[orderId]) clearInterval(state.countdownIntervals[orderId]);
+
+            function tick() {
+                if (remaining <= 0) {
+                    el.classList.add('expired');
+                    if (textEl) textEl.textContent = 'EXPIRED';
+                    clearInterval(state.countdownIntervals[orderId]);
+                    setTimeout(() => loadOrders(true), 500);
+                    return;
+                }
+                const m = Math.floor(remaining / 60);
+                const s = remaining % 60;
+                if (textEl) textEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                remaining--;
+            }
+
+            tick();
+            state.countdownIntervals[orderId] = setInterval(tick, 1000);
+        });
+    }
+
+    /* ===== POLLING PENDING ===== */
+    async function pollPendingOrders(orders) {
+        const pending = orders.filter(o => o.status === 'pending' && (!o.otp_code || !o.otp_code.trim()));
+        if (pending.length === 0) return;
+
+        for (const o of pending) {
+            try {
+                const res = await fetch('/api/cekotp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ order_id: o.order_id, otp_id: o.otp_id })
+                });
+                const data = await safeJson(res);
+
+                if (data.updated || data.otp_code || data.status !== 'pending') {
+                    loadOrders(true);
+                    if (data.otp_code) {
+                        CacheManager.remove('user_profile');
+                        swrFetch('/api/user', 'user_profile', (user) => {
+                            if (!user) return;
+                            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                        });
+                    }
+                    return;
+                }
+            } catch (err) {
+                console.error(`Poll order ${o.order_id} error:`, err);
+            }
+        }
+    }
+
+    /* ===== RESEND ===== */
     async function resendOrder(orderId, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
@@ -1208,14 +1188,14 @@
             if (!res.ok) throw new Error(data.error || 'Gagal resend');
 
             await showCustomAlert({
-                title: 'Berhasil',
-                message: 'Resend SMS berhasil. Tunggu kode OTP masuk.',
+                title: 'Resend Berhasil',
+                message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.',
                 type: 'success'
             });
             loadOrders(true);
         } catch (err) {
             await showCustomAlert({
-                title: 'Gagal',
+                title: 'Gagal Resend',
                 message: err.message,
                 type: 'danger'
             });
@@ -1224,6 +1204,7 @@
         }
     }
 
+    /* ===== CANCEL ===== */
     async function cancelOrder(orderId, btn) {
         const ok = await showCustomAlert({
             title: 'Batalkan Pesanan',
@@ -1271,11 +1252,8 @@
         }
     }
 
+    /* ===== DETAIL ===== */
     async function showOrderDetail(orderId) {
-        const card = document.querySelector(`[data-order-id="${orderId}"]`);
-        if (!card) return;
-
-        // Ambil data dari API untuk detail lengkap
         try {
             const res = await fetch(`/api/nokos/order/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1289,10 +1267,13 @@
                 refunded: 'Refund'
             };
 
-            const createdDate = new Date(o.created_at || Date.now()).toLocaleString('id-ID', {
-                day: '2-digit', month: 'long', year: 'numeric',
-                hour: '2-digit', minute: '2-digit', second: '2-digit'
-            });
+            const formatDate = (date) => {
+                if (!date) return '—';
+                return new Date(date).toLocaleString('id-ID', {
+                    day: '2-digit', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+            };
 
             const detailHtml = `
                 <div style="text-align:center;margin-bottom:16px;">
@@ -1303,6 +1284,10 @@
                     <p style="color:var(--text-gray);font-size:0.82rem;">${statusMap[o.status] || o.status}</p>
                 </div>
                 <div style="border:2px solid var(--border-dark);border-radius:10px;overflow:hidden;margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                        <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">OTP ID</span>
+                        <span style="font-weight:800;font-family:var(--font-mono);color:var(--primary);">${o.otp_id || '—'}</span>
+                    </div>
                     <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
                         <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">ORDER ID</span>
                         <span style="font-weight:700;font-family:var(--font-mono);word-break:break-all;text-align:right;">${o.order_id || '—'}</span>
@@ -1325,9 +1310,15 @@
                         <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">HARGA</span>
                         <span style="font-weight:800;font-family:var(--font-mono);color:var(--primary);">${formatRupiah(o.price)}</span>
                     </div>
+                    ${o.otp_code ? `
+                        <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                            <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">OTP</span>
+                            <span style="font-weight:800;font-family:var(--font-mono);color:var(--success);letter-spacing:0.1em;">${o.otp_code}</span>
+                        </div>
+                    ` : ''}
                     <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:0.82rem;">
                         <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">DIBUAT</span>
-                        <span style="font-weight:700;font-family:var(--font-mono);font-size:0.72rem;text-align:right;">${createdDate}</span>
+                        <span style="font-weight:700;font-family:var(--font-mono);font-size:0.72rem;text-align:right;">${formatDate(o.created_at)}</span>
                     </div>
                 </div>
                 <button class="btn btn-primary btn-block" type="button" onclick="document.getElementById('customAlert').classList.remove('active')">Tutup</button>
@@ -1353,9 +1344,7 @@
         }
     }
 
-    /* ============================================
-       TABS
-       ============================================ */
+    /* ===== TABS ===== */
     document.getElementById('inboxTabs').addEventListener('click', (e) => {
         const tab = e.target.closest('.inbox-tab');
         if (!tab) return;
@@ -1368,21 +1357,33 @@
         loadOrders();
     });
 
-    /* ============================================
-       AUTO REFRESH (5 detik)
-       ============================================ */
+    /* ===== REFRESH BUTTON ===== */
+    document.getElementById('refreshBtn').addEventListener('click', async function() {
+        const btn = this;
+        btn.classList.add('spinning');
+        await loadOrders(true);
+        setTimeout(() => btn.classList.remove('spinning'), 500);
+    });
+
+    /* ===== AUTO REFRESH ===== */
     function startAutoRefresh() {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
-        state.refreshInterval = setInterval(() => {
+        state.refreshInterval = setInterval(async () => {
             if (state.status === 'all' || state.status === 'pending') {
+                const container = document.getElementById('ordersContainer');
+                const cards = container.querySelectorAll('.order-card.pending');
+                const pendingOrders = Array.from(cards).map(c => ({
+                    order_id: c.dataset.orderId,
+                }));
+                if (pendingOrders.length > 0) {
+                    await pollPendingOrders(pendingOrders);
+                }
                 loadOrders(true);
             }
         }, 5000);
     }
 
-    /* ============================================
-       LOGOUT
-       ============================================ */
+    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -1397,14 +1398,13 @@
         window.location.href = '/landing';
     });
 
-    /* ============================================
-       INIT
-       ============================================ */
+    /* ===== INIT ===== */
     loadOrders();
     startAutoRefresh();
 
     window.addEventListener('beforeunload', () => {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
+        Object.values(state.countdownIntervals).forEach(clearInterval);
     });
 </script>
 
