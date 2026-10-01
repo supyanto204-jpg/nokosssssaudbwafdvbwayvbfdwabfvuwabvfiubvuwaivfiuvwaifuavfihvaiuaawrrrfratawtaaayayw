@@ -5,13 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
     <title>Dashboard - AsyrofOTP</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/core.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
     <script>
         (function() {
             const theme = localStorage.getItem('asyrofotp_theme') || 'light';
@@ -44,112 +45,195 @@
         /* ============================================
            DASHBOARD-SPECIFIC
            ============================================ */
-
-        /* Fix untuk user code */
-        .user-code-display {
-            cursor: pointer;
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
         }
 
-        /* Fix tabel di mobile */
-        .table-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
         }
 
-        .table-wrapper table {
-            min-width: 100%;
+        .stat-card:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hard-lg);
         }
 
-        /* Refresh button */
-        .icon-btn {
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            opacity: 0.15;
+            transform: translate(30%, -30%);
+        }
+
+        .stat-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .stat-blue::before { background: var(--primary); }
+        .stat-blue::after { background: var(--primary); }
+        .stat-green::before { background: var(--success); }
+        .stat-green::after { background: var(--success); }
+        .stat-yellow::before { background: var(--warning); }
+        .stat-yellow::after { background: var(--warning); }
+        .stat-red::before { background: var(--danger); }
+        .stat-red::after { background: var(--danger); }
+
+        .stat-icon {
             width: 40px;
             height: 40px;
-            border-radius: 10px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
+            border-radius: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            flex-shrink: 0;
-            padding: 0;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            border: 2px solid var(--border-dark);
+            margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
         }
 
-        .icon-btn:hover {
-            background: var(--primary);
-            color: white;
-            transform: translate(-1px, -1px);
+        .stat-icon.blue { background: var(--primary-light); color: var(--primary); }
+        .stat-icon.green { background: var(--success-light); color: var(--success); }
+        .stat-icon.yellow { background: var(--warning-light); color: var(--warning); }
+        .stat-icon.red { background: var(--danger-light); color: var(--danger); }
+
+        .stat-icon .icon-svg { width: 20px; height: 20px; }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-gray);
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            letter-spacing: -0.03em;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Quick actions */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .quick-action {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
+            text-decoration: none;
+            color: var(--text-dark);
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
         }
 
-        .icon-btn:active {
-            transform: translate(1px, 1px);
-            box-shadow: none;
+        .quick-action:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hard-lg);
         }
 
-        .icon-btn .icon-svg {
-            width: 18px;
-            height: 18px;
+        .quick-action .icon-box {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all var(--transition);
         }
 
-        .icon-btn.spinning .icon-svg {
-            animation: spin 0.8s linear infinite;
+        .quick-action:hover .icon-box {
+            transform: scale(1.1) rotate(5deg);
         }
 
-        /* Quick action improvements */
-        .quick-action .qa-text {
+        .quick-action .icon-svg { width: 20px; height: 20px; }
+
+        .qa-blue .icon-box { background: var(--primary-light); color: var(--primary); }
+        .qa-green .icon-box { background: var(--success-light); color: var(--success); }
+        .qa-purple .icon-box { background: var(--purple-light); color: var(--purple); }
+        .qa-orange .icon-box { background: var(--orange-light); color: var(--orange); }
+
+        .qa-blue:hover { border-color: var(--primary); color: var(--primary); }
+        .qa-green:hover { border-color: var(--success); color: var(--success); }
+        .qa-purple:hover { border-color: var(--purple); color: var(--purple); }
+        .qa-orange:hover { border-color: var(--orange); color: var(--orange); }
+
+        .qa-text {
             display: flex;
             flex-direction: column;
             gap: 2px;
             min-width: 0;
         }
 
-        .quick-action .qa-title {
+        .qa-title {
             font-size: 0.9rem;
             font-weight: 700;
             line-height: 1.2;
         }
 
-        .quick-action .qa-desc {
+        .qa-desc {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-weight: 500;
             line-height: 1.2;
         }
 
-        /* Stat card with icon in corner */
-        .stat-card {
-            position: relative;
+        /* User code */
+        .user-code-display {
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: var(--primary);
+            background: var(--bg-white);
+            padding: 12px 20px;
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border-dark);
+            letter-spacing: 0.05em;
+            transition: all var(--transition);
+            word-break: break-all;
         }
 
-        .stat-card .stat-top {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 4px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .stat-card .stat-info {
-            flex: 1;
-            min-width: 0;
-        }
-
-        /* Skeleton untuk tabel */
-        .skeleton-row {
-            display: flex;
-            gap: 12px;
-            padding: 14px 16px;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .skeleton-row .skeleton {
-            height: 14px;
+        .user-code-display:hover {
+            box-shadow: var(--shadow-glow);
+            transform: scale(1.02);
         }
 
         /* Welcome banner */
@@ -251,261 +335,150 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
 
-        .welcome-banner-cta:active {
-            transform: translate(1px, 1px);
-        }
-
         .welcome-banner-cta .icon-svg {
             width: 14px;
             height: 14px;
         }
 
-        /* ============================================
-           MOBILE TIGHTENING — biar ga kerasa penuh
-           ============================================ */
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border-dark);
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88rem;
+            min-width: 500px;
+        }
+
+        thead {
+            background: var(--bg-light);
+            border-bottom: 2px solid var(--border-dark);
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-dark);
+        }
+
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr:hover { background: var(--primary-light); }
+
+        .skeleton-row {
+            display: flex;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .skeleton-row .skeleton {
+            height: 14px;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .quick-actions { grid-template-columns: repeat(2, 1fr); }
+        }
+
         @media (max-width: 768px) {
-            /* Main content — kurangin padding */
-            .main-content {
-                padding: 12px 12px calc(var(--taskbar-height) + 16px) !important;
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-bottom: 14px;
             }
 
-            /* Topbar — stack & kecilin */
-            .topbar {
-                margin-bottom: 16px !important;
-                gap: 10px !important;
+            .stat-card { padding: 12px; gap: 4px; border-radius: 12px; }
+            .stat-icon { width: 32px; height: 32px; border-radius: 9px; margin-bottom: 2px; }
+            .stat-icon .icon-svg { width: 16px; height: 16px; }
+            .stat-label { font-size: 0.68rem; }
+            .stat-value { font-size: 1.1rem; }
+
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                margin-bottom: 14px;
             }
 
-            .topbar-left h1 {
-                font-size: 1.15rem !important;
-                margin-bottom: 2px !important;
+            .quick-action { padding: 12px; gap: 10px; border-radius: 12px; }
+            .quick-action .icon-box { width: 34px; height: 34px; border-radius: 9px; }
+            .quick-action .icon-box .icon-svg { width: 16px; height: 16px; }
+            .qa-title { font-size: 0.8rem; }
+            .qa-desc { font-size: 0.65rem; }
+
+            .user-code-display {
+                font-size: 0.82rem;
+                padding: 10px 12px;
+                letter-spacing: 0.02em;
+                border-radius: 8px;
             }
 
-            .topbar-left p {
-                font-size: 0.78rem !important;
-            }
-
-            .topbar-right {
-                gap: 8px !important;
-            }
-
-            .balance-pill {
-                padding: 5px 10px !important;
-                font-size: 0.78rem !important;
-            }
-
-            .balance-pill .label {
-                display: none !important;
-            }
-
-            .balance-pill .amount {
-                font-size: 0.82rem !important;
-            }
-
-            .theme-toggle,
-            .icon-btn {
-                width: 34px !important;
-                height: 34px !important;
-                border-radius: 9px !important;
-            }
-
-            .theme-toggle .icon-svg,
-            .icon-btn .icon-svg {
-                width: 16px !important;
-                height: 16px !important;
-            }
-
-            /* Welcome banner — compact */
             .welcome-banner {
-                padding: 14px 16px !important;
-                margin-bottom: 14px !important;
-                border-radius: 12px !important;
+                padding: 14px 16px;
+                margin-bottom: 14px;
+                border-radius: 12px;
             }
 
             .welcome-banner-icon {
-                width: 42px !important;
-                height: 42px !important;
-                border-radius: 11px !important;
+                width: 42px;
+                height: 42px;
+                border-radius: 11px;
             }
 
             .welcome-banner-icon .icon-svg {
-                width: 20px !important;
-                height: 20px !important;
+                width: 20px;
+                height: 20px;
             }
 
-            .welcome-banner-text h2 {
-                font-size: 0.95rem !important;
-            }
-
-            .welcome-banner-text p {
-                font-size: 0.72rem !important;
-            }
+            .welcome-banner-text h2 { font-size: 0.95rem; }
+            .welcome-banner-text p { font-size: 0.72rem; }
 
             .welcome-banner-cta {
-                padding: 6px 12px !important;
-                font-size: 0.72rem !important;
-            }
-
-            /* Stats — 2 kolom */
-            .stats-grid {
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 8px !important;
-                margin-bottom: 14px !important;
-            }
-
-            .stat-card {
-                padding: 12px !important;
-                gap: 4px !important;
-                border-radius: 12px !important;
-            }
-
-            .stat-icon {
-                width: 32px !important;
-                height: 32px !important;
-                border-radius: 9px !important;
-                margin-bottom: 2px !important;
-            }
-
-            .stat-icon .icon-svg {
-                width: 16px !important;
-                height: 16px !important;
-            }
-
-            .stat-label {
-                font-size: 0.68rem !important;
-            }
-
-            .stat-value {
-                font-size: 1.1rem !important;
-            }
-
-            /* User code card */
-            .card {
-                padding: 14px !important;
-                margin-bottom: 12px !important;
-                border-radius: 12px !important;
-            }
-
-            .card-header {
-                margin-bottom: 12px !important;
-                gap: 8px !important;
-            }
-
-            .card-header h2 {
-                font-size: 0.95rem !important;
-            }
-
-            .card-header p {
-                font-size: 0.72rem !important;
-            }
-
-            .user-code-display {
-                font-size: 0.82rem !important;
-                padding: 10px 12px !important;
-                letter-spacing: 0.02em !important;
-                border-radius: 8px !important;
-            }
-
-            /* Quick actions — 2 kolom */
-            .quick-actions {
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 8px !important;
-                margin-bottom: 14px !important;
-            }
-
-            .quick-action {
-                padding: 12px !important;
-                gap: 10px !important;
-                border-radius: 12px !important;
-            }
-
-            .quick-action .icon-box {
-                width: 34px !important;
-                height: 34px !important;
-                border-radius: 9px !important;
-            }
-
-            .quick-action .icon-box .icon-svg {
-                width: 16px !important;
-                height: 16px !important;
-            }
-
-            .quick-action .qa-title {
-                font-size: 0.8rem !important;
-            }
-
-            .quick-action .qa-desc {
-                font-size: 0.65rem !important;
-            }
-
-            /* Tabel — compact */
-            .table-wrapper {
-                border-radius: 10px !important;
+                padding: 6px 12px;
+                font-size: 0.72rem;
             }
 
             table {
-                font-size: 0.75rem !important;
-                min-width: 480px !important;
+                font-size: 0.75rem;
+                min-width: 480px;
             }
 
-            th {
-                padding: 8px 10px !important;
-                font-size: 0.65rem !important;
-            }
-
-            td {
-                padding: 10px 10px !important;
-            }
+            th { padding: 8px 10px; font-size: 0.65rem; }
+            td { padding: 10px 10px; }
 
             .badge {
-                font-size: 0.6rem !important;
-                padding: 3px 7px !important;
+                font-size: 0.6rem;
+                padding: 3px 7px;
             }
 
-            /* Skeleton row */
-            .skeleton-row {
-                padding: 10px 12px !important;
-                gap: 8px !important;
-            }
-
-            /* Hide stats-grid gap yang berlebihan */
-            .stat-card:hover {
-                transform: none !important;
-            }
+            .skeleton-row { padding: 10px 12px; gap: 8px; }
         }
 
         @media (max-width: 480px) {
-            .main-content {
-                padding: 10px 10px calc(var(--taskbar-height) + 14px) !important;
-            }
-
-            .topbar-left h1 {
-                font-size: 1rem !important;
-            }
-
-            .welcome-banner {
-                padding: 12px 14px !important;
-            }
-
-            .welcome-banner-cta {
-                padding: 5px 10px !important;
-            }
-
-            .user-code-display {
-                font-size: 0.72rem !important;
-                padding: 8px 10px !important;
-            }
-
-            .stat-value {
-                font-size: 1rem !important;
-            }
-
-            .quick-action {
-                padding: 10px !important;
-            }
-
-            .quick-action .qa-desc {
-                display: none !important;
-            }
+            .topbar-left h1 { font-size: 1rem; }
+            .welcome-banner { padding: 12px 14px; }
+            .welcome-banner-cta { padding: 5px 10px; }
+            .user-code-display { font-size: 0.72rem; padding: 8px 10px; }
+            .stat-value { font-size: 1rem; }
+            .quick-action { padding: 10px; }
+            .qa-desc { display: none; }
         }
     </style>
 </head>
@@ -587,7 +560,7 @@
         <div class="topbar">
             <div class="topbar-left">
                 <h1>Dashboard</h1>
-                <p>Halo, <span id="greetingName">—</span> 👋</p>
+                <p>Halo, <span id="greetingName">—</span></p>
             </div>
             <div class="topbar-right">
                 <button class="icon-btn" id="refreshBtn" title="Refresh data" type="button">
@@ -612,13 +585,11 @@
         <div class="welcome-banner">
             <div class="welcome-banner-content">
                 <div class="welcome-banner-icon">
-                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-                    </svg>
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                 </div>
                 <div class="welcome-banner-text">
-                    <h2>Selamat Datang di AsyrofOTP!</h2>
-                    <p>Nokos OTP 24 jam · Proses instan · Refund otomatis</p>
+                    <h2>Selamat Datang di AsyrofOTP</h2>
+                    <p>Nokos OTP 24 jam &middot; Proses instan &middot; Refund otomatis</p>
                 </div>
                 <a href="/nokos" class="welcome-banner-cta">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -779,6 +750,20 @@
     </div>
 </nav>
 
+<!-- ===== CUSTOM ALERT ===== -->
+<div class="custom-alert-overlay" id="customAlert">
+    <div class="custom-alert">
+        <div class="custom-alert-icon info" id="customAlertIcon">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        </div>
+        <h3 id="customAlertTitle">Informasi</h3>
+        <p id="customAlertMessage">—</p>
+        <div class="custom-alert-actions" id="customAlertActions">
+            <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
+        </div>
+    </div>
+</div>
+
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
@@ -787,6 +772,56 @@
 
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
+
+    const ICONS = {
+        check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+        close: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+        info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+    };
+
+    /* ============================================
+       CUSTOM ALERT
+       ============================================ */
+    function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('customAlert');
+            const iconEl = document.getElementById('customAlertIcon');
+            const titleEl = document.getElementById('customAlertTitle');
+            const msgEl = document.getElementById('customAlertMessage');
+            const actionsEl = document.getElementById('customAlertActions');
+
+            iconEl.className = 'custom-alert-icon ' + type;
+            iconEl.innerHTML = ICONS[type] || ICONS.info;
+            titleEl.textContent = title || 'Informasi';
+            msgEl.textContent = message || '';
+
+            actionsEl.innerHTML = '';
+            if (showCancel) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.className = 'btn';
+                cancelBtn.type = 'button';
+                cancelBtn.textContent = cancelText;
+                cancelBtn.addEventListener('click', () => {
+                    overlay.classList.remove('active');
+                    resolve(false);
+                });
+                actionsEl.appendChild(cancelBtn);
+            }
+
+            const okBtn = document.createElement('button');
+            okBtn.className = 'btn btn-primary';
+            okBtn.type = 'button';
+            okBtn.textContent = okText;
+            okBtn.addEventListener('click', () => {
+                overlay.classList.remove('active');
+                resolve(true);
+            });
+            actionsEl.appendChild(okBtn);
+
+            overlay.classList.add('active');
+        });
+    }
 
     /* ============================================
        THEME TOGGLE
@@ -926,7 +961,7 @@
     /* ============================================
        LOAD USER (SWR)
        ============================================ */
-    swrFetch('/api/user', 'user_profile', (user, meta) => {
+    swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
 
         document.getElementById('userName').textContent = user.name || user.username;
@@ -958,7 +993,7 @@
             tbody.innerHTML = `
                 <tr>
                     <td colspan="5" style="text-align:center;padding:32px 20px;color:var(--text-gray);">
-                        <div style="font-size:2rem;margin-bottom:8px;">📭</div>
+                        <svg class="icon-svg" viewBox="0 0 24 24" style="width:48px;height:48px;margin:0 auto 8px;display:block;color:var(--text-light);"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                         <strong style="display:block;margin-bottom:4px;color:var(--text-dark);">Belum ada transaksi</strong>
                         <span style="font-size:0.82rem;">Mulai beli nokos buat lihat riwayat</span>
                     </td>
