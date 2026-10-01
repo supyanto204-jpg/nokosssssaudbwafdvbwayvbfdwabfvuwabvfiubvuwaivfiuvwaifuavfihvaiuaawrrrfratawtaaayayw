@@ -2113,6 +2113,49 @@ app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
 });
 
 // ============================================
+// ===== STATUS LOGS — LIHAT RIWAYAT =====
+// ============================================
+app.get('/api/status-logs', requireAuth, async (req, res) => {
+    const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+
+    try {
+        let query = 'SELECT * FROM status_logs WHERE user_id = $1';
+        const params = [req.user.id];
+
+        if (entity_type) {
+            query += ` AND entity_type = $${params.length + 1}`;
+            params.push(entity_type);
+        }
+
+        if (entity_id) {
+            query += ` AND entity_id = $${params.length + 1}`;
+            params.push(String(entity_id));
+        }
+
+        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+        params.push(limitNum, (pageNum - 1) * limitNum);
+
+        const result = await pool.query(query, params);
+        const countRes = await pool.query(
+            'SELECT COUNT(*) FROM status_logs WHERE user_id = $1',
+            [req.user.id]
+        );
+
+        res.json({
+            logs: result.rows,
+            total: Number(countRes.rows[0].count),
+            page: pageNum,
+            limit: limitNum,
+        });
+    } catch (err) {
+        console.error('Get status logs error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
 // ===== ADMIN — SERVER BALANCE =====
 // ============================================
 app.get('/api/admin/server-balance', requireAuth, requireAdmin, async (req, res) => {
