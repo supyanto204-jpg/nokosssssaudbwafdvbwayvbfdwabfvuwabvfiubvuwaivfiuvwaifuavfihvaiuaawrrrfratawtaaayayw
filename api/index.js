@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v3)
+// ASYROFOTP - BACKEND API (FULL FIXED v4)
 // ============================================
 
 const express = require('express');
@@ -14,7 +14,7 @@ const app = express();
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
@@ -72,6 +72,13 @@ const COUNTRY_NAMES = {
 // ===== QRISPY =====
 const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
+
+// ===== WEBHOOK OTP (dari provider Banana/OTP) =====
+const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
+
+// ===== AUTO-VALIDATE CONFIG =====
+const AUTO_VALIDATE_INTERVAL_MS = 5000;
+const ORDER_EXPIRY_MS = 15 * 60 * 1000; // 15 menit
 
 // ===== QRIS DANA MANUAL =====
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
@@ -301,7 +308,6 @@ async function generateUniqueReferenceId(maxRetries = 5) {
         const random2 = crypto.randomBytes(2).toString('hex').toUpperCase();
         const referenceId = `DEP${timestamp}${random1}${random2}`;
 
-        // Cek di DB
         try {
             const check = await pool.query(
                 'SELECT 1 FROM deposits WHERE reference_id = $1 LIMIT 1',
@@ -310,12 +316,30 @@ async function generateUniqueReferenceId(maxRetries = 5) {
             if (check.rows.length === 0) {
                 return referenceId;
             }
-            console.log(`⚠️  Reference ID duplikat: ${referenceId}, retry...`);
         } catch (err) {
             console.error('Check reference ID error:', err.message);
         }
     }
-    throw new Error('Gagal generate unique reference ID setelah ' + maxRetries + ' percobaan');
+    throw new Error('Gagal generate unique reference ID');
+}
+
+// ===== GENERATE OTP TRANSACTION ID =====
+async function generateOtpReferenceId(maxRetries = 5) {
+    for (let i = 0; i < maxRetries; i++) {
+        const random = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+        const otpId = `OTP${random}`;
+
+        try {
+            const check = await pool.query(
+                'SELECT 1 FROM orders WHERE otp_id = $1 LIMIT 1',
+                [otpId]
+            );
+            if (check.rows.length === 0) return otpId;
+        } catch (err) {
+            // Column mungkin belum ada, skip
+        }
+    }
+    return `OTP${Date.now().toString().slice(-8)}`;
 }
 
 // ============================================
@@ -423,6 +447,7 @@ async function initDatabase() {
                     id SERIAL PRIMARY KEY,
                     user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                     order_id TEXT UNIQUE,
+                    otp_id TEXT,
                     server TEXT,
                     service TEXT,
                     service_name TEXT,
@@ -440,7 +465,9 @@ async function initDatabase() {
                     resend_count INTEGER DEFAULT 0,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    received_at TIMESTAMPTZ
+                    received_at TIMESTAMPTZ,
+                    last_checked_at TIMESTAMPTZ,
+                    expired_at TIMESTAMPTZ
                 );
             `);
 
@@ -452,6 +479,7 @@ async function initDatabase() {
                 'status TEXT DEFAULT \'pending\'', 'expires_in INTEGER DEFAULT 0',
                 'resend_count INTEGER DEFAULT 0', 'received_at TIMESTAMPTZ',
                 'created_at TIMESTAMPTZ DEFAULT NOW()', 'updated_at TIMESTAMPTZ DEFAULT NOW()',
+                'otp_id TEXT', 'last_checked_at TIMESTAMPTZ', 'expired_at TIMESTAMPTZ',
             ];
             for (const col of orderCols) {
                 await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${col};`);
@@ -517,6 +545,8 @@ async function initDatabase() {
 
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id);`);
+            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC);`);
             await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id);`);
@@ -553,7 +583,6 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
     );
 
     if (updateRes.rowCount === 0) {
-        console.log(`⚠️  Deposit ${deposit.reference_id} sudah diproses sebelumnya`);
         return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
     }
 
@@ -579,11 +608,9 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
 }
 
 // ============================================
-// ===== SYNC SINGLE DEPOSIT (cross-check QRISPY) =====
-// ===== Handle QRISPY + QRIS DANA, expired beneran =====
+// ===== SYNC SINGLE DEPOSIT =====
 // ============================================
 async function syncDepositStatus(deposit) {
-    // Skip kalo udah final
     if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) {
         return deposit;
     }
@@ -591,8 +618,6 @@ async function syncDepositStatus(deposit) {
     const now = new Date();
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
 
-    // ===== QRIS DANA (manual) =====
-    // Cuma bisa expired kalo lewat waktu (ga bisa auto-success, butuh admin approve)
     if (deposit.method === 'qris_dana') {
         if (deposit.status === 'pending' && expiresAt && expiresAt < now) {
             const upd = await pool.query(
@@ -605,11 +630,8 @@ async function syncDepositStatus(deposit) {
         return deposit;
     }
 
-    // ===== QRISPY =====
     if (deposit.method === 'qrispy' && deposit.status === 'pending') {
-        // Cek expired lokal dulu
         if (expiresAt && expiresAt < now) {
-            // Cross-check ke QRISPY — mungkin user bayar telat
             if (deposit.qris_id) {
                 try {
                     const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
@@ -630,7 +652,6 @@ async function syncDepositStatus(deposit) {
                     console.error(`Sync ${deposit.reference_id} error:`, err.message);
                 }
             }
-            // Kalo QRISPY ga confirm paid, set expired
             const upd = await pool.query(
                 `UPDATE deposits SET status = 'expired', updated_at = NOW() 
                  WHERE id = $1 AND status = 'pending' RETURNING *`,
@@ -639,7 +660,6 @@ async function syncDepositStatus(deposit) {
             return upd.rows[0] || deposit;
         }
 
-        // Belum expired — cek QRISPY
         if (deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
@@ -668,6 +688,59 @@ async function syncDepositStatus(deposit) {
 }
 
 // ============================================
+// ===== AUTO-CANCEL & REFUND ORDER =====
+// ============================================
+async function autoCancelAndRefund(order) {
+    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
+    if (fresh.rows.length === 0) return { refunded: false };
+
+    const o = fresh.rows[0];
+    if (['cancelled', 'refunded', 'expired', 'received', 'success'].includes(o.status)) {
+        return { refunded: false, alreadyProcessed: true };
+    }
+
+    let providerRefund = 0;
+    try {
+        const cancelData = await dibananaFetch('/cancel', {
+            method: 'POST',
+            body: JSON.stringify({ order_id: Number(o.order_id) })
+        });
+        if (cancelData.refunded && Number(cancelData.refunded) > 0) {
+            providerRefund = Number(cancelData.refunded);
+        }
+    } catch (err) {
+        console.error(`Provider cancel error for ${o.order_id}:`, err.message);
+    }
+
+    // Kalo expired tanpa OTP, refund full dari saldo kita
+    const refundAmount = providerRefund > 0 ? providerRefund : Number(o.price);
+
+    await pool.query(
+        `UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
+        [o.id]
+    );
+
+    await pool.query(
+        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
+        [refundAmount, o.user_id]
+    );
+
+    await pool.query(
+        `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
+        [String(o.order_id)]
+    );
+
+    console.log(`💰 Auto-refund Rp${refundAmount} to user ${o.user_id} (order ${o.order_id} expired)`);
+
+    return {
+        refunded: true,
+        refundedAmount: refundAmount,
+        orderId: o.order_id,
+        otpId: o.otp_id,
+    };
+}
+
+// ============================================
 // ===== HEALTH =====
 // ============================================
 app.get('/api/health', async (req, res) => {
@@ -679,6 +752,7 @@ app.get('/api/health', async (req, res) => {
             time: result.rows[0].time,
             hasDibananaKey: !!DIBANANA_API_KEY,
             hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
+            hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
             hasJwtSecret: !!JWT_SECRET,
         });
     } catch (err) {
@@ -821,21 +895,8 @@ app.post('/api/auth/logout', requireAuth, (req, res) => {
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({
         methods: [
-            {
-                id: 'qrispy',
-                label: 'QRIS Otomatis',
-                desc: 'Bayar pakai QRIS, saldo masuk otomatis',
-                icon: 'qrispy',
-                fee: 0,
-            },
-            {
-                id: 'qris_dana',
-                label: 'QRIS DANA Manual',
-                desc: 'Scan QR DANA, butuh konfirmasi admin',
-                icon: 'dana',
-                fee: 0,
-                uniqueCode: true,
-            },
+            { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
+            { id: 'qris_dana', label: 'QRIS DANA Manual', desc: 'Scan QR DANA, butuh konfirmasi admin', icon: 'dana', fee: 0, uniqueCode: true },
         ],
     });
 });
@@ -873,27 +934,15 @@ app.post('/api/deposit/generate-ref', requireAuth, async (req, res) => {
 // ===== DEPOSIT — SAVE QRISPY =====
 // ============================================
 app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
-    try {
-        await initDatabase();
-    } catch (err) {
-        return res.status(500).json({ error: 'Database belum siap' });
-    }
+    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
 
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
-    if (!reference_id || !amount || !qris_id) {
-        return res.status(400).json({ error: 'Data tidak lengkap' });
-    }
-
-    if (amount < 1000 || amount > 10000000) {
-        return res.status(400).json({ error: 'Nominal tidak valid (Rp1.000 - Rp10.000.000)' });
-    }
+    if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
+    if (amount < 1000 || amount > 10000000) return res.status(400).json({ error: 'Nominal tidak valid (Rp1.000 - Rp10.000.000)' });
 
     try {
-        const existing = await pool.query(
-            'SELECT * FROM deposits WHERE reference_id = $1',
-            [reference_id]
-        );
+        const existing = await pool.query('SELECT * FROM deposits WHERE reference_id = $1', [reference_id]);
 
         if (existing.rows.length > 0) {
             const d = existing.rows[0];
@@ -914,30 +963,14 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-                req.user.id,
-                reference_id,
-                'qrispy',
-                Number(amount),
-                Number(amount),
-                0,
-                'pending',
-                qris_id,
-                qris_url,
-                reference_id,
-                new Date(expired_at),
-            ]
+            [req.user.id, reference_id, 'qrispy', Number(amount), Number(amount), 0, 'pending', qris_id, qris_url, reference_id, new Date(expired_at)]
         );
 
         res.json({
             message: 'Deposit tercatat',
             deposit: {
-                reference_id,
-                method: 'qrispy',
-                amount: Number(amount),
-                qris_id,
-                qris_url,
-                expired_at,
+                reference_id, method: 'qrispy', amount: Number(amount),
+                qris_id, qris_url, expired_at,
                 expires_in_seconds: expires_in_seconds || 900,
             },
         });
@@ -951,58 +984,32 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
 // ===== DEPOSIT — QRIS DANA MANUAL =====
 // ============================================
 app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
-    try {
-        await initDatabase();
-    } catch (err) {
-        return res.status(500).json({ error: 'Database belum siap' });
-    }
+    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
 
     const { amount } = req.body;
-
-    if (!amount || amount < 1000) {
-        return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
-    }
-    if (amount > 10000000) {
-        return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
-    }
+    if (!amount || amount < 1000) return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
+    if (amount > 10000000) return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
 
     try {
         const uniqueCode = generateUniqueCode();
         const totalAmount = Number(amount) + uniqueCode;
         const referenceId = await generateUniqueReferenceId();
-
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
 
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, fee, status, qris_string, qris_url, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-                req.user.id,
-                referenceId,
-                'qris_dana',
-                Number(amount),
-                uniqueCode,
-                totalAmount,
-                uniqueCode,
-                'pending',
-                dynamicQRIS,
-                qrImageUrl,
-                new Date(Date.now() + 30 * 60 * 1000),
-            ]
+            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, new Date(Date.now() + 30 * 60 * 1000)]
         );
 
         res.json({
             message: 'QRIS DANA berhasil dibuat',
             deposit: {
-                reference_id: referenceId,
-                method: 'qris_dana',
-                amount: Number(amount),
-                unique_code: uniqueCode,
-                total_amount: totalAmount,
-                fee: uniqueCode,
-                qris_string: dynamicQRIS,
-                qris_url: qrImageUrl,
+                reference_id: referenceId, method: 'qris_dana',
+                amount: Number(amount), unique_code: uniqueCode,
+                total_amount: totalAmount, fee: uniqueCode,
+                qris_string: dynamicQRIS, qris_url: qrImageUrl,
                 expired_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
                 expires_in_seconds: 1800,
             },
@@ -1025,22 +1032,13 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
             [referenceId, req.user.id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
-        }
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         let deposit = result.rows[0];
+        if (deposit.status === 'success') return res.json({ status: 'success', deposit });
 
-        if (deposit.status === 'success') {
-            return res.json({ status: 'success', deposit });
-        }
-
-        // Sync status (handle expired beneran + QRISPY)
         deposit = await syncDepositStatus(deposit);
-
-        if (deposit.status === 'success') {
-            return res.json({ status: 'success', deposit });
-        }
+        if (deposit.status === 'success') return res.json({ status: 'success', deposit });
 
         res.json({ status: 'ok', deposit });
     } catch (err) {
@@ -1062,14 +1060,10 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, async (req, res) =
             [referenceId, req.user.id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
-        }
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
-        if (deposit.status !== 'pending') {
-            return res.status(400).json({ error: 'Deposit sudah diproses' });
-        }
+        if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit sudah diproses' });
 
         await pool.query(
             `UPDATE deposits SET total_amount = $1, fee = $2, updated_at = NOW() WHERE id = $3`,
@@ -1095,17 +1089,11 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, async (req, res) => {
             [referenceId, req.user.id]
         );
 
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
-        }
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
+        if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
 
-        if (deposit.status !== 'pending') {
-            return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
-        }
-
-        // Kalo QRISPY, cross-check dulu — mungkin aja udah dibayar
         if (deposit.method === 'qrispy' && deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
@@ -1170,7 +1158,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — LIST TRANSAKSI (PAGINATION) =====
+// ===== DEPOSIT — LIST (PAGINATION) =====
 // ============================================
 app.get('/api/deposit/history', requireAuth, async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -1196,10 +1184,7 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
 
         res.json({
             deposits: result.rows,
-            total,
-            page,
-            limit,
-            totalPages,
+            total, page, limit, totalPages,
             hasNext: page < totalPages,
             hasPrev: page > 1,
         });
@@ -1210,7 +1195,7 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== DEPOSIT — SYNC BATCH (cuma yg keliatan) =====
+// ===== DEPOSIT — SYNC BATCH =====
 // ============================================
 app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
     const { reference_ids } = req.body;
@@ -1231,12 +1216,9 @@ app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
         );
 
         const updated = [];
-
         for (const deposit of result.rows) {
             const fresh = await syncDepositStatus(deposit);
-            if (fresh.status !== 'pending') {
-                updated.push(fresh);
-            }
+            if (fresh.status !== 'pending') updated.push(fresh);
         }
 
         res.json({ updated, count: updated.length });
@@ -1275,15 +1257,8 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, a
 app.post('/api/webhook/qrispy', async (req, res) => {
     try {
         const signature = req.headers['x-qrispy-signature'];
-        if (!signature) {
-            console.error('Webhook: no signature');
-            return res.status(401).json({ error: 'No signature' });
-        }
-
-        if (!QRISPY_WEBHOOK_SECRET) {
-            console.error('Webhook: PW_WEBHOOK not set');
-            return res.status(500).json({ error: 'Webhook secret not configured' });
-        }
+        if (!signature) return res.status(401).json({ error: 'No signature' });
+        if (!QRISPY_WEBHOOK_SECRET) return res.status(500).json({ error: 'Webhook secret not configured' });
 
         const expectedSignature = crypto
             .createHmac('sha256', QRISPY_WEBHOOK_SECRET)
@@ -1294,12 +1269,10 @@ app.post('/api/webhook/qrispy', async (req, res) => {
         const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-            console.error('Webhook: invalid signature');
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
         const { event, data } = req.body;
-        console.log('Webhook received:', event);
 
         if (event === 'payment.received') {
             const { qris_id, amount, received_amount, payment_reference, paid_at } = data;
@@ -1309,27 +1282,305 @@ app.post('/api/webhook/qrispy', async (req, res) => {
                 [qris_id, payment_reference]
             );
 
-            if (result.rows.length === 0) {
-                console.error('Webhook: deposit not found');
-                return res.json({ status: 'ok', message: 'Deposit not found' });
-            }
+            if (result.rows.length === 0) return res.json({ status: 'ok', message: 'Deposit not found' });
 
             const deposit = result.rows[0];
+            const { alreadyProcessed } = await markDepositPaid(deposit, received_amount || amount, paid_at);
 
-            const { alreadyProcessed } = await markDepositPaid(
-                deposit,
-                received_amount || amount,
-                paid_at
-            );
-
-            if (alreadyProcessed) {
-                return res.json({ status: 'ok', message: 'Already processed' });
-            }
+            if (alreadyProcessed) return res.json({ status: 'ok', message: 'Already processed' });
         }
 
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Webhook error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== WEBHOOK OTP (dari provider Banana/OTP) =====
+// ===== Header: X-Banana-Signature: sha256=<hmac> =====
+// ============================================
+app.post('/api/webhook/otp1', async (req, res) => {
+    try {
+        await initDatabase();
+
+        if (!WEBHOOK_OTP1_SECRET) {
+            console.error('Webhook OTP1: WEBHOOK_OTP1 not set');
+            return res.status(500).json({ error: 'Webhook secret not configured' });
+        }
+
+        const signature = req.headers['x-banana-signature'] || req.headers['x-otp1-signature'];
+        if (!signature) {
+            console.error('Webhook OTP1: no signature');
+            return res.status(401).json({ error: 'No signature' });
+        }
+
+        const rawBody = req.rawBody || JSON.stringify(req.body);
+        const expectedSig = 'sha256=' + crypto
+            .createHmac('sha256', WEBHOOK_OTP1_SECRET)
+            .update(rawBody)
+            .digest('hex');
+
+        const sigBuffer = Buffer.from(signature);
+        const expectedBuffer = Buffer.from(expectedSig);
+        if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+            console.error('Webhook OTP1: invalid signature');
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
+
+        const data = req.body;
+        console.log('📥 Webhook OTP1 received:', JSON.stringify(data).substring(0, 300));
+
+        const providerOrderId = data.order_id || data.orderId || data.reference;
+        const otpCode = data.otp_code || data.otpCode || data.code || data.otp;
+        const fullSms = data.full_sms || data.fullSms || data.message || data.sms || '';
+        const otpCode2 = data.otp_code_2 || data.otpCode2 || null;
+
+        if (!providerOrderId) {
+            console.error('Webhook OTP1: no order_id in payload');
+            return res.status(400).json({ error: 'Missing order_id' });
+        }
+
+        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [String(providerOrderId)]);
+
+        if (orderRes.rows.length === 0) {
+            console.error('Webhook OTP1: order not found', providerOrderId);
+            return res.json({ status: 'ok', message: 'Order not found' });
+        }
+
+        const order = orderRes.rows[0];
+
+        const updateFields = [];
+        const updateParams = [];
+
+        if (otpCode) {
+            updateFields.push(`otp_code = $${updateParams.length + 1}`);
+            updateParams.push(otpCode);
+        }
+        if (otpCode2) {
+            updateFields.push(`otp_code_2 = $${updateParams.length + 1}`);
+            updateParams.push(otpCode2);
+        }
+        if (fullSms) {
+            updateFields.push(`full_sms = $${updateParams.length + 1}`);
+            updateParams.push(fullSms);
+        }
+
+        updateFields.push(`status = $${updateParams.length + 1}`);
+        updateParams.push('received');
+        updateFields.push(`received_at = NOW()`);
+        updateFields.push(`updated_at = NOW()`);
+
+        updateParams.push(order.id);
+
+        await pool.query(
+            `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $${updateParams.length}`,
+            updateParams
+        );
+
+        await pool.query(
+            `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+            [otpCode || null, String(order.order_id)]
+        );
+
+        console.log(`✅ Webhook OTP1: order ${order.order_id} updated with OTP`);
+        res.status(200).json({ status: 'ok', message: 'received' });
+    } catch (err) {
+        console.error('Webhook OTP1 error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== CEK OTP — POLLING / MANUAL =====
+// ============================================
+app.post('/api/cekotp', requireAuth, async (req, res) => {
+    const { order_id, otp_id } = req.body;
+
+    if (!order_id && !otp_id) {
+        return res.status(400).json({ error: 'order_id atau otp_id wajib' });
+    }
+
+    try {
+        let query, params;
+        if (otp_id) {
+            query = 'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2';
+            params = [otp_id, req.user.id];
+        } else {
+            query = 'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2';
+            params = [String(order_id), req.user.id];
+        }
+
+        const orderRes = await pool.query(query, params);
+        if (orderRes.rows.length === 0) {
+            return res.status(404).json({ error: 'Order tidak ditemukan' });
+        }
+
+        const order = orderRes.rows[0];
+
+        if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+            return res.json({
+                order_id: order.order_id, otp_id: order.otp_id,
+                status: order.status, phone_number: order.phone_number,
+                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
+                full_sms: order.full_sms, price_idr: order.price,
+                service: order.service, country: order.country, operator: order.operator,
+                received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
+            });
+        }
+
+        // Cek expired lokal
+        if (order.expired_at && new Date(order.expired_at) < new Date()) {
+            const cancelResult = await autoCancelAndRefund(order);
+            return res.json({
+                order_id: order.order_id, otp_id: order.otp_id,
+                status: 'expired', phone_number: order.phone_number,
+                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
+                full_sms: order.full_sms, price_idr: order.price,
+                service: order.service, country: order.country, operator: order.operator,
+                expired_at: order.expired_at, refunded: cancelResult.refunded,
+                refunded_amount: cancelResult.refundedAmount, expires_in: 0,
+            });
+        }
+
+        try {
+            const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
+
+            await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
+
+            if (data.status !== order.status || data.otp_code) {
+                await pool.query(
+                    `UPDATE orders 
+                     SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                         received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
+                         updated_at = NOW() 
+                     WHERE order_id = $5`,
+                    [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(order.order_id)]
+                );
+                await pool.query(
+                    `UPDATE transactions 
+                     SET status = CASE 
+                        WHEN $1 IN ('received', 'success') THEN 'success' 
+                        WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                        ELSE status 
+                     END, 
+                     otp_code = $2, updated_at = NOW() 
+                     WHERE order_id = $3`,
+                    [data.status, data.otp_code, String(order.order_id)]
+                );
+
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                return res.json({
+                    order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
+                    status: fresh.rows[0].status, phone_number: fresh.rows[0].phone_number,
+                    otp_code: fresh.rows[0].otp_code, otp_code_2: fresh.rows[0].otp_code_2,
+                    full_sms: fresh.rows[0].full_sms, price_idr: fresh.rows[0].price,
+                    service: fresh.rows[0].service, country: fresh.rows[0].country, operator: fresh.rows[0].operator,
+                    received_at: fresh.rows[0].received_at,
+                    expires_in: fresh.rows[0].expired_at ? Math.max(0, Math.floor((new Date(fresh.rows[0].expired_at) - Date.now()) / 1000)) : 0,
+                    expired_at: fresh.rows[0].expired_at, updated: true,
+                });
+            }
+
+            res.json({
+                order_id: order.order_id, otp_id: order.otp_id,
+                status: order.status, phone_number: order.phone_number,
+                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
+                full_sms: order.full_sms, price_idr: order.price,
+                service: order.service, country: order.country, operator: order.operator,
+                received_at: order.received_at,
+                expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
+                expired_at: order.expired_at, updated: false,
+            });
+        } catch (err) {
+            console.error('Polling provider error:', err.message);
+            res.json({
+                order_id: order.order_id, otp_id: order.otp_id,
+                status: order.status, phone_number: order.phone_number,
+                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
+                full_sms: order.full_sms, price_idr: order.price,
+                service: order.service, country: order.country, operator: order.operator,
+                received_at: order.received_at,
+                expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
+                expired_at: order.expired_at, updated: false,
+                error: 'Provider ga bisa dihubungi, coba lagi',
+            });
+        }
+    } catch (err) {
+        console.error('CekOTP error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== CRON: AUTO-VALIDATE PENDING ORDERS =====
+// ============================================
+app.post('/api/cron/validate-pending-orders', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status = 'pending' 
+               AND created_at > NOW() - INTERVAL '30 minutes'
+             ORDER BY created_at DESC
+             LIMIT 30`
+        );
+
+        let updated = 0;
+        let expired = 0;
+
+        for (const order of result.rows) {
+            try {
+                if (order.expired_at && new Date(order.expired_at) < new Date()) {
+                    await autoCancelAndRefund(order);
+                    expired++;
+                    continue;
+                }
+
+                const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
+
+                if (data.status !== order.status || data.otp_code) {
+                    await pool.query(
+                        `UPDATE orders 
+                         SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                             received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
+                             last_checked_at = NOW(), updated_at = NOW() 
+                         WHERE id = $5`,
+                        [data.status, data.otp_code, data.otp_code_2, data.full_sms, order.id]
+                    );
+                    await pool.query(
+                        `UPDATE transactions 
+                         SET status = CASE 
+                            WHEN $1 IN ('received', 'success') THEN 'success' 
+                            WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                            ELSE status 
+                         END, 
+                         otp_code = $2, updated_at = NOW() 
+                         WHERE order_id = $3`,
+                        [data.status, data.otp_code, String(order.order_id)]
+                    );
+
+                    if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                        await autoCancelAndRefund(order);
+                        expired++;
+                    } else {
+                        updated++;
+                    }
+                } else {
+                    await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
+                }
+            } catch (err) {
+                console.error(`Validate order ${order.order_id} error:`, err.message);
+            }
+        }
+
+        console.log(`⏰ Auto-validate: checked ${result.rows.length}, updated ${updated}, expired ${expired}`);
+        res.json({
+            message: `Validated ${result.rows.length} orders`,
+            checked: result.rows.length, updated, expired,
+        });
+    } catch (err) {
+        console.error('Auto-validate error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
@@ -1347,26 +1598,14 @@ app.post('/api/cron/expire-pending-deposits', async (req, res) => {
              LIMIT 50`
         );
 
-        let expired = 0;
-        let synced = 0;
-
+        let expired = 0, synced = 0;
         for (const deposit of result.rows) {
-            // Cross-check dengan syncDepositStatus — bisa jadi udah dibayar telat
             const fresh = await syncDepositStatus(deposit);
-            if (fresh.status === 'success') {
-                synced++;
-            } else if (fresh.status === 'expired') {
-                expired++;
-            }
+            if (fresh.status === 'success') synced++;
+            else if (fresh.status === 'expired') expired++;
         }
 
-        console.log(`⏰ Cron: expired ${expired}, synced ${synced}`);
-        res.json({
-            message: `Checked ${result.rows.length} deposits`,
-            checked: result.rows.length,
-            expired,
-            synced,
-        });
+        res.json({ message: `Checked ${result.rows.length} deposits`, checked: result.rows.length, expired, synced });
     } catch (err) {
         console.error('Cron expire error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -1387,21 +1626,14 @@ app.post('/api/cron/sync-pending-qrispy', async (req, res) => {
              ORDER BY created_at DESC LIMIT 20`
         );
 
-        let synced = 0;
-        let expired = 0;
-
+        let synced = 0, expired = 0;
         for (const deposit of result.rows) {
             const fresh = await syncDepositStatus(deposit);
             if (fresh.status === 'success') synced++;
             else if (fresh.status === 'expired') expired++;
         }
 
-        res.json({
-            message: `Synced ${synced}, expired ${expired}`,
-            checked: result.rows.length,
-            synced,
-            expired
-        });
+        res.json({ message: `Synced ${synced}, expired ${expired}`, checked: result.rows.length, synced, expired });
     } catch (err) {
         console.error('Cron sync error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -1504,11 +1736,7 @@ app.get('/api/nokos/prices', requireAuth, async (req, res) => {
 // ===== NOKOS — CREATE ORDER =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, async (req, res) => {
-    try {
-        await initDatabase();
-    } catch (err) {
-        return res.status(500).json({ error: 'Database belum siap' });
-    }
+    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
 
     const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator } = req.body;
 
@@ -1518,12 +1746,8 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
     const isPremium = !!config.requiresOperator;
 
     if (isPremium) {
-        if (!provider_id || !provider_price || !operator) {
-            return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
-        }
-        if (!VALID_OPERATORS.includes(operator)) {
-            return res.status(400).json({ error: `Operator tidak valid. Pilih: ${VALID_OPERATORS.join(', ')}` });
-        }
+        if (!provider_id || !provider_price || !operator) return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
+        if (!VALID_OPERATORS.includes(operator)) return res.status(400).json({ error: `Operator tidak valid. Pilih: ${VALID_OPERATORS.join(', ')}` });
     } else {
         if (!id) return res.status(400).json({ error: 'ID provider wajib' });
     }
@@ -1574,14 +1798,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
         phoneNumber = data.phone_number || null;
 
         if (price <= 0) {
-            try {
-                await dibananaFetch('/cancel', {
-                    method: 'POST',
-                    body: JSON.stringify({ order_id: providerOrderId })
-                });
-            } catch (e) {
-                console.error('Cancel provider order error:', e.message);
-            }
+            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid' });
         }
 
@@ -1595,38 +1812,25 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
         );
 
         if (deductRes.rowCount === 0) {
-            console.warn(`⚠️  Saldo tidak cukup untuk user ${req.user.id} | price: ${price}`);
-            try {
-                await dibananaFetch('/cancel', {
-                    method: 'POST',
-                    body: JSON.stringify({ order_id: providerOrderId })
-                });
-            } catch (e) {
-                console.error('Cancel provider order error (after deduct failed):', e.message);
-            }
+            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // STEP 5: Insert ke DB
+        // STEP 5: Insert ke DB dengan otp_id
+        const otpId = await generateOtpReferenceId();
+        const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
+
         try {
             await pool.query(
                 `INSERT INTO orders 
-                 (user_id, order_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+                 (user_id, order_id, otp_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
                 [
-                    req.user.id,
-                    String(providerOrderId),
-                    server,
-                    service || data.service || null,
-                    service_name || null,
-                    country || data.country || null,
-                    COUNTRY_NAMES[country] || country || null,
-                    country_flag || country || null,
-                    operator || null,
-                    phoneNumber,
-                    price,
-                    'pending',
-                    1200
+                    req.user.id, String(providerOrderId), otpId, server,
+                    service || data.service || null, service_name || null,
+                    country || data.country || null, COUNTRY_NAMES[country] || country || null,
+                    country_flag || country || null, operator || null,
+                    phoneNumber, price, 'pending', 1200, expiredAt
                 ]
             );
 
@@ -1635,18 +1839,14 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                  (user_id, order_id, service_name, country, country_flag, phone_number, status, price)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 [
-                    req.user.id,
-                    String(providerOrderId),
+                    req.user.id, String(providerOrderId),
                     service_name || data.service || null,
                     country || data.country || null,
                     country_flag || country || null,
-                    phoneNumber,
-                    'pending',
-                    price
+                    phoneNumber, 'pending', price
                 ]
             );
         } catch (dbErr) {
-            // ROLLBACK
             console.error('DB insert error, refunding:', dbErr.message);
 
             await pool.query(
@@ -1654,14 +1854,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 [price, req.user.id]
             );
 
-            try {
-                await dibananaFetch('/cancel', {
-                    method: 'POST',
-                    body: JSON.stringify({ order_id: providerOrderId })
-                });
-            } catch (e) {
-                console.error('Cancel provider order error (after DB fail):', e.message);
-            }
+            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
 
             return res.status(500).json({ error: 'Gagal menyimpan order. Saldo sudah dikembalikan.' });
         }
@@ -1674,6 +1867,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             message: 'Order berhasil!',
             order: {
                 order_id: providerOrderId,
+                otp_id: otpId,
                 phone_number: phoneNumber,
                 price_idr: price,
                 server: data.server || server,
@@ -1682,6 +1876,7 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 operator: operator || null,
                 status: data.status || 'pending',
                 expires_in: 1200,
+                expired_at: expiredAt.toISOString(),
             },
             balance: newBalance,
         });
@@ -1703,20 +1898,10 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 console.error('Refund error:', refundErr.message);
             }
 
-            try {
-                await dibananaFetch('/cancel', {
-                    method: 'POST',
-                    body: JSON.stringify({ order_id: providerOrderId })
-                });
-            } catch (e) {
-                console.error('Cancel provider order error (final):', e.message);
-            }
+            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
         }
 
-        res.status(err.status || 500).json({
-            error: err.message || 'Server error',
-            code: err.code
-        });
+        res.status(err.status || 500).json({ error: err.message || 'Server error', code: err.code });
     }
 });
 
@@ -1733,18 +1918,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
         const order = orderRes.rows[0];
         if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
-                order_id: order.order_id,
-                status: order.status,
-                phone_number: order.phone_number,
-                otp_code: order.otp_code,
-                otp_code_2: order.otp_code_2,
-                full_sms: order.full_sms,
-                price_idr: order.price,
-                service: order.service,
-                country: order.country,
-                operator: order.operator,
-                received_at: order.received_at,
-                expires_in: 0
+                order_id: order.order_id, otp_id: order.otp_id,
+                status: order.status, phone_number: order.phone_number,
+                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
+                full_sms: order.full_sms, price_idr: order.price,
+                service: order.service, country: order.country, operator: order.operator,
+                received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
             });
         }
 
@@ -1769,15 +1948,44 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
 });
 
 // ============================================
-// ===== NOKOS — RESEND =====
+// ===== NOKOS — RESEND (cuma kalo udah pernah dapet OTP) =====
 // ============================================
 app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
     const { orderId } = req.params;
+
     try {
-        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 AND user_id = $2', [String(orderId), req.user.id]);
+        const orderRes = await pool.query(
+            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+            [String(orderId), req.user.id]
+        );
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
-        const data = await dibananaFetch('/resend', { method: 'POST', body: JSON.stringify({ order_id: Number(orderId) }) });
-        await pool.query('UPDATE orders SET resend_count = resend_count + 1, status = $1, updated_at = NOW() WHERE order_id = $2', [data.status, String(orderId)]);
+
+        const order = orderRes.rows[0];
+
+        if (!order.otp_code || order.otp_code.trim() === '') {
+            return res.status(400).json({
+                error: 'Resend hanya bisa dilakukan setelah kode OTP pertama masuk'
+            });
+        }
+
+        if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+            return res.status(400).json({ error: 'Order sudah tidak bisa di-resend' });
+        }
+
+        if (order.resend_count >= 3) {
+            return res.status(400).json({ error: 'Maksimal 3x resend per order' });
+        }
+
+        const data = await dibananaFetch('/resend', {
+            method: 'POST',
+            body: JSON.stringify({ order_id: Number(orderId) })
+        });
+
+        await pool.query(
+            'UPDATE orders SET resend_count = resend_count + 1, status = $1, updated_at = NOW() WHERE order_id = $2',
+            [data.status, String(orderId)]
+        );
+
         res.json(data);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message, code: err.code });
@@ -1836,8 +2044,70 @@ app.get('/api/nokos/orders', requireAuth, async (req, res) => {
         params.push(Number(limit), (Number(page) - 1) * Number(limit));
         const result = await pool.query(query, params);
         const countRes = await pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]);
-        res.json({ orders: result.rows, total: Number(countRes.rows[0].count), page: Number(page), limit: Number(limit) });
+
+        const orders = result.rows.map(o => ({
+            ...o,
+            expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0,
+        }));
+
+        res.json({ orders, total: Number(countRes.rows[0].count), page: Number(page), limit: Number(limit) });
     } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ============================================
+// ===== NOKOS — SYNC BATCH ORDERS =====
+// ============================================
+app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
+    const { order_ids } = req.body;
+    if (!Array.isArray(order_ids) || order_ids.length === 0) {
+        return res.json({ updated: [], count: 0 });
+    }
+
+    const ids = order_ids.slice(0, 10);
+
+    try {
+        const result = await pool.query(
+            `SELECT * FROM orders 
+             WHERE order_id = ANY($1) 
+               AND user_id = $2 
+               AND status = 'pending'`,
+            [ids, req.user.id]
+        );
+
+        const updated = [];
+
+        for (const order of result.rows) {
+            try {
+                const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
+
+                if (data.status !== order.status || data.otp_code) {
+                    await pool.query(
+                        `UPDATE orders SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                         received_at = CASE WHEN $1 = 'received' THEN NOW() ELSE received_at END, 
+                         updated_at = NOW() WHERE order_id = $5`,
+                        [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(order.order_id)]
+                    );
+                    await pool.query(
+                        `UPDATE transactions SET status = CASE WHEN $1 = 'received' THEN 'success' 
+                         WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                         ELSE status END, otp_code = $2, updated_at = NOW() 
+                         WHERE order_id = $3`,
+                        [data.status, data.otp_code, String(order.order_id)]
+                    );
+
+                    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                    updated.push(fresh.rows[0]);
+                }
+            } catch (err) {
+                console.error(`Sync order ${order.order_id} error:`, err.message);
+            }
+        }
+
+        res.json({ updated, count: updated.length });
+    } catch (err) {
+        console.error('Sync batch orders error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 });
