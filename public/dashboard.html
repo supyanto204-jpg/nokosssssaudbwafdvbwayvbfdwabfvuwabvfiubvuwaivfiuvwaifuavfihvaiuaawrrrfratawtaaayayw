@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
     <title>Dashboard - AsyrofOTP</title>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
@@ -10,53 +11,563 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/dashboard.css">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    <style>
+        /* ============================================
+           GLOBAL ANTI-SELECT
+           ============================================ */
+        .dashboard-layout,
+        .dashboard-layout * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        .dashboard-layout input,
+        .dashboard-layout textarea,
+        .dashboard-layout select,
+        .dashboard-layout code {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
+        /* ============================================
+           DASHBOARD-SPECIFIC
+           ============================================ */
+
+        /* Fix untuk user code */
+        .user-code-display {
+            cursor: pointer;
+        }
+
+        /* Fix tabel di mobile */
+        .table-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .table-wrapper table {
+            min-width: 100%;
+        }
+
+        /* Refresh button */
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            flex-shrink: 0;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .icon-btn:hover {
+            background: var(--primary);
+            color: white;
+            transform: translate(-1px, -1px);
+            box-shadow: var(--shadow-hard-sm);
+        }
+
+        .icon-btn:active {
+            transform: translate(1px, 1px);
+            box-shadow: none;
+        }
+
+        .icon-btn .icon-svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .icon-btn.spinning .icon-svg {
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Quick action improvements */
+        .quick-action .qa-text {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .quick-action .qa-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .quick-action .qa-desc {
+            font-size: 0.72rem;
+            color: var(--text-gray);
+            font-weight: 500;
+            line-height: 1.2;
+        }
+
+        /* Stat card with icon in corner */
+        .stat-card {
+            position: relative;
+        }
+
+        .stat-card .stat-top {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stat-card .stat-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Skeleton untuk tabel */
+        .skeleton-row {
+            display: flex;
+            gap: 12px;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .skeleton-row .skeleton {
+            height: 14px;
+        }
+
+        /* Welcome banner */
+        .welcome-banner {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark), var(--purple));
+            background-size: 200% 200%;
+            animation: gradientMove 6s ease infinite;
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard);
+            padding: 20px 24px;
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            color: white;
+        }
+
+        .welcome-banner::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 250px;
+            height: 250px;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            animation: glowPulse 5s ease-in-out infinite;
+        }
+
+        .welcome-banner-content {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .welcome-banner-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .welcome-banner-icon .icon-svg {
+            width: 26px;
+            height: 26px;
+            color: white;
+        }
+
+        .welcome-banner-text {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .welcome-banner-text h2 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            margin-bottom: 2px;
+            color: white;
+        }
+
+        .welcome-banner-text p {
+            font-size: 0.82rem;
+            opacity: 0.9;
+            color: white;
+        }
+
+        .welcome-banner-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            color: var(--primary);
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 0.82rem;
+            text-decoration: none;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .welcome-banner-cta:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .welcome-banner-cta:active {
+            transform: translate(1px, 1px);
+        }
+
+        .welcome-banner-cta .icon-svg {
+            width: 14px;
+            height: 14px;
+        }
+
+        /* ============================================
+           MOBILE TIGHTENING — biar ga kerasa penuh
+           ============================================ */
+        @media (max-width: 768px) {
+            /* Main content — kurangin padding */
+            .main-content {
+                padding: 12px 12px calc(var(--taskbar-height) + 16px) !important;
+            }
+
+            /* Topbar — stack & kecilin */
+            .topbar {
+                margin-bottom: 16px !important;
+                gap: 10px !important;
+            }
+
+            .topbar-left h1 {
+                font-size: 1.15rem !important;
+                margin-bottom: 2px !important;
+            }
+
+            .topbar-left p {
+                font-size: 0.78rem !important;
+            }
+
+            .topbar-right {
+                gap: 8px !important;
+            }
+
+            .balance-pill {
+                padding: 5px 10px !important;
+                font-size: 0.78rem !important;
+            }
+
+            .balance-pill .label {
+                display: none !important;
+            }
+
+            .balance-pill .amount {
+                font-size: 0.82rem !important;
+            }
+
+            .theme-toggle,
+            .icon-btn {
+                width: 34px !important;
+                height: 34px !important;
+                border-radius: 9px !important;
+            }
+
+            .theme-toggle .icon-svg,
+            .icon-btn .icon-svg {
+                width: 16px !important;
+                height: 16px !important;
+            }
+
+            /* Welcome banner — compact */
+            .welcome-banner {
+                padding: 14px 16px !important;
+                margin-bottom: 14px !important;
+                border-radius: 12px !important;
+            }
+
+            .welcome-banner-icon {
+                width: 42px !important;
+                height: 42px !important;
+                border-radius: 11px !important;
+            }
+
+            .welcome-banner-icon .icon-svg {
+                width: 20px !important;
+                height: 20px !important;
+            }
+
+            .welcome-banner-text h2 {
+                font-size: 0.95rem !important;
+            }
+
+            .welcome-banner-text p {
+                font-size: 0.72rem !important;
+            }
+
+            .welcome-banner-cta {
+                padding: 6px 12px !important;
+                font-size: 0.72rem !important;
+            }
+
+            /* Stats — 2 kolom */
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .stat-card {
+                padding: 12px !important;
+                gap: 4px !important;
+                border-radius: 12px !important;
+            }
+
+            .stat-icon {
+                width: 32px !important;
+                height: 32px !important;
+                border-radius: 9px !important;
+                margin-bottom: 2px !important;
+            }
+
+            .stat-icon .icon-svg {
+                width: 16px !important;
+                height: 16px !important;
+            }
+
+            .stat-label {
+                font-size: 0.68rem !important;
+            }
+
+            .stat-value {
+                font-size: 1.1rem !important;
+            }
+
+            /* User code card */
+            .card {
+                padding: 14px !important;
+                margin-bottom: 12px !important;
+                border-radius: 12px !important;
+            }
+
+            .card-header {
+                margin-bottom: 12px !important;
+                gap: 8px !important;
+            }
+
+            .card-header h2 {
+                font-size: 0.95rem !important;
+            }
+
+            .card-header p {
+                font-size: 0.72rem !important;
+            }
+
+            .user-code-display {
+                font-size: 0.82rem !important;
+                padding: 10px 12px !important;
+                letter-spacing: 0.02em !important;
+                border-radius: 8px !important;
+            }
+
+            /* Quick actions — 2 kolom */
+            .quick-actions {
+                grid-template-columns: repeat(2, 1fr) !important;
+                gap: 8px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .quick-action {
+                padding: 12px !important;
+                gap: 10px !important;
+                border-radius: 12px !important;
+            }
+
+            .quick-action .icon-box {
+                width: 34px !important;
+                height: 34px !important;
+                border-radius: 9px !important;
+            }
+
+            .quick-action .icon-box .icon-svg {
+                width: 16px !important;
+                height: 16px !important;
+            }
+
+            .quick-action .qa-title {
+                font-size: 0.8rem !important;
+            }
+
+            .quick-action .qa-desc {
+                font-size: 0.65rem !important;
+            }
+
+            /* Tabel — compact */
+            .table-wrapper {
+                border-radius: 10px !important;
+            }
+
+            table {
+                font-size: 0.75rem !important;
+                min-width: 480px !important;
+            }
+
+            th {
+                padding: 8px 10px !important;
+                font-size: 0.65rem !important;
+            }
+
+            td {
+                padding: 10px 10px !important;
+            }
+
+            .badge {
+                font-size: 0.6rem !important;
+                padding: 3px 7px !important;
+            }
+
+            /* Skeleton row */
+            .skeleton-row {
+                padding: 10px 12px !important;
+                gap: 8px !important;
+            }
+
+            /* Hide stats-grid gap yang berlebihan */
+            .stat-card:hover {
+                transform: none !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .main-content {
+                padding: 10px 10px calc(var(--taskbar-height) + 14px) !important;
+            }
+
+            .topbar-left h1 {
+                font-size: 1rem !important;
+            }
+
+            .welcome-banner {
+                padding: 12px 14px !important;
+            }
+
+            .welcome-banner-cta {
+                padding: 5px 10px !important;
+            }
+
+            .user-code-display {
+                font-size: 0.72rem !important;
+                padding: 8px 10px !important;
+            }
+
+            .stat-value {
+                font-size: 1rem !important;
+            }
+
+            .quick-action {
+                padding: 10px !important;
+            }
+
+            .quick-action .qa-desc {
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 <body>
+
+<div class="bg-pulse" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+</div>
 
 <div class="dashboard-layout">
 
     <!-- ===== SIDEBAR ===== -->
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
                 <div class="logo-icon">A</div>
-                <div>Asyrof<span>OTP</span></div>
+                <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
+            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
         </div>
 
         <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item active">
+            <a href="/dashboard" class="nav-item active" data-tooltip="Home">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Home
+                <span class="nav-label">Home</span>
             </a>
-            <a href="/nokos" class="nav-item">
+            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
                 <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                Beli Nokos
+                <span class="nav-label">Beli Nokos</span>
             </a>
-            <a href="/inbox" class="nav-item">
+            <a href="/inbox" class="nav-item" data-tooltip="Inbox">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                Inbox
+                <span class="nav-label">Inbox</span>
             </a>
-            <a href="/deposit" class="nav-item">
+            <a href="/deposit" class="nav-item" data-tooltip="Deposit">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                Deposit
+                <span class="nav-label">Deposit</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
-            <a href="/profile" class="nav-item">
+            <a href="/profile" class="nav-item" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Profile
+                <span class="nav-label">Profile</span>
             </a>
         </nav>
 
         <div class="sidebar-footer">
             <div class="user-info">
-                <div class="user-avatar" id="userInitial">?</div>
+                <div class="user-avatar" id="userInitial">
+                    <span class="loading-spinner loading-spinner-sm"></span>
+                </div>
                 <div class="user-details">
-                    <div class="user-name" id="userName">—</div>
-                    <div class="user-balance" id="userBalance">—</div>
+                    <div class="user-name" id="userName">
+                        <span class="skeleton skeleton-text-sm"></span>
+                    </div>
+                    <div class="user-balance" id="userBalance">
+                        <span class="skeleton skeleton-text-sm"></span>
+                    </div>
                 </div>
                 <button class="logout-btn" id="logoutBtn" title="Keluar">
                     <svg class="icon-svg" viewBox="0 0 24 24">
@@ -69,17 +580,24 @@
         </div>
     </aside>
 
-    <div class="sidebar-overlay"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- ===== MAIN ===== -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
                 <h1>Dashboard</h1>
-                <p>Selamat datang kembali, <span id="greetingName">—</span> 👋</p>
+                <p>Halo, <span id="greetingName">—</span> 👋</p>
             </div>
             <div class="topbar-right">
-                <button class="mobile-toggle">
+                <button class="icon-btn" id="refreshBtn" title="Refresh data" type="button">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
+                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <div class="balance-pill">
@@ -87,6 +605,25 @@
                     <span class="label">Saldo:</span>
                     <span class="amount" id="balancePill">—</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- WELCOME BANNER -->
+        <div class="welcome-banner">
+            <div class="welcome-banner-content">
+                <div class="welcome-banner-icon">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                    </svg>
+                </div>
+                <div class="welcome-banner-text">
+                    <h2>Selamat Datang di AsyrofOTP!</h2>
+                    <p>Nokos OTP 24 jam · Proses instan · Refund otomatis</p>
+                </div>
+                <a href="/nokos" class="welcome-banner-cta">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    Mulai Belanja
+                </a>
             </div>
         </div>
 
@@ -132,7 +669,7 @@
             </div>
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                 <code id="userCode" class="user-code-display">—</code>
-                <button class="btn btn-sm" id="copyUserCode" style="display:none;">
+                <button class="btn btn-sm" id="copyUserCode" type="button" style="display:none;">
                     <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     Copy
                 </button>
@@ -145,25 +682,37 @@
                 <div class="icon-box">
                     <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 </div>
-                Beli Nokos
+                <div class="qa-text">
+                    <div class="qa-title">Beli Nokos</div>
+                    <div class="qa-desc">Order nomor OTP</div>
+                </div>
             </a>
             <a href="/deposit" class="quick-action qa-green">
                 <div class="icon-box">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                Deposit
+                <div class="qa-text">
+                    <div class="qa-title">Deposit</div>
+                    <div class="qa-desc">Top-up saldo</div>
+                </div>
             </a>
             <a href="/inbox" class="quick-action qa-purple">
                 <div class="icon-box">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                 </div>
-                Inbox
+                <div class="qa-text">
+                    <div class="qa-title">Inbox</div>
+                    <div class="qa-desc">Lihat pesan</div>
+                </div>
             </a>
             <a href="/profile" class="quick-action qa-orange">
                 <div class="icon-box">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
-                Profile
+                <div class="qa-text">
+                    <div class="qa-title">Profile</div>
+                    <div class="qa-desc">Atur akun</div>
+                </div>
             </a>
         </div>
 
@@ -189,8 +738,10 @@
                     </thead>
                     <tbody id="transactionsTable">
                         <tr>
-                            <td colspan="5" style="text-align:center;padding:40px;color:var(--text-gray);">
-                                Memuat transaksi...
+                            <td colspan="5">
+                                <div class="skeleton-row"><div class="skeleton" style="width:30%"></div><div class="skeleton" style="width:40%"></div></div>
+                                <div class="skeleton-row"><div class="skeleton" style="width:35%"></div><div class="skeleton" style="width:45%"></div></div>
+                                <div class="skeleton-row"><div class="skeleton" style="width:25%"></div><div class="skeleton" style="width:50%"></div></div>
                             </td>
                         </tr>
                     </tbody>
@@ -200,32 +751,181 @@
     </main>
 </div>
 
-<script src="/js/cache.js"></script>
+<!-- ===== MOBILE BOTTOM TASKBAR ===== -->
+<nav class="mobile-taskbar" aria-label="Navigasi utama">
+    <div class="mobile-taskbar-inner">
+        <a href="/dashboard" class="taskbar-item active" data-page="dashboard">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="taskbar-label">Home</span>
+        </a>
+        <a href="/nokos" class="taskbar-item" data-page="nokos">
+            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span class="taskbar-label">Nokos</span>
+        </a>
+        <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
+            <div class="icon-wrapper">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <span class="taskbar-label">Deposit</span>
+        </a>
+        <a href="/inbox" class="taskbar-item" data-page="inbox">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            <span class="taskbar-label">Inbox</span>
+        </a>
+        <a href="/profile" class="taskbar-item" data-page="profile">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="taskbar-label">Profile</span>
+        </a>
+    </div>
+</nav>
+
+<script src="/js/main.js"></script>
 <script>
-    // ===== HELPERS =====
-    function formatRupiah(angka) {
-        if (angka === null || angka === undefined) return '—';
-        return 'Rp' + Number(angka).toLocaleString('id-ID');
-    }
+    /* ============================================
+       DASHBOARD SCRIPT
+       ============================================ */
 
-    function formatTanggal(date) {
-        if (!date) return '—';
-        const d = new Date(date);
-        return d.toLocaleString('id-ID', {
-            day: '2-digit', month: 'short',
-            hour: '2-digit', minute: '2-digit'
-        });
-    }
-
-    function getInitial(name) {
-        return name ? name.charAt(0).toUpperCase() : '?';
-    }
-
-    // ===== AUTH =====
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
-    // ===== LOAD USER (SWR) =====
+    /* ============================================
+       THEME TOGGLE
+       ============================================ */
+    (function initTheme() {
+        const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
+
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('asyrofotp_theme', next);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+        });
+    })();
+
+    /* ============================================
+       SIDEBAR COLLAPSE (DESKTOP)
+       ============================================ */
+    (function initCollapse() {
+        const sidebar = document.getElementById('sidebar');
+        const collapseBtn = document.getElementById('collapseBtn');
+        if (!sidebar || !collapseBtn) return;
+        if (window.innerWidth <= 768) return;
+
+        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) return;
+            const collapsed = sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('sidebar_collapsed', collapsed);
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
+            } else {
+                const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+                if (isCollapsed) {
+                    sidebar.classList.add('collapsed');
+                    document.body.classList.add('sidebar-collapsed');
+                }
+            }
+        });
+    })();
+
+    /* ============================================
+       MOBILE SIDEBAR
+       ============================================ */
+    (function initMobileSidebar() {
+        const mobileToggle = document.getElementById('mobileToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (!mobileToggle || !sidebar) return;
+
+        let isOpen = false;
+
+        function openSidebar() {
+            if (isOpen) return;
+            isOpen = true;
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('collapsed');
+                document.body.classList.remove('sidebar-collapsed');
+            }
+            sidebar.classList.add('open');
+            if (sidebarOverlay) sidebarOverlay.classList.add('active');
+            document.body.classList.add('sidebar-open');
+            const scrollY = window.scrollY;
+            document.body.style.top = `-${scrollY}px`;
+        }
+
+        function closeSidebar() {
+            if (!isOpen) return;
+            isOpen = false;
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+            const scrollY = document.body.style.top;
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+
+        function handleToggle(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen) closeSidebar(); else openSidebar();
+        }
+
+        mobileToggle.addEventListener('click', handleToggle);
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', (e) => {
+                e.preventDefault();
+                closeSidebar();
+            });
+        }
+
+        sidebar.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768 && isOpen) {
+                    setTimeout(closeSidebar, 100);
+                }
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) closeSidebar();
+        });
+
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (window.innerWidth > 768) {
+                    if (isOpen) closeSidebar();
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    document.body.classList.remove('sidebar-collapsed');
+                }
+            }, 150);
+        });
+
+        window.addEventListener('pageshow', () => {
+            document.body.style.top = '';
+            document.body.classList.remove('sidebar-open');
+        });
+    })();
+
+    /* ============================================
+       LOAD USER (SWR)
+       ============================================ */
     swrFetch('/api/user', 'user_profile', (user, meta) => {
         if (!user) return;
 
@@ -241,8 +941,10 @@
         }
     });
 
-    // ===== LOAD DASHBOARD (SWR) =====
-    swrFetch('/api/dashboard', 'dashboard_data', (data, meta) => {
+    /* ============================================
+       LOAD DASHBOARD (SWR)
+       ============================================ */
+    function renderDashboard(data) {
         if (!data) return;
 
         document.getElementById('statTotal').textContent = data.stats.total;
@@ -255,8 +957,10 @@
         if (!data.transactions || data.transactions.length === 0) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="5" style="text-align:center;padding:40px;color:var(--text-gray);">
-                        Belum ada transaksi
+                    <td colspan="5" style="text-align:center;padding:32px 20px;color:var(--text-gray);">
+                        <div style="font-size:2rem;margin-bottom:8px;">📭</div>
+                        <strong style="display:block;margin-bottom:4px;color:var(--text-dark);">Belum ada transaksi</strong>
+                        <span style="font-size:0.82rem;">Mulai beli nokos buat lihat riwayat</span>
                     </td>
                 </tr>
             `;
@@ -282,20 +986,59 @@
                 </tr>
             `;
         }).join('');
+    }
+
+    swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
+
+    /* ============================================
+       REFRESH BUTTON
+       ============================================ */
+    document.getElementById('refreshBtn').addEventListener('click', async function() {
+        const btn = this;
+        btn.classList.add('spinning');
+
+        try {
+            const res = await fetch('/api/dashboard', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (data) {
+                CacheManager.set('dashboard_data', data);
+                renderDashboard(data);
+            }
+
+            const userRes = await fetch('/api/user', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const user = await safeJson(userRes);
+            if (user) {
+                CacheManager.set('user_profile', user);
+                document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+            }
+        } catch (err) {
+            console.error('Refresh error:', err);
+        } finally {
+            setTimeout(() => btn.classList.remove('spinning'), 500);
+        }
     });
 
-    // ===== COPY USER CODE =====
+    /* ============================================
+       COPY USER CODE
+       ============================================ */
     document.getElementById('copyUserCode').addEventListener('click', () => {
         const code = document.getElementById('userCode').textContent;
         navigator.clipboard.writeText(code).then(() => {
             const btn = document.getElementById('copyUserCode');
             const original = btn.innerHTML;
-            btn.innerHTML = '✓ Copied!';
+            btn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
             setTimeout(() => btn.innerHTML = original, 1500);
         });
     });
 
-    // ===== LOGOUT =====
+    /* ============================================
+       LOGOUT
+       ============================================ */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -310,25 +1053,7 @@
 
         window.location.href = '/landing';
     });
-
-    // ===== MOBILE SIDEBAR =====
-    const mobileToggle = document.querySelector('.mobile-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-
-    if (mobileToggle) {
-        mobileToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('active');
-        });
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-    }
 </script>
-
-    <script src="/js/cache.js"></script>
 
 </body>
 </html>
