@@ -2,7 +2,8 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
     <title>Profile - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -10,18 +11,63 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="/css/core.css">
-<link rel="stylesheet" href="/css/layout.css">
-<link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script>
+        (function() {
+            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
     <style>
-        /* ===== PROFILE-SPECIFIC ===== */
+        .dashboard-layout,
+        .dashboard-layout * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
 
-        /* Profile hero */
+        .dashboard-layout input,
+        .dashboard-layout textarea,
+        .dashboard-layout select {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+
+        /* ============================================
+           PROFILE HERO
+           ============================================ */
+        .profile-hero-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard);
+            padding: 24px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-hero-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--purple));
+            background-size: 200% 100%;
+        }
+
         .profile-hero {
             display: flex;
             align-items: center;
             gap: 24px;
             flex-wrap: wrap;
-            margin-bottom: 24px;
         }
 
         .profile-avatar {
@@ -40,12 +86,6 @@
             font-size: 2.2rem;
             flex-shrink: 0;
             text-shadow: 2px 2px 0px rgba(15, 23, 42, 0.4);
-            transition: all var(--transition);
-        }
-
-        .profile-avatar:hover {
-            transform: rotate(5deg) scale(1.05);
-            box-shadow: var(--shadow-hard-lg);
         }
 
         .profile-meta {
@@ -59,6 +99,7 @@
             letter-spacing: -0.02em;
             margin-bottom: 4px;
             font-family: var(--font-display);
+            color: var(--text-dark);
         }
 
         .profile-meta .username {
@@ -97,7 +138,9 @@
             height: 14px;
         }
 
-        /* Info rows */
+        /* ============================================
+           INFO LIST
+           ============================================ */
         .info-list {
             display: flex;
             flex-direction: column;
@@ -111,7 +154,7 @@
             border-bottom: 1px solid var(--border);
             gap: 16px;
             flex-wrap: wrap;
-            transition: all var(--transition-fast);
+            transition: all 0.15s;
         }
 
         .info-row:last-child { border-bottom: none; }
@@ -124,15 +167,25 @@
             font-size: 0.85rem;
             color: var(--text-gray);
             font-weight: 600;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .info-row-value {
             font-weight: 700;
             font-size: 0.9rem;
             color: var(--text-dark);
+            font-family: var(--font-mono);
+            text-align: right;
+            word-break: break-all;
         }
 
-        /* Action buttons row */
+        .info-row-value.primary { color: var(--primary); }
+
+        /* ============================================
+           ACTION BUTTONS
+           ============================================ */
         .action-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -155,30 +208,14 @@
             font-family: inherit;
             position: relative;
             overflow: hidden;
-        }
-
-        .action-btn::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4);
-            transform: translate(-50%, -50%);
-            transition: width 0.5s, height 0.5s;
-        }
-
-        .action-btn:hover::before {
-            width: 400px;
-            height: 400px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .action-btn:hover {
             transform: translate(-3px, -3px);
             box-shadow: var(--shadow-hard);
-            background: white;
+            background: var(--bg-white);
         }
 
         .action-btn .icon-box {
@@ -193,8 +230,6 @@
             color: var(--primary);
             flex-shrink: 0;
             transition: all var(--transition);
-            position: relative;
-            z-index: 1;
         }
 
         .action-btn:hover .icon-box {
@@ -202,7 +237,7 @@
         }
 
         .action-btn .icon-box.danger {
-            background: #fee2e2;
+            background: var(--danger-light);
             color: var(--danger);
         }
 
@@ -214,8 +249,6 @@
         .action-btn-text {
             flex: 1;
             min-width: 0;
-            position: relative;
-            z-index: 1;
         }
 
         .action-btn-title {
@@ -230,6 +263,41 @@
             font-size: 0.78rem;
             color: var(--text-gray);
             font-weight: 500;
+        }
+
+        /* ============================================
+           MODAL
+           ============================================ */
+        .modal-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 16px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            margin: 0 auto 16px;
+        }
+
+        .modal-icon .icon-svg {
+            width: 26px;
+            height: 26px;
+        }
+
+        .modal h2 {
+            text-align: center;
+            margin-bottom: 6px;
+            font-family: var(--font-display);
+        }
+
+        .modal .modal-subtitle {
+            text-align: center;
+            color: var(--text-gray);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
         }
 
         /* Password input wrapper */
@@ -266,169 +334,96 @@
             height: 20px;
         }
 
-        /* Modal tweaks */
-        .modal-icon {
-            width: 56px;
-            height: 56px;
-            border-radius: 16px;
-            background: var(--primary-light);
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard-sm);
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
             display: flex;
+            justify-content: space-between;
             align-items: center;
-            justify-content: center;
-            color: var(--primary);
-            margin: 0 auto 16px;
-            animation: float 3s ease-in-out infinite;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+            padding: 18px 4px 8px;
+            border-top: 1px solid var(--border);
+            color: var(--text-light);
+            font-size: 0.78rem;
         }
 
-        .modal-icon .icon-svg {
-            width: 26px;
-            height: 26px;
-        }
+        .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .site-footer a { color: var(--text-gray); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary); text-decoration: underline; }
 
-        .modal h2 {
-            text-align: center;
-            margin-bottom: 6px;
-            font-family: var(--font-display);
-        }
-
-        .modal .modal-subtitle {
-            text-align: center;
-            color: var(--text-gray);
-            font-size: 0.85rem;
-            margin-bottom: 24px;
-        }
-
-        /* ===== SPINNER / SKELETON ===== */
-        .loading-spinner {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2.5px solid rgba(15, 23, 42, 0.15);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-        }
-
-        .loading-spinner-sm {
-            width: 14px;
-            height: 14px;
-            border-width: 2px;
-        }
-
-        .loading-spinner-lg {
-            width: 32px;
-            height: 32px;
-            border-width: 3px;
-        }
-
-        .loading-inline {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            color: var(--text-gray);
-            font-size: 0.85rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Skeleton block */
-        .skeleton {
-            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 8px;
-            display: inline-block;
-        }
-
-        .skeleton-text {
-            height: 16px;
-            width: 100px;
-        }
-
-        .skeleton-text-sm {
-            height: 12px;
-            width: 80px;
-        }
-
-        .skeleton-avatar {
-            width: 88px;
-            height: 88px;
-            border-radius: 50%;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: 200% 0; }
-            100% { background-position: -200% 0; }
-        }
-
-        /* Page loading state — biar transisi lebih smooth */
-        .page-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 200px;
-            flex-direction: column;
-            gap: 16px;
-            color: var(--text-gray);
-        }
-
-        .page-loading .loading-spinner {
-            width: 40px;
-            height: 40px;
-            border-width: 3px;
-        }
-
-        .page-loading-text {
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
         @media (max-width: 640px) {
             .action-row {
                 grid-template-columns: 1fr;
             }
+
+            .profile-avatar {
+                width: 72px;
+                height: 72px;
+                font-size: 1.8rem;
+            }
+
+            .profile-meta h2 { font-size: 1.2rem; }
+            .profile-hero-card { padding: 18px; }
+        }
+
+        @media (max-width: 480px) {
+            .profile-meta h2 { font-size: 1.1rem; }
+            .info-row { padding: 12px 0; }
+            .site-footer { font-size: 0.72rem; padding: 14px 4px 6px; }
+            .site-footer-links { gap: 12px; }
         }
     </style>
 </head>
 <body>
 
+<div class="bg-pulse" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+</div>
+
 <div class="dashboard-layout">
 
-    <!-- ===== SIDEBAR ===== -->
-    <aside class="sidebar">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
                 <div class="logo-icon">A</div>
-                <div>Asyrof<span>OTP</span></div>
+                <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
+            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
         </div>
 
         <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item">
+            <a href="/dashboard" class="nav-item" data-tooltip="Home">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                Home
+                <span class="nav-label">Home</span>
             </a>
-            <a href="/nokos" class="nav-item">
+            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
                 <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                Beli Nokos
+                <span class="nav-label">Beli Nokos</span>
             </a>
-            <a href="/inbox" class="nav-item">
+            <a href="/inbox" class="nav-item" data-tooltip="Inbox">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                Inbox
+                <span class="nav-label">Inbox</span>
             </a>
-            <a href="/deposit" class="nav-item">
+            <a href="/deposit" class="nav-item" data-tooltip="Deposit">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                Deposit
+                <span class="nav-label">Deposit</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
-            <a href="/profile" class="nav-item active">
+            <a href="/profile" class="nav-item active" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Profile
+                <span class="nav-label">Profile</span>
             </a>
         </nav>
 
@@ -456,9 +451,8 @@
         </div>
     </aside>
 
-    <div class="sidebar-overlay"></div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- ===== MAIN ===== -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -466,14 +460,23 @@
                 <p>Kelola akun kamu</p>
             </div>
             <div class="topbar-right">
-                <button class="mobile-toggle">
+                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </button>
+                <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
+                <div class="balance-pill">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span class="label">Saldo:</span>
+                    <span class="amount" id="balancePill">—</span>
+                </div>
             </div>
         </div>
 
         <!-- PROFILE HERO -->
-        <div class="card card-gradient card-corner">
+        <div class="profile-hero-card">
             <div class="profile-hero">
                 <div class="profile-avatar" id="profileAvatar">
                     <span class="loading-spinner loading-spinner-lg"></span>
@@ -496,7 +499,10 @@
         <!-- INFO -->
         <div class="card">
             <div class="card-header">
-                <h2>Informasi Akun</h2>
+                <div>
+                    <h2>Informasi Akun</h2>
+                    <p>Data akun kamu di AsyrofOTP</p>
+                </div>
             </div>
             <div class="info-list">
                 <div class="info-row">
@@ -513,7 +519,7 @@
                 </div>
                 <div class="info-row">
                     <span class="info-row-label">User ID</span>
-                    <span class="info-row-value" id="infoUserCode" style="font-family:var(--font-mono);color:var(--primary);">
+                    <span class="info-row-value primary" id="infoUserCode">
                         <span class="skeleton skeleton-text-sm"></span>
                     </span>
                 </div>
@@ -529,10 +535,13 @@
         <!-- ACTIONS -->
         <div class="card">
             <div class="card-header">
-                <h2>Pengaturan</h2>
+                <div>
+                    <h2>Pengaturan</h2>
+                    <p>Kelola nama & password kamu</p>
+                </div>
             </div>
             <div class="action-row">
-                <button class="action-btn" id="btnEditName">
+                <button class="action-btn" id="btnEditName" type="button">
                     <div class="icon-box">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                     </div>
@@ -542,7 +551,7 @@
                     </div>
                 </button>
 
-                <button class="action-btn" id="btnChangePassword">
+                <button class="action-btn" id="btnChangePassword" type="button">
                     <div class="icon-box danger">
                         <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                     </div>
@@ -554,10 +563,46 @@
             </div>
         </div>
 
+        <footer class="site-footer">
+            <div class="site-footer-links">
+                <a href="/syarat">Syarat</a>
+                <a href="/ketentuan">Ketentuan</a>
+            </div>
+            <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+        </footer>
+
     </main>
 </div>
 
-<!-- ===== MODAL: EDIT NAMA ===== -->
+<!-- MOBILE TASKBAR -->
+<nav class="mobile-taskbar" aria-label="Navigasi utama">
+    <div class="mobile-taskbar-inner">
+        <a href="/dashboard" class="taskbar-item" data-page="dashboard">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+            <span class="taskbar-label">Home</span>
+        </a>
+        <a href="/nokos" class="taskbar-item" data-page="nokos">
+            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            <span class="taskbar-label">Nokos</span>
+        </a>
+        <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
+            <div class="icon-wrapper">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <span class="taskbar-label">Deposit</span>
+        </a>
+        <a href="/inbox" class="taskbar-item" data-page="inbox">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+            <span class="taskbar-label">Inbox</span>
+        </a>
+        <a href="/profile" class="taskbar-item active" data-page="profile">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span class="taskbar-label">Profile</span>
+        </a>
+    </div>
+</nav>
+
+<!-- MODAL: EDIT NAMA -->
 <div class="modal-overlay" id="modalName">
     <div class="modal">
         <div class="modal-icon">
@@ -587,7 +632,7 @@
     </div>
 </div>
 
-<!-- ===== MODAL: GANTI PASSWORD ===== -->
+<!-- MODAL: GANTI PASSWORD -->
 <div class="modal-overlay" id="modalPassword">
     <div class="modal">
         <div class="modal-icon">
@@ -643,29 +688,112 @@
     </div>
 </div>
 
-<script src="/js/cache.js"></script>
+<script src="/js/main.js"></script>
 <script>
-    // ===== HELPERS =====
-    function formatRupiah(angka) {
-        if (!angka) return 'Rp0';
-        return 'Rp' + Number(angka).toLocaleString('id-ID');
-    }
-
-    function getInitial(name) {
-        return name ? name.charAt(0).toUpperCase() : '?';
-    }
-
+    /* ============================================
+       PROFILE SCRIPT
+       ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
-    // ===== LOAD USER (SWR) =====
-    swrFetch('/api/user', 'user_profile', (user, meta) => {
+    /* ===== THEME TOGGLE ===== */
+    (function initTheme() {
+        const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
+        themeToggle.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('asyrofotp_theme', next);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+        });
+    })();
+
+    /* ===== SIDEBAR COLLAPSE ===== */
+    (function initCollapse() {
+        const sidebar = document.getElementById('sidebar');
+        const collapseBtn = document.getElementById('collapseBtn');
+        if (!sidebar || !collapseBtn) return;
+        if (window.innerWidth <= 768) return;
+
+        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            sidebar.classList.add('collapsed');
+            document.body.classList.add('sidebar-collapsed');
+        }
+
+        collapseBtn.addEventListener('click', () => {
+            if (window.innerWidth <= 768) return;
+            const collapsed = sidebar.classList.toggle('collapsed');
+            document.body.classList.toggle('sidebar-collapsed', collapsed);
+            localStorage.setItem('sidebar_collapsed', collapsed);
+        });
+    })();
+
+    /* ===== MOBILE SIDEBAR ===== */
+    (function initMobileSidebar() {
+        const mobileToggle = document.getElementById('mobileToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (!mobileToggle || !sidebar) return;
+
+        let isOpen = false;
+
+        function openSidebar() {
+            if (isOpen) return;
+            isOpen = true;
+            sidebar.classList.add('open');
+            if (sidebarOverlay) sidebarOverlay.classList.add('active');
+            document.body.classList.add('sidebar-open');
+            const scrollY = window.scrollY;
+            document.body.style.top = `-${scrollY}px`;
+        }
+
+        function closeSidebar() {
+            if (!isOpen) return;
+            isOpen = false;
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+            document.body.classList.remove('sidebar-open');
+            const scrollY = document.body.style.top;
+            document.body.style.top = '';
+            window.scrollTo(0, parseInt(scrollY || '0') * -1);
+        }
+
+        mobileToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (isOpen) closeSidebar(); else openSidebar();
+        });
+
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+        sidebar.querySelectorAll('.nav-item').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && isOpen) closeSidebar();
+        });
+
+        window.addEventListener('pageshow', () => {
+            document.body.style.top = '';
+            document.body.classList.remove('sidebar-open');
+        });
+    })();
+
+    /* ===== LOAD USER (SWR) ===== */
+    swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
 
         // Sidebar
         document.getElementById('userName').textContent = user.name || user.username;
         document.getElementById('userBalance').textContent = formatRupiah(user.balance);
         document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
+        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
 
         // Profile hero
         document.getElementById('profileAvatar').textContent = getInitial(user.name || user.username);
@@ -685,13 +813,17 @@
         }
     });
 
-    // ===== MODAL OPEN/CLOSE =====
+    /* ===== MODAL OPEN/CLOSE ===== */
     function openModal(id) {
         document.getElementById(id).classList.add('active');
+        document.body.classList.add('modal-open');
     }
 
     function closeModal(el) {
         el.classList.remove('active');
+        if (!document.querySelector('.modal-overlay.active')) {
+            document.body.classList.remove('modal-open');
+        }
     }
 
     document.getElementById('btnEditName').addEventListener('click', () => openModal('modalName'));
@@ -710,7 +842,14 @@
         });
     });
 
-    // ===== PASSWORD TOGGLE (EYE) =====
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const active = document.querySelector('.modal-overlay.active');
+            if (active) closeModal(active);
+        }
+    });
+
+    /* ===== PASSWORD TOGGLE (EYE) ===== */
     document.querySelectorAll('.password-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const inputId = btn.dataset.toggle;
@@ -740,7 +879,7 @@
         document.getElementById(id).classList.remove('show');
     }
 
-    // ===== SAVE NAME =====
+    /* ===== SAVE NAME ===== */
     document.getElementById('formName').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertName');
@@ -761,7 +900,7 @@
                 body: JSON.stringify({ name })
             });
 
-            const data = await res.json();
+            const data = await safeJson(res);
             if (data.error) throw new Error(data.error);
 
             showAlert('alertName', 'Nama berhasil diupdate!', 'success');
@@ -773,7 +912,6 @@
             document.getElementById('profileAvatar').textContent = getInitial(name);
             document.getElementById('userInitial').textContent = getInitial(name);
 
-            // Hapus cache user biar next load ambil fresh
             CacheManager.remove('user_profile');
 
             setTimeout(() => {
@@ -788,7 +926,7 @@
         }
     });
 
-    // ===== SAVE PASSWORD =====
+    /* ===== SAVE PASSWORD ===== */
     document.getElementById('formPassword').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertPassword');
@@ -817,13 +955,12 @@
                 body: JSON.stringify({ current_password, new_password })
             });
 
-            const data = await res.json();
+            const data = await safeJson(res);
             if (data.error) throw new Error(data.error);
 
             showAlert('alertPassword', 'Password berhasil diubah!', 'success');
             document.getElementById('formPassword').reset();
 
-            // Hapus cache user
             CacheManager.remove('user_profile');
 
             setTimeout(() => {
@@ -838,7 +975,7 @@
         }
     });
 
-    // ===== COPY USER CODE =====
+    /* ===== COPY USER CODE ===== */
     document.getElementById('profileCodeBadge').addEventListener('click', () => {
         const code = document.getElementById('profileCodeText').textContent;
         navigator.clipboard.writeText(code).then(() => {
@@ -849,7 +986,7 @@
         });
     });
 
-    // ===== LOGOUT =====
+    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -861,25 +998,8 @@
         CacheManager.clear();
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
-
         window.location.href = '/landing';
     });
-
-    // ===== MOBILE SIDEBAR =====
-    const mobileToggle = document.querySelector('.mobile-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    const overlay = document.querySelector('.sidebar-overlay');
-
-    if (mobileToggle) {
-        mobileToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            overlay.classList.toggle('active');
-        });
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-        });
-    }
 </script>
 
 </body>
