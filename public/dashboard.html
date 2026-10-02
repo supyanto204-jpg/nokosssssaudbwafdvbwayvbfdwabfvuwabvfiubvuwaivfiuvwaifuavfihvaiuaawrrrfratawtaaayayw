@@ -20,9 +20,6 @@
         })();
     </script>
     <style>
-        /* ============================================
-           GLOBAL ANTI-SELECT
-           ============================================ */
         .dashboard-layout,
         .dashboard-layout * {
             -webkit-user-select: none;
@@ -43,12 +40,69 @@
         }
 
         /* ============================================
-           DASHBOARD-SPECIFIC
+           HERO / WELCOME BANNER
+           ============================================ */
+        .welcome-hero {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .welcome-hero-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #3b82f6, #7c3aed);
+            background-size: 200% 200%;
+            border: 2.5px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: var(--shadow-hard);
+            flex-shrink: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome-hero-icon .icon-svg {
+            width: 30px;
+            height: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome-hero-text { flex: 1; min-width: 0; }
+
+        .welcome-hero-text h1 {
+            font-size: 1.8rem;
+            font-weight: 900;
+            font-family: var(--font-display);
+            letter-spacing: -0.02em;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-hero-text p {
+            color: var(--text-gray);
+            font-size: 0.88rem;
+            max-width: 560px;
+            line-height: 1.5;
+        }
+
+        /* ============================================
+           STATS GRID
            ============================================ */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            gap: 14px;
             margin-bottom: 24px;
         }
 
@@ -57,7 +111,7 @@
             border-radius: var(--radius);
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
-            padding: 20px;
+            padding: 18px;
             display: flex;
             flex-direction: column;
             gap: 8px;
@@ -122,11 +176,14 @@
         .stat-icon .icon-svg { width: 20px; height: 20px; }
 
         .stat-label {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-gray);
-            font-weight: 500;
+            font-weight: 600;
             position: relative;
             z-index: 1;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
         }
 
         .stat-value {
@@ -139,7 +196,110 @@
             z-index: 1;
         }
 
-        /* Quick actions */
+        /* ============================================
+           USER CODE CARD
+           ============================================ */
+        .user-code-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-hard-sm);
+            padding: 20px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .user-code-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--purple));
+        }
+
+        .user-code-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .user-code-header .icon-box {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: var(--primary-light);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .user-code-header .icon-box .icon-svg { width: 16px; height: 16px; }
+
+        .user-code-header h3 {
+            font-size: 0.88rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-dark);
+        }
+
+        .user-code-header p {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            margin-top: 2px;
+        }
+
+        .user-code-display {
+            font-family: var(--font-mono);
+            font-weight: 800;
+            font-size: 1.3rem;
+            color: var(--primary);
+            background: var(--bg-white);
+            padding: 14px 20px;
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border-dark);
+            letter-spacing: 0.05em;
+            transition: all var(--transition);
+            word-break: break-all;
+            display: inline-block;
+        }
+
+        .user-code-display:hover {
+            box-shadow: var(--shadow-glow);
+            transform: scale(1.02);
+        }
+
+        /* ============================================
+           QUICK ACTIONS
+           ============================================ */
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-gray);
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .section-title .icon-svg {
+            width: 16px;
+            height: 16px;
+            color: var(--primary);
+        }
+
         .quick-actions {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -207,6 +367,7 @@
             font-size: 0.9rem;
             font-weight: 700;
             line-height: 1.2;
+            font-family: var(--font-display);
         }
 
         .qa-desc {
@@ -216,135 +377,46 @@
             line-height: 1.2;
         }
 
-        /* User code */
-        .user-code-display {
-            font-family: var(--font-mono);
-            font-weight: 800;
-            font-size: 1.3rem;
-            color: var(--primary);
-            background: var(--bg-white);
-            padding: 12px 20px;
-            border-radius: var(--radius-sm);
-            border: 2px solid var(--border-dark);
-            letter-spacing: 0.05em;
-            transition: all var(--transition);
-            word-break: break-all;
-        }
-
-        .user-code-display:hover {
-            box-shadow: var(--shadow-glow);
-            transform: scale(1.02);
-        }
-
-        /* Welcome banner */
-        .welcome-banner {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark), var(--purple));
-            background-size: 200% 200%;
-            animation: gradientMove 6s ease infinite;
+        /* ============================================
+           TABLE
+           ============================================ */
+        .table-card {
+            background: var(--bg-card);
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
-            box-shadow: var(--shadow-hard);
-            padding: 20px 24px;
-            margin-bottom: 20px;
-            position: relative;
+            box-shadow: var(--shadow-hard-sm);
             overflow: hidden;
-            color: white;
+            margin-bottom: 24px;
         }
 
-        .welcome-banner::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 250px;
-            height: 250px;
-            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 70%);
-            border-radius: 50%;
-            animation: glowPulse 5s ease-in-out infinite;
-        }
-
-        .welcome-banner-content {
-            position: relative;
-            z-index: 1;
+        .table-card-header {
             display: flex;
             align-items: center;
-            gap: 16px;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 20px;
+            border-bottom: 2px solid var(--border-dark);
+            background: var(--bg-light);
             flex-wrap: wrap;
         }
 
-        .welcome-banner-icon {
-            width: 52px;
-            height: 52px;
-            border-radius: 14px;
-            background: rgba(255, 255, 255, 0.2);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .welcome-banner-icon .icon-svg {
-            width: 26px;
-            height: 26px;
-            color: white;
-        }
-
-        .welcome-banner-text {
-            flex: 1;
-            min-width: 0;
-        }
-
-        .welcome-banner-text h2 {
-            font-size: 1.1rem;
+        .table-card-header h3 {
+            font-size: 0.92rem;
             font-weight: 800;
             font-family: var(--font-display);
-            margin-bottom: 2px;
-            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--text-dark);
         }
 
-        .welcome-banner-text p {
-            font-size: 0.82rem;
-            opacity: 0.9;
-            color: white;
+        .table-card-header p {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            margin-top: 2px;
         }
 
-        .welcome-banner-cta {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 8px 16px;
-            border-radius: 50px;
-            background: rgba(255, 255, 255, 0.95);
-            color: var(--primary);
-            font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 0.82rem;
-            text-decoration: none;
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            transition: all var(--transition);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            flex-shrink: 0;
-        }
-
-        .welcome-banner-cta:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .welcome-banner-cta .icon-svg {
-            width: 14px;
-            height: 14px;
-        }
-
-        /* Table */
         .table-wrapper {
             overflow-x: auto;
-            border-radius: var(--radius-sm);
-            border: 2px solid var(--border-dark);
             -webkit-overflow-scrolling: touch;
         }
 
@@ -392,29 +464,55 @@
             height: 14px;
         }
 
-        /* Responsive */
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+            padding: 18px 4px 8px;
+            border-top: 1px solid var(--border);
+            color: var(--text-light);
+            font-size: 0.78rem;
+        }
+
+        .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .site-footer a { color: var(--text-gray); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary); text-decoration: underline; }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
             .quick-actions { grid-template-columns: repeat(2, 1fr); }
         }
 
         @media (max-width: 768px) {
+            .welcome-hero-text h1 { font-size: 1.4rem; }
+            .welcome-hero-icon { width: 52px; height: 52px; }
+            .welcome-hero-icon .icon-svg { width: 26px; height: 26px; }
+
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
-                margin-bottom: 14px;
+                margin-bottom: 16px;
             }
 
-            .stat-card { padding: 12px; gap: 4px; border-radius: 12px; }
+            .stat-card { padding: 14px; gap: 4px; border-radius: 12px; }
             .stat-icon { width: 32px; height: 32px; border-radius: 9px; margin-bottom: 2px; }
             .stat-icon .icon-svg { width: 16px; height: 16px; }
-            .stat-label { font-size: 0.68rem; }
+            .stat-label { font-size: 0.65rem; }
             .stat-value { font-size: 1.1rem; }
 
             .quick-actions {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
-                margin-bottom: 14px;
+                margin-bottom: 16px;
             }
 
             .quick-action { padding: 12px; gap: 10px; border-radius: 12px; }
@@ -423,6 +521,7 @@
             .qa-title { font-size: 0.8rem; }
             .qa-desc { font-size: 0.65rem; }
 
+            .user-code-card { padding: 16px; margin-bottom: 16px; }
             .user-code-display {
                 font-size: 0.82rem;
                 padding: 10px 12px;
@@ -430,30 +529,8 @@
                 border-radius: 8px;
             }
 
-            .welcome-banner {
-                padding: 14px 16px;
-                margin-bottom: 14px;
-                border-radius: 12px;
-            }
-
-            .welcome-banner-icon {
-                width: 42px;
-                height: 42px;
-                border-radius: 11px;
-            }
-
-            .welcome-banner-icon .icon-svg {
-                width: 20px;
-                height: 20px;
-            }
-
-            .welcome-banner-text h2 { font-size: 0.95rem; }
-            .welcome-banner-text p { font-size: 0.72rem; }
-
-            .welcome-banner-cta {
-                padding: 6px 12px;
-                font-size: 0.72rem;
-            }
+            .table-card-header { padding: 14px 16px; }
+            .table-card-header h3 { font-size: 0.82rem; }
 
             table {
                 font-size: 0.75rem;
@@ -463,18 +540,14 @@
             th { padding: 8px 10px; font-size: 0.65rem; }
             td { padding: 10px 10px; }
 
-            .badge {
-                font-size: 0.6rem;
-                padding: 3px 7px;
-            }
-
             .skeleton-row { padding: 10px 12px; gap: 8px; }
+
+            .site-footer { font-size: 0.72rem; padding: 14px 4px 6px; }
+            .site-footer-links { gap: 12px; }
         }
 
         @media (max-width: 480px) {
-            .topbar-left h1 { font-size: 1rem; }
-            .welcome-banner { padding: 12px 14px; }
-            .welcome-banner-cta { padding: 5px 10px; }
+            .welcome-hero-text h1 { font-size: 1.2rem; }
             .user-code-display { font-size: 0.72rem; padding: 8px 10px; }
             .stat-value { font-size: 1rem; }
             .quick-action { padding: 10px; }
@@ -492,7 +565,7 @@
 
 <div class="dashboard-layout">
 
-    <!-- ===== SIDEBAR ===== -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -555,7 +628,7 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- ===== MAIN ===== -->
+    <!-- MAIN -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -581,24 +654,22 @@
             </div>
         </div>
 
-        <!-- WELCOME BANNER -->
-        <div class="welcome-banner">
-            <div class="welcome-banner-content">
-                <div class="welcome-banner-icon">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                </div>
-                <div class="welcome-banner-text">
-                    <h2>Selamat Datang di AsyrofOTP</h2>
-                    <p>Nokos OTP 24 jam &middot; Proses instan &middot; Refund otomatis</p>
-                </div>
-                <a href="/nokos" class="welcome-banner-cta">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    Mulai Belanja
-                </a>
+        <!-- WELCOME HERO -->
+        <div class="welcome-hero">
+            <div class="welcome-hero-icon">
+                <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            </div>
+            <div class="welcome-hero-text">
+                <h1>Selamat Datang</h1>
+                <p>Nokos OTP 24 jam, proses instan, refund otomatis. Beli nomor & terima OTP langsung di inbox.</p>
             </div>
         </div>
 
         <!-- STATS -->
+        <div class="section-title">
+            <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+            Statistik Pesanan
+        </div>
         <div class="stats-grid">
             <div class="stat-card stat-blue">
                 <div class="stat-icon blue">
@@ -631,10 +702,13 @@
         </div>
 
         <!-- USER CODE -->
-        <div class="card card-gradient">
-            <div class="card-header">
+        <div class="user-code-card">
+            <div class="user-code-header">
+                <div class="icon-box">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+                </div>
                 <div>
-                    <h2>User ID Kamu</h2>
+                    <h3>User ID Kamu</h3>
                     <p>Bagikan ID ini kalau butuh bantuan support</p>
                 </div>
             </div>
@@ -648,6 +722,10 @@
         </div>
 
         <!-- QUICK ACTIONS -->
+        <div class="section-title">
+            <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            Aksi Cepat
+        </div>
         <div class="quick-actions">
             <a href="/nokos" class="quick-action qa-blue">
                 <div class="icon-box">
@@ -688,11 +766,15 @@
         </div>
 
         <!-- TRANSAKSI -->
-        <div class="card">
-            <div class="card-header">
+        <div class="section-title">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Transaksi Terakhir
+        </div>
+        <div class="table-card">
+            <div class="table-card-header">
                 <div>
-                    <h2>Transaksi Terakhir</h2>
-                    <p>5 transaksi terakhir kamu</p>
+                    <h3>5 Transaksi Terakhir</h3>
+                    <p>Riwayat pesanan nokos kamu</p>
                 </div>
                 <a href="/inbox" class="btn btn-sm">Lihat Semua</a>
             </div>
@@ -719,10 +801,18 @@
                 </table>
             </div>
         </div>
+
+        <footer class="site-footer">
+            <div class="site-footer-links">
+                <a href="/syarat">Syarat</a>
+                <a href="/ketentuan">Ketentuan</a>
+            </div>
+            <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+        </footer>
     </main>
 </div>
 
-<!-- ===== MOBILE BOTTOM TASKBAR ===== -->
+<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item active" data-page="dashboard">
@@ -750,7 +840,7 @@
     </div>
 </nav>
 
-<!-- ===== CUSTOM ALERT ===== -->
+<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -769,7 +859,6 @@
     /* ============================================
        DASHBOARD SCRIPT
        ============================================ */
-
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
@@ -780,9 +869,6 @@
         warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
     };
 
-    /* ============================================
-       CUSTOM ALERT
-       ============================================ */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('customAlert');
@@ -823,13 +909,10 @@
         });
     }
 
-    /* ============================================
-       THEME TOGGLE
-       ============================================ */
+    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
-
         themeToggle.addEventListener('click', () => {
             const current = document.documentElement.getAttribute('data-theme') || 'light';
             const next = current === 'dark' ? 'light' : 'dark';
@@ -840,9 +923,7 @@
         });
     })();
 
-    /* ============================================
-       SIDEBAR COLLAPSE (DESKTOP)
-       ============================================ */
+    /* ===== SIDEBAR COLLAPSE ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -861,24 +942,9 @@
             document.body.classList.toggle('sidebar-collapsed', collapsed);
             localStorage.setItem('sidebar_collapsed', collapsed);
         });
-
-        window.addEventListener('resize', () => {
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('collapsed');
-                document.body.classList.remove('sidebar-collapsed');
-            } else {
-                const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-                if (isCollapsed) {
-                    sidebar.classList.add('collapsed');
-                    document.body.classList.add('sidebar-collapsed');
-                }
-            }
-        });
     })();
 
-    /* ============================================
-       MOBILE SIDEBAR
-       ============================================ */
+    /* ===== MOBILE SIDEBAR ===== */
     (function initMobileSidebar() {
         const mobileToggle = document.getElementById('mobileToggle');
         const sidebar = document.getElementById('sidebar');
@@ -890,10 +956,6 @@
         function openSidebar() {
             if (isOpen) return;
             isOpen = true;
-            if (window.innerWidth <= 768) {
-                sidebar.classList.remove('collapsed');
-                document.body.classList.remove('sidebar-collapsed');
-            }
             sidebar.classList.add('open');
             if (sidebarOverlay) sidebarOverlay.classList.add('active');
             document.body.classList.add('sidebar-open');
@@ -912,44 +974,22 @@
             window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
 
-        function handleToggle(e) {
+        mobileToggle.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             if (isOpen) closeSidebar(); else openSidebar();
-        }
+        });
 
-        mobileToggle.addEventListener('click', handleToggle);
-
-        if (sidebarOverlay) {
-            sidebarOverlay.addEventListener('click', (e) => {
-                e.preventDefault();
-                closeSidebar();
-            });
-        }
+        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
 
         sidebar.querySelectorAll('.nav-item').forEach(link => {
             link.addEventListener('click', () => {
-                if (window.innerWidth <= 768 && isOpen) {
-                    setTimeout(closeSidebar, 100);
-                }
+                if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
             });
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isOpen) closeSidebar();
-        });
-
-        let resizeTimer;
-        window.addEventListener('resize', () => {
-            clearTimeout(resizeTimer);
-            resizeTimer = setTimeout(() => {
-                if (window.innerWidth > 768) {
-                    if (isOpen) closeSidebar();
-                } else {
-                    sidebar.classList.remove('collapsed');
-                    document.body.classList.remove('sidebar-collapsed');
-                }
-            }, 150);
         });
 
         window.addEventListener('pageshow', () => {
@@ -958,9 +998,7 @@
         });
     })();
 
-    /* ============================================
-       LOAD USER (SWR)
-       ============================================ */
+    /* ===== LOAD USER (SWR) ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
 
@@ -976,9 +1014,7 @@
         }
     });
 
-    /* ============================================
-       LOAD DASHBOARD (SWR)
-       ============================================ */
+    /* ===== LOAD DASHBOARD (SWR) ===== */
     function renderDashboard(data) {
         if (!data) return;
 
@@ -1014,8 +1050,8 @@
             return `
                 <tr>
                     <td>${formatTanggal(t.created_at)}</td>
-                    <td><strong>${t.service_name || '—'}</strong></td>
-                    <td>${t.country_flag || ''} ${t.country || '—'}</td>
+                    <td><strong>${escapeHtml(t.service_name || '—')}</strong></td>
+                    <td>${t.country_flag ? escapeHtml(t.country_flag) : ''} ${escapeHtml(t.country || '—')}</td>
                     <td>${formatRupiah(t.price)}</td>
                     <td><span class="badge ${s.class}">${s.label}</span></td>
                 </tr>
@@ -1023,11 +1059,15 @@
         }).join('');
     }
 
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+    }
+
     swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
 
-    /* ============================================
-       REFRESH BUTTON
-       ============================================ */
+    /* ===== REFRESH ===== */
     document.getElementById('refreshBtn').addEventListener('click', async function() {
         const btn = this;
         btn.classList.add('spinning');
@@ -1058,9 +1098,7 @@
         }
     });
 
-    /* ============================================
-       COPY USER CODE
-       ============================================ */
+    /* ===== COPY USER CODE ===== */
     document.getElementById('copyUserCode').addEventListener('click', () => {
         const code = document.getElementById('userCode').textContent;
         navigator.clipboard.writeText(code).then(() => {
@@ -1071,9 +1109,7 @@
         });
     });
 
-    /* ============================================
-       LOGOUT
-       ============================================ */
+    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -1085,7 +1121,6 @@
         CacheManager.clear();
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
-
         window.location.href = '/landing';
     });
 </script>
