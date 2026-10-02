@@ -971,7 +971,7 @@ async function refundOrder(order, reason = 'auto_refund') {
         return { refunded: false, amount: Number(o.refunded_amount) || 0, alreadyProcessed: true };
     }
 
-    if (['received', 'success'].includes(o.status)) {
+    if (['received', 'success', 'confirmed'].includes(o.status)) {
         return { refunded: false, amount: 0, alreadyProcessed: true };
     }
 
@@ -1959,7 +1959,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
         const order = orderRes.rows[0];
 
-        if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+        if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
                 order_id: order.order_id, otp_id: order.otp_id,
                 status: order.status, phone_number: order.phone_number,
@@ -2106,21 +2106,28 @@ app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
 // ============================================
 app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     try {
-        const result = await pool.query(
+        const [ordersResult, depositsResult] = await Promise.all([
+          pool.query(
             `SELECT 
                 COUNT(*) as all_count,
                 COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-                COUNT(*) FILTER (WHERE status IN ('success', 'received')) as success_count,
+                COUNT(*) FILTER (WHERE status IN ('success', 'received', 'confirmed')) as success_count,
                 COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
                 COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
                 COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
              FROM orders WHERE user_id = $1`,
             [req.user.id]
-        );
+          ),
+          pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id])
+        ]);
 
-        const row = result.rows[0] || {};
+        const row = ordersResult.rows[0] || {};
+        const nokos = Number(row.all_count || 0);
+        const deposit = Number(depositsResult.rows[0]?.count || 0);
         res.json({
-            all: Number(row.all_count || 0),
+            all: nokos + deposit,
+            nokos,
+            deposit,
             pending: Number(row.pending_count || 0),
             success: Number(row.success_count || 0),
             failed: Number(row.failed_count || 0),
@@ -2702,7 +2709,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
-        if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+        if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
                 order_id: order.order_id, otp_id: order.otp_id,
                 status: order.status, phone_number: order.phone_number,
@@ -2772,12 +2779,29 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
             'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
             [String(orderId), req.user.id]
         );
-        if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
+        if (orderRes.rows.length === 0) {
+            const depositRes = await pool.query(
+                'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
+                [String(orderId), req.user.id]
+            );
+            if (!depositRes.rows.length) return res.status(404).json({ error: 'Data tidak ditemukan' });
+            const d = depositRes.rows[0];
+            return res.json({
+                order_id: d.reference_id, order_type: 'deposit', otp_id: null,
+                status: `deposit_${d.status}`, service: 'Deposit',
+                service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
+                country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA',
+                phone_number: null, otp_code: null, full_sms: null, price: d.amount,
+                qris_id: d.qris_id, qris_url: d.qris_url, qris_string: d.qris_string,
+                total_amount: d.total_amount, fee: d.fee,
+                created_at: d.created_at, updated_at: d.updated_at, expired_at: d.expires_at,
+            });
+        }
 
         const order = orderRes.rows[0];
 
         // Fix #19: cek status final dulu
-        if (['received', 'success'].includes(order.status)) {
+        if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak perlu resend' });
         }
 
@@ -2815,6 +2839,58 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
     }
 }));
 
+// ===== CONFIRM OTP ORDER =====
+// This endpoint is used by inbox.html after the user confirms the OTP worked.
+app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, res) => {
+    const { orderId } = req.params;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const found = await client.query(
+            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 FOR UPDATE',
+            [String(orderId), req.user.id]
+        );
+        if (!found.rows.length) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Order tidak ditemukan' });
+        }
+        const order = found.rows[0];
+        if (order.status === 'confirmed') {
+            await client.query('COMMIT');
+            return res.json({ message: 'Order sudah dikonfirmasi', status: 'confirmed' });
+        }
+        if (!['pending', 'received', 'success'].includes(order.status)) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'Order sudah tidak bisa dikonfirmasi' });
+        }
+        if (!order.otp_code || !String(order.otp_code).trim()) {
+            await client.query('ROLLBACK');
+            return res.status(400).json({ error: 'OTP belum diterima' });
+        }
+        await client.query(
+            `UPDATE orders SET status = 'confirmed', received_at = COALESCE(received_at, NOW()), updated_at = NOW() WHERE id = $1`,
+            [order.id]
+        );
+        await client.query(
+            `UPDATE transactions SET status = 'success', updated_at = NOW() WHERE order_id = $1 AND user_id = $2`,
+            [String(order.order_id), req.user.id]
+        );
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ('order', $1, $2, $3, 'confirmed', 'user_confirmed', $4)`,
+            [String(order.order_id), req.user.id, order.status, JSON.stringify({ otp_id: order.otp_id })]
+        );
+        await client.query('COMMIT');
+        return res.json({ message: 'Order berhasil dikonfirmasi', status: 'confirmed' });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Confirm order error:', err.message);
+        return res.status(500).json({ error: 'Gagal mengonfirmasi order' });
+    } finally {
+        client.release();
+    }
+}));
+
 // ============================================
 // ===== NOKOS — CANCEL ORDER (FIXED #19) =====
 // ===== Jangan allow cancel kalo udah success =====
@@ -2831,7 +2907,7 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
         const order = orderRes.rows[0];
 
         // Fix #19: jangan allow cancel kalo udah success
-        if (['received', 'success'].includes(order.status)) {
+        if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak bisa dibatalkan' });
         }
 
@@ -2873,47 +2949,54 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
 // ===== NOKOS — LIST ORDERS =====
 // ============================================
 app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
-    const { page = 1, limit = 20, status } = req.query;
-    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
-    const offset = (Math.max(1, Number(page)) - 1) * limitNum;
-
+    const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+    const status = String(req.query.status || 'all');
+    const offset = (pageNum - 1) * limitNum;
     try {
-        let conditions = ['user_id = $1'];
-        const params = [req.user.id];
-
-        if (status) {
-            if (status === 'success') {
-                conditions.push(`status IN ('success', 'received')`);
-            } else {
-                conditions.push(`status = $${params.length + 1}`);
-                params.push(status);
-            }
+        let orders = [];
+        let total = 0;
+        if (status === 'deposit' || status === 'all') {
+            const [rows, count] = await Promise.all([
+                pool.query(`SELECT id, reference_id, method, amount, total_amount, status, qris_id, qris_url, qris_string, expires_at, created_at, updated_at
+                            FROM deposits WHERE user_id = $1 ORDER BY created_at DESC`, [req.user.id]),
+                pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id]),
+            ]);
+            const mapped = rows.rows.map(d => ({
+                id: `deposit-${d.id}`, order_id: d.reference_id, otp_id: null,
+                order_type: 'deposit', server: null, service: 'Deposit',
+                service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
+                country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA', country_flag: null,
+                operator: null, phone_number: null, otp_code: null, otp_code_2: null, full_sms: null,
+                price: d.amount, status: `deposit_${d.status}`, expires_in: d.expires_at ? Math.max(0, Math.floor((new Date(d.expires_at) - Date.now()) / 1000)) : 0,
+                expired_at: d.expires_at, created_at: d.created_at, updated_at: d.updated_at,
+            }));
+            if (status === 'deposit') { orders = mapped; total = Number(count.rows[0].count); }
+            else { orders.push(...mapped); total += Number(count.rows[0].count); }
         }
-
-        const whereClause = conditions.join(' AND ');
-
-        // Parallel: data + count (count pake filter sama)
-        const [result, countRes] = await Promise.all([
-            pool.query(
-                `SELECT * FROM orders WHERE ${whereClause} 
-                 ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
-                [...params, limitNum, offset]
-            ),
-            pool.query(`SELECT COUNT(*) FROM orders WHERE ${whereClause}`, params),
-        ]);
-
-        const orders = result.rows.map(o => ({
-            ...o,
-            expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0,
-        }));
-
-        res.json({
-            orders,
-            total: Number(countRes.rows[0].count),
-            page: Number(page),
-            limit: limitNum
-        });
+        if (status === 'nokos' || status === 'all') {
+            const [rows, count] = await Promise.all([
+                pool.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]),
+                pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]),
+            ]);
+            const mapped = rows.rows.map(o => ({ ...o, order_type: 'nokos', expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0 }));
+            if (status === 'nokos') { orders = mapped; total = Number(count.rows[0].count); }
+            else { orders.push(...mapped); total += Number(count.rows[0].count); }
+        }
+        if (!['all', 'nokos', 'deposit'].includes(status)) {
+            const successFilter = status === 'success';
+            const statusCondition = successFilter ? "status IN ('success', 'received', 'confirmed')" : 'status = $2';
+            const [rows, count] = await Promise.all([
+                pool.query(`SELECT * FROM orders WHERE user_id = $1 AND ${statusCondition} ORDER BY created_at DESC`, successFilter ? [req.user.id] : [req.user.id, status]),
+                pool.query(`SELECT COUNT(*) FROM orders WHERE user_id = $1 AND ${statusCondition}`, successFilter ? [req.user.id] : [req.user.id, status]),
+            ]);
+            orders = rows.rows.map(o => ({ ...o, order_type: 'nokos', expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0 }));
+            total = Number(count.rows[0].count);
+        }
+        orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        res.json({ orders: orders.slice(offset, offset + limitNum), total, page: pageNum, limit: limitNum });
     } catch (err) {
+        console.error('List orders error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
