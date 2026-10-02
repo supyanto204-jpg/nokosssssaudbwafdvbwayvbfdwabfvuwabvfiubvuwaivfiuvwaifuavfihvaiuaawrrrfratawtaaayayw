@@ -1362,6 +1362,7 @@
 
 <div class="dashboard-layout">
 
+    <!-- SIDEBAR (Ketentuan & Syarat dihapus) -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -1389,16 +1390,6 @@
             <a href="/deposit" class="nav-item" data-tooltip="Deposit">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <span class="nav-label">Deposit</span>
-            </a>
-
-            <div class="nav-section-label">Bantuan</div>
-            <a href="/ketentuan" class="nav-item" data-tooltip="Ketentuan">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                <span class="nav-label">Ketentuan</span>
-            </a>
-            <a href="/syarat" class="nav-item" data-tooltip="Syarat">
-                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                <span class="nav-label">Syarat</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
@@ -1635,7 +1626,7 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       UTIL: escapeHtml (dibutuhkan semua render)
+       UTIL: escapeHtml
        ============================================ */
     function escapeHtml(value) {
         return String(value ?? '').replace(/[&<>"']/g, ch => ({
@@ -1661,31 +1652,32 @@
     };
 
     /* ============================================
-       APP ICON CDN HELPER — LAZY LOAD
+       APP ICON CDN — LAZY LOAD
        ============================================ */
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
-    function getAppIconUrl(serviceCode) {
-        const code = String(serviceCode || '').trim().toLowerCase();
+    function getAppIconUrl(serviceCode, iconCode) {
+        // Prioritas: icon_code (huruf: wa, tt, ig) > code (kalau huruf) > null
+        let code = String(iconCode || '').trim().toLowerCase();
+        if (!code) {
+            code = String(serviceCode || '').trim().toLowerCase();
+        }
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
         return `${APP_CDN_BASE}/${code}.png`;
     }
 
-    /* Lazy loader — icon cuma di-load saat masuk viewport */
-    function renderAppIcon(serviceCode, serviceName) {
+    function renderAppIcon(serviceCode, serviceName, iconCode) {
         const name = String(serviceName || serviceCode || '?').trim();
         const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url = getAppIconUrl(serviceCode);
+        const url = getAppIconUrl(serviceCode, iconCode);
         if (!url) {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
-        /* Simpan URL di data-src, nanti di-load sama IntersectionObserver */
         return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}"
                      class="app-icon-lazy"
                      onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
-    /* IntersectionObserver global — 1 observer untuk semua icon */
     let appIconObserver = null;
     function getAppIconObserver() {
         if (appIconObserver) return appIconObserver;
@@ -1722,60 +1714,6 @@
         const observer = getAppIconObserver();
         root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => {
             observer.observe(img);
-        });
-    }
-
-    /* ============================================
-       REST COUNTRIES API — enrich nama negara
-       ============================================ */
-    const countryNameCache = new Map();
-    async function fetchCountryNameFromAPI(code) {
-        if (!code) return null;
-        const key = String(code).toLowerCase();
-        if (countryNameCache.has(key)) return countryNameCache.get(key);
-        try {
-            const res = await fetch(`/api/countries/${encodeURIComponent(key)}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (!res.ok) throw new Error('Gagal');
-            const data = await safeJson(res);
-            let name = null;
-            if (data?.data?.objects?.[0]?.names?.common) {
-                name = data.data.objects[0].names.common;
-            } else if (Array.isArray(data) && data[0]?.name?.common) {
-                name = data[0].name.common;
-            } else if (data?.name?.common) {
-                name = data.name.common;
-            } else if (data?.name) {
-                name = typeof data.name === 'string' ? data.name : null;
-            }
-            if (name) countryNameCache.set(key, name);
-            return name || null;
-        } catch (err) {
-            console.warn('Fetch country name error:', err.message);
-            return null;
-        }
-    }
-    async function enrichCountryNames(countries) {
-        if (!countries || countries.length === 0) return;
-        const needFetch = countries.filter(c => {
-            const key = String(c.code || '').toLowerCase();
-            return key && !countryNameCache.has(key);
-        });
-        if (needFetch.length === 0) return;
-
-        const chunks = [];
-        for (let i = 0; i < needFetch.length; i += 5) {
-            chunks.push(needFetch.slice(i, i + 5));
-        }
-        for (const chunk of chunks) {
-            await Promise.all(chunk.map(c => fetchCountryNameFromAPI(c.code)));
-        }
-
-        countries.forEach(c => {
-            const key = String(c.code || '').toLowerCase();
-            const apiName = countryNameCache.get(key);
-            if (apiName) c.name = apiName;
         });
     }
 
@@ -1908,7 +1846,7 @@
         });
     })();
 
-    /* ===== FLAG MULTI-FALLBACK ===== */
+    /* ===== FLAG ===== */
     function countryCodeToTwemoji(countryCode) {
         const code = (countryCode || '').toUpperCase();
         if (code.length !== 2) return null;
@@ -1967,6 +1905,7 @@
         requiresOperator: false,
         service: null,
         serviceName: null,
+        iconCode: null,
         country: null,
         countryName: null,
         operator: 'any',
@@ -2079,7 +2018,7 @@
                 <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
                     <div class="active-order-app">
                         <div class="app-icon-wrap">
-                            ${renderAppIcon(o.service, serviceDisplayName)}
+                            ${renderAppIcon(o.service, serviceDisplayName, o.icon_code)}
                         </div>
                     </div>
                     <div class="active-order-info">
@@ -2133,7 +2072,6 @@
             `;
         }).join('') + `</div>`;
 
-        /* Bind actions */
         container.querySelectorAll('[data-copy]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2159,9 +2097,7 @@
             });
         });
 
-        /* Lazy load icon app */
         observeAppIcons(container);
-
         startCountdowns();
     }
 
@@ -2237,7 +2173,7 @@
         }
     }
 
-    /* ===== AUTO REFRESH 5s ===== */
+    /* ===== AUTO REFRESH ===== */
     function startAutoSync() {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
@@ -2479,7 +2415,6 @@
         }
     }
 
-    /* Render grid app — icon lazy load */
     function renderApps(services) {
         const content = document.getElementById('appContent');
         if (!content) return;
@@ -2492,8 +2427,11 @@
         content.innerHTML = `
             <div class="app-grid">
                 ${services.map(s => `
-                    <button class="app-card" type="button" data-service="${escapeHtml(s.code)}" data-name="${escapeHtml(s.name)}">
-                        <div class="app-icon-wrap">${renderAppIcon(s.code, s.name)}</div>
+                    <button class="app-card" type="button"
+                            data-service="${escapeHtml(s.code)}"
+                            data-name="${escapeHtml(s.name)}"
+                            data-icon-code="${escapeHtml(s.icon_code || '')}">
+                        <div class="app-icon-wrap">${renderAppIcon(s.code, s.name, s.icon_code)}</div>
                         <div class="name">${escapeHtml(s.name)}</div>
                     </button>
                 `).join('')}
@@ -2504,13 +2442,13 @@
             btn.addEventListener('click', () => {
                 state.service = btn.dataset.service;
                 state.serviceName = btn.dataset.name;
+                state.iconCode = btn.dataset.iconCode || null;
                 state.country = null;
                 state.operator = 'any';
                 goToStep(3);
             });
         });
 
-        /* Lazy load semua icon app yang baru dirender */
         observeAppIcons(content);
     }
 
@@ -2523,7 +2461,7 @@
                 Ganti Aplikasi
             </button>
             <div class="app-selected-card">
-                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName)}</div>
+                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName, state.iconCode)}</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">Aplikasi yang dipilih</div>
@@ -2538,16 +2476,12 @@
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
 
-        /* Lazy load icon di selected card */
         observeAppIcons(body);
 
         const cacheKey = `countries_${state.server}_${state.service}`;
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value && cached.value.countries) {
-            enrichCountryNames(cached.value.countries).then(() => {
-                if (state.step === 3) renderCountries(cached.value.countries);
-            });
             renderCountries(cached.value.countries);
         }
 
@@ -2561,9 +2495,6 @@
             CacheManager.set(cacheKey, { countries });
 
             renderCountries(countries);
-            enrichCountryNames(countries).then(() => {
-                if (state.step === 3) renderCountries(countries);
-            });
 
             document.getElementById('countrySearch').addEventListener('input', (e) => {
                 const q = e.target.value.toLowerCase().trim();
@@ -2625,7 +2556,7 @@
                 Ganti Negara
             </button>
             <div class="app-selected-card">
-                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName)}</div>
+                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName, state.iconCode)}</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">
@@ -2750,9 +2681,24 @@
         content.querySelectorAll('[data-buy]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const priceData = JSON.parse(btn.dataset.buy.replace(/&apos;/g, "'"));
-                placeOrder(priceData, btn);
+                confirmAndPlaceOrder(priceData, btn);
             });
         });
+    }
+
+    /* ===== KONFIRMASI BELI ===== */
+    async function confirmAndPlaceOrder(priceData, btn) {
+        const price = Number(priceData.price_idr || priceData.price || 0);
+        const ok = await showCustomAlert({
+            title: 'Konfirmasi Pembelian',
+            message: `Beli nomor ${state.serviceName} dari ${state.countryName} dengan harga ${formatRupiah(price)}? Saldo akan langsung terpotong.`,
+            type: 'warning',
+            okText: 'Ya, Beli',
+            showCancel: true,
+            cancelText: 'Batal'
+        });
+        if (!ok) return;
+        placeOrder(priceData, btn);
     }
 
     /* ===== PLACE ORDER ===== */
@@ -2768,6 +2714,7 @@
                 country: state.country,
                 service_name: state.serviceName,
                 country_flag: state.country,
+                icon_code: state.iconCode,
             };
 
             if (state.requiresOperator) {
@@ -2788,7 +2735,17 @@
             });
 
             const data = await safeJson(res);
-            if (!res.ok) throw new Error(data.error || 'Order gagal');
+            if (!res.ok) {
+                // Handle error berdasarkan code
+                const code = data.code || '';
+                if (code === 'INSUFFICIENT_USER_BALANCE') {
+                    throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
+                }
+                if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') {
+                    throw new Error('Server sedang sibuk, coba lagi nanti.');
+                }
+                throw new Error(data.error || 'Order gagal');
+            }
 
             closeSheet();
 
