@@ -10,6 +10,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://assets.cindigital.id">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -123,6 +124,36 @@
         }
 
         /* ============================================
+           APP ICON HELPER
+           ============================================ */
+        .app-icon-wrap {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            padding: 3px;
+            box-shadow: var(--shadow-hard-sm);
+        }
+        .app-icon-wrap img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .app-icon-wrap .icon-fallback {
+            font-size: 0.7rem;
+            font-weight: 900;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        /* ============================================
            PESANAN AKTIF
            ============================================ */
         .active-orders {
@@ -164,21 +195,15 @@
             box-shadow: var(--shadow-hard);
         }
 
-        .active-order-flag {
-            width: 40px;
-            height: 30px;
+        .active-order-app {
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        .active-order-flag .flag-img {
-            width: 40px;
-            height: 30px;
-            border-radius: 5px;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard-sm);
+        .active-order-app .app-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 11px;
+            padding: 5px;
         }
 
         .active-order-info { flex: 1; min-width: 0; }
@@ -193,6 +218,17 @@
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
+        }
+
+        .active-order-title .flag-img {
+            width: 20px; height: 15px;
+            border-radius: 3px;
+            border: 1px solid var(--border-dark);
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
+            object-fit: cover;
+            display: block;
+            flex-shrink: 0;
+            background: var(--bg-light);
         }
 
         .active-order-meta {
@@ -225,7 +261,6 @@
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            animation: bounceIn 0.5s var(--ease-bounce);
         }
 
         [data-theme="dark"] .active-order-otp {
@@ -366,7 +401,6 @@
             justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
-            animation: float 3s ease-in-out infinite;
         }
 
         .empty-orders .icon-box .icon-svg { width: 28px; height: 28px; }
@@ -416,20 +450,6 @@
             touch-action: manipulation;
         }
 
-        .btn-cta::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.15);
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-
-        .btn-cta:hover::before { width: 400px; height: 400px; }
         .btn-cta:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-hard-lg); }
         .btn-cta:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
         .btn-cta .icon-svg { width: 20px; height: 20px; position: relative; z-index: 1; }
@@ -511,9 +531,7 @@
             -webkit-tap-highlight-color: transparent;
         }
 
-        .footer-links a:hover {
-            color: var(--primary);
-        }
+        .footer-links a:hover { color: var(--primary); }
 
         .footer-copy {
             font-size: 0.75rem;
@@ -522,10 +540,7 @@
             letter-spacing: 0.02em;
         }
 
-        .footer-copy strong {
-            color: var(--primary);
-            font-weight: 800;
-        }
+        .footer-copy strong { color: var(--primary); font-weight: 800; }
 
         /* ============================================
            BOTTOM SHEET
@@ -781,6 +796,12 @@
             box-shadow: var(--shadow-hard-sm);
         }
 
+        .app-selected-card .app-icon-wrap {
+            width: 36px;
+            height: 36px;
+            padding: 4px;
+        }
+
         .app-selected-card .info { flex: 1; min-width: 0; }
 
         .app-selected-card .name {
@@ -809,8 +830,8 @@
         .app-card {
             display: flex;
             align-items: center;
-            justify-content: center;
-            padding: 16px 12px;
+            gap: 10px;
+            padding: 12px 14px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
             border-radius: var(--radius-sm);
@@ -818,8 +839,8 @@
             cursor: pointer;
             transition: all var(--transition);
             font-family: inherit;
-            text-align: center;
-            min-height: 56px;
+            text-align: left;
+            min-height: 60px;
             position: relative;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
@@ -840,6 +861,11 @@
             line-height: 1.3;
             position: relative;
             z-index: 1;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
 
         .app-card:hover .name { color: var(--primary); }
@@ -920,6 +946,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        .country-flag .flag-img {
+            width: 32px;
+            height: 24px;
         }
 
         .country-info { flex: 1; min-width: 0; }
@@ -1146,7 +1177,6 @@
             justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
-            animation: bounceIn 0.6s var(--ease-bounce);
         }
 
         .success-icon .icon-svg { width: 36px; height: 36px; }
@@ -1264,7 +1294,6 @@
             font-weight: 700;
             font-family: var(--font-mono);
             border: 2px solid var(--primary);
-            animation: fadeIn 0.3s var(--ease);
             margin-left: auto;
         }
 
@@ -1292,8 +1321,7 @@
                 flex-wrap: wrap;
             }
 
-            .active-order-flag { width: 32px; height: 24px; }
-            .active-order-flag .flag-img { width: 32px; height: 24px; }
+            .active-order-app .app-icon-wrap { width: 36px; height: 36px; padding: 4px; }
             .active-order-title { font-size: 0.82rem; }
             .active-order-meta { font-size: 0.7rem; }
             .active-order-otp { font-size: 0.82rem; padding: 4px 8px; letter-spacing: 0.1em; }
@@ -1329,7 +1357,6 @@
 
 <div class="dashboard-layout">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -1398,7 +1425,6 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- MAIN -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -1421,7 +1447,6 @@
             </div>
         </div>
 
-        <!-- HERO -->
         <div class="nokos-hero">
             <div class="nokos-hero-icon">
                 <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -1432,7 +1457,6 @@
             </div>
         </div>
 
-        <!-- PESANAN AKTIF -->
         <div class="section-title">
             <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Pesanan Aktif
@@ -1453,7 +1477,6 @@
             </div>
         </div>
 
-        <!-- CTA -->
         <div class="cta-wrap">
             <button class="btn-cta" id="btnOrder" type="button">
                 <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -1461,7 +1484,6 @@
             </button>
         </div>
 
-        <!-- FEATURES -->
         <div class="features-grid">
             <div class="feature-item">
                 <div class="feature-icon">
@@ -1492,7 +1514,6 @@
             </div>
         </div>
 
-        <!-- FOOTER -->
         <footer class="site-footer">
             <div class="footer-links">
                 <a href="/ketentuan">Ketentuan Layanan</a>
@@ -1507,7 +1528,6 @@
     </main>
 </div>
 
-<!-- BOTTOM SHEET -->
 <div class="bottom-sheet-overlay" id="sheetOverlay">
     <div class="bottom-sheet" id="bottomSheet">
         <div class="sheet-handle"></div>
@@ -1525,7 +1545,6 @@
     </div>
 </div>
 
-<!-- SUCCESS MODAL -->
 <div class="modal-overlay" id="modalSuccess">
     <div class="modal">
         <div class="success-modal">
@@ -1568,7 +1587,6 @@
     </div>
 </div>
 
-<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item" data-page="dashboard">
@@ -1596,7 +1614,6 @@
     </div>
 </nav>
 
-<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -1628,6 +1645,89 @@
         clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
     };
+
+    /* ============================================
+       APP ICON CDN HELPER
+       ============================================ */
+    const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
+    function getAppIconUrl(serviceCode) {
+        const code = String(serviceCode || '').trim().toLowerCase();
+        if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
+        return `${APP_CDN_BASE}/${code}.png`;
+    }
+    /* Render icon app dari kode `service`. Fallback: huruf awal nama */
+    function renderAppIcon(serviceCode, serviceName, size = 'small') {
+        const name = String(serviceName || serviceCode || '?').trim();
+        const initial = String(name).charAt(0).toUpperCase() || '?';
+        const url = getAppIconUrl(serviceCode);
+        if (!url) {
+            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        }
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
+                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
+    }
+
+    /* ============================================
+       REST COUNTRIES API — enrich nama negara
+       ============================================ */
+    /* Cache in-memory nama negara dari restcountries */
+    const countryNameCache = new Map();
+    async function fetchCountryNameFromAPI(code) {
+        if (!code) return null;
+        const key = String(code).toLowerCase();
+        if (countryNameCache.has(key)) return countryNameCache.get(key);
+        try {
+            const res = await fetch(`/api/countries/${encodeURIComponent(key)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!res.ok) throw new Error('Gagal');
+            const data = await safeJson(res);
+            /* REST Countries API v5 response shape:
+               { data: { objects: [ { names: { common, official }, ... } ] } }
+               Tapi backend bisa juga return yang sudah di-flatten. Handle both. */
+            let name = null;
+            if (data?.data?.objects?.[0]?.names?.common) {
+                name = data.data.objects[0].names.common;
+            } else if (Array.isArray(data) && data[0]?.name?.common) {
+                name = data[0].name.common;
+            } else if (data?.name?.common) {
+                name = data.name.common;
+            } else if (data?.name) {
+                name = typeof data.name === 'string' ? data.name : null;
+            }
+            if (name) countryNameCache.set(key, name);
+            return name || null;
+        } catch (err) {
+            console.warn('Fetch country name error:', err.message);
+            return null;
+        }
+    }
+    /* Batch enrich: ambil nama-nama negara dari list, fetch parallel (max 5 concurrent) */
+    async function enrichCountryNames(countries) {
+        if (!countries || countries.length === 0) return;
+        const needFetch = countries.filter(c => {
+            const key = String(c.code || '').toLowerCase();
+            return key && !countryNameCache.has(key);
+        });
+        if (needFetch.length === 0) return;
+
+        /* Batch 5 concurrent */
+        const chunks = [];
+        for (let i = 0; i < needFetch.length; i += 5) {
+            chunks.push(needFetch.slice(i, i + 5));
+        }
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(c => fetchCountryNameFromAPI(c.code)));
+        }
+
+        /* Update nama di `countries` (mutate) */
+        countries.forEach(c => {
+            const key = String(c.code || '').toLowerCase();
+            const apiName = countryNameCache.get(key);
+            if (apiName) c.name = apiName;
+        });
+    }
 
     /* ===== CUSTOM ALERT ===== */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
@@ -1782,7 +1882,7 @@
     function renderFlag(countryCode, className = 'flag-img') {
         const sources = getFlagSources(countryCode);
         if (sources.length === 0) {
-            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${(countryCode || '??').toUpperCase()}</div>`;
+            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${escapeHtml((countryCode || '??').toUpperCase())}</div>`;
         }
         const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
         return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
@@ -1846,10 +1946,8 @@
     /* ===== LOAD ACTIVE ORDERS ===== */
     async function loadActiveOrders(silent = false) {
         const container = document.getElementById('activeOrders');
-        const countEl = document.getElementById('activeCount');
         const cacheKey = getActiveOrdersCacheKey();
 
-        // 1. Instant: pake cache dulu
         const cached = CacheManager.get(cacheKey);
         if (cached && cached.value) {
             renderActiveOrders(cached.value.orders || []);
@@ -1858,19 +1956,15 @@
             showSyncPill(true);
         }
 
-        // 2. Fetch fresh
         try {
             const res = await fetch('/api/nokos/orders?status=pending&limit=5', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
 
-            // Cache response
             CacheManager.set(cacheKey, { orders: data.orders || [], total: data.total || 0 });
-
             renderActiveOrders(data.orders || []);
 
-            // Kalo ada pending, sync ke provider
             const pending = (data.orders || []).filter(o => o.status === 'pending');
             if (pending.length > 0) {
                 syncPendingOrders(pending);
@@ -1930,21 +2024,29 @@
             const mins = Math.floor(expiresIn / 60);
             const secs = expiresIn % 60;
             const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            const serviceDisplayName = o.service_name || o.service || '—';
 
             return `
                 <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
-                    <div class="active-order-flag">${renderFlag(o.country)}</div>
+                    <div class="active-order-app">
+                        <div class="app-icon-wrap">
+                            ${renderAppIcon(o.service, serviceDisplayName)}
+                        </div>
+                    </div>
                     <div class="active-order-info">
-                        <div class="active-order-title">${o.service_name || o.service || '—'}</div>
+                        <div class="active-order-title">
+                            ${renderFlag(o.country, 'flag-img')}
+                            ${escapeHtml(serviceDisplayName)}
+                        </div>
                         <div class="active-order-meta">
-                            <span>${o.phone_number || '—'}</span>
+                            <span>${escapeHtml(o.phone_number || '—')}</span>
                             <span style="opacity:0.5;">·</span>
-                            <span class="active-order-otpid">${otpId}</span>
+                            <span class="active-order-otpid">${escapeHtml(otpId)}</span>
                         </div>
                         ${hasOtp ? `
                             <div class="active-order-otp">
-                                OTP: ${o.otp_code}
-                                <button type="button" class="copy-inline" data-copy="${o.otp_code}">
+                                OTP: ${escapeHtml(o.otp_code)}
+                                <button type="button" class="copy-inline" data-copy="${escapeHtml(o.otp_code)}">
                                     ${ICONS.copy}
                                 </button>
                             </div>
@@ -1982,7 +2084,7 @@
             `;
         }).join('') + `</div>`;
 
-        // Bind actions
+        /* Bind actions */
         container.querySelectorAll('[data-copy]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -2008,7 +2110,6 @@
             });
         });
 
-        // Countdown
         startCountdowns();
     }
 
@@ -2049,7 +2150,7 @@
 
         let hasUpdate = false;
         for (const o of orders) {
-            if (o.otp_code && o.otp_code.trim()) continue; // skip kalo udah ada OTP
+            if (o.otp_code && o.otp_code.trim()) continue;
             try {
                 const res = await fetch('/api/cekotp', {
                     method: 'POST',
@@ -2088,7 +2189,6 @@
     function startAutoSync() {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
-            // Skip kalo tab ga keliatan
             if (document.hidden) return;
             loadActiveOrders(true);
         }, 5000);
@@ -2327,6 +2427,7 @@
         }
     }
 
+    /* Render grid app + icon dari CDN assets.cindigital.id */
     function renderApps(services) {
         const content = document.getElementById('appContent');
         if (!content) return;
@@ -2339,8 +2440,9 @@
         content.innerHTML = `
             <div class="app-grid">
                 ${services.map(s => `
-                    <button class="app-card" type="button" data-service="${s.code}" data-name="${s.name}">
-                        <div class="name">${s.name}</div>
+                    <button class="app-card" type="button" data-service="${escapeHtml(s.code)}" data-name="${escapeHtml(s.name)}">
+                        <div class="app-icon-wrap">${renderAppIcon(s.code, s.name)}</div>
+                        <div class="name">${escapeHtml(s.name)}</div>
                     </button>
                 `).join('')}
             </div>
@@ -2366,8 +2468,9 @@
                 Ganti Aplikasi
             </button>
             <div class="app-selected-card">
+                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName)}</div>
                 <div class="info">
-                    <div class="name">${state.serviceName}</div>
+                    <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">Aplikasi yang dipilih</div>
                 </div>
             </div>
@@ -2384,7 +2487,11 @@
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value && cached.value.countries) {
-            renderCountries(cached.value.countries);
+            /* Enrich dulu dari cache API (kalau ada) */
+            enrichCountryNames(cached.value.countries).then(() => {
+                renderCountries(cached.value.countries);
+            });
+            renderCountries(cached.value.countries); /* render cepat, nama bisa update setelah enrich */
         }
 
         try {
@@ -2395,7 +2502,13 @@
             const countries = data.countries || [];
 
             CacheManager.set(cacheKey, { countries });
-            renderCountries(countries);
+
+            /* Enrich nama negara dari REST Countries API (via backend proxy) */
+            renderCountries(countries); /* render cepat dulu */
+            enrichCountryNames(countries).then(() => {
+                /* Re-render setelah nama negara ter-update */
+                if (state.step === 3) renderCountries(countries);
+            });
 
             document.getElementById('countrySearch').addEventListener('input', (e) => {
                 const q = e.target.value.toLowerCase().trim();
@@ -2424,11 +2537,11 @@
         content.innerHTML = `
             <div class="country-list">
                 ${countries.map(c => `
-                    <button class="country-item" type="button" data-country="${c.code}" data-name="${c.name}">
+                    <button class="country-item" type="button" data-country="${escapeHtml(c.code)}" data-name="${escapeHtml(c.name)}">
                         <div class="country-flag">${renderFlag(c.code)}</div>
                         <div class="country-info">
-                            <div class="country-name">${c.name}</div>
-                            <div class="country-meta">Kode: ${(c.code || '').toUpperCase()}</div>
+                            <div class="country-name">${escapeHtml(c.name)}</div>
+                            <div class="country-meta">Kode: ${escapeHtml((c.code || '').toUpperCase())}</div>
                         </div>
                         <div class="country-arrow">
                             <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2457,9 +2570,12 @@
                 Ganti Negara
             </button>
             <div class="app-selected-card">
+                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName)}</div>
                 <div class="info">
-                    <div class="name">${state.serviceName}</div>
-                    <div class="sub">${state.countryName}</div>
+                    <div class="name">${escapeHtml(state.serviceName || '')}</div>
+                    <div class="sub">
+                        <span class="country-inline">${renderFlag(state.country)} ${escapeHtml(state.countryName || '')}</span>
+                    </div>
                 </div>
             </div>
 
@@ -2559,7 +2675,7 @@
                                     Opsi ${i + 1}
                                     <span class="price-stock ${stockClass}">${stock} stok</span>
                                 </div>
-                                <div class="price-meta">${state.countryName}${state.operator !== 'any' && state.requiresOperator ? ` · ${state.operator}` : ''}</div>
+                                <div class="price-meta">${escapeHtml(state.countryName || '')}${state.operator !== 'any' && state.requiresOperator ? ` · ${escapeHtml(state.operator)}` : ''}</div>
                             </div>
                             <div class="price-right">
                                 <div class="price-amount">${formatRupiah(p.price_idr)}</div>
@@ -2700,7 +2816,6 @@
     loadActiveOrders();
     startAutoSync();
 
-    // Pause/resume sync pas tab berubah visibility
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
             loadActiveOrders(true);
