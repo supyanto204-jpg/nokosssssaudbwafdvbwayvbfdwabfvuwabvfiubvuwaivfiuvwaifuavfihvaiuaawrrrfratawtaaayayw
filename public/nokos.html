@@ -557,21 +557,22 @@
         }
 
         .bottom-sheet {
-            background: var(--bg-card);
-            width: 100%;
-            max-width: 560px;
-            height: 88vh;
-            max-height: 88vh;
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
-            border: 2px solid var(--border-dark);
-            border-bottom: none;
-            box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
-            display: flex;
-            flex-direction: column;
-            animation: slideUp 0.35s var(--ease-bounce);
-            overflow: hidden;
-        }
+    background: var(--bg-card);
+    width: 100%;
+    max-width: 560px;
+    /* Hapus height: 88vh → biar auto */
+    height: auto;
+    max-height: 85vh;
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    border: 2px solid var(--border-dark);
+    border-bottom: none;
+    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.35s var(--ease-bounce);
+    overflow: hidden;
+}
 
         @keyframes slideUp {
             from { transform: translateY(100%); }
@@ -1318,8 +1319,7 @@
             .nokos-hero-text h1 { font-size: 1.4rem; }
             .nokos-hero-icon { width: 52px; height: 52px; }
             .nokos-hero-icon .icon-svg { width: 26px; height: 26px; }
-            .bottom-sheet { height: 92vh; max-height: 92vh; }
-
+            .bottom-sheet { max-height: 90vh; }  /* height auto, cuma batasi max */
             .active-order-card {
                 padding: 12px;
                 gap: 10px;
