@@ -174,30 +174,27 @@
             border-bottom: 1px dashed var(--border);
             flex-wrap: wrap;
         }
-        .order-flag {
-            width: 32px; height: 24px;
-            flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .order-service-icon {
-            width: 32px; height: 32px;
-            border-radius: 8px;
+        /* ===== SERVICE APP ICON (di header) ===== */
+        .order-app-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
             border: 2px solid var(--border-dark);
             background: var(--bg-white);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             overflow: hidden;
-            padding: 3px;
+            padding: 5px;
+            box-shadow: var(--shadow-hard-sm);
         }
-        .order-service-icon img {
+        .order-app-icon img {
             width: 100%; height: 100%;
             object-fit: contain;
             display: block;
         }
-        .order-service-icon .icon-fallback {
-            font-size: 0.65rem;
-            font-weight: 800;
-            color: var(--text-gray);
+        .order-app-icon .icon-fallback {
+            font-size: 0.75rem;
+            font-weight: 900;
+            color: var(--text-dark);
             font-family: var(--font-mono);
             text-transform: uppercase;
         }
@@ -278,6 +275,23 @@
         .order-field-value.price { color: var(--primary); }
         .order-field-value.success { color: var(--success); }
         .order-field-value.refunded { color: var(--purple); font-weight: 800; }
+
+        /* ===== NEGARA + FLAG inline ===== */
+        .country-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .country-inline .flag-img {
+            width: 20px; height: 15px;
+            border-radius: 3px;
+            border: 1px solid var(--border-dark);
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
+            object-fit: cover;
+            display: block;
+            flex-shrink: 0;
+            background: var(--bg-light);
+        }
 
         .copy-inline {
             background: none;
@@ -667,20 +681,31 @@
             z-index: 2;
             border-radius: 18px 18px 0 0;
         }
-        .detail-modal-icon {
-            width: 48px; height: 48px;
+        /* ===== APP ICON di modal ===== */
+        .detail-modal-app {
+            width: 52px; height: 52px;
             border-radius: 14px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: var(--bg-white);
             border: 2px solid var(--border-dark);
             display: flex; align-items: center; justify-content: center;
             color: white;
             flex-shrink: 0;
             box-shadow: var(--shadow-hard-sm);
             overflow: hidden;
-            padding: 6px;
+            padding: 8px;
         }
-        .detail-modal-icon img { width: 100%; height: 100%; object-fit: contain; }
-        .detail-modal-icon .icon-svg { width: 24px; height: 24px; }
+        .detail-modal-app img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .detail-modal-app .icon-fallback {
+            font-size: 1rem;
+            font-weight: 900;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
         .detail-modal-title-wrap { flex: 1; min-width: 0; }
         .detail-modal-title {
             font-family: var(--font-display);
@@ -1108,7 +1133,8 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       INBOX SCRIPT
+       INBOX SCRIPT — FUNC ASLI DIPERTAHANKAN
+       + TAMBAHAN: CDN REST Countries (flag + favicon)
        ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
@@ -1125,44 +1151,39 @@
         coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
         phone: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
         checkCircle: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+        app: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
     };
 
     /* ============================================
-       REST COUNTRIES CDN INTEGRATION
+       REST COUNTRIES CDN HELPERS (tambahan baru)
        ============================================ */
-    // Flag CDN — gratis, tanpa API key, hotlink boleh
     const RC_FLAG_CDN = (code, width = 320) => {
         const c = String(code || '').trim().toLowerCase();
         if (!/^[a-z]{2}$/.test(c)) return null;
         return `https://flags.restcountries.com/v5/w${width}/${c}.png`;
     };
-
-    // Favicon CDN — gratis, tanpa API key, untuk icon/logo domain/service
     const RC_FAVICON_CDN = (domain) => {
         const d = String(domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
         if (!d || !d.includes('.')) return null;
         return `https://favicon.restcountries.com/v1/${d}`;
     };
-
-    // Mapping service -> domain, buat ambil favicon
     const SERVICE_DOMAINS = {
-        tiktok: 'tiktok.com', tt: 'tiktok.com',
-        whatsapp: 'whatsapp.com', wa: 'whatsapp.com',
-        telegram: 'telegram.org', tg: 'telegram.org',
-        instagram: 'instagram.com', ig: 'instagram.com',
-        facebook: 'facebook.com', fb: 'facebook.com',
-        google: 'google.com', gmail: 'gmail.com',
-        discord: 'discord.com',
-        twitter: 'x.com', x: 'x.com',
-        line: 'line.me', viber: 'viber.com', signal: 'signal.org',
-        uber: 'uber.com', grab: 'grab.com', gojek: 'gojek.com',
-        microsoft: 'microsoft.com', snapchat: 'snapchat.com',
-        amazon: 'amazon.com', lazada: 'lazada.co.id',
-        shopee: 'shopee.co.id', tokopedia: 'tokopedia.com',
-        netflix: 'netflix.com', spotify: 'spotify.com',
-        paypal: 'paypal.com', binance: 'binance.com',
+        tiktok:'tiktok.com', tt:'tiktok.com',
+        whatsapp:'whatsapp.com', wa:'whatsapp.com',
+        telegram:'telegram.org', tg:'telegram.org',
+        instagram:'instagram.com', ig:'instagram.com',
+        facebook:'facebook.com', fb:'facebook.com',
+        google:'google.com', gmail:'gmail.com',
+        discord:'discord.com',
+        twitter:'x.com', x:'x.com',
+        line:'line.me', viber:'viber.com', signal:'signal.org',
+        uber:'uber.com', grab:'grab.com', gojek:'gojek.com',
+        microsoft:'microsoft.com', snapchat:'snapchat.com',
+        amazon:'amazon.com', lazada:'lazada.co.id',
+        shopee:'shopee.co.id', tokopedia:'tokopedia.com',
+        netflix:'netflix.com', spotify:'spotify.com',
+        paypal:'paypal.com', binance:'binance.com',
     };
-
     function getServiceDomain(serviceName, service) {
         const raw = String(serviceName || service || '').trim().toLowerCase();
         const key = raw.replace(/[^a-z0-9]+/g, '');
@@ -1176,25 +1197,28 @@
         if (/goo\s?gle/i.test(raw)) return 'google.com';
         return null;
     }
-
-    function renderServiceIcon(serviceName, service, size = 32) {
+    function getServiceFallbackInitial(name) {
+        return String(name || '?').trim().charAt(0).toUpperCase() || '?';
+    }
+    function renderServiceIcon(serviceName, service) {
         const domain = getServiceDomain(serviceName, service);
         const name = getPlatformName(serviceName, service);
+        const initial = getServiceFallbackInitial(name);
         if (!domain) {
-            const initial = String(name).trim().charAt(0).toUpperCase() || '?';
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
         const url = RC_FAVICON_CDN(domain);
         if (!url) {
-            const initial = String(name).trim().charAt(0).toUpperCase() || '?';
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
-        const initial = String(name).trim().charAt(0).toUpperCase() || '?';
         return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
-                     onerror="this.style.display='none'; this.nextElementSibling && (this.nextElementSibling.style.display='block');">
+                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
+    /* ============================================
+       FUNC ASLI DARI HTML ANDA (TIDAK DIUBAH)
+       ============================================ */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('customAlert');
@@ -1235,7 +1259,6 @@
         });
     }
 
-    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -1249,7 +1272,6 @@
         });
     })();
 
-    /* ===== SIDEBAR ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -1323,19 +1345,25 @@
         });
     })();
 
-    /* ===== FLAG (pakai REST Countries Flag CDN) ===== */
+    /* ===== FLAG (REST Countries Flag CDN + fallback) ===== */
+    function countryCodeToTwemoji(countryCode) {
+        const code = (countryCode || '').toUpperCase();
+        if (code.length !== 2) return null;
+        return code.split('').map(char => (0x1F1E6 + char.charCodeAt(0) - 65).toString(16)).join('-');
+    }
+
     function getFlagSources(countryCode) {
         const code = (countryCode || '').toLowerCase();
         if (!/^[a-z]{2}$/.test(code)) return [];
         const sources = [];
-        const rcUrl = RC_FLAG_CDN(code, 320);
-        if (rcUrl) {
-            sources.push(rcUrl);
-            sources.push(RC_FLAG_CDN(code, 160));
-        }
-        // Fallback ke penyedia lama kalau RC CDN down
+        const rc1 = RC_FLAG_CDN(code, 320);
+        const rc2 = RC_FLAG_CDN(code, 160);
+        if (rc1) sources.push(rc1);
+        if (rc2) sources.push(rc2);
         sources.push(`https://flagcdn.com/w80/${code}.png`);
         sources.push(`https://flagcdn.com/w40/${code}.png`);
+        const twemoji = countryCodeToTwemoji(countryCode);
+        if (twemoji) sources.push(`https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg`);
         return sources.filter(Boolean);
     }
 
@@ -1381,7 +1409,6 @@
         refundChecked: false,
     };
 
-    /* ===== CACHE KEY ===== */
     function getCacheKey(page, status) {
         return `inbox_orders_p${page}_s${status}`;
     }
@@ -1390,7 +1417,6 @@
         return 'inbox_counts';
     }
 
-    /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
@@ -1399,7 +1425,6 @@
         document.getElementById('balancePill').textContent = formatRupiah(user.balance);
     });
 
-    /* ===== CHECK REFUNDS ===== */
     async function checkRefunds() {
         const indicator = document.getElementById('syncIndicator');
         if (!state.refundChecked) {
@@ -1451,7 +1476,6 @@
             .forEach(k => localStorage.removeItem(k));
     }
 
-    /* ===== LOAD ORDERS ===== */
     async function loadOrders(silent = false) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
@@ -1493,7 +1517,6 @@
         }
     }
 
-    /* ===== LOAD COUNTS ===== */
     async function loadCounts() {
         const cacheKey = getCountsCacheKey();
         const cached = CacheManager.get(cacheKey);
@@ -1587,7 +1610,6 @@
         return `ORD-${(hash >>> 0).toString(36).toUpperCase().padStart(7, '0')}`;
     }
 
-    /* ===== COPY HELPER ===== */
     function copyToClipboard(text, btnEl) {
         navigator.clipboard.writeText(text).then(() => {
             if (btnEl) {
@@ -1609,7 +1631,7 @@
         });
     }
 
-    /* ===== RENDER ===== */
+    /* ===== RENDER ORDERS ===== */
     function renderOrders(data, fromCache) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
@@ -1660,6 +1682,7 @@
             const secs = expiresIn % 60;
             const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
             const hasValidCountdown = isPending && !isConfirmed && expiresIn > 0;
+            const priceIdr = Number(o.price_idr ?? o.price ?? 0);
 
             const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
                 day: '2-digit', month: 'short', year: 'numeric',
@@ -1672,14 +1695,14 @@
                 <div class="order-card ${s.class}"
                      data-order-id="${escapeHtml(apiOrderId)}"
                      data-display-id="${escapeHtml(displayId)}"
-                     data-price="${Number(o.price) || 0}"
+                     data-price="${priceIdr}"
                      data-service="${escapeHtml(o.service_name || o.service || '')}"
                      data-country="${escapeHtml(countryName)}"
+                     data-country-code="${escapeHtml(o.country || '')}"
                      data-status="${escapeHtml(o.status || '')}"
                      data-phone="${escapeHtml(o.phone_number || '')}">
                     <div class="order-header">
-                        <div class="order-flag">${renderFlag(o.country)}</div>
-                        <div class="order-service-icon" title="${escapeHtml(platformName)}">
+                        <div class="order-app-icon" title="${escapeHtml(platformName)}">
                             ${renderServiceIcon(o.service_name, o.service)}
                         </div>
                         <div class="order-title-wrap">
@@ -1706,11 +1729,16 @@
                         </div>
                         <div class="order-field">
                             <span class="order-field-label">Negara</span>
-                            <span class="order-field-value">${escapeHtml(countryName)}</span>
+                            <span class="order-field-value">
+                                <span class="country-inline">
+                                    ${renderFlag(o.country, 'flag-img')}
+                                    ${escapeHtml(countryName)}
+                                </span>
+                            </span>
                         </div>
                         <div class="order-field">
                             <span class="order-field-label">Harga</span>
-                            <span class="order-field-value price">${formatRupiah(o.price)}</span>
+                            <span class="order-field-value price">${formatRupiah(priceIdr)}</span>
                         </div>
                         <div class="order-field">
                             <span class="order-field-label">Dibuat</span>
@@ -1750,7 +1778,7 @@
                             <div class="refund-icon">${ICONS.coin}</div>
                             <div class="refund-info">
                                 <div class="refund-info-label">Refund Diterima</div>
-                                <div class="refund-info-value">${formatRupiah(o.refunded_amount || o.price)}</div>
+                                <div class="refund-info-value">${formatRupiah(o.refunded_amount || priceIdr)}</div>
                                 <div class="refund-note">Saldo udah otomatis masuk ke akun kamu</div>
                             </div>
                         </div>
@@ -2073,12 +2101,11 @@
     }
 
     /* ============================================
-       DETAIL MODAL — buka instan, fetch background
+       DETAIL MODAL — buka instan + animasi
        ============================================ */
     function openDetailModal() {
         const overlay = document.getElementById('detailModal');
         overlay.classList.remove('closing');
-        // Paksa reflow supaya transisi tetap jalan
         void overlay.offsetWidth;
         overlay.classList.add('active');
         document.body.classList.add('modal-open');
@@ -2093,19 +2120,22 @@
         }, 220);
     }
 
-    // Render isi modal langsung dengan skeleton, biar instan
+    // Render skeleton instan pakai data dari card (tanpa nunggu fetch)
     function renderDetailSkeleton(card) {
         const displayId = card?.dataset.displayId || '';
-        const price = Number(card?.dataset.price || 0);
+        const priceIdr = Number(card?.dataset.price || 0);
         const service = card?.dataset.service || '';
         const country = card?.dataset.country || '';
+        const countryCode = card?.dataset.countryCode || '';
         const phone = card?.dataset.phone || '';
         const platformName = getPlatformName(service, service);
 
         const modalContent = document.getElementById('detailModalContent');
         modalContent.innerHTML = `
             <div class="detail-modal-header">
-                <div class="detail-modal-icon">${ICONS.phone}</div>
+                <div class="detail-modal-app" title="${escapeHtml(platformName)}">
+                    ${renderServiceIcon(service, service)}
+                </div>
                 <div class="detail-modal-title-wrap">
                     <div class="detail-modal-title">${escapeHtml(platformName)}</div>
                     <div class="detail-modal-subtitle">Order ID · ${escapeHtml(displayId)}</div>
@@ -2127,7 +2157,7 @@
                     </div>
                     <div class="detail-item">
                         <span class="detail-item-label">Harga</span>
-                        <span class="detail-item-value primary">${formatRupiah(price)}</span>
+                        <span class="detail-item-value primary">${formatRupiah(priceIdr)}</span>
                     </div>
                     ${phone ? `
                         <div class="detail-item full">
@@ -2137,7 +2167,12 @@
                     ` : ''}
                     <div class="detail-item">
                         <span class="detail-item-label">Negara</span>
-                        <span class="detail-item-value">${escapeHtml(country)}</span>
+                        <span class="detail-item-value">
+                            <span class="country-inline">
+                                ${renderFlag(countryCode, 'flag-img')}
+                                ${escapeHtml(country)}
+                            </span>
+                        </span>
                     </div>
                 </div>
 
@@ -2155,40 +2190,7 @@
         document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
     }
 
-    async function showOrderDetail(orderId, card) {
-        // 1. Buka modal instan — tidak nunggu request
-        renderDetailSkeleton(card);
-        openDetailModal();
-
-        // 2. Fetch data di background — kalau berhasil, re-render
-        try {
-            const res = await fetch(`/api/nokos/order/${orderId}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const o = await safeJson(res);
-            if (!o || o.error) throw new Error(o.error || 'Order tidak ditemukan');
-
-            // 3. Render detail lengkap (harga dari DB + API)
-            renderDetailFull(o);
-        } catch (err) {
-            console.error(err);
-            // Kalau fetch gagal, tetap tampilkan error tapi modal tetap terbuka
-            const modalBody = document.querySelector('#detailModalContent .detail-modal-body');
-            if (modalBody) {
-                const badge = modalBody.querySelector('.detail-status-badge');
-                if (badge) {
-                    badge.className = 'detail-status-badge danger';
-                    badge.innerHTML = `${ICONS.warning} Gagal memuat detail`;
-                }
-                modalBody.querySelectorAll('.detail-skeleton-row').forEach(el => el.remove());
-                const p = document.createElement('p');
-                p.style.cssText = 'color:var(--text-gray);font-size:0.85rem;margin-bottom:12px;';
-                p.textContent = err.message || 'Coba lagi nanti.';
-                modalBody.insertBefore(p, modalBody.querySelector('.detail-actions'));
-            }
-        }
-    }
-
+    // Render detail lengkap (harga dari price_idr)
     function renderDetailFull(o) {
         const statusMap = {
             success: { label: 'Berhasil', cls: 'success' },
@@ -2217,11 +2219,12 @@
         const platformName = getPlatformName(o.service_name, o.service);
         const countryName = getCountryName(o);
         const displayId = getDisplayOrderId(o);
+        const priceIdr = Number(o.price_idr ?? o.price ?? 0);
 
         const modalContent = document.getElementById('detailModalContent');
         modalContent.innerHTML = `
             <div class="detail-modal-header">
-                <div class="detail-modal-icon">
+                <div class="detail-modal-app" title="${escapeHtml(platformName)}">
                     ${renderServiceIcon(o.service_name, o.service)}
                 </div>
                 <div class="detail-modal-title-wrap">
@@ -2268,7 +2271,12 @@
                     ` : ''}
                     <div class="detail-item">
                         <span class="detail-item-label">Negara</span>
-                        <span class="detail-item-value">${escapeHtml(countryName)}</span>
+                        <span class="detail-item-value">
+                            <span class="country-inline">
+                                ${renderFlag(o.country, 'flag-img')}
+                                ${escapeHtml(countryName)}
+                            </span>
+                        </span>
                     </div>
                     ${o.operator ? `
                         <div class="detail-item">
@@ -2278,12 +2286,12 @@
                     ` : ''}
                     <div class="detail-item">
                         <span class="detail-item-label">Harga</span>
-                        <span class="detail-item-value primary">${formatRupiah(o.price)}</span>
+                        <span class="detail-item-value primary">${formatRupiah(priceIdr)}</span>
                     </div>
                     ${isRefunded ? `
                         <div class="detail-item">
                             <span class="detail-item-label">Refund</span>
-                            <span class="detail-item-value purple">${formatRupiah(o.refunded_amount || o.price)}</span>
+                            <span class="detail-item-value purple">${formatRupiah(o.refunded_amount || priceIdr)}</span>
                         </div>
                     ` : ''}
                     <div class="detail-item full">
@@ -2325,7 +2333,40 @@
         document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
     }
 
-    /* ===== CLOSE MODAL VIA OVERLAY ===== */
+    async function showOrderDetail(orderId, card) {
+        // 1. Buka modal instan pakai data dari card
+        renderDetailSkeleton(card);
+        openDetailModal();
+
+        // 2. Fetch data di background
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const o = await safeJson(res);
+            if (!o || o.error) throw new Error(o.error || 'Order tidak ditemukan');
+
+            // 3. Render detail lengkap
+            renderDetailFull(o);
+        } catch (err) {
+            console.error(err);
+            const modalBody = document.querySelector('#detailModalContent .detail-modal-body');
+            if (modalBody) {
+                const badge = modalBody.querySelector('.detail-status-badge');
+                if (badge) {
+                    badge.className = 'detail-status-badge danger';
+                    badge.innerHTML = `${ICONS.warning} Gagal memuat detail`;
+                }
+                modalBody.querySelectorAll('.detail-skeleton-row').forEach(el => el.remove());
+                const p = document.createElement('p');
+                p.style.cssText = 'color:var(--text-gray);font-size:0.85rem;margin-bottom:12px;';
+                p.textContent = err.message || 'Coba lagi nanti.';
+                modalBody.insertBefore(p, modalBody.querySelector('.detail-actions'));
+            }
+        }
+    }
+
+    // Overlay + Escape close
     document.getElementById('detailModal').addEventListener('click', (e) => {
         if (e.target.id === 'detailModal') closeDetailModal();
     });
