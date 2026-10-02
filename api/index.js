@@ -1,6 +1,6 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v6)
-// Auto-migration per request + bug fixes
+// ASYROFOTP - BACKEND API (FULL FIXED v7)
+// Auto-refund + auto-migration + bug fixes
 // ============================================
 
 const express = require('express');
@@ -77,7 +77,7 @@ const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 // ===== WEBHOOK OTP =====
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 
-// ===== AUTO-VALIDATE CONFIG =====
+// ===== AUTO CONFIG =====
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 
 // ===== QRIS DANA MANUAL =====
@@ -300,7 +300,6 @@ function generateUniqueCode() {
     return Math.floor(Math.random() * 900) + 100;
 }
 
-// ===== ANTI-DUPLIKAT REFERENCE ID =====
 async function generateUniqueReferenceId(maxRetries = 5) {
     for (let i = 0; i < maxRetries; i++) {
         const timestamp = Date.now();
@@ -321,7 +320,6 @@ async function generateUniqueReferenceId(maxRetries = 5) {
     throw new Error('Gagal generate unique reference ID');
 }
 
-// ===== GENERATE OTP TRANSACTION ID =====
 async function generateOtpReferenceId(maxRetries = 5) {
     for (let i = 0; i < maxRetries; i++) {
         const random = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
@@ -370,7 +368,6 @@ async function logStatusChange({
                 metadata ? JSON.stringify(metadata) : null,
             ]
         );
-
         console.log(`📝 Log: [${entityType}] ${entityId} ${oldStatus || 'null'} → ${newStatus} (${reason || 'unknown'})`);
     } catch (err) {
         console.error('Log status change error:', err.message);
@@ -378,8 +375,7 @@ async function logStatusChange({
 }
 
 // ============================================
-// ===== SCHEMA DEFINITION =====
-// ===== Definisi semua tabel + kolom =====
+// ===== SCHEMA =====
 // ============================================
 const SCHEMA = {
     tables: [
@@ -432,6 +428,9 @@ const SCHEMA = {
                     status TEXT DEFAULT 'pending',
                     expires_in INTEGER DEFAULT 0,
                     resend_count INTEGER DEFAULT 0,
+                    refunded_at BIGINT,
+                    refunded_amount BIGINT,
+                    refund_reason TEXT,
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW(),
                     received_at TIMESTAMPTZ,
@@ -456,6 +455,9 @@ const SCHEMA = {
                 { name: 'status', def: "TEXT DEFAULT 'pending'" },
                 { name: 'expires_in', def: 'INTEGER DEFAULT 0' },
                 { name: 'resend_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'refunded_at', def: 'BIGINT' },
+                { name: 'refunded_amount', def: 'BIGINT' },
+                { name: 'refund_reason', def: 'TEXT' },
                 { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'received_at', def: 'TIMESTAMPTZ' },
@@ -552,6 +554,7 @@ const SCHEMA = {
         'CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)',
         'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
         'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
         'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
@@ -564,7 +567,6 @@ const SCHEMA = {
 
 // ============================================
 // ===== ENSURE SCHEMA =====
-// ===== Cek kolom ada apa belum, kalo belum bikin =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -577,22 +579,18 @@ async function ensureSchema() {
         try {
             console.log('🔧 Ensuring schema...');
 
-            // Step 1: Create tables
             for (const table of SCHEMA.tables) {
                 await pool.query(table.create);
             }
 
-            // Step 2: Ensure columns (idempotent)
             for (const table of SCHEMA.tables) {
                 if (!table.columns || table.columns.length === 0) continue;
-
                 for (const col of table.columns) {
                     try {
                         await pool.query(
                             `ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`
                         );
                     } catch (err) {
-                        // Kalo error karena duplicate, skip
                         if (!err.message.includes('already exists')) {
                             console.error(`Add column ${table.name}.${col.name} error:`, err.message);
                         }
@@ -600,7 +598,6 @@ async function ensureSchema() {
                 }
             }
 
-            // Step 3: Ensure indexes
             for (const idxSql of SCHEMA.indexes) {
                 try {
                     await pool.query(idxSql);
@@ -611,7 +608,6 @@ async function ensureSchema() {
                 }
             }
 
-            // Step 4: User code function + trigger
             await pool.query(`
                 DO $$
                 BEGIN
@@ -675,14 +671,12 @@ async function ensureSchema() {
     return schemaPromise;
 }
 
-// ===== Shorthand alias =====
 async function initDatabase() {
     return ensureSchema();
 }
 
 // ============================================
 // ===== withDB WRAPPER =====
-// ===== Auto-ensure schema sebelum handler =====
 // ============================================
 function withDB(handler) {
     return async (req, res, next) => {
@@ -892,6 +886,80 @@ async function syncDepositStatus(deposit) {
 }
 
 // ============================================
+// ===== REFUND ORDER (helper idempotent) =====
+// ===== Return: { refunded: bool, amount: number, alreadyProcessed: bool }
+// ============================================
+async function refundOrder(order, reason = 'auto_refund') {
+    const o = order;
+
+    // Kalo udah pernah di-refund → skip
+    if (o.refunded_at && Number(o.refunded_at) > 0) {
+        return {
+            refunded: false,
+            amount: Number(o.refunded_amount) || 0,
+            alreadyProcessed: true,
+        };
+    }
+
+    // Kalo status final yang ga perlu refund (misal received/success), skip
+    if (['received', 'success'].includes(o.status)) {
+        return { refunded: false, amount: 0, alreadyProcessed: true };
+    }
+
+    const refundAmount = Number(o.price) || 0;
+    if (refundAmount <= 0) {
+        return { refunded: false, amount: 0, alreadyProcessed: false };
+    }
+
+    const refundTime = Date.now();
+
+    // Atomic: update cuma kalo belum pernah refund
+    const updateRes = await pool.query(
+        `UPDATE orders 
+         SET refunded_at = $1, 
+             refunded_amount = $2, 
+             refund_reason = $3,
+             updated_at = NOW()
+         WHERE id = $4 AND (refunded_at IS NULL OR refunded_at = 0)
+         RETURNING *`,
+        [refundTime, refundAmount, reason, o.id]
+    );
+
+    if (updateRes.rowCount === 0) {
+        return { refunded: false, amount: 0, alreadyProcessed: true };
+    }
+
+    // Add ke balance
+    await pool.query(
+        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
+        [refundAmount, o.user_id]
+    );
+
+    // Log
+    await logStatusChange({
+        entityType: 'order',
+        entityId: String(o.order_id),
+        userId: o.user_id,
+        oldStatus: o.status,
+        newStatus: 'refunded',
+        reason: reason,
+        metadata: {
+            refunded_amount: refundAmount,
+            otp_id: o.otp_id,
+            original_status: o.status,
+        },
+    });
+
+    console.log(`💰 Refund Rp${refundAmount} to user ${o.user_id} (order ${o.order_id}, reason: ${reason})`);
+
+    return {
+        refunded: true,
+        amount: refundAmount,
+        alreadyProcessed: false,
+    };
+}
+
+// ============================================
 // ===== AUTO-CANCEL & REFUND ORDER =====
 // ============================================
 async function autoCancelAndRefund(order) {
@@ -900,6 +968,16 @@ async function autoCancelAndRefund(order) {
 
     const o = fresh.rows[0];
     if (['cancelled', 'refunded', 'expired', 'received', 'success'].includes(o.status)) {
+        // Masih mungkin refund kalo status = cancelled/expired tapi belum direfund
+        if (['cancelled', 'expired', 'failed'].includes(o.status) && (!o.refunded_at || Number(o.refunded_at) === 0)) {
+            const refundRes = await refundOrder(o, 'auto_refund_' + o.status);
+            return {
+                refunded: refundRes.refunded,
+                refundedAmount: refundRes.amount,
+                orderId: o.order_id,
+                otpId: o.otp_id,
+            };
+        }
         return { refunded: false, alreadyProcessed: true };
     }
 
@@ -916,8 +994,7 @@ async function autoCancelAndRefund(order) {
         console.error(`Provider cancel error for ${o.order_id}:`, err.message);
     }
 
-    const refundAmount = providerRefund > 0 ? providerRefund : Number(o.price);
-
+    // Update status ke expired
     const updateRes = await pool.query(
         `UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
         [o.id]
@@ -928,38 +1005,89 @@ async function autoCancelAndRefund(order) {
     }
 
     await pool.query(
-        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-        [refundAmount, o.user_id]
-    );
-
-    await pool.query(
         `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
         [String(o.order_id)]
     );
 
-    await logStatusChange({
-        entityType: 'order',
-        entityId: o.order_id,
-        userId: o.user_id,
-        oldStatus: 'pending',
-        newStatus: 'expired',
-        reason: 'auto_cancel_expired',
-        metadata: {
-            otp_id: o.otp_id,
-            refunded_amount: refundAmount,
-            provider_refund: providerRefund,
-            price: Number(o.price),
-        },
-    });
+    // Refund (selalu refund dari saldo kita biar user-friend)
+    const refundRes = await refundOrder({ ...o, status: 'expired' }, 'auto_cancel_expired');
 
-    console.log(`💰 Auto-refund Rp${refundAmount} to user ${o.user_id} (order ${o.order_id} expired)`);
+    console.log(`💰 Auto-refund Rp${refundRes.amount} to user ${o.user_id} (order ${o.order_id} expired)`);
 
     return {
-        refunded: true,
-        refundedAmount: refundAmount,
+        refunded: refundRes.refunded,
+        refundedAmount: refundRes.amount,
         orderId: o.order_id,
         otpId: o.otp_id,
     };
+}
+
+// ============================================
+// ===== CHECK & REFUND ALL PENDING (per user) =====
+// ===== Dipanggil pas user buka inbox/nokos =====
+// ============================================
+async function checkAndRefundUserOrders(userId) {
+    const refunded = [];
+
+    try {
+        // 1. Order yang expired (expired_at < now) tapi masih pending
+        const expiredResult = await pool.query(
+            `SELECT * FROM orders 
+             WHERE user_id = $1 
+               AND status = 'pending'
+               AND expired_at IS NOT NULL 
+               AND expired_at < NOW()
+             LIMIT 20`,
+            [userId]
+        );
+
+        for (const order of expiredResult.rows) {
+            try {
+                const res = await autoCancelAndRefund(order);
+                if (res.refunded) {
+                    refunded.push({
+                        order_id: res.orderId,
+                        otp_id: res.otpId,
+                        refunded_amount: res.refundedAmount,
+                        reason: 'expired',
+                    });
+                }
+            } catch (err) {
+                console.error(`Auto-cancel order ${order.order_id} error:`, err.message);
+            }
+        }
+
+        // 2. Order dengan status cancelled/failed/expired yang BELUM di-refund
+        const needRefundResult = await pool.query(
+            `SELECT * FROM orders 
+             WHERE user_id = $1 
+               AND status IN ('cancelled', 'failed', 'expired')
+               AND (refunded_at IS NULL OR refunded_at = 0)
+               AND price > 0
+             LIMIT 20`,
+            [userId]
+        );
+
+        for (const order of needRefundResult.rows) {
+            try {
+                const res = await refundOrder(order, 'auto_refund_' + order.status);
+                if (res.refunded) {
+                    refunded.push({
+                        order_id: order.order_id,
+                        otp_id: order.otp_id,
+                        refunded_amount: res.amount,
+                        reason: order.status,
+                    });
+                }
+            } catch (err) {
+                console.error(`Refund order ${order.order_id} error:`, err.message);
+            }
+        }
+    } catch (err) {
+        console.error('checkAndRefundUserOrders error:', err.message);
+    }
+
+    return refunded;
 }
 
 // ============================================
@@ -968,10 +1096,16 @@ async function autoCancelAndRefund(order) {
 app.get('/api/health', withDB(async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW() as time');
+
+        const requiredCols = ['otp_id', 'last_checked_at', 'expired_at', 'otp_code_2', 'refunded_at', 'refunded_amount', 'refund_reason'];
         const colCheck = await pool.query(`
             SELECT column_name FROM information_schema.columns 
-            WHERE table_name = 'orders' AND column_name IN ('otp_id', 'last_checked_at', 'expired_at')
-        `);
+            WHERE table_name = 'orders' AND column_name = ANY($1)
+        `, [requiredCols]);
+
+        const present = colCheck.rows.map(r => r.column_name);
+        const missing = requiredCols.filter(c => !present.includes(c));
+
         res.json({
             status: 'ok',
             time: result.rows[0].time,
@@ -979,8 +1113,11 @@ app.get('/api/health', withDB(async (req, res) => {
             hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
             hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
             hasJwtSecret: !!JWT_SECRET,
-            schemaEnsured,
-            columnsPresent: colCheck.rows.map(r => r.column_name),
+            schema: {
+                ok: missing.length === 0,
+                present,
+                missing,
+            },
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1259,7 +1396,7 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== DEPOSIT — CEK STATUS (POLLING) =====
+// ===== DEPOSIT — CEK STATUS =====
 // ============================================
 app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
@@ -1557,7 +1694,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== WEBHOOK OTP (dari provider Banana/OTP) =====
+// ===== WEBHOOK OTP =====
 // ============================================
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     try {
@@ -1664,7 +1801,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CEK OTP — POLLING / MANUAL =====
+// ===== CEK OTP =====
 // ============================================
 app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
@@ -1698,19 +1835,25 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 full_sms: order.full_sms, price_idr: order.price,
                 service: order.service, country: order.country, operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
+                refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
+                refund_reason: order.refund_reason,
             });
         }
 
         if (order.expired_at && new Date(order.expired_at) < new Date()) {
             const cancelResult = await autoCancelAndRefund(order);
+            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
+            const o = fresh.rows[0] || order;
+
             return res.json({
-                order_id: order.order_id, otp_id: order.otp_id,
-                status: 'expired', phone_number: order.phone_number,
-                otp_code: order.otp_code, otp_code_2: order.otp_code_2,
-                full_sms: order.full_sms, price_idr: order.price,
-                service: order.service, country: order.country, operator: order.operator,
-                expired_at: order.expired_at, refunded: cancelResult.refunded,
+                order_id: o.order_id, otp_id: o.otp_id,
+                status: o.status, phone_number: o.phone_number,
+                otp_code: o.otp_code, otp_code_2: o.otp_code_2,
+                full_sms: o.full_sms, price_idr: o.price,
+                service: o.service, country: o.country, operator: o.operator,
+                expired_at: o.expired_at, refunded: cancelResult.refunded,
                 refunded_amount: cancelResult.refundedAmount, expires_in: 0,
+                refunded_at: o.refunded_at, refund_reason: o.refund_reason,
             });
         }
 
@@ -1755,6 +1898,14 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                     });
                 }
 
+                // Auto-refund kalo status dari provider = cancelled/expired/refunded
+                if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                    if (fresh.rows[0]) {
+                        await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                    }
+                }
+
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
@@ -1765,6 +1916,9 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                     received_at: fresh.rows[0].received_at,
                     expires_in: fresh.rows[0].expired_at ? Math.max(0, Math.floor((new Date(fresh.rows[0].expired_at) - Date.now()) / 1000)) : 0,
                     expired_at: fresh.rows[0].expired_at, updated: true,
+                    refunded_at: fresh.rows[0].refunded_at,
+                    refunded_amount: fresh.rows[0].refunded_amount,
+                    refund_reason: fresh.rows[0].refund_reason,
                 });
             }
 
@@ -1777,6 +1931,9 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 received_at: order.received_at,
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
+                refunded_at: order.refunded_at,
+                refunded_amount: order.refunded_amount,
+                refund_reason: order.refund_reason,
             });
         } catch (err) {
             console.error('Polling provider error:', err.message);
@@ -1790,10 +1947,68 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
                 error: 'Provider ga bisa dihubungi, coba lagi',
+                refunded_at: order.refunded_at,
+                refunded_amount: order.refunded_amount,
+                refund_reason: order.refund_reason,
             });
         }
     } catch (err) {
         console.error('CekOTP error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== CHECK & REFUND (auto) =====
+// ===== Dipanggil user pas buka inbox/nokos =====
+// ============================================
+app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
+    try {
+        const refunded = await checkAndRefundUserOrders(req.user.id);
+
+        // Ambil balance terbaru
+        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
+
+        res.json({
+            refunded,
+            count: refunded.length,
+            new_balance: userRes.rows[0] ? Number(userRes.rows[0].balance) : null,
+        });
+    } catch (err) {
+        console.error('Check refunds error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ORDERS STATS (count per status) =====
+// ============================================
+app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT 
+                COUNT(*) as all_count,
+                COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+                COUNT(*) FILTER (WHERE status IN ('success', 'received')) as success_count,
+                COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
+                COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
+                COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
+             FROM orders 
+             WHERE user_id = $1`,
+            [req.user.id]
+        );
+
+        const row = result.rows[0] || {};
+        res.json({
+            all: Number(row.all_count || 0),
+            pending: Number(row.pending_count || 0),
+            success: Number(row.success_count || 0),
+            failed: Number(row.failed_count || 0),
+            expired: Number(row.expired_count || 0),
+            cancelled: Number(row.cancelled_count || 0),
+        });
+    } catch (err) {
+        console.error('Orders stats error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1842,7 +2057,7 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CRON: AUTO-VALIDATE PENDING ORDERS =====
+// ===== CRON: AUTO-VALIDATE + AUTO-REFUND =====
 // ============================================
 app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
     try {
@@ -1856,11 +2071,13 @@ app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
 
         let updated = 0;
         let expired = 0;
+        let refunded = 0;
 
         for (const order of result.rows) {
             try {
                 if (order.expired_at && new Date(order.expired_at) < new Date()) {
-                    await autoCancelAndRefund(order);
+                    const cancelRes = await autoCancelAndRefund(order);
+                    if (cancelRes.refunded) refunded++;
                     expired++;
                     continue;
                 }
@@ -1904,7 +2121,11 @@ app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
                     }
 
                     if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                        await autoCancelAndRefund(order);
+                        const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
+                        if (fresh.rows[0]) {
+                            const refundRes = await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                            if (refundRes.refunded) refunded++;
+                        }
                         expired++;
                     } else {
                         updated++;
@@ -1917,13 +2138,54 @@ app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
             }
         }
 
-        console.log(`⏰ Auto-validate: checked ${result.rows.length}, updated ${updated}, expired ${expired}`);
+        console.log(`⏰ Auto-validate: checked ${result.rows.length}, updated ${updated}, expired ${expired}, refunded ${refunded}`);
         res.json({
             message: `Validated ${result.rows.length} orders`,
-            checked: result.rows.length, updated, expired,
+            checked: result.rows.length, updated, expired, refunded,
         });
     } catch (err) {
         console.error('Auto-validate error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== CRON: AUTO-REFUND ALL EXPIRED/FAILED =====
+// ============================================
+app.post('/api/cron/auto-refund-all', withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status IN ('cancelled', 'failed', 'expired')
+               AND (refunded_at IS NULL OR refunded_at = 0)
+               AND price > 0
+             LIMIT 50`
+        );
+
+        let refunded = 0;
+        let totalAmount = 0;
+
+        for (const order of result.rows) {
+            try {
+                const refundRes = await refundOrder(order, 'cron_auto_refund_' + order.status);
+                if (refundRes.refunded) {
+                    refunded++;
+                    totalAmount += refundRes.amount;
+                }
+            } catch (err) {
+                console.error(`Cron refund order ${order.order_id} error:`, err.message);
+            }
+        }
+
+        console.log(`💰 Cron auto-refund: ${refunded} orders, total Rp${totalAmount}`);
+        res.json({
+            message: `Refunded ${refunded} orders`,
+            checked: result.rows.length,
+            refunded,
+            total_amount: totalAmount,
+        });
+    } catch (err) {
+        console.error('Cron auto-refund error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2278,6 +2540,10 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 full_sms: order.full_sms, price_idr: order.price,
                 service: order.service, country: order.country, operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
+                refunded_at: order.refunded_at,
+                refunded_amount: order.refunded_amount,
+                refund_reason: order.refund_reason,
+                created_at: order.created_at,
             });
         }
 
@@ -2304,11 +2570,26 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                     metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
                 });
             }
+
+            // Auto-refund kalo status final yang perlu refund
+            if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                if (fresh.rows[0]) {
+                    await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                }
+            }
         }
+
+        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+        const o = fresh.rows[0];
 
         res.json({
             ...data,
-            otp_id: order.otp_id,
+            otp_id: o.otp_id,
+            refunded_at: o.refunded_at,
+            refunded_amount: o.refunded_amount,
+            refund_reason: o.refund_reason,
+            created_at: o.created_at,
         });
     } catch (err) {
         console.error('Check status error:', err);
@@ -2317,7 +2598,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — RESEND (cuma kalo udah pernah dapet OTP) =====
+// ===== NOKOS — RESEND =====
 // ============================================
 app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
@@ -2391,14 +2672,6 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
 
         const data = await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: Number(orderId) }) });
 
-        if (data.refunded && Number(data.refunded) > 0) {
-            await pool.query(
-                'UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
-                [Number(data.refunded), req.user.id]
-            );
-            console.log(`💰 Refunded ${data.refunded} to user ${req.user.id} (cancel order ${orderId})`);
-        }
-
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
         await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
 
@@ -2410,10 +2683,16 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
             newStatus: 'cancelled',
             reason: 'manual_cancel',
             metadata: {
-                refunded_amount: Number(data.refunded) || 0,
+                refunded_amount: Number(data.refunded) || Number(order.price) || 0,
                 otp_id: order.otp_id,
             },
         });
+
+        // Refund otomatis
+        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+        if (fresh.rows[0]) {
+            await refundOrder(fresh.rows[0], 'manual_cancel');
+        }
 
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
 
@@ -2434,7 +2713,16 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     try {
         let query = 'SELECT * FROM orders WHERE user_id = $1';
         const params = [req.user.id];
-        if (status) { query += ` AND status = $${params.length + 1}`; params.push(status); }
+
+        if (status) {
+            if (status === 'success') {
+                query += ` AND status IN ('success', 'received')`;
+            } else {
+                query += ` AND status = $${params.length + 1}`;
+                params.push(status);
+            }
+        }
+
         query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
         params.push(Number(limit), (Number(page) - 1) * Number(limit));
         const result = await pool.query(query, params);
@@ -2502,6 +2790,13 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
                             reason: 'sync_batch',
                             metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
                         });
+                    }
+
+                    if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                        if (fresh.rows[0]) {
+                            await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                        }
                     }
 
                     const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
