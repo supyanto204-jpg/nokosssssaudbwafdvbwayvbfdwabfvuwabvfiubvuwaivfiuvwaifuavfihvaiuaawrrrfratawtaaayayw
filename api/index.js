@@ -3162,18 +3162,6 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== ADMIN — SERVER BALANCE =====
-// ============================================
-app.get('/api/admin/server-balance', requireAuth, requireAdmin, withDB(async (req, res) => {
-    try {
-        const data = await dibananaFetch('/balance');
-        res.json(data);
-    } catch (err) {
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
-    }
-}));
-
 // ===== GLOBAL ERROR HANDLER =====
 app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
@@ -3212,6 +3200,1268 @@ app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
     } catch (err) {
         console.error('Countries API error:', err.message);
         res.status(500).json({ error: 'Gagal fetch data negara' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN API — MIDDLEWARE =====
+// ============================================
+const ADMIN_USERNAMES = ['asyrofc'];
+const ADMIN_USER_CODES = ['SRF2667442394'];
+
+function isAdminUser(user) {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    const uname = String(user.username || '').toLowerCase();
+    const ucode = String(user.user_code || '');
+    return ADMIN_USERNAMES.includes(uname) || ADMIN_USER_CODES.includes(ucode);
+}
+
+// Middleware requireAdmin: cek role / username / user_code
+async function requireAdminFlex(req, res, next) {
+    try {
+        // Ambil data user fresh dari DB
+        const result = await pool.query(
+            'SELECT id, username, role, user_code, status FROM users WHERE id = $1 LIMIT 1',
+            [req.user.id]
+        );
+        if (result.rows.length === 0) {
+            return res.status(401).json({ error: 'User tidak ditemukan' });
+        }
+        const user = result.rows[0];
+        if (user.status === 'banned') {
+            return res.status(403).json({ error: 'Akun diblokir' });
+        }
+        if (!isAdminUser(user)) {
+            return res.status(403).json({ error: 'Admin only' });
+        }
+        req.admin = user;
+        next();
+    } catch (err) {
+        console.error('requireAdminFlex error:', err.message);
+        return res.status(500).json({ error: 'Server error' });
+    }
+}
+
+// Helper: log admin action ke status_logs
+async function logAdminAction({ adminId, adminUsername, action, targetType, targetId, metadata = null }) {
+    try {
+        await pool.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                'admin_action',
+                String(targetId || ''),
+                adminId,
+                null,
+                action,
+                `admin:${adminUsername || adminId}`,
+                metadata
+                    ? JSON.stringify({ ...metadata, target_type: targetType })
+                    : JSON.stringify({ target_type: targetType })
+            ]
+        );
+    } catch (err) {
+        console.error('logAdminAction error:', err.message);
+    }
+}
+
+// Helper: parse pagination
+function parsePagination(req, defaultLimit = 20, maxLimit = 100) {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(maxLimit, Math.max(1, parseInt(req.query.limit, 10) || defaultLimit));
+    const offset = (page - 1) * limit;
+    return { page, limit, offset };
+}
+
+// Helper: cek status sukses untuk order/deposit
+const ORDER_SUCCESS_STATUSES = ['success', 'received', 'confirmed'];
+const ORDER_FAIL_STATUSES = ['cancelled', 'expired', 'failed', 'refunded'];
+const DEPOSIT_SUCCESS_STATUSES = ['success'];
+const DEPOSIT_FAIL_STATUSES = ['cancelled', 'expired', 'failed', 'refunded'];
+
+// Helper: apakah transisi status butuh adjust saldo
+function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
+    const a = Number(amount) || 0;
+    if (a <= 0) return 0;
+
+    if (type === 'order') {
+        // Order: user sudah bayar di awal, jadi:
+        // - sukses → fail: refund (+a)
+        // - fail → sukses: tarik balik refund (-a)
+        // - pending → fail: refund (+a)
+        // - fail → pending: tarik balik (-a)
+        const oldSuccess = ORDER_SUCCESS_STATUSES.includes(oldStatus);
+        const newSuccess = ORDER_SUCCESS_STATUSES.includes(newStatus);
+        const oldFail = ORDER_FAIL_STATUSES.includes(oldStatus);
+        const newFail = ORDER_FAIL_STATUSES.includes(newStatus);
+
+        if (oldStatus === 'pending' && newFail) return +a; // refund
+        if (oldFail && newStatus === 'pending') return -a; // tarik balik refund
+        if (oldSuccess && newFail) return +a; // refund
+        if (oldFail && newSuccess) return -a; // tarik balik
+        return 0;
+    }
+
+    if (type === 'deposit') {
+        // Deposit: uang masuk ke user
+        // - pending → success: +a
+        // - success → fail: -a
+        // - fail → success: +a
+        // - success → pending: -a
+        const oldSuccess = DEPOSIT_SUCCESS_STATUSES.includes(oldStatus);
+        const newSuccess = DEPOSIT_SUCCESS_STATUSES.includes(newStatus);
+        const oldFail = DEPOSIT_FAIL_STATUSES.includes(oldStatus);
+        const newFail = DEPOSIT_FAIL_STATUSES.includes(newStatus);
+
+        if (oldStatus === 'pending' && newSuccess) return +a;
+        if (oldSuccess && newFail) return -a;
+        if (oldFail && newSuccess) return +a;
+        if (oldSuccess && newStatus === 'pending') return -a;
+        return 0;
+    }
+
+    return 0;
+}
+
+// ============================================
+// ===== ADMIN — STATS =====
+// ============================================
+app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    try {
+        const [usersRes, ordersRes, depositsRes, balanceRes, pendingDepositsRes, pendingOrdersRes] = await Promise.all([
+            pool.query('SELECT COUNT(*) AS c FROM users'),
+            pool.query('SELECT COUNT(*) AS c FROM orders'),
+            pool.query('SELECT COUNT(*) AS c FROM deposits'),
+            pool.query('SELECT COALESCE(SUM(balance), 0) AS total FROM users'),
+            pool.query("SELECT COUNT(*) AS c FROM deposits WHERE status = 'pending'"),
+            pool.query("SELECT COUNT(*) AS c FROM orders WHERE status = 'pending'"),
+        ]);
+
+        res.json({
+            total_users: Number(usersRes.rows[0].c) || 0,
+            total_orders: Number(ordersRes.rows[0].c) || 0,
+            total_deposits: Number(depositsRes.rows[0].c) || 0,
+            total_balance: Number(balanceRes.rows[0].total) || 0,
+            pending_deposits: Number(pendingDepositsRes.rows[0].c) || 0,
+            pending_orders: Number(pendingOrdersRes.rows[0].c) || 0,
+        });
+    } catch (err) {
+        console.error('Admin stats error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — USERS LIST =====
+// ============================================
+app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { page, limit, offset } = parsePagination(req, 20, 100);
+    const search = String(req.query.search || '').trim().toLowerCase();
+
+    try {
+        const params = [];
+        let where = '';
+
+        if (search) {
+            params.push(`%${search}%`);
+            where = `WHERE (
+                LOWER(username) LIKE $1 OR
+                LOWER(COALESCE(name, '')) LIKE $1 OR
+                LOWER(COALESCE(user_code, '')) LIKE $1 OR
+                CAST(id AS TEXT) LIKE $1
+            )`;
+        }
+
+        const listQuery = `
+            SELECT 
+                u.id, u.username, u.name, u.user_code, u.balance, u.role, u.status, u.created_at,
+                COALESCE(o.cnt, 0) AS total_orders,
+                COALESCE(d.cnt, 0) AS total_deposits
+            FROM users u
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS cnt FROM orders GROUP BY user_id
+            ) o ON o.user_id = u.id
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS cnt FROM deposits GROUP BY user_id
+            ) d ON d.user_id = u.id
+            ${where}
+            ORDER BY u.created_at DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+
+        const countQuery = `SELECT COUNT(*) AS c FROM users ${where ? where.replace(/LIKE \$1/g, 'LIKE $1') : ''}`;
+
+        const [listRes, countRes] = await Promise.all([
+            pool.query(listQuery, [...params, limit, offset]),
+            pool.query(countQuery, params),
+        ]);
+
+        const total = Number(countRes.rows[0].c) || 0;
+        const total_pages = Math.ceil(total / limit);
+
+        res.json({
+            users: listRes.rows.map(u => ({
+                id: u.id,
+                username: u.username,
+                name: u.name,
+                user_code: u.user_code,
+                balance: Number(u.balance) || 0,
+                role: u.role,
+                status: u.status,
+                created_at: u.created_at,
+                total_orders: Number(u.total_orders) || 0,
+                total_deposits: Number(u.total_deposits) || 0,
+            })),
+            total,
+            page,
+            limit,
+            total_pages,
+        });
+    } catch (err) {
+        console.error('Admin users list error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — USER DETAIL =====
+// ============================================
+app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    if (!userId) return res.status(400).json({ error: 'User ID wajib' });
+
+    try {
+        const userRes = await pool.query(
+            'SELECT id, username, name, user_code, balance, role, status, created_at, updated_at FROM users WHERE id = $1 LIMIT 1',
+            [userId]
+        );
+        if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        const user = userRes.rows[0];
+
+        // Stats
+        const [orderStats, depositStats, balanceLogs] = await Promise.all([
+            pool.query(
+                `SELECT 
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE status IN ('success','received','confirmed')) AS success,
+                    COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+                    COUNT(*) FILTER (WHERE status IN ('cancelled','expired','failed')) AS failed,
+                    COALESCE(SUM(price) FILTER (WHERE status IN ('success','received','confirmed')), 0) AS total_spent
+                 FROM orders WHERE user_id = $1`,
+                [userId]
+            ),
+            pool.query(
+                `SELECT 
+                    COUNT(*) AS total,
+                    COUNT(*) FILTER (WHERE status = 'success') AS success,
+                    COUNT(*) FILTER (WHERE status = 'pending') AS pending,
+                    COALESCE(SUM(amount) FILTER (WHERE status = 'success'), 0) AS total_deposit
+                 FROM deposits WHERE user_id = $1`,
+                [userId]
+            ),
+            // Aktivitas saldo dari status_logs
+            pool.query(
+                `SELECT id, old_status, new_status, reason, metadata, created_at
+                 FROM status_logs
+                 WHERE user_id = $1 
+                   AND (
+                     (entity_type = 'order' AND reason LIKE 'admin_%') OR
+                     (entity_type = 'deposit' AND reason LIKE 'admin_%') OR
+                     (entity_type = 'admin_action' AND new_status = 'balance_adjust')
+                   )
+                 ORDER BY created_at DESC
+                 LIMIT 100`,
+                [userId]
+            ),
+        ]);
+
+        // Recent orders & deposits
+        const [recentOrders, recentDeposits] = await Promise.all([
+            pool.query(
+                `SELECT order_id, otp_id, service_name, service, icon_code, country, country_name, phone_number,
+                        otp_code, price, status, created_at, refunded_at, refunded_amount
+                 FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+                [userId]
+            ),
+            pool.query(
+                `SELECT reference_id, method, amount, total_amount, unique_code, fee, status, 
+                        qris_url, paid_at, expires_at, created_at
+                 FROM deposits WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+                [userId]
+            ),
+        ]);
+
+        res.json({
+            user: {
+                ...user,
+                balance: Number(user.balance) || 0,
+            },
+            stats: {
+                orders: {
+                    total: Number(orderStats.rows[0].total) || 0,
+                    success: Number(orderStats.rows[0].success) || 0,
+                    pending: Number(orderStats.rows[0].pending) || 0,
+                    failed: Number(orderStats.rows[0].failed) || 0,
+                    total_spent: Number(orderStats.rows[0].total_spent) || 0,
+                },
+                deposits: {
+                    total: Number(depositStats.rows[0].total) || 0,
+                    success: Number(depositStats.rows[0].success) || 0,
+                    pending: Number(depositStats.rows[0].pending) || 0,
+                    total_deposit: Number(depositStats.rows[0].total_deposit) || 0,
+                },
+            },
+            balance_logs: balanceLogs.rows,
+            recent_orders: recentOrders.rows.map(o => ({ ...o, price: Number(o.price) || 0 })),
+            recent_deposits: recentDeposits.rows.map(d => ({
+                ...d,
+                amount: Number(d.amount) || 0,
+                total_amount: Number(d.total_amount) || 0,
+                fee: Number(d.fee) || 0,
+            })),
+        });
+    } catch (err) {
+        console.error('Admin user detail error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — EDIT USER BALANCE =====
+// ===== mode: 'set' | 'add' | 'subtract' =====
+// ============================================
+app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    const { mode, amount, note } = req.body;
+
+    if (!userId) return res.status(400).json({ error: 'User ID wajib' });
+    if (!['set', 'add', 'subtract'].includes(mode)) {
+        return res.status(400).json({ error: 'Mode harus set/add/subtract' });
+    }
+
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt < 0) {
+        return res.status(400).json({ error: 'Amount harus angka >= 0' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const userRes = await client.query(
+            'SELECT id, username, balance FROM users WHERE id = $1 FOR UPDATE',
+            [userId]
+        );
+        if (userRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+
+        const user = userRes.rows[0];
+        const oldBalance = Number(user.balance) || 0;
+        let newBalance;
+
+        if (mode === 'set') {
+            newBalance = Math.floor(amt);
+        } else if (mode === 'add') {
+            newBalance = oldBalance + Math.floor(amt);
+        } else { // subtract
+            if (oldBalance < amt) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Saldo user tidak cukup untuk dikurangi',
+                    balance: oldBalance,
+                    requested: amt,
+                });
+            }
+            newBalance = oldBalance - Math.floor(amt);
+        }
+
+        await client.query(
+            'UPDATE users SET balance = $1, updated_at = NOW() WHERE id = $2',
+            [newBalance, userId]
+        );
+
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ('admin_action', $1, $1, $2, 'balance_adjust', 'admin_balance_adjust', $3)`,
+            [
+                userId,
+                String(oldBalance),
+                JSON.stringify({
+                    mode,
+                    amount: Math.floor(amt),
+                    old_balance: oldBalance,
+                    new_balance: newBalance,
+                    note: note || null,
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                }),
+            ]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: 'Saldo berhasil diupdate',
+            user: {
+                id: user.id,
+                username: user.username,
+                balance: newBalance,
+            },
+            old_balance: oldBalance,
+            new_balance: newBalance,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Admin balance update error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    } finally {
+        client.release();
+    }
+}));
+
+// ============================================
+// ===== ADMIN — CHANGE ROLE =====
+// ============================================
+app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    const { role } = req.body;
+
+    if (!['user', 'admin'].includes(role)) {
+        return res.status(400).json({ error: 'Role harus user/admin' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, role',
+            [role, userId]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'change_role',
+            targetType: 'user',
+            targetId: userId,
+            metadata: { new_role: role },
+        });
+
+        res.json({ message: 'Role berhasil diubah', user: result.rows[0] });
+    } catch (err) {
+        console.error('Admin change role error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — CHANGE STATUS (ban/unban) =====
+// ============================================
+app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    const { status } = req.body;
+
+    if (!['active', 'banned'].includes(status)) {
+        return res.status(400).json({ error: 'Status harus active/banned' });
+    }
+
+    try {
+        const result = await pool.query(
+            'UPDATE users SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, status',
+            [status, userId]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'change_status',
+            targetType: 'user',
+            targetId: userId,
+            metadata: { new_status: status },
+        });
+
+        res.json({ message: 'Status berhasil diubah', user: result.rows[0] });
+    } catch (err) {
+        console.error('Admin change status error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — RESET PASSWORD =====
+// ============================================
+app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    const { new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
+        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+
+    try {
+        const hash = await bcrypt.hash(new_password, 8);
+        const result = await pool.query(
+            'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username',
+            [hash, userId]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'reset_password',
+            targetType: 'user',
+            targetId: userId,
+        });
+
+        res.json({ message: 'Password berhasil direset', user: result.rows[0] });
+    } catch (err) {
+        console.error('Admin reset password error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — ORDERS LIST =====
+// ============================================
+app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { page, limit, offset } = parsePagination(req, 20, 100);
+    const status = String(req.query.status || '').trim();
+    const search = String(req.query.search || '').trim().toLowerCase();
+
+    try {
+        const params = [];
+        const conditions = [];
+
+        if (status && status !== 'all') {
+            if (status === 'success') {
+                conditions.push(`(o.status IN ('success','received','confirmed'))`);
+            } else {
+                params.push(status);
+                conditions.push(`o.status = $${params.length}`);
+            }
+        }
+
+        if (search) {
+            params.push(`%${search}%`);
+            const idx = params.length;
+            conditions.push(`(
+                LOWER(o.order_id) LIKE $${idx} OR
+                LOWER(COALESCE(o.otp_id, '')) LIKE $${idx} OR
+                LOWER(COALESCE(o.phone_number, '')) LIKE $${idx} OR
+                LOWER(COALESCE(o.service_name, '')) LIKE $${idx} OR
+                LOWER(COALESCE(u.username, '')) LIKE $${idx} OR
+                LOWER(COALESCE(u.user_code, '')) LIKE $${idx}
+            )`);
+        }
+
+        const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        const listQuery = `
+            SELECT 
+                o.*,
+                u.username, u.user_code, u.name AS user_name
+            FROM orders o
+            LEFT JOIN users u ON u.id = o.user_id
+            ${where}
+            ORDER BY o.created_at DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+
+        const countQuery = `
+            SELECT COUNT(*) AS c 
+            FROM orders o
+            LEFT JOIN users u ON u.id = o.user_id
+            ${where}
+        `;
+
+        const [listRes, countRes] = await Promise.all([
+            pool.query(listQuery, [...params, limit, offset]),
+            pool.query(countQuery, params),
+        ]);
+
+        const total = Number(countRes.rows[0].c) || 0;
+        const total_pages = Math.ceil(total / limit);
+
+        res.json({
+            orders: listRes.rows.map(o => ({
+                ...o,
+                price: Number(o.price) || 0,
+                refunded_amount: o.refunded_amount ? Number(o.refunded_amount) : null,
+            })),
+            total,
+            page,
+            limit,
+            total_pages,
+        });
+    } catch (err) {
+        console.error('Admin orders list error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — ORDER DETAIL =====
+// ============================================
+app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const orderId = String(req.params.orderId || '').trim();
+
+    try {
+        const result = await pool.query(
+            `SELECT o.*, u.username, u.user_code, u.name AS user_name, u.balance AS user_balance
+             FROM orders o
+             LEFT JOIN users u ON u.id = o.user_id
+             WHERE o.order_id = $1 LIMIT 1`,
+            [orderId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
+
+        const o = result.rows[0];
+
+        // Riwayat status order
+        const logs = await pool.query(
+            `SELECT id, old_status, new_status, reason, metadata, created_at
+             FROM status_logs
+             WHERE entity_type = 'order' AND entity_id = $1
+             ORDER BY created_at DESC
+             LIMIT 100`,
+            [orderId]
+        );
+
+        res.json({
+            order: {
+                ...o,
+                price: Number(o.price) || 0,
+                refunded_amount: o.refunded_amount ? Number(o.refunded_amount) : null,
+                user_balance: Number(o.user_balance) || 0,
+            },
+            logs: logs.rows,
+        });
+    } catch (err) {
+        console.error('Admin order detail error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — UPDATE ORDER STATUS =====
+// ===== Auto adjust saldo user =====
+// ============================================
+const ALLOWED_ORDER_STATUSES = [
+    'pending', 'success', 'received', 'confirmed',
+    'cancelled', 'expired', 'failed', 'refunded'
+];
+
+app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const orderId = String(req.params.orderId || '').trim();
+    const { status: newStatus, note } = req.body;
+
+    if (!ALLOWED_ORDER_STATUSES.includes(newStatus)) {
+        return res.status(400).json({ error: `Status tidak valid. Pilihan: ${ALLOWED_ORDER_STATUSES.join(', ')}` });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const orderRes = await client.query(
+            'SELECT * FROM orders WHERE order_id = $1 FOR UPDATE',
+            [orderId]
+        );
+        if (orderRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Order tidak ditemukan' });
+        }
+
+        const order = orderRes.rows[0];
+        const oldStatus = order.status;
+
+        if (oldStatus === newStatus) {
+            await client.query('COMMIT');
+            return res.json({
+                message: 'Status sama, tidak ada perubahan',
+                order: { ...order, price: Number(order.price) || 0 },
+                balance_adjustment: 0,
+            });
+        }
+
+        const price = Number(order.price) || 0;
+        const adjustment = getBalanceAdjustment('order', oldStatus, newStatus, price);
+
+        let newBalance = null;
+
+        if (adjustment !== 0) {
+            // Lock user
+            const userRes = await client.query(
+                'SELECT id, username, balance FROM users WHERE id = $1 FOR UPDATE',
+                [order.user_id]
+            );
+            if (userRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'User pemilik order tidak ditemukan' });
+            }
+            const user = userRes.rows[0];
+            const oldBalance = Number(user.balance) || 0;
+
+            if (adjustment < 0 && oldBalance < Math.abs(adjustment)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Saldo user tidak cukup untuk dikurangi',
+                    balance: oldBalance,
+                    needed: Math.abs(adjustment),
+                });
+            }
+
+            newBalance = oldBalance + adjustment;
+
+            await client.query(
+                'UPDATE users SET balance = $1, updated_at = NOW() WHERE id = $2',
+                [newBalance, user.id]
+            );
+
+            // Log balance adjust
+            await client.query(
+                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_order_status_change', $4)`,
+                [
+                    orderId,
+                    user.id,
+                    String(oldBalance),
+                    JSON.stringify({
+                        order_id: orderId,
+                        old_status: oldStatus,
+                        new_status: newStatus,
+                        adjustment,
+                        old_balance: oldBalance,
+                        new_balance: newBalance,
+                        note: note || null,
+                        admin_id: req.admin.id,
+                        admin_username: req.admin.username,
+                    }),
+                ]
+            );
+        }
+
+        // Update order status
+        const updateFields = ['status = $1', 'updated_at = NOW()'];
+        const updateParams = [newStatus];
+
+        // Kalau jadi fail → set refunded_at & refunded_amount
+        if (ORDER_FAIL_STATUSES.includes(newStatus) && !ORDER_FAIL_STATUSES.includes(oldStatus)) {
+            updateFields.push(`refunded_at = $${updateParams.length + 1}`);
+            updateParams.push(Date.now());
+            updateFields.push(`refunded_amount = $${updateParams.length + 1}`);
+            updateParams.push(price);
+            updateFields.push(`refund_reason = $${updateParams.length + 1}`);
+            updateParams.push(note || 'admin_force_fail');
+        }
+
+        // Kalau dari fail → sukses → hapus refunded
+        if (ORDER_SUCCESS_STATUSES.includes(newStatus) && ORDER_FAIL_STATUSES.includes(oldStatus)) {
+            updateFields.push(`refunded_at = NULL`);
+            updateFields.push(`refunded_amount = NULL`);
+            updateFields.push(`refund_reason = NULL`);
+        }
+
+        // Set received_at kalau jadi sukses
+        if (ORDER_SUCCESS_STATUSES.includes(newStatus)) {
+            updateFields.push(`received_at = COALESCE(received_at, NOW())`);
+        }
+
+        updateParams.push(orderId);
+        const updateQuery = `UPDATE orders SET ${updateFields.join(', ')} WHERE order_id = $${updateParams.length} RETURNING *`;
+
+        const updatedOrder = await client.query(updateQuery, updateParams);
+
+        // Log status change
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ('order', $1, $2, $3, $4, 'admin_force_status', $5)`,
+            [
+                orderId,
+                order.user_id,
+                oldStatus,
+                newStatus,
+                JSON.stringify({
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                    balance_adjustment: adjustment,
+                    note: note || null,
+                }),
+            ]
+        );
+
+        // Sync ke transactions
+        await client.query(
+            `UPDATE transactions 
+             SET status = CASE 
+                WHEN $1 IN ('success','received','confirmed') THEN 'success'
+                WHEN $1 IN ('cancelled','expired','failed','refunded') THEN 'failed'
+                ELSE status
+             END,
+             updated_at = NOW()
+             WHERE order_id = $2`,
+            [newStatus, orderId]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: 'Status order berhasil diubah',
+            order: {
+                ...updatedOrder.rows[0],
+                price: Number(updatedOrder.rows[0].price) || 0,
+                refunded_amount: updatedOrder.rows[0].refunded_amount
+                    ? Number(updatedOrder.rows[0].refunded_amount)
+                    : null,
+            },
+            old_status: oldStatus,
+            new_status: newStatus,
+            balance_adjustment: adjustment,
+            new_balance: newBalance,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Admin order status change error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    } finally {
+        client.release();
+    }
+}));
+
+// ============================================
+// ===== ADMIN — DEPOSITS LIST =====
+// ============================================
+app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { page, limit, offset } = parsePagination(req, 20, 100);
+    const status = String(req.query.status || '').trim();
+    const search = String(req.query.search || '').trim().toLowerCase();
+
+    try {
+        const params = [];
+        const conditions = [];
+
+        if (status && status !== 'all') {
+            params.push(status);
+            conditions.push(`d.status = $${params.length}`);
+        }
+
+        if (search) {
+            params.push(`%${search}%`);
+            const idx = params.length;
+            conditions.push(`(
+                LOWER(d.reference_id) LIKE $${idx} OR
+                LOWER(COALESCE(d.method, '')) LIKE $${idx} OR
+                LOWER(COALESCE(u.username, '')) LIKE $${idx} OR
+                LOWER(COALESCE(u.user_code, '')) LIKE $${idx}
+            )`);
+        }
+
+        const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        const listQuery = `
+            SELECT 
+                d.*,
+                u.username, u.user_code, u.name AS user_name
+            FROM deposits d
+            LEFT JOIN users u ON u.id = d.user_id
+            ${where}
+            ORDER BY d.created_at DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+
+        const countQuery = `
+            SELECT COUNT(*) AS c 
+            FROM deposits d
+            LEFT JOIN users u ON u.id = d.user_id
+            ${where}
+        `;
+
+        const [listRes, countRes] = await Promise.all([
+            pool.query(listQuery, [...params, limit, offset]),
+            pool.query(countQuery, params),
+        ]);
+
+        const total = Number(countRes.rows[0].c) || 0;
+        const total_pages = Math.ceil(total / limit);
+
+        res.json({
+            deposits: listRes.rows.map(d => ({
+                ...d,
+                amount: Number(d.amount) || 0,
+                total_amount: Number(d.total_amount) || 0,
+                fee: Number(d.fee) || 0,
+                unique_code: d.unique_code ? Number(d.unique_code) : null,
+            })),
+            total,
+            page,
+            limit,
+            total_pages,
+        });
+    } catch (err) {
+        console.error('Admin deposits list error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — DEPOSIT DETAIL =====
+// ============================================
+app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const referenceId = String(req.params.referenceId || '').trim();
+
+    try {
+        const result = await pool.query(
+            `SELECT d.*, u.username, u.user_code, u.name AS user_name, u.balance AS user_balance
+             FROM deposits d
+             LEFT JOIN users u ON u.id = d.user_id
+             WHERE d.reference_id = $1 LIMIT 1`,
+            [referenceId]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
+
+        const d = result.rows[0];
+
+        const logs = await pool.query(
+            `SELECT id, old_status, new_status, reason, metadata, created_at
+             FROM status_logs
+             WHERE entity_type = 'deposit' AND entity_id = $1
+             ORDER BY created_at DESC
+             LIMIT 100`,
+            [referenceId]
+        );
+
+        res.json({
+            deposit: {
+                ...d,
+                amount: Number(d.amount) || 0,
+                total_amount: Number(d.total_amount) || 0,
+                fee: Number(d.fee) || 0,
+                user_balance: Number(d.user_balance) || 0,
+            },
+            logs: logs.rows,
+        });
+    } catch (err) {
+        console.error('Admin deposit detail error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — UPDATE DEPOSIT STATUS =====
+// ===== Auto adjust saldo user =====
+// ============================================
+const ALLOWED_DEPOSIT_STATUSES = ['pending', 'success', 'cancelled', 'expired', 'failed', 'refunded'];
+
+app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const referenceId = String(req.params.referenceId || '').trim();
+    const { status: newStatus, note } = req.body;
+
+    if (!ALLOWED_DEPOSIT_STATUSES.includes(newStatus)) {
+        return res.status(400).json({ error: `Status tidak valid. Pilihan: ${ALLOWED_DEPOSIT_STATUSES.join(', ')}` });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const depositRes = await client.query(
+            'SELECT * FROM deposits WHERE reference_id = $1 FOR UPDATE',
+            [referenceId]
+        );
+        if (depositRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
+        }
+
+        const deposit = depositRes.rows[0];
+        const oldStatus = deposit.status;
+
+        if (oldStatus === newStatus) {
+            await client.query('COMMIT');
+            return res.json({
+                message: 'Status sama, tidak ada perubahan',
+                deposit: {
+                    ...deposit,
+                    amount: Number(deposit.amount) || 0,
+                    total_amount: Number(deposit.total_amount) || 0,
+                },
+                balance_adjustment: 0,
+            });
+        }
+
+        const amount = Number(deposit.amount) || 0;
+        const adjustment = getBalanceAdjustment('deposit', oldStatus, newStatus, amount);
+
+        let newBalance = null;
+
+        if (adjustment !== 0) {
+            const userRes = await client.query(
+                'SELECT id, username, balance FROM users WHERE id = $1 FOR UPDATE',
+                [deposit.user_id]
+            );
+            if (userRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'User pemilik deposit tidak ditemukan' });
+            }
+            const user = userRes.rows[0];
+            const oldBalance = Number(user.balance) || 0;
+
+            if (adjustment < 0 && oldBalance < Math.abs(adjustment)) {
+                await client.query('ROLLBACK');
+                return res.status(400).json({
+                    error: 'Saldo user tidak cukup untuk dikurangi',
+                    balance: oldBalance,
+                    needed: Math.abs(adjustment),
+                });
+            }
+
+            newBalance = oldBalance + adjustment;
+
+            await client.query(
+                'UPDATE users SET balance = $1, updated_at = NOW() WHERE id = $2',
+                [newBalance, user.id]
+            );
+
+            await client.query(
+                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_deposit_status_change', $4)`,
+                [
+                    referenceId,
+                    user.id,
+                    String(oldBalance),
+                    JSON.stringify({
+                        reference_id: referenceId,
+                        old_status: oldStatus,
+                        new_status: newStatus,
+                        adjustment,
+                        old_balance: oldBalance,
+                        new_balance: newBalance,
+                        note: note || null,
+                        admin_id: req.admin.id,
+                        admin_username: req.admin.username,
+                    }),
+                ]
+            );
+        }
+
+        // Update deposit status
+        const updateFields = ['status = $1', 'updated_at = NOW()'];
+        const updateParams = [newStatus];
+
+        // Kalau jadi success → set paid_at
+        if (newStatus === 'success') {
+            updateFields.push(`paid_at = COALESCE(paid_at, NOW())`);
+        }
+
+        updateParams.push(referenceId);
+        const updateQuery = `UPDATE deposits SET ${updateFields.join(', ')} WHERE reference_id = $${updateParams.length} RETURNING *`;
+
+        const updatedDeposit = await client.query(updateQuery, updateParams);
+
+        // Log status change
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ('deposit', $1, $2, $3, $4, 'admin_force_status', $5)`,
+            [
+                referenceId,
+                deposit.user_id,
+                oldStatus,
+                newStatus,
+                JSON.stringify({
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                    balance_adjustment: adjustment,
+                    note: note || null,
+                }),
+            ]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: 'Status deposit berhasil diubah',
+            deposit: {
+                ...updatedDeposit.rows[0],
+                amount: Number(updatedDeposit.rows[0].amount) || 0,
+                total_amount: Number(updatedDeposit.rows[0].total_amount) || 0,
+                fee: Number(updatedDeposit.rows[0].fee) || 0,
+            },
+            old_status: oldStatus,
+            new_status: newStatus,
+            balance_adjustment: adjustment,
+            new_balance: newBalance,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Admin deposit status change error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    } finally {
+        client.release();
+    }
+}));
+
+// ============================================
+// ===== ADMIN — APPROVE DEPOSIT (legacy wrapper) =====
+// ===== Tetap ada untuk kompatibilitas. Panggil status change ke 'success' =====
+// ============================================
+app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const referenceId = String(req.params.referenceId || '').trim();
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        const depositRes = await client.query(
+            'SELECT * FROM deposits WHERE reference_id = $1 FOR UPDATE',
+            [referenceId]
+        );
+        if (depositRes.rows.length === 0) {
+            await client.query('ROLLBACK');
+            return res.status(404).json({ error: 'Deposit tidak ditemukan' });
+        }
+
+        const deposit = depositRes.rows[0];
+        const oldStatus = deposit.status;
+
+        if (oldStatus === 'success') {
+            await client.query('COMMIT');
+            return res.json({ message: 'Deposit sudah success', deposit });
+        }
+
+        const amount = Number(deposit.amount) || 0;
+        const adjustment = getBalanceAdjustment('deposit', oldStatus, 'success', amount);
+
+        let newBalance = null;
+
+        if (adjustment !== 0) {
+            const userRes = await client.query(
+                'SELECT id, balance FROM users WHERE id = $1 FOR UPDATE',
+                [deposit.user_id]
+            );
+            if (userRes.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'User pemilik deposit tidak ditemukan' });
+            }
+            const user = userRes.rows[0];
+            const oldBalance = Number(user.balance) || 0;
+            newBalance = oldBalance + adjustment;
+
+            await client.query(
+                'UPDATE users SET balance = $1, updated_at = NOW() WHERE id = $2',
+                [newBalance, user.id]
+            );
+
+            await client.query(
+                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_approve_deposit', $4)`,
+                [
+                    referenceId,
+                    user.id,
+                    String(oldBalance),
+                    JSON.stringify({
+                        reference_id: referenceId,
+                        old_status: oldStatus,
+                        new_status: 'success',
+                        adjustment,
+                        old_balance: oldBalance,
+                        new_balance: newBalance,
+                        admin_id: req.admin.id,
+                        admin_username: req.admin.username,
+                    }),
+                ]
+            );
+        }
+
+        const updated = await client.query(
+            `UPDATE deposits SET status = 'success', paid_at = COALESCE(paid_at, NOW()), updated_at = NOW()
+             WHERE reference_id = $1 RETURNING *`,
+            [referenceId]
+        );
+
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ('deposit', $1, $2, $3, 'success', 'admin_approve_deposit', $4)`,
+            [
+                referenceId,
+                deposit.user_id,
+                oldStatus,
+                JSON.stringify({
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                    balance_adjustment: adjustment,
+                }),
+            ]
+        );
+
+        await client.query('COMMIT');
+
+        res.json({
+            message: 'Deposit di-approve',
+            deposit: updated.rows[0],
+            balance_adjustment: adjustment,
+            new_balance: newBalance,
+        });
+    } catch (err) {
+        await client.query('ROLLBACK').catch(() => {});
+        console.error('Admin approve deposit error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    } finally {
+        client.release();
+    }
+}));
+
+// ============================================
+// ===== ADMIN — AUDIT LOG =====
+// ============================================
+app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { page, limit, offset } = parsePagination(req, 50, 200);
+
+    try {
+        const [listRes, countRes] = await Promise.all([
+            pool.query(
+                `SELECT sl.*, u.username AS admin_username_real, u.name AS admin_name
+                 FROM status_logs sl
+                 LEFT JOIN users u ON u.id = sl.user_id
+                 WHERE sl.entity_type = 'admin_action'
+                 ORDER BY sl.created_at DESC
+                 LIMIT $1 OFFSET $2`,
+                [limit, offset]
+            ),
+            pool.query(
+                `SELECT COUNT(*) AS c FROM status_logs WHERE entity_type = 'admin_action'`
+            ),
+        ]);
+
+        const total = Number(countRes.rows[0].c) || 0;
+        const total_pages = Math.ceil(total / limit);
+
+        res.json({
+            logs: listRes.rows,
+            total,
+            page,
+            limit,
+            total_pages,
+        });
+    } catch (err) {
+        console.error('Admin audit log error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — SERVER BALANCE =====
+// ============================================
+app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    try {
+        const data = await dibananaFetch('/balance');
+        res.json(data);
+    } catch (err) {
+        res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
 }));
 
