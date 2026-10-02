@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#2563eb">
-    <title>Admin Panel - AsyrofOTP</title>
+    <title>Admin - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
@@ -20,22 +20,64 @@
         })();
     </script>
     <style>
-        .dashboard-layout,
-        .dashboard-layout * {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
+        .dashboard-layout, .dashboard-layout * {
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-touch-callout: none;
         }
+        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code {
+            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
+        }
 
-        .dashboard-layout input,
-        .dashboard-layout textarea,
-        .dashboard-layout select {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
+        /* ============================================
+           SECURITY GATE — FULL SCREEN LOADING
+           ============================================ */
+        #securityGate {
+            position: fixed;
+            inset: 0;
+            z-index: 999999;
+            background: var(--bg-light, #f8fafc);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 20px;
+            padding: 24px;
+        }
+        #securityGate.hidden { display: none !important; }
+
+        .gate-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(37, 99, 235, 0.15);
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: gateSpin 0.8s linear infinite;
+        }
+        @keyframes gateSpin { to { transform: rotate(360deg); } }
+
+        .gate-spinner.frozen {
+            animation: none;
+            border-top-color: #dc2626;
+            border-color: rgba(220, 38, 38, 0.15);
+        }
+
+        .gate-text {
+            font-family: var(--font-mono, monospace);
+            font-size: 0.85rem;
+            color: var(--text-gray, #64748b);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .gate-text.frozen { color: #dc2626; }
+
+        /* Hide semua konten sampai gate dibuka */
+        #appRoot {
+            display: none;
+        }
+        #appRoot.ready {
+            display: block;
         }
 
         /* ============================================
@@ -45,34 +87,24 @@
             display: flex;
             align-items: center;
             gap: 16px;
-            margin-bottom: 24px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
         }
 
         .admin-hero-icon {
-            width: 60px;
-            height: 60px;
+            width: 60px; height: 60px;
             border-radius: 18px;
             background: linear-gradient(135deg, #dc2626, #7c3aed);
             border: 2.5px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: white;
             box-shadow: var(--shadow-hard);
             flex-shrink: 0;
         }
-
-        .admin-hero-icon .icon-svg {
-            width: 30px;
-            height: 30px;
-        }
-
+        .admin-hero-icon .icon-svg { width: 30px; height: 30px; }
         .admin-hero-text { flex: 1; min-width: 0; }
-
         .admin-hero-text h1 {
-            font-size: 1.8rem;
-            font-weight: 900;
+            font-size: 1.8rem; font-weight: 900;
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             margin-bottom: 4px;
@@ -82,114 +114,85 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-
         .admin-hero-text p {
             color: var(--text-gray);
             font-size: 0.88rem;
-            max-width: 560px;
-            line-height: 1.5;
         }
 
-        /* ============================================
-           ADMIN BADGE
-           ============================================ */
         .admin-badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 14px;
+            padding: 5px 12px;
             border-radius: 50px;
             background: linear-gradient(135deg, #dc2626, #7c3aed);
             color: white;
-            font-size: 0.72rem;
+            font-size: 0.68rem;
             font-weight: 800;
             font-family: var(--font-mono);
             border: 2px solid var(--border-dark);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             box-shadow: var(--shadow-hard-sm);
+            margin-top: 6px;
         }
-
-        .admin-badge .icon-svg { width: 12px; height: 12px; }
+        .admin-badge .icon-svg { width: 11px; height: 11px; }
 
         /* ============================================
-           STATS GRID
+           STATS
            ============================================ */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 14px;
-            margin-bottom: 24px;
+            gap: 12px;
+            margin-bottom: 20px;
         }
-
         .stat-card {
             background: var(--bg-card);
-            border-radius: var(--radius);
             border: 2px solid var(--border-dark);
+            border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
-            padding: 18px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            transition: all var(--transition);
+            padding: 16px;
             position: relative;
             overflow: hidden;
         }
-
-        .stat-card:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: var(--shadow-hard-lg);
-        }
-
         .stat-card::after {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
+            top: 0; left: 0;
+            width: 4px; height: 100%;
             background: var(--primary);
         }
-
-        .stat-card.stat-green::after { background: var(--success); }
-        .stat-card.stat-yellow::after { background: var(--warning); }
-        .stat-card.stat-red::after { background: var(--danger); }
-        .stat-card.stat-purple::after { background: var(--purple); }
-
+        .stat-card.green::after { background: var(--success); }
+        .stat-card.yellow::after { background: var(--warning); }
+        .stat-card.purple::after { background: var(--purple); }
         .stat-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
             border: 2px solid var(--border-dark);
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
-
         .stat-icon.blue { background: var(--primary-light); color: var(--primary); }
         .stat-icon.green { background: var(--success-light); color: var(--success); }
         .stat-icon.yellow { background: var(--warning-light); color: var(--warning); }
-        .stat-icon.red { background: var(--danger-light); color: var(--danger); }
         .stat-icon.purple { background: var(--purple-light); color: var(--purple); }
-
-        .stat-icon .icon-svg { width: 20px; height: 20px; }
-
+        .stat-icon .icon-svg { width: 18px; height: 18px; }
         .stat-label {
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-weight: 700;
+            font-size: 0.65rem;
             font-family: var(--font-mono);
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: 0.04em;
+            letter-spacing: 0.06em;
+            color: var(--text-gray);
+            margin-bottom: 2px;
         }
-
         .stat-value {
-            font-size: 1.4rem;
+            font-size: 1.2rem;
+            font-family: var(--font-mono);
             font-weight: 800;
             color: var(--text-dark);
-            font-family: var(--font-mono);
-            letter-spacing: -0.03em;
+            word-break: break-all;
         }
 
         /* ============================================
@@ -198,9 +201,9 @@
         .admin-tabs {
             display: flex;
             gap: 6px;
-            margin-bottom: 20px;
+            margin-bottom: 16px;
             background: var(--bg-light);
-            padding: 5px;
+            padding: 4px;
             border-radius: 50px;
             border: 2px solid var(--border-dark);
             width: fit-content;
@@ -208,13 +211,11 @@
             overflow-x: auto;
             scrollbar-width: none;
         }
-
         .admin-tabs::-webkit-scrollbar { display: none; }
-
         .admin-tab {
-            padding: 8px 18px;
+            padding: 8px 16px;
             border-radius: 50px;
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-weight: 700;
             color: var(--text-gray);
             white-space: nowrap;
@@ -229,16 +230,49 @@
             align-items: center;
             gap: 6px;
         }
-
-        .admin-tab:hover {
-            color: var(--primary);
-        }
-
+        .admin-tab:hover { color: var(--primary); }
         .admin-tab.active {
             background: var(--bg-white);
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             border: 2px solid var(--border-dark);
+        }
+
+        /* ============================================
+           TOOLBAR
+           ============================================ */
+        .admin-toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .admin-search {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+        .admin-search .icon-svg {
+            position: absolute;
+            left: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-gray);
+            width: 18px; height: 18px;
+            pointer-events: none;
+        }
+        .admin-search input {
+            width: 100%;
+            padding: 10px 14px 10px 42px;
+            border: 2px solid var(--border-dark);
+            border-radius: 50px;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            background: var(--bg-white);
+            color: var(--text-dark);
+            outline: none;
+        }
+        .admin-search input:focus {
+            box-shadow: var(--shadow-hard-sm);
         }
 
         /* ============================================
@@ -249,13 +283,12 @@
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
-            padding: 18px;
+            padding: 16px;
+            margin-bottom: 12px;
             transition: all var(--transition);
             position: relative;
             overflow: hidden;
-            margin-bottom: 12px;
         }
-
         .admin-card::before {
             content: '';
             position: absolute;
@@ -263,14 +296,13 @@
             width: 4px; height: 100%;
             background: var(--primary);
         }
-
         .admin-card.success::before { background: var(--success); }
         .admin-card.pending::before { background: var(--warning); }
         .admin-card.failed::before { background: var(--danger); }
         .admin-card.expired::before { background: #64748b; }
         .admin-card.cancelled::before { background: var(--danger); }
         .admin-card.refunded::before { background: var(--purple); }
-
+        .admin-card.banned::before { background: var(--danger); }
         .admin-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
@@ -285,63 +317,61 @@
             border-bottom: 1px dashed var(--border);
             flex-wrap: wrap;
         }
-
         .admin-card-title {
-            flex: 1;
-            min-width: 0;
+            flex: 1; min-width: 0;
             font-weight: 800;
-            font-size: 0.95rem;
+            font-size: 0.92rem;
             font-family: var(--font-display);
             color: var(--text-dark);
+            word-break: break-all;
         }
-
         .admin-card-ref {
             font-size: 0.7rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
+            margin-top: 2px;
             word-break: break-all;
         }
 
         .admin-card-body {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 12px;
+            gap: 10px;
             margin-bottom: 12px;
         }
-
-        .admin-field { display: flex; flex-direction: column; gap: 2px; }
-
+        .admin-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .admin-field.full { grid-column: 1 / -1; }
         .admin-field-label {
-            font-size: 0.65rem;
-            font-weight: 700;
+            font-size: 0.62rem;
+            font-weight: 800;
             font-family: var(--font-mono);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-gray);
+            letter-spacing: 0.06em;
+            color: var(--text-light);
         }
-
         .admin-field-value {
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-family: var(--font-mono);
             color: var(--text-dark);
             word-break: break-all;
         }
-
         .admin-field-value.primary { color: var(--primary); }
         .admin-field-value.success { color: var(--success); }
         .admin-field-value.warning { color: var(--warning); }
         .admin-field-value.danger { color: var(--danger); }
+        .admin-field-value.purple { color: var(--purple); }
 
         .admin-actions {
             display: flex;
-            gap: 8px;
+            gap: 6px;
             flex-wrap: wrap;
         }
-
         .admin-actions .btn {
             flex: 1;
-            min-width: 120px;
+            min-width: 100px;
+            font-size: 0.75rem;
+            padding: 8px 12px;
         }
 
         /* ============================================
@@ -355,74 +385,128 @@
             border-radius: var(--radius);
             color: var(--text-gray);
         }
-
         .empty-block .icon-box {
-            width: 72px; height: 72px;
-            margin: 0 auto 16px;
-            border-radius: 20px;
+            width: 64px; height: 64px;
+            margin: 0 auto 14px;
+            border-radius: 18px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
             display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
         }
-
-        .empty-block .icon-box .icon-svg { width: 32px; height: 32px; }
-
+        .empty-block .icon-box .icon-svg { width: 28px; height: 28px; }
         .empty-block h3 {
-            font-size: 1.05rem;
+            font-size: 1rem;
             font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
-            margin-bottom: 6px;
+            margin-bottom: 4px;
         }
-
-        .empty-block p { font-size: 0.85rem; margin-bottom: 0; }
+        .empty-block p { font-size: 0.82rem; }
 
         /* ============================================
-           SEARCH / FILTER
+           MODAL EXTRA
            ============================================ */
-        .admin-toolbar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-            flex-wrap: wrap;
-            align-items: center;
-        }
+        .modal-tall { max-height: 90vh; overflow-y: auto; }
 
-        .admin-search {
-            position: relative;
-            flex: 1;
-            min-width: 200px;
+        .detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 12px;
         }
-
-        .admin-search .icon-svg {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-gray);
-            width: 18px;
-            height: 18px;
-            pointer-events: none;
+        .detail-box {
+            background: var(--bg-light);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 10px;
         }
-
-        .admin-search input {
-            width: 100%;
-            padding: 10px 14px 10px 42px;
-            border: 2px solid var(--border-dark);
-            border-radius: 50px;
+        .detail-box.full { grid-column: 1 / -1; }
+        .detail-box .lbl {
+            font-size: 0.6rem;
             font-family: var(--font-mono);
-            font-size: 0.85rem;
-            background: var(--bg-white);
-            color: var(--text-dark);
-            outline: none;
-            transition: all 0.15s;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-light);
+            margin-bottom: 2px;
         }
+        .detail-box .val {
+            font-size: 0.82rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--text-dark);
+            word-break: break-all;
+        }
+        .detail-box .val.primary { color: var(--primary); }
+        .detail-box .val.success { color: var(--success); }
+        .detail-box .val.warning { color: var(--warning); }
+        .detail-box .val.danger { color: var(--danger); }
+        .detail-box .val.purple { color: var(--purple); }
 
-        .admin-search input:focus {
-            box-shadow: var(--shadow-hard-sm);
-            transform: translate(-1px, -1px);
+        .log-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: 240px;
+            overflow-y: auto;
+            padding: 6px;
+            background: var(--bg-light);
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            margin-top: 6px;
+        }
+        .log-item {
+            padding: 8px 10px;
+            background: var(--bg-white);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+        }
+        .log-item .log-time {
+            color: var(--text-light);
+            font-size: 0.65rem;
+            margin-bottom: 2px;
+        }
+        .log-item .log-text { color: var(--text-dark); word-break: break-all; }
+
+        /* ============================================
+           PAGINATION
+           ============================================ */
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        .page-btn {
+            min-width: 40px; height: 40px;
+            padding: 0 14px;
+            border-radius: 50px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            font-weight: 700;
+            font-size: 0.85rem;
+            cursor: pointer;
+            display: inline-flex; align-items: center; justify-content: center;
+            gap: 6px;
+        }
+        .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .page-btn:hover:not(:disabled) {
+            background: var(--primary);
+            color: white;
+        }
+        .page-info {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-gray);
+            padding: 0 8px;
         }
 
         /* ============================================
@@ -440,7 +524,6 @@
             color: var(--text-light);
             font-size: 0.78rem;
         }
-
         .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
         .site-footer a { color: var(--text-gray); text-decoration: none; }
         .site-footer a:hover { color: var(--primary); text-decoration: underline; }
@@ -451,23 +534,14 @@
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
-
         @media (max-width: 768px) {
             .admin-hero-text h1 { font-size: 1.4rem; }
             .admin-hero-icon { width: 52px; height: 52px; }
             .admin-hero-icon .icon-svg { width: 26px; height: 26px; }
-
-            .stat-card { padding: 14px; }
-            .stat-label { font-size: 0.65rem; }
-            .stat-value { font-size: 1.1rem; }
-
-            .admin-card-body { grid-template-columns: 1fr; gap: 8px; }
-            .admin-actions .btn { min-width: 100%; }
-
-            .site-footer { font-size: 0.72rem; padding: 14px 4px 6px; }
-            .site-footer-links { gap: 12px; }
+            .admin-card-body { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+            .stat-value { font-size: 1rem; }
         }
-
         @media (max-width: 480px) {
             .admin-hero-text h1 { font-size: 1.2rem; }
             .stats-grid { gap: 8px; }
@@ -477,236 +551,257 @@
 </head>
 <body>
 
-<div class="bg-pulse" aria-hidden="true">
-    <span></span>
-    <span></span>
-    <span></span>
+<!-- ============================================
+     SECURITY GATE — FULL SCREEN
+     ============================================ -->
+<div id="securityGate">
+    <div class="gate-spinner" id="gateSpinner"></div>
+    <div class="gate-text" id="gateText">Memverifikasi akses...</div>
 </div>
 
-<div class="dashboard-layout">
+<!-- ============================================
+     APP ROOT — hidden sampai gate selesai
+     ============================================ -->
+<div id="appRoot">
 
-    <!-- SIDEBAR -->
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <a href="/dashboard" class="sidebar-logo">
-                <div class="logo-icon">A</div>
-                <div class="logo-text">Asyrof<span>OTP</span></div>
-            </a>
-            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
-                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-        </div>
+    <div class="bg-pulse" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+    </div>
 
-        <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item" data-tooltip="Home">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <span class="nav-label">Home</span>
-            </a>
-            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
-                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                <span class="nav-label">Beli Nokos</span>
-            </a>
-            <a href="/inbox" class="nav-item" data-tooltip="Inbox">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                <span class="nav-label">Inbox</span>
-            </a>
-            <a href="/deposit" class="nav-item" data-tooltip="Deposit">
-                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                <span class="nav-label">Deposit</span>
-            </a>
+    <div class="dashboard-layout">
 
-            <div class="nav-section-label">Akun</div>
-            <a href="/profile" class="nav-item" data-tooltip="Profile">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span class="nav-label">Profile</span>
-            </a>
-        </nav>
-
-        <div class="sidebar-footer">
-            <div class="user-info">
-                <div class="user-avatar" id="userInitial">
-                    <span class="loading-spinner loading-spinner-sm"></span>
-                </div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
-                    <div class="user-balance" id="userBalance">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
-                </div>
-                <button class="logout-btn" id="logoutBtn" title="Keluar">
-                    <svg class="icon-svg" viewBox="0 0 24 24">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
+        <!-- SIDEBAR -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <a href="/dashboard" class="sidebar-logo">
+                    <div class="logo-icon">A</div>
+                    <div class="logo-text">Asyrof<span>OTP</span></div>
+                </a>
+                <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
                 </button>
             </div>
-        </div>
-    </aside>
 
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <main class="main-content">
-        <div class="topbar">
-            <div class="topbar-left">
-                <h1>Admin Panel</h1>
-                <p>Kelola semua user & transaksi</p>
-            </div>
-            <div class="topbar-right">
-                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                </button>
-                <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-                <div class="balance-pill">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    <span class="label">Saldo:</span>
-                    <span class="amount" id="balancePill">—</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- ADMIN HERO -->
-        <div class="admin-hero">
-            <div class="admin-hero-icon">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
-            </div>
-            <div class="admin-hero-text">
-                <h1>Admin Panel</h1>
-                <p>
-                    <span class="admin-badge">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/></svg>
-                        Admin Access
-                    </span>
-                </p>
-            </div>
-        </div>
-
-        <!-- STATS -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-icon blue">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                </div>
-                <div class="stat-label">Total User</div>
-                <div class="stat-value" id="statTotalUsers">—</div>
-            </div>
-            <div class="stat-card stat-green">
-                <div class="stat-icon green">
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item" data-tooltip="Home">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span class="nav-label">Home</span>
+                </a>
+                <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
                     <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    <span class="nav-label">Beli Nokos</span>
+                </a>
+                <a href="/inbox" class="nav-item" data-tooltip="Inbox">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    <span class="nav-label">Inbox</span>
+                </a>
+                <a href="/deposit" class="nav-item" data-tooltip="Deposit">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    <span class="nav-label">Deposit</span>
+                </a>
+
+                <div class="nav-section-label">Akun</div>
+                <a href="/profile" class="nav-item" data-tooltip="Profile">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span class="nav-label">Profile</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userInitial">
+                        <span class="loading-spinner loading-spinner-sm"></span>
+                    </div>
+                    <div class="user-details">
+                        <div class="user-name" id="userName">
+                            <span class="skeleton skeleton-text-sm"></span>
+                        </div>
+                        <div class="user-balance" id="userBalance">
+                            <span class="skeleton skeleton-text-sm"></span>
+                        </div>
+                    </div>
+                    <button class="logout-btn" id="logoutBtn" title="Keluar">
+                        <svg class="icon-svg" viewBox="0 0 24 24">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                            <polyline points="16 17 21 12 16 7"/>
+                            <line x1="21" y1="12" x2="9" y2="12"/>
+                        </svg>
+                    </button>
                 </div>
-                <div class="stat-label">Total Order</div>
-                <div class="stat-value" id="statTotalOrders">—</div>
             </div>
-            <div class="stat-card stat-yellow">
-                <div class="stat-icon yellow">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </aside>
+
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <main class="main-content">
+            <div class="topbar">
+                <div class="topbar-left">
+                    <h1>Admin Panel</h1>
+                    <p>Kelola user, order, deposit</p>
                 </div>
-                <div class="stat-label">Deposit Pending</div>
-                <div class="stat-value" id="statPendingDeposits">—</div>
+                <div class="topbar-right">
+                    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+                        <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                        <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                    </button>
+                    <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                    </button>
+                    <div class="balance-pill">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        <span class="label">Saldo:</span>
+                        <span class="amount" id="balancePill">—</span>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card stat-purple">
-                <div class="stat-icon purple">
+
+            <!-- HERO -->
+            <div class="admin-hero">
+                <div class="admin-hero-icon">
+                    <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/>
+                        <path d="M9 12l2 2 4-4"/>
+                    </svg>
+                </div>
+                <div class="admin-hero-text">
+                    <h1>Admin Panel</h1>
+                    <p>Kelola user, ubah saldo, ubah status order/deposit.</p>
+                    <div class="admin-badge">
+                        <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/></svg>
+                        Admin Access
+                    </div>
+                </div>
+            </div>
+
+            <!-- STATS -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </div>
+                    <div class="stat-label">Total User</div>
+                    <div class="stat-value" id="statTotalUsers">—</div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon green">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
+                    <div class="stat-label">Total Order</div>
+                    <div class="stat-value" id="statTotalOrders">—</div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-icon yellow">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div class="stat-label">Pending Deposit</div>
+                    <div class="stat-value" id="statPendingDeposits">—</div>
+                </div>
+                <div class="stat-card purple">
+                    <div class="stat-icon purple">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    </div>
+                    <div class="stat-label">Total Saldo</div>
+                    <div class="stat-value" id="statTotalBalance">—</div>
+                </div>
+            </div>
+
+            <!-- TABS -->
+            <div class="admin-tabs" id="adminTabs">
+                <button class="admin-tab active" type="button" data-tab="users">Users</button>
+                <button class="admin-tab" type="button" data-tab="orders">Orders</button>
+                <button class="admin-tab" type="button" data-tab="deposits">Deposits</button>
+                <button class="admin-tab" type="button" data-tab="audit">Audit Log</button>
+            </div>
+
+            <!-- TOOLBAR -->
+            <div class="admin-toolbar">
+                <div class="admin-search">
+                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <input type="text" id="adminSearch" placeholder="Cari user / order / deposit...">
+                </div>
+            </div>
+
+            <!-- CONTENT -->
+            <div id="adminContent">
+                <div class="empty-block">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <h3>Memuat data...</h3>
+                    <p>Mengambil data dari server.</p>
+                </div>
+            </div>
+
+            <div class="pagination" id="adminPagination" style="display:none;"></div>
+
+            <footer class="site-footer">
+                <div class="site-footer-links">
+                    <a href="/syarat">Syarat</a>
+                    <a href="/ketentuan">Ketentuan</a>
+                </div>
+                <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+            </footer>
+        </main>
+    </div>
+
+    <!-- MOBILE TASKBAR -->
+    <nav class="mobile-taskbar" aria-label="Navigasi utama">
+        <div class="mobile-taskbar-inner">
+            <a href="/dashboard" class="taskbar-item" data-page="dashboard">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="taskbar-label">Home</span>
+            </a>
+            <a href="/nokos" class="taskbar-item" data-page="nokos">
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                <span class="taskbar-label">Nokos</span>
+            </a>
+            <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
+                <div class="icon-wrapper">
                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 </div>
-                <div class="stat-label">Total Saldo</div>
-                <div class="stat-value" id="statTotalBalance">—</div>
-            </div>
+                <span class="taskbar-label">Deposit</span>
+            </a>
+            <a href="/inbox" class="taskbar-item" data-page="inbox">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                <span class="taskbar-label">Inbox</span>
+            </a>
+            <a href="/profile" class="taskbar-item" data-page="profile">
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span class="taskbar-label">Profile</span>
+            </a>
         </div>
+    </nav>
 
-        <!-- TABS -->
-        <div class="admin-tabs" id="adminTabs">
-            <button class="admin-tab active" type="button" data-tab="deposits">
-                Deposit <span class="tab-count" data-count="deposits">0</span>
-            </button>
-            <button class="admin-tab" type="button" data-tab="orders">
-                Order <span class="tab-count" data-count="orders">0</span>
-            </button>
-        </div>
-
-        <!-- TOOLBAR -->
-        <div class="admin-toolbar">
-            <div class="admin-search">
-                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input type="text" id="adminSearch" placeholder="Cari berdasarkan ID / user / nomor...">
+    <!-- CUSTOM ALERT -->
+    <div class="custom-alert-overlay" id="customAlert">
+        <div class="custom-alert">
+            <div class="custom-alert-icon info" id="customAlertIcon">
+                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             </div>
-        </div>
-
-        <div id="adminContent">
-            <div class="empty-block">
-                <div class="icon-box">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <h3>Memuat data...</h3>
-                <p>Mengambil data dari server.</p>
+            <h3 id="customAlertTitle">Informasi</h3>
+            <p id="customAlertMessage">—</p>
+            <div class="custom-alert-actions" id="customAlertActions">
+                <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
             </div>
-        </div>
-
-        <footer class="site-footer">
-            <div class="site-footer-links">
-                <a href="/syarat">Syarat</a>
-                <a href="/ketentuan">Ketentuan</a>
-            </div>
-            <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
-        </footer>
-    </main>
-</div>
-
-<!-- MOBILE TASKBAR -->
-<nav class="mobile-taskbar" aria-label="Navigasi utama">
-    <div class="mobile-taskbar-inner">
-        <a href="/dashboard" class="taskbar-item" data-page="dashboard">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span class="taskbar-label">Home</span>
-        </a>
-        <a href="/nokos" class="taskbar-item" data-page="nokos">
-            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            <span class="taskbar-label">Nokos</span>
-        </a>
-        <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
-            <div class="icon-wrapper">
-                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <span class="taskbar-label">Deposit</span>
-        </a>
-        <a href="/inbox" class="taskbar-item" data-page="inbox">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-            <span class="taskbar-label">Inbox</span>
-        </a>
-        <a href="/profile" class="taskbar-item" data-page="profile">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span class="taskbar-label">Profile</span>
-        </a>
-    </div>
-</nav>
-
-<div class="custom-alert-overlay" id="customAlert">
-    <div class="custom-alert">
-        <div class="custom-alert-icon info" id="customAlertIcon">
-            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        </div>
-        <h3 id="customAlertTitle">Informasi</h3>
-        <p id="customAlertMessage">—</p>
-        <div class="custom-alert-actions" id="customAlertActions">
-            <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
         </div>
     </div>
+
+    <!-- DETAIL MODAL -->
+    <div class="modal-overlay" id="modalDetail">
+        <div class="modal modal-tall" id="modalDetailContent"></div>
+    </div>
+
 </div>
+<!-- /#appRoot -->
 
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       ADMIN PAGE SCRIPT
+       ADMIN SCRIPT — SECURITY FIRST
        ============================================ */
     const token = localStorage.getItem('access_token');
-    if (!token) window.location.href = '/login';
-
-    const ADMIN_USERNAME = 'asyrofc';
-    const ADMIN_USER_CODE = 'SRF2667442394';
 
     const ICONS = {
         check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
@@ -717,8 +812,28 @@
         coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
         phone: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+        user: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+        shield: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/></svg>`,
+        edit: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`,
+        ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+        key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+        wallet: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`,
     };
 
+    /* ===== GATE CONTROL ===== */
+    function gateFreeze(msg) {
+        const spinner = document.getElementById('gateSpinner');
+        const text = document.getElementById('gateText');
+        spinner.classList.add('frozen');
+        text.classList.add('frozen');
+        text.textContent = msg || 'Akses ditolak';
+    }
+    function gateOpen() {
+        document.getElementById('securityGate').classList.add('hidden');
+        document.getElementById('appRoot').classList.add('ready');
+    }
+
+    /* ===== CUSTOM ALERT ===== */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('customAlert');
@@ -759,126 +874,80 @@
         });
     }
 
-    /* ===== STATE ===== */
-    let adminState = {
-        tab: 'deposits',
-        search: '',
-        deposits: [],
-        orders: [],
-        loading: true,
-    };
-
-    /* ===== THEME ===== */
-    (function initTheme() {
-        const themeToggle = document.getElementById('themeToggle');
-        if (!themeToggle) return;
-        themeToggle.addEventListener('click', () => {
-            const current = document.documentElement.getAttribute('data-theme') || 'light';
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('asyrofotp_theme', next);
-            const meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
-        });
-    })();
-
-    /* ===== SIDEBAR ===== */
-    (function initCollapse() {
-        const sidebar = document.getElementById('sidebar');
-        const collapseBtn = document.getElementById('collapseBtn');
-        if (!sidebar || !collapseBtn) return;
-        if (window.innerWidth <= 768) return;
-
-        const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-        if (isCollapsed) {
-            sidebar.classList.add('collapsed');
-            document.body.classList.add('sidebar-collapsed');
+    /* ============================================
+       SECURITY CHECK — JANGAN LOAD APAPUN SEBELUM INI SELESAI
+       ============================================ */
+    (async function securityCheck() {
+        if (!token) {
+            gateFreeze('Token tidak ditemukan. Redirect...');
+            setTimeout(() => { window.location.href = '/login'; }, 800);
+            return;
         }
 
-        collapseBtn.addEventListener('click', () => {
-            if (window.innerWidth <= 768) return;
-            const collapsed = sidebar.classList.toggle('collapsed');
-            document.body.classList.toggle('sidebar-collapsed', collapsed);
-            localStorage.setItem('sidebar_collapsed', collapsed);
-        });
-    })();
-
-    (function initMobileSidebar() {
-        const mobileToggle = document.getElementById('mobileToggle');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        if (!mobileToggle || !sidebar) return;
-
-        let isOpen = false;
-
-        function openSidebar() {
-            if (isOpen) return;
-            isOpen = true;
-            sidebar.classList.add('open');
-            if (sidebarOverlay) sidebarOverlay.classList.add('active');
-            document.body.classList.add('sidebar-open');
-            const scrollY = window.scrollY;
-            document.body.style.top = `-${scrollY}px`;
-        }
-
-        function closeSidebar() {
-            if (!isOpen) return;
-            isOpen = false;
-            sidebar.classList.remove('open');
-            if (sidebarOverlay) sidebarOverlay.classList.remove('active');
-            document.body.classList.remove('sidebar-open');
-            const scrollY = document.body.style.top;
-            document.body.style.top = '';
-            window.scrollTo(0, parseInt(scrollY || '0') * -1);
-        }
-
-        mobileToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (isOpen) closeSidebar(); else openSidebar();
-        });
-
-        if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-
-        sidebar.querySelectorAll('.nav-item').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
-            });
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && isOpen) closeSidebar();
-        });
-
-        window.addEventListener('pageshow', () => {
-            document.body.style.top = '';
-            document.body.classList.remove('sidebar-open');
-        });
-    })();
-
-    /* ===== CEK ADMIN ===== */
-    (async function initAdmin() {
         try {
-            const res = await fetch('/api/user', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const user = await safeJson(res);
+            // Timeout 8 detik untuk fetch
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            if (!user || !user.username) {
-                window.location.href = '/login';
+            const res = await fetch('/api/user', {
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+
+            if (res.status === 401 || res.status === 403) {
+                gateFreeze('Token expired. Redirect ke login...');
+                setTimeout(() => {
+                    localStorage.removeItem('access_token');
+                    window.location.href = '/login';
+                }, 1200);
                 return;
             }
 
+            if (!res.ok) {
+                gateFreeze('Gagal verifikasi. Coba refresh.');
+                await showCustomAlert({
+                    title: 'Verifikasi Gagal',
+                    message: 'Server tidak bisa diverifikasi. Refresh halaman untuk coba lagi.',
+                    type: 'danger'
+                });
+                return;
+            }
+
+            const user = await safeJson(res);
+            if (!user || !user.username) {
+                gateFreeze('Data user invalid.');
+                await showCustomAlert({
+                    title: 'Error',
+                    message: 'Data user tidak valid.',
+                    type: 'danger'
+                });
+                return;
+            }
+
+            // Cek banned
+            if (user.status === 'banned') {
+                gateFreeze('Akun diblokir.');
+                await showCustomAlert({
+                    title: 'Akun Diblokir',
+                    message: 'Akun kamu diblokir. Hubungi admin bila ini kesalahan.',
+                    type: 'danger'
+                });
+                setTimeout(() => { window.location.href = '/landing'; }, 1500);
+                return;
+            }
+
+            // Cek admin
             const isAdmin =
-                String(user.username).toLowerCase() === ADMIN_USERNAME ||
-                String(user.user_code) === ADMIN_USER_CODE ||
-                user.role === 'admin';
+                user.role === 'admin' ||
+                String(user.username).toLowerCase() === 'asyrofc' ||
+                String(user.user_code) === 'SRF2667442394';
 
             if (!isAdmin) {
-                // Redirect ke dashboard + alert
+                gateFreeze('Akses ditolak — bukan admin.');
                 await showCustomAlert({
                     title: 'Akses Ditolak',
-                    message: 'Halaman ini hanya untuk admin. Kamu akan diarahkan ke dashboard.',
+                    message: 'Halaman ini khusus admin. Kamu akan diarahkan ke dashboard.',
                     type: 'danger',
                     okText: 'OK'
                 });
@@ -886,303 +955,1074 @@
                 return;
             }
 
-            // Set user info
+            // Set user info + buka gate
             document.getElementById('userName').textContent = user.name || user.username;
             document.getElementById('userBalance').textContent = formatRupiah(user.balance);
             document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
             document.getElementById('balancePill').textContent = formatRupiah(user.balance);
 
-            // Load data admin
-            loadAdminData();
+            gateOpen();
+
+            // Baru load data admin setelah gate dibuka
+            initAdminFeatures();
 
         } catch (err) {
-            console.error('Admin init error:', err);
-            window.location.href = '/dashboard';
+            console.error('Security check error:', err);
+            gateFreeze('Timeout / server error.');
+            await showCustomAlert({
+                title: 'Koneksi Gagal',
+                message: err.name === 'AbortError'
+                    ? 'Server terlalu lama merespons. Coba refresh.'
+                    : 'Gagal terhubung ke server. Coba refresh.',
+                type: 'danger'
+            });
         }
     })();
 
-    /* ===== LOAD DATA ===== */
-    async function loadAdminData() {
-        adminState.loading = true;
+    /* ============================================
+       ADMIN FEATURES — diinit SETELAH gate dibuka
+       ============================================ */
+    function initAdminFeatures() {
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme') || 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('asyrofotp_theme', next);
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+            });
+        }
+
+        // Sidebar collapse
+        (function initCollapse() {
+            const sidebar = document.getElementById('sidebar');
+            const collapseBtn = document.getElementById('collapseBtn');
+            if (!sidebar || !collapseBtn) return;
+            if (window.innerWidth <= 768) return;
+
+            const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                document.body.classList.add('sidebar-collapsed');
+            }
+
+            collapseBtn.addEventListener('click', () => {
+                if (window.innerWidth <= 768) return;
+                const collapsed = sidebar.classList.toggle('collapsed');
+                document.body.classList.toggle('sidebar-collapsed', collapsed);
+                localStorage.setItem('sidebar_collapsed', collapsed);
+            });
+        })();
+
+        // Mobile sidebar
+        (function initMobileSidebar() {
+            const mobileToggle = document.getElementById('mobileToggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            if (!mobileToggle || !sidebar) return;
+
+            let isOpen = false;
+
+            function openSidebar() {
+                if (isOpen) return;
+                isOpen = true;
+                sidebar.classList.add('open');
+                if (sidebarOverlay) sidebarOverlay.classList.add('active');
+                document.body.classList.add('sidebar-open');
+                const scrollY = window.scrollY;
+                document.body.style.top = `-${scrollY}px`;
+            }
+
+            function closeSidebar() {
+                if (!isOpen) return;
+                isOpen = false;
+                sidebar.classList.remove('open');
+                if (sidebarOverlay) sidebarOverlay.classList.remove('active');
+                document.body.classList.remove('sidebar-open');
+                const scrollY = document.body.style.top;
+                document.body.style.top = '';
+                window.scrollTo(0, parseInt(scrollY || '0') * -1);
+            }
+
+            mobileToggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isOpen) closeSidebar(); else openSidebar();
+            });
+
+            if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
+
+            sidebar.querySelectorAll('.nav-item').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
+                });
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && isOpen) closeSidebar();
+            });
+
+            window.addEventListener('pageshow', () => {
+                document.body.style.top = '';
+                document.body.classList.remove('sidebar-open');
+            });
+        })();
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await fetch('/api/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } catch (err) {}
+            CacheManager.clear();
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('user');
+            window.location.href = '/landing';
+        });
+
+        // Load data
+        loadStats();
+        loadCurrentTab();
+    }
+
+    /* ============================================
+       STATE
+       ============================================ */
+    const adminState = {
+        tab: 'users',
+        search: '',
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+    };
+
+    /* ============================================
+       STATS
+       ============================================ */
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/admin/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal memuat stats');
+
+            document.getElementById('statTotalUsers').textContent = Number(data.total_users) || 0;
+            document.getElementById('statTotalOrders').textContent = Number(data.total_orders) || 0;
+            document.getElementById('statPendingDeposits').textContent = Number(data.pending_deposits) || 0;
+            document.getElementById('statTotalBalance').textContent = formatRupiah(data.total_balance);
+        } catch (err) {
+            console.error('Load stats error:', err);
+        }
+    }
+
+    /* ============================================
+       LOAD TAB
+       ============================================ */
+    function loadCurrentTab() {
+        if (adminState.tab === 'users') loadUsers();
+        else if (adminState.tab === 'orders') loadOrders();
+        else if (adminState.tab === 'deposits') loadDeposits();
+        else if (adminState.tab === 'audit') loadAuditLog();
+    }
+
+    /* ============================================
+       USERS
+       ============================================ */
+    async function loadUsers() {
         const container = document.getElementById('adminContent');
-        container.innerHTML = `
-            <div class="empty-block">
-                <div class="icon-box">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                </div>
-                <h3>Memuat data...</h3>
-                <p>Mengambil data dari server.</p>
-            </div>
-        `;
+        const paginationEl = document.getElementById('adminPagination');
+        container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat users...</h3></div>`;
 
         try {
-            const [depositsRes, ordersRes] = await Promise.all([
-                fetch('/api/admin/deposits?limit=50', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(() => null),
-                fetch('/api/admin/orders?limit=50', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                }).catch(() => null),
-            ]);
+            const q = new URLSearchParams({
+                page: adminState.page,
+                limit: adminState.limit,
+                search: adminState.search,
+            });
+            const res = await fetch(`/api/admin/users?${q.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal memuat users');
 
-            adminState.deposits = depositsRes ? ((await safeJson(depositsRes)).deposits || []) : [];
-            adminState.orders = ordersRes ? ((await safeJson(ordersRes)).orders || []) : [];
-
-            // Hitung stats
-            const totalUsers = new Set([
-                ...adminState.deposits.map(d => d.user_id),
-                ...adminState.orders.map(o => o.user_id),
-            ]).size;
-
-            document.getElementById('statTotalUsers').textContent = totalUsers || '—';
-            document.getElementById('statTotalOrders').textContent = adminState.orders.length;
-            document.getElementById('statPendingDeposits').textContent =
-                adminState.deposits.filter(d => d.status === 'pending').length;
-            document.getElementById('statTotalBalance').textContent = '—';
-
-            document.querySelector('[data-count="deposits"]').textContent = adminState.deposits.length;
-            document.querySelector('[data-count="orders"]').textContent = adminState.orders.length;
-
-            renderAdminContent();
-
+            renderUsers(data);
         } catch (err) {
-            console.error('Load admin data error:', err);
-            container.innerHTML = `
-                <div class="empty-block">
-                    <div class="icon-box">${ICONS.warning}</div>
-                    <h3>Gagal memuat data</h3>
-                    <p>${err.message || 'Coba refresh halaman'}</p>
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal memuat users</h3><p>${err.message}</p></div>`;
+            paginationEl.style.display = 'none';
+        }
+    }
+
+    function renderUsers(data) {
+        const container = document.getElementById('adminContent');
+        const paginationEl = document.getElementById('adminPagination');
+
+        if (!data.users || data.users.length === 0) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.user}</div><h3>Belum ada user</h3><p>Tidak ada user yang cocok.</p></div>`;
+            paginationEl.style.display = 'none';
+            return;
+        }
+
+        container.innerHTML = data.users.map(u => {
+            const isBanned = u.status === 'banned';
+            const cardClass = isBanned ? 'banned' : '';
+            const createdDate = new Date(u.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <div class="admin-card ${cardClass}">
+                    <div class="admin-card-header">
+                        <div style="flex:1;min-width:0;">
+                            <div class="admin-card-title">
+                                ${escapeHtml(u.name || u.username)}
+                                ${u.role === 'admin' ? `<span class="badge info" style="font-size:0.6rem;">ADMIN</span>` : ''}
+                                ${isBanned ? `<span class="badge danger" style="font-size:0.6rem;">BANNED</span>` : ''}
+                            </div>
+                            <div class="admin-card-ref">@${escapeHtml(u.username)} · ${escapeHtml(u.user_code || '—')}</div>
+                        </div>
+                    </div>
+                    <div class="admin-card-body">
+                        <div class="admin-field">
+                            <span class="admin-field-label">Saldo</span>
+                            <span class="admin-field-value primary">${formatRupiah(u.balance)}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Role</span>
+                            <span class="admin-field-value">${escapeHtml(u.role)}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Total Order</span>
+                            <span class="admin-field-value">${u.total_orders}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Total Deposit</span>
+                            <span class="admin-field-value">${u.total_deposits}</span>
+                        </div>
+                        <div class="admin-field full">
+                            <span class="admin-field-label">Dibuat</span>
+                            <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                        </div>
+                    </div>
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" type="button" data-detail-user="${escapeHtml(u.id)}">
+                            ${ICONS.info} Detail
+                        </button>
+                        <button class="btn" type="button" data-edit-balance="${escapeHtml(u.id)}" data-username="${escapeHtml(u.username)}" data-balance="${u.balance}">
+                            ${ICONS.wallet} Saldo
+                        </button>
+                        <button class="btn" type="button" data-edit-role="${escapeHtml(u.id)}" data-role="${escapeHtml(u.role)}">
+                            ${ICONS.shield} Role
+                        </button>
+                        <button class="btn ${isBanned ? 'btn-success' : 'btn-danger'}" type="button" data-toggle-ban="${escapeHtml(u.id)}" data-status="${escapeHtml(u.status)}">
+                            ${isBanned ? ICONS.check + ' Unban' : ICONS.ban + ' Ban'}
+                        </button>
+                        <button class="btn" type="button" data-reset-pass="${escapeHtml(u.id)}" data-username="${escapeHtml(u.username)}">
+                            ${ICONS.key} Reset Pass
+                        </button>
+                    </div>
                 </div>
             `;
-        } finally {
-            adminState.loading = false;
+        }).join('');
+
+        renderPagination(data.total_pages, data.page, (p) => {
+            adminState.page = p;
+            loadUsers();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        bindUserActions();
+    }
+
+    function bindUserActions() {
+        document.querySelectorAll('[data-detail-user]').forEach(btn => {
+            btn.addEventListener('click', () => showUserDetail(btn.dataset.detailUser));
+        });
+        document.querySelectorAll('[data-edit-balance]').forEach(btn => {
+            btn.addEventListener('click', () => showEditBalanceModal(
+                btn.dataset.editBalance,
+                btn.dataset.username,
+                Number(btn.dataset.balance)
+            ));
+        });
+        document.querySelectorAll('[data-edit-role]').forEach(btn => {
+            btn.addEventListener('click', () => showEditRoleModal(btn.dataset.editRole, btn.dataset.role));
+        });
+        document.querySelectorAll('[data-toggle-ban]').forEach(btn => {
+            btn.addEventListener('click', () => toggleBan(btn.dataset.toggleBan, btn.dataset.status));
+        });
+        document.querySelectorAll('[data-reset-pass]').forEach(btn => {
+            btn.addEventListener('click', () => showResetPasswordModal(btn.dataset.resetPass, btn.dataset.username));
+        });
+    }
+
+    /* ============================================
+       USER DETAIL MODAL
+       ============================================ */
+    async function showUserDetail(userId) {
+        const overlay = document.getElementById('modalDetail');
+        const modal = document.getElementById('modalDetailContent');
+        modal.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat detail...</h3></div>`;
+        overlay.classList.add('active');
+
+        try {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal');
+
+            const u = data.user;
+            const s = data.stats;
+
+            const balanceLogsHtml = (data.balance_logs || []).length
+                ? data.balance_logs.map(l => {
+                    const meta = l.metadata || {};
+                    const adj = Number(meta.adjustment || 0);
+                    const adjText = adj > 0 ? `+${formatRupiah(adj)}` : (adj < 0 ? `-${formatRupiah(Math.abs(adj))}` : '');
+                    const t = new Date(l.created_at).toLocaleString('id-ID');
+                    return `<div class="log-item"><div class="log-time">${t}</div><div class="log-text">${escapeHtml(l.reason || '')} ${adjText ? `<strong style="color:${adj > 0 ? 'var(--success)' : 'var(--danger)'}">${adjText}</strong>` : ''} ${meta.note ? `<br><span style="color:var(--text-gray);">${escapeHtml(meta.note)}</span>` : ''}</div></div>`;
+                }).join('')
+                : '<div class="log-item" style="text-align:center;color:var(--text-gray);">Belum ada aktivitas saldo</div>';
+
+            modal.innerHTML = `
+                <div class="modal-header">
+                    <div class="modal-title">Detail User</div>
+                    <button class="modal-close" type="button" data-modal-close>${ICONS.close}</button>
+                </div>
+                <div style="padding:6px 0;">
+                    <div style="text-align:center;margin-bottom:14px;">
+                        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,var(--primary-dark));color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.6rem;margin:0 auto 10px;border:3px solid var(--border-dark);">${escapeHtml(getInitial(u.name || u.username))}</div>
+                        <h3 style="font-family:var(--font-display);font-size:1.1rem;margin-bottom:4px;">${escapeHtml(u.name || u.username)}</h3>
+                        <div style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.78rem;">@${escapeHtml(u.username)}</div>
+                    </div>
+
+                    <div class="detail-grid">
+                        <div class="detail-box">
+                            <div class="lbl">User Code</div>
+                            <div class="val primary">${escapeHtml(u.user_code || '—')}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="lbl">Saldo</div>
+                            <div class="val primary">${formatRupiah(u.balance)}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="lbl">Role</div>
+                            <div class="val">${escapeHtml(u.role)}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="lbl">Status</div>
+                            <div class="val ${u.status === 'banned' ? 'danger' : 'success'}">${escapeHtml(u.status)}</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="lbl">Total Order</div>
+                            <div class="val">${s.orders.total} · ${s.orders.success} sukses · ${s.orders.failed} gagal</div>
+                        </div>
+                        <div class="detail-box">
+                            <div class="lbl">Total Deposit</div>
+                            <div class="val">${s.deposits.total} · ${s.deposits.success} sukses · ${s.deposits.pending} pending</div>
+                        </div>
+                        <div class="detail-box full">
+                            <div class="lbl">Total Belanja</div>
+                            <div class="val primary">${formatRupiah(s.orders.total_spent)}</div>
+                        </div>
+                        <div class="detail-box full">
+                            <div class="lbl">Total Deposit Masuk</div>
+                            <div class="val success">${formatRupiah(s.deposits.total_deposit)}</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:14px;">
+                        <div style="font-family:var(--font-mono);font-weight:800;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-gray);margin-bottom:4px;">Aktivitas Saldo</div>
+                        <div class="log-list">${balanceLogsHtml}</div>
+                    </div>
+
+                    <div class="detail-actions" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                        <button class="btn btn-block" type="button" data-modal-close>Tutup</button>
+                    </div>
+                </div>
+            `;
+
+            modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+                btn.addEventListener('click', () => overlay.classList.remove('active'));
+            });
+        } catch (err) {
+            modal.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal</h3><p>${err.message}</p></div>
+                <button class="btn btn-block" type="button" data-modal-close style="margin-top:12px;">Tutup</button>`;
+            modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+                btn.addEventListener('click', () => overlay.classList.remove('active'));
+            });
         }
     }
 
-    /* ===== RENDER ===== */
-    function renderAdminContent() {
-        const container = document.getElementById('adminContent');
-        const q = adminState.search.toLowerCase().trim();
+    /* ============================================
+       EDIT BALANCE MODAL
+       ============================================ */
+    async function showEditBalanceModal(userId, username, currentBalance) {
+        const overlay = document.getElementById('modalDetail');
+        const modal = document.getElementById('modalDetailContent');
 
-        if (adminState.tab === 'deposits') {
-            const filtered = adminState.deposits.filter(d => {
-                if (!q) return true;
-                return (
-                    String(d.reference_id || '').toLowerCase().includes(q) ||
-                    String(d.user_id || '').toLowerCase().includes(q) ||
-                    String(d.username || '').toLowerCase().includes(q)
-                );
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-block">
-                        <div class="icon-box">${ICONS.coin}</div>
-                        <h3>Belum ada deposit</h3>
-                        <p>Tidak ada deposit yang cocok dengan filter.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = filtered.map(d => renderDepositCard(d)).join('');
-            bindDepositActions();
-
-        } else if (adminState.tab === 'orders') {
-            const filtered = adminState.orders.filter(o => {
-                if (!q) return true;
-                return (
-                    String(o.order_id || '').toLowerCase().includes(q) ||
-                    String(o.otp_id || '').toLowerCase().includes(q) ||
-                    String(o.phone_number || '').toLowerCase().includes(q) ||
-                    String(o.username || '').toLowerCase().includes(q)
-                );
-            });
-
-            if (filtered.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-block">
-                        <div class="icon-box">${ICONS.phone}</div>
-                        <h3>Belum ada order</h3>
-                        <p>Tidak ada order yang cocok dengan filter.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            container.innerHTML = filtered.map(o => renderOrderCard(o)).join('');
-        }
-    }
-
-    function renderDepositCard(d) {
-        const statusClass = {
-            success: 'success', pending: 'pending', failed: 'failed',
-            expired: 'expired', cancelled: 'cancelled'
-        }[d.status] || 'pending';
-
-        const statusLabel = {
-            success: 'BERHASIL', pending: 'PENDING', failed: 'GAGAL',
-            expired: 'EXPIRED', cancelled: 'DIBATALKAN'
-        }[d.status] || (d.status || '').toUpperCase();
-
-        const isPending = d.status === 'pending';
-        const createdDate = new Date(d.created_at).toLocaleString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-
-        return `
-            <div class="admin-card ${statusClass}">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        Deposit · ${d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}
-                    </div>
-                    <span class="badge ${statusClass === 'success' ? 'success' : statusClass === 'pending' ? 'warning' : (statusClass === 'expired' ? 'gray' : 'danger')}">${statusLabel}</span>
+        modal.innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Edit Saldo — @${escapeHtml(username)}</div>
+                <button class="modal-close" type="button" data-modal-close>${ICONS.close}</button>
+            </div>
+            <div style="padding:6px 0;">
+                <div class="detail-box full" style="margin-bottom:14px;">
+                    <div class="lbl">Saldo Saat Ini</div>
+                    <div class="val primary" style="font-size:1.2rem;">${formatRupiah(currentBalance)}</div>
                 </div>
-                <div class="admin-card-body">
-                    <div class="admin-field">
-                        <span class="admin-field-label">Reference ID</span>
-                        <span class="admin-field-value primary">${d.reference_id || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">User</span>
-                        <span class="admin-field-value">${d.username || d.user_id || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Saldo Top Up</span>
-                        <span class="admin-field-value">${formatRupiah(d.amount)}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Total Bayar</span>
-                        <span class="admin-field-value">${formatRupiah(d.total_amount || d.amount)}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Dibuat</span>
-                        <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
-                    </div>
+
+                <div style="font-family:var(--font-mono);font-weight:800;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-gray);margin-bottom:6px;">Mode</div>
+                <div style="display:flex;gap:8px;margin-bottom:14px;">
+                    <button class="btn btn-block" type="button" data-mode="add">+ Tambah</button>
+                    <button class="btn btn-block" type="button" data-mode="subtract">- Kurangi</button>
+                    <button class="btn btn-block" type="button" data-mode="set">= Set</button>
                 </div>
-                <div class="admin-actions">
-                    ${isPending ? `
-                        <button class="btn btn-primary" type="button" data-approve-deposit="${d.reference_id}">
-                            ${ICONS.check}
-                            Approve Deposit
-                        </button>
-                    ` : ''}
+
+                <div class="form-group">
+                    <label class="form-label">Jumlah (Rp)</label>
+                    <input type="number" class="form-control" id="editBalanceAmount" min="0" placeholder="0" inputmode="numeric">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Catatan (opsional)</label>
+                    <input type="text" class="form-control" id="editBalanceNote" placeholder="Alasan edit saldo">
+                </div>
+
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button class="btn btn-block" type="button" data-modal-close>Batal</button>
+                    <button class="btn btn-primary btn-block" type="button" id="btnSaveBalance">Simpan</button>
                 </div>
             </div>
         `;
-    }
+        overlay.classList.add('active');
 
-    function renderOrderCard(o) {
-        const statusClass = {
-            success: 'success', received: 'success', pending: 'pending',
-            failed: 'failed', cancelled: 'cancelled', expired: 'expired', refunded: 'refunded'
-        }[o.status] || 'pending';
+        let mode = 'add';
+        modal.querySelectorAll('[data-mode]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                mode = btn.dataset.mode;
+                modal.querySelectorAll('[data-mode]').forEach(b => {
+                    b.classList.remove('btn-primary');
+                });
+                btn.classList.add('btn-primary');
+            });
+        });
+        // Default pilih add
+        modal.querySelector('[data-mode="add"]').classList.add('btn-primary');
 
-        const statusLabel = {
-            success: 'BERHASIL', received: 'BERHASIL', pending: 'PENDING',
-            failed: 'GAGAL', cancelled: 'DIBATALKAN', expired: 'EXPIRED', refunded: 'REFUND'
-        }[o.status] || (o.status || '').toUpperCase();
-
-        const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
-            day: '2-digit', month: 'short', year: 'numeric',
-            hour: '2-digit', minute: '2-digit'
+        modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => overlay.classList.remove('active'));
         });
 
-        return `
-            <div class="admin-card ${statusClass}">
-                <div class="admin-card-header">
-                    <div class="admin-card-title">
-                        Order · ${o.service_name || o.service || '—'}
-                    </div>
-                    <span class="badge ${statusClass === 'success' ? 'success' : statusClass === 'pending' ? 'warning' : (statusClass === 'expired' ? 'gray' : statusClass === 'refunded' ? 'info' : 'danger')}">${statusLabel}</span>
+        document.getElementById('btnSaveBalance').addEventListener('click', async () => {
+            const amount = Number(document.getElementById('editBalanceAmount').value);
+            const note = document.getElementById('editBalanceNote').value.trim();
+
+            if (!Number.isFinite(amount) || amount < 0) {
+                await showCustomAlert({ title: 'Error', message: 'Jumlah harus angka >= 0', type: 'danger' });
+                return;
+            }
+
+            const btn = document.getElementById('btnSaveBalance');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+            try {
+                const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/balance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ mode, amount, note })
+                });
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Gagal update saldo');
+
+                overlay.classList.remove('active');
+                await showCustomAlert({
+                    title: 'Berhasil',
+                    message: `Saldo @${username} diupdate dari ${formatRupiah(data.old_balance)} ke ${formatRupiah(data.new_balance)}`,
+                    type: 'success'
+                });
+                loadUsers();
+                loadStats();
+            } catch (err) {
+                await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        });
+    }
+
+    /* ============================================
+       EDIT ROLE MODAL
+       ============================================ */
+    async function showEditRoleModal(userId, currentRole) {
+        const overlay = document.getElementById('modalDetail');
+        const modal = document.getElementById('modalDetailContent');
+
+        modal.innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Ganti Role</div>
+                <button class="modal-close" type="button" data-modal-close>${ICONS.close}</button>
+            </div>
+            <div style="padding:6px 0;">
+                <div class="form-group">
+                    <label class="form-label">Role</label>
+                    <select class="form-control" id="editRoleSelect">
+                        <option value="user" ${currentRole === 'user' ? 'selected' : ''}>User</option>
+                        <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
                 </div>
-                <div class="admin-card-body">
-                    <div class="admin-field">
-                        <span class="admin-field-label">Order ID</span>
-                        <span class="admin-field-value primary">${o.order_id || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">OTP ID</span>
-                        <span class="admin-field-value">${o.otp_id || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">User</span>
-                        <span class="admin-field-value">${o.username || o.user_id || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Nomor</span>
-                        <span class="admin-field-value">${o.phone_number || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Negara</span>
-                        <span class="admin-field-value">${o.country_name || o.country || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Harga</span>
-                        <span class="admin-field-value">${formatRupiah(o.price)}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">OTP</span>
-                        <span class="admin-field-value success">${o.otp_code || '—'}</span>
-                    </div>
-                    <div class="admin-field">
-                        <span class="admin-field-label">Dibuat</span>
-                        <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
-                    </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button class="btn btn-block" type="button" data-modal-close>Batal</button>
+                    <button class="btn btn-primary btn-block" type="button" id="btnSaveRole">Simpan</button>
                 </div>
             </div>
         `;
-    }
+        overlay.classList.add('active');
 
-    /* ===== BIND ACTIONS ===== */
-    function bindDepositActions() {
-        document.querySelectorAll('[data-approve-deposit]').forEach(btn => {
-            btn.addEventListener('click', () => approveDeposit(btn.dataset.approveDeposit, btn));
+        modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => overlay.classList.remove('active'));
+        });
+
+        document.getElementById('btnSaveRole').addEventListener('click', async () => {
+            const role = document.getElementById('editRoleSelect').value;
+            const btn = document.getElementById('btnSaveRole');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+            try {
+                const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/role`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ role })
+                });
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Gagal');
+
+                overlay.classList.remove('active');
+                await showCustomAlert({ title: 'Berhasil', message: 'Role diubah', type: 'success' });
+                loadUsers();
+            } catch (err) {
+                await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
         });
     }
 
-    async function approveDeposit(referenceId, btn) {
+    /* ============================================
+       TOGGLE BAN
+       ============================================ */
+    async function toggleBan(userId, currentStatus) {
+        const newStatus = currentStatus === 'banned' ? 'active' : 'banned';
         const ok = await showCustomAlert({
-            title: 'Approve Deposit',
-            message: `Yakin approve deposit ${referenceId}? Saldo user akan ditambahkan.`,
+            title: newStatus === 'banned' ? 'Ban User' : 'Unban User',
+            message: `Yakin mau ${newStatus === 'banned' ? 'ban' : 'unban'} user ini?`,
             type: 'warning',
-            okText: 'Ya, Approve',
+            okText: 'Ya',
             showCancel: true
         });
         if (!ok) return;
 
-        const original = btn.innerHTML;
-        btn.disabled = true;
-        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
-
         try {
-            const res = await fetch(`/api/admin/deposit/${referenceId}/approve`, {
+            const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ status: newStatus })
             });
             const data = await safeJson(res);
-            if (!res.ok) throw new Error(data.error || 'Gagal approve deposit');
+            if (!res.ok) throw new Error(data.error || 'Gagal');
 
-            await showCustomAlert({
-                title: 'Berhasil',
-                message: 'Deposit berhasil di-approve. Saldo user sudah ditambahkan.',
-                type: 'success'
-            });
-
-            loadAdminData();
+            await showCustomAlert({ title: 'Berhasil', message: `User di-${newStatus === 'banned' ? 'ban' : 'unban'}`, type: 'success' });
+            loadUsers();
         } catch (err) {
-            await showCustomAlert({
-                title: 'Gagal',
-                message: err.message,
-                type: 'danger'
-            });
-            btn.disabled = false;
-            btn.innerHTML = original;
+            await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
         }
     }
 
-    /* ===== TABS ===== */
+    /* ============================================
+       RESET PASSWORD MODAL
+       ============================================ */
+    async function showResetPasswordModal(userId, username) {
+        const overlay = document.getElementById('modalDetail');
+        const modal = document.getElementById('modalDetailContent');
+
+        modal.innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Reset Password — @${escapeHtml(username)}</div>
+                <button class="modal-close" type="button" data-modal-close>${ICONS.close}</button>
+            </div>
+            <div style="padding:6px 0;">
+                <div class="form-group">
+                    <label class="form-label">Password Baru</label>
+                    <input type="text" class="form-control" id="resetPassInput" placeholder="Minimal 6 karakter">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button class="btn btn-block" type="button" data-modal-close>Batal</button>
+                    <button class="btn btn-primary btn-block" type="button" id="btnResetPass">Reset</button>
+                </div>
+            </div>
+        `;
+        overlay.classList.add('active');
+
+        modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => overlay.classList.remove('active'));
+        });
+
+        document.getElementById('btnResetPass').addEventListener('click', async () => {
+            const new_password = document.getElementById('resetPassInput').value.trim();
+            if (new_password.length < 6) {
+                await showCustomAlert({ title: 'Error', message: 'Minimal 6 karakter', type: 'danger' });
+                return;
+            }
+
+            const btn = document.getElementById('btnResetPass');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+            try {
+                const res = await fetch(`/api/admin/users/${encodeURIComponent(userId)}/reset-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ new_password })
+                });
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Gagal');
+
+                overlay.classList.remove('active');
+                await showCustomAlert({
+                    title: 'Berhasil',
+                    message: `Password @${username} direset. Kasih tahu user password barunya.`,
+                    type: 'success'
+                });
+            } catch (err) {
+                await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        });
+    }
+
+    /* ============================================
+       ORDERS
+       ============================================ */
+    async function loadOrders() {
+        const container = document.getElementById('adminContent');
+        container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat orders...</h3></div>`;
+
+        try {
+            const q = new URLSearchParams({
+                page: adminState.page,
+                limit: adminState.limit,
+                search: adminState.search,
+            });
+            const res = await fetch(`/api/admin/orders?${q.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal');
+
+            renderOrders(data);
+        } catch (err) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal</h3><p>${err.message}</p></div>`;
+            document.getElementById('adminPagination').style.display = 'none';
+        }
+    }
+
+    function renderOrders(data) {
+        const container = document.getElementById('adminContent');
+
+        if (!data.orders || data.orders.length === 0) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.phone}</div><h3>Belum ada order</h3></div>`;
+            document.getElementById('adminPagination').style.display = 'none';
+            return;
+        }
+
+        const statusMap = {
+            success: 'success', received: 'success', confirmed: 'success',
+            pending: 'pending', failed: 'failed', cancelled: 'cancelled',
+            expired: 'expired', refunded: 'refunded',
+        };
+
+        container.innerHTML = data.orders.map(o => {
+            const cls = statusMap[o.status] || 'pending';
+            const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <div class="admin-card ${cls}">
+                    <div class="admin-card-header">
+                        <div style="flex:1;min-width:0;">
+                            <div class="admin-card-title">${escapeHtml(o.service_name || o.service || '—')} · ${escapeHtml(o.country_name || o.country || '—')}</div>
+                            <div class="admin-card-ref">${escapeHtml(o.order_id)} · ${escapeHtml(o.otp_id || '—')}</div>
+                        </div>
+                        <span class="badge ${cls === 'success' ? 'success' : cls === 'pending' ? 'warning' : cls === 'expired' ? 'gray' : cls === 'refunded' ? 'info' : 'danger'}">${escapeHtml(o.status).toUpperCase()}</span>
+                    </div>
+                    <div class="admin-card-body">
+                        <div class="admin-field">
+                            <span class="admin-field-label">User</span>
+                            <span class="admin-field-value">@${escapeHtml(o.username || '—')}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Nomor</span>
+                            <span class="admin-field-value">${escapeHtml(o.phone_number || '—')}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Harga</span>
+                            <span class="admin-field-value primary">${formatRupiah(o.price)}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">OTP</span>
+                            <span class="admin-field-value success">${escapeHtml(o.otp_code || '—')}</span>
+                        </div>
+                        <div class="admin-field full">
+                            <span class="admin-field-label">Dibuat</span>
+                            <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                        </div>
+                    </div>
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" type="button" data-change-order="${escapeHtml(o.order_id)}" data-status="${escapeHtml(o.status)}">
+                            ${ICONS.edit} Ubah Status
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        renderPagination(data.total_pages, data.page, (p) => {
+            adminState.page = p;
+            loadOrders();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.querySelectorAll('[data-change-order]').forEach(btn => {
+            btn.addEventListener('click', () => showChangeStatusModal('order', btn.dataset.changeOrder, btn.dataset.status));
+        });
+    }
+
+    /* ============================================
+       DEPOSITS
+       ============================================ */
+    async function loadDeposits() {
+        const container = document.getElementById('adminContent');
+        container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat deposits...</h3></div>`;
+
+        try {
+            const q = new URLSearchParams({
+                page: adminState.page,
+                limit: adminState.limit,
+                search: adminState.search,
+            });
+            const res = await fetch(`/api/admin/deposits?${q.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal');
+
+            renderDeposits(data);
+        } catch (err) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal</h3><p>${err.message}</p></div>`;
+            document.getElementById('adminPagination').style.display = 'none';
+        }
+    }
+
+    function renderDeposits(data) {
+        const container = document.getElementById('adminContent');
+
+        if (!data.deposits || data.deposits.length === 0) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.coin}</div><h3>Belum ada deposit</h3></div>`;
+            document.getElementById('adminPagination').style.display = 'none';
+            return;
+        }
+
+        const statusMap = {
+            success: 'success', pending: 'pending', failed: 'failed',
+            expired: 'expired', cancelled: 'cancelled', refunded: 'refunded',
+        };
+
+        container.innerHTML = data.deposits.map(d => {
+            const cls = statusMap[d.status] || 'pending';
+            const createdDate = new Date(d.created_at).toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <div class="admin-card ${cls}">
+                    <div class="admin-card-header">
+                        <div style="flex:1;min-width:0;">
+                            <div class="admin-card-title">${d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</div>
+                            <div class="admin-card-ref">${escapeHtml(d.reference_id)}</div>
+                        </div>
+                        <span class="badge ${cls === 'success' ? 'success' : cls === 'pending' ? 'warning' : cls === 'expired' ? 'gray' : cls === 'refunded' ? 'info' : 'danger'}">${escapeHtml(d.status).toUpperCase()}</span>
+                    </div>
+                    <div class="admin-card-body">
+                        <div class="admin-field">
+                            <span class="admin-field-label">User</span>
+                            <span class="admin-field-value">@${escapeHtml(d.username || '—')}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Top Up</span>
+                            <span class="admin-field-value primary">${formatRupiah(d.amount)}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Total Bayar</span>
+                            <span class="admin-field-value">${formatRupiah(d.total_amount || d.amount)}</span>
+                        </div>
+                        <div class="admin-field">
+                            <span class="admin-field-label">Fee</span>
+                            <span class="admin-field-value warning">${formatRupiah(d.fee || 0)}</span>
+                        </div>
+                        <div class="admin-field full">
+                            <span class="admin-field-label">Dibuat</span>
+                            <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                        </div>
+                    </div>
+                    <div class="admin-actions">
+                        <button class="btn btn-primary" type="button" data-change-deposit="${escapeHtml(d.reference_id)}" data-status="${escapeHtml(d.status)}">
+                            ${ICONS.edit} Ubah Status
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        renderPagination(data.total_pages, data.page, (p) => {
+            adminState.page = p;
+            loadDeposits();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        document.querySelectorAll('[data-change-deposit]').forEach(btn => {
+            btn.addEventListener('click', () => showChangeStatusModal('deposit', btn.dataset.changeDeposit, btn.dataset.status));
+        });
+    }
+
+    /* ============================================
+       CHANGE STATUS MODAL (order / deposit)
+       ============================================ */
+    async function showChangeStatusModal(type, id, currentStatus) {
+        const overlay = document.getElementById('modalDetail');
+        const modal = document.getElementById('modalDetailContent');
+
+        const orderStatuses = ['pending', 'success', 'received', 'confirmed', 'cancelled', 'expired', 'failed', 'refunded'];
+        const depositStatuses = ['pending', 'success', 'cancelled', 'expired', 'failed', 'refunded'];
+        const options = type === 'order' ? orderStatuses : depositStatuses;
+
+        const info = type === 'order'
+            ? '<p style="color:var(--text-gray);font-size:0.8rem;margin-bottom:12px;">Ubah status akan otomatis menyesuaikan saldo user:<br>• Sukses/Fail → Fail = refund (+saldo)<br>• Fail → Sukses = tarik balik (-saldo)</p>'
+            : '<p style="color:var(--text-gray);font-size:0.8rem;margin-bottom:12px;">Ubah status akan otomatis menyesuaikan saldo user:<br>• Pending → Sukses = +saldo<br>• Sukses → Fail = -saldo</p>';
+
+        modal.innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Ubah Status ${type === 'order' ? 'Order' : 'Deposit'}</div>
+                <button class="modal-close" type="button" data-modal-close>${ICONS.close}</button>
+            </div>
+            <div style="padding:6px 0;">
+                <div class="detail-box full" style="margin-bottom:14px;">
+                    <div class="lbl">${type === 'order' ? 'Order ID' : 'Reference ID'}</div>
+                    <div class="val primary">${escapeHtml(id)}</div>
+                </div>
+                ${info}
+                <div class="form-group">
+                    <label class="form-label">Status Baru</label>
+                    <select class="form-control" id="changeStatusSelect">
+                        ${options.map(s => `<option value="${s}" ${s === currentStatus ? 'selected' : ''}>${s}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Catatan (opsional)</label>
+                    <input type="text" class="form-control" id="changeStatusNote" placeholder="Alasan ubah status">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:14px;">
+                    <button class="btn btn-block" type="button" data-modal-close>Batal</button>
+                    <button class="btn btn-primary btn-block" type="button" id="btnChangeStatus">Simpan</button>
+                </div>
+            </div>
+        `;
+        overlay.classList.add('active');
+
+        modal.querySelectorAll('[data-modal-close]').forEach(btn => {
+            btn.addEventListener('click', () => overlay.classList.remove('active'));
+        });
+
+        document.getElementById('btnChangeStatus').addEventListener('click', async () => {
+            const newStatus = document.getElementById('changeStatusSelect').value;
+            const note = document.getElementById('changeStatusNote').value.trim();
+
+            const ok = await showCustomAlert({
+                title: 'Konfirmasi',
+                message: `Ubah status dari "${currentStatus}" ke "${newStatus}"? Saldo user akan otomatis disesuaikan.`,
+                type: 'warning',
+                okText: 'Ya, Ubah',
+                showCancel: true
+            });
+            if (!ok) return;
+
+            const btn = document.getElementById('btnChangeStatus');
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+            try {
+                const endpoint = type === 'order'
+                    ? `/api/admin/order/${encodeURIComponent(id)}/status`
+                    : `/api/admin/deposit/${encodeURIComponent(id)}/status`;
+
+                const res = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status: newStatus, note })
+                });
+                const data = await safeJson(res);
+                if (!res.ok) throw new Error(data.error || 'Gagal');
+
+                overlay.classList.remove('active');
+
+                const adj = Number(data.balance_adjustment) || 0;
+                const adjText = adj > 0 ? `+${formatRupiah(adj)} ke user` : (adj < 0 ? `-${formatRupiah(Math.abs(adj))} dari user` : 'tidak ada penyesuaian saldo');
+
+                await showCustomAlert({
+                    title: 'Berhasil',
+                    message: `Status diubah ke "${newStatus}". Saldo: ${adjText}`,
+                    type: 'success'
+                });
+
+                if (type === 'order') loadOrders();
+                else loadDeposits();
+                loadStats();
+            } catch (err) {
+                await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
+        });
+    }
+
+    /* ============================================
+       AUDIT LOG
+       ============================================ */
+    async function loadAuditLog() {
+        const container = document.getElementById('adminContent');
+        container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat audit log...</h3></div>`;
+
+        try {
+            const q = new URLSearchParams({
+                page: adminState.page,
+                limit: adminState.limit,
+            });
+            const res = await fetch(`/api/admin/audit-log?${q.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal');
+
+            if (!data.logs || data.logs.length === 0) {
+                container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.shield}</div><h3>Belum ada log</h3></div>`;
+                document.getElementById('adminPagination').style.display = 'none';
+                return;
+            }
+
+            container.innerHTML = data.logs.map(l => {
+                const t = new Date(l.created_at).toLocaleString('id-ID');
+                const meta = l.metadata || {};
+                return `
+                    <div class="admin-card">
+                        <div class="admin-card-header">
+                            <div style="flex:1;min-width:0;">
+                                <div class="admin-card-title">${escapeHtml(l.new_status || l.reason || 'action')}</div>
+                                <div class="admin-card-ref">Admin: ${escapeHtml(meta.admin_username || meta.admin_id || l.reason || '—')} · Target: ${escapeHtml(l.entity_id || '—')} (${escapeHtml(meta.target_type || '—')})</div>
+                            </div>
+                        </div>
+                        <div class="admin-card-body">
+                            <div class="admin-field full">
+                                <span class="admin-field-label">Waktu</span>
+                                <span class="admin-field-value" style="font-size:0.78rem;">${t}</span>
+                            </div>
+                            ${meta.adjustment !== undefined ? `
+                                <div class="admin-field">
+                                    <span class="admin-field-label">Adjustment</span>
+                                    <span class="admin-field-value ${Number(meta.adjustment) > 0 ? 'success' : 'danger'}">${Number(meta.adjustment) > 0 ? '+' : ''}${formatRupiah(Math.abs(Number(meta.adjustment) || 0))}</span>
+                                </div>
+                            ` : ''}
+                            ${meta.note ? `
+                                <div class="admin-field full">
+                                    <span class="admin-field-label">Catatan</span>
+                                    <span class="admin-field-value">${escapeHtml(meta.note)}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            renderPagination(data.total_pages, data.page, (p) => {
+                adminState.page = p;
+                loadAuditLog();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        } catch (err) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal</h3><p>${err.message}</p></div>`;
+            document.getElementById('adminPagination').style.display = 'none';
+        }
+    }
+
+    /* ============================================
+       PAGINATION
+       ============================================ */
+    function renderPagination(totalPages, currentPage, onPageChange) {
+        const paginationEl = document.getElementById('adminPagination');
+
+        if (!totalPages || totalPages <= 1) {
+            paginationEl.style.display = 'none';
+            return;
+        }
+
+        paginationEl.style.display = 'flex';
+        paginationEl.innerHTML = `
+            <button class="page-btn" type="button" data-page="${currentPage - 1}" ${currentPage <= 1 ? 'disabled' : ''}>Prev</button>
+            <span class="page-info">Halaman ${currentPage} dari ${totalPages}</span>
+            <button class="page-btn" type="button" data-page="${currentPage + 1}" ${currentPage >= totalPages ? 'disabled' : ''}>Next</button>
+        `;
+
+        paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = Number(btn.dataset.page);
+                if (p >= 1 && p <= totalPages) onPageChange(p);
+            });
+        });
+    }
+
+    /* ============================================
+       TABS
+       ============================================ */
     document.getElementById('adminTabs').addEventListener('click', (e) => {
         const tab = e.target.closest('.admin-tab');
         if (!tab) return;
@@ -1191,29 +2031,47 @@
         tab.classList.add('active');
 
         adminState.tab = tab.dataset.tab;
-        renderAdminContent();
+        adminState.page = 1;
+        adminState.search = '';
+        document.getElementById('adminSearch').value = '';
+        loadCurrentTab();
     });
 
-    /* ===== SEARCH ===== */
+    /* ============================================
+       SEARCH (debounced)
+       ============================================ */
+    let searchTimeout = null;
     document.getElementById('adminSearch').addEventListener('input', (e) => {
-        adminState.search = e.target.value;
-        renderAdminContent();
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            adminState.search = e.target.value.trim();
+            adminState.page = 1;
+            loadCurrentTab();
+        }, 400);
     });
 
-    /* ===== LOGOUT ===== */
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-        try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-        } catch (err) {}
-
-        CacheManager.clear();
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('user');
-        window.location.href = '/landing';
+    /* ============================================
+       MODAL OVERLAY CLOSE
+       ============================================ */
+    document.getElementById('modalDetail').addEventListener('click', (e) => {
+        if (e.target.id === 'modalDetail') {
+            e.target.classList.remove('active');
+        }
     });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            document.getElementById('modalDetail').classList.remove('active');
+        }
+    });
+
+    /* ============================================
+       UTIL
+       ============================================ */
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+    }
 </script>
 
 </body>
