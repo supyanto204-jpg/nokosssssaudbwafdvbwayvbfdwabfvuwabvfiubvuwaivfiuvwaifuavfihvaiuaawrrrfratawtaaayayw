@@ -30,27 +30,58 @@
 
         body.sheet-open { overflow: hidden; }
 
-        /* ===== HERO ===== */
+        /* ============================================
+           HERO
+           ============================================ */
         .nokos-hero {
             display: flex;
             align-items: center;
             gap: 16px;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
         }
+
         .nokos-hero-icon {
-            width: 56px; height: 56px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            width: 60px;
+            height: 60px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #3b82f6, #7c3aed);
+            background-size: 200% 200%;
+            animation: gradientMove 5s ease infinite;
+            border: 2.5px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: white;
-            box-shadow: var(--shadow-hard-sm);
+            box-shadow: var(--shadow-hard);
             flex-shrink: 0;
-            animation: iconPulse 3s ease-in-out infinite;
+            position: relative;
+            overflow: hidden;
         }
-        .nokos-hero-icon .icon-svg { width: 28px; height: 28px; }
+
+        .nokos-hero-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
+            animation: shine 3s infinite;
+        }
+
+        .nokos-hero-icon .icon-svg {
+            width: 30px;
+            height: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .nokos-hero-text { flex: 1; min-width: 0; }
+
         .nokos-hero-text h1 {
-            font-size: 1.8rem; font-weight: 900;
+            font-size: 1.8rem;
+            font-weight: 900;
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             margin-bottom: 4px;
@@ -60,31 +91,47 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
         .nokos-hero-text p {
             color: var(--text-gray);
             font-size: 0.88rem;
             max-width: 560px;
+            line-height: 1.5;
         }
 
-        /* ===== SECTION TITLE ===== */
+        /* ============================================
+           SECTION TITLE
+           ============================================ */
         .section-title {
-            font-size: 0.85rem; font-weight: 800;
+            font-size: 0.85rem;
+            font-weight: 800;
             font-family: var(--font-mono);
             text-transform: uppercase;
             letter-spacing: 0.08em;
             color: var(--text-gray);
             margin-bottom: 14px;
-            display: flex; align-items: center; gap: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
-        .section-title .icon-svg { width: 16px; height: 16px; color: var(--primary); }
 
-        /* ===== ACTIVE ORDERS ===== */
+        .section-title .icon-svg {
+            width: 16px;
+            height: 16px;
+            color: var(--primary);
+        }
+
+        /* ============================================
+           PESANAN AKTIF
+           ============================================ */
         .active-orders {
             display: flex;
             flex-direction: column;
             gap: 12px;
             margin-bottom: 24px;
         }
+
         .active-order-card {
             display: flex;
             align-items: center;
@@ -98,13 +145,17 @@
             position: relative;
             overflow: hidden;
         }
+
         .active-order-card::before {
             content: '';
             position: absolute;
-            left: 0; top: 0;
-            width: 4px; height: 100%;
+            left: 0;
+            top: 0;
+            width: 4px;
+            height: 100%;
             background: var(--warning);
         }
+
         .active-order-card.has-otp::before { background: var(--success); }
         .active-order-card.expired::before { background: #64748b; }
 
@@ -114,9 +165,20 @@
         }
 
         .active-order-flag {
-            width: 36px; height: 27px;
+            width: 40px;
+            height: 30px;
             flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .active-order-flag .flag-img {
+            width: 40px;
+            height: 30px;
+            border-radius: 5px;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
         }
 
         .active-order-info { flex: 1; min-width: 0; }
@@ -126,7 +188,11 @@
             font-size: 0.9rem;
             font-family: var(--font-display);
             color: var(--text-dark);
-            margin-bottom: 2px;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
 
         .active-order-meta {
@@ -138,6 +204,7 @@
             gap: 6px;
             flex-wrap: wrap;
         }
+
         .active-order-otpid {
             font-weight: 800;
             color: var(--primary);
@@ -160,11 +227,13 @@
             gap: 8px;
             animation: bounceIn 0.5s var(--ease-bounce);
         }
+
         [data-theme="dark"] .active-order-otp {
             background: rgba(16, 185, 129, 0.15);
             border-color: var(--success);
             color: var(--success);
         }
+
         .active-order-otp .copy-inline {
             background: none;
             border: none;
@@ -175,6 +244,7 @@
             opacity: 0.7;
             transition: opacity 0.2s;
         }
+
         .active-order-otp .copy-inline:hover { opacity: 1; }
         .active-order-otp .copy-inline .icon-svg { width: 14px; height: 14px; }
 
@@ -192,16 +262,19 @@
             font-size: 0.72rem;
             color: var(--warning-dark);
         }
+
         [data-theme="dark"] .active-order-countdown {
             background: rgba(251, 191, 36, 0.15);
             color: var(--warning);
             border-color: var(--warning);
         }
+
         .active-order-countdown.expired {
             background: linear-gradient(135deg, #334155, #475569);
             color: white;
             border-color: var(--text-dark);
         }
+
         .active-order-countdown .icon-svg { width: 12px; height: 12px; }
 
         .active-order-right {
@@ -212,12 +285,14 @@
             gap: 6px;
             align-items: flex-end;
         }
+
         .active-order-price {
             font-weight: 800;
             font-family: var(--font-mono);
             font-size: 0.9rem;
             color: var(--primary);
         }
+
         .active-order-actions {
             display: flex;
             gap: 4px;
@@ -243,25 +318,32 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .btn-mini:hover {
             transform: translate(-1px, -1px);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
+
         .btn-mini:active {
             transform: translate(1px, 1px);
             box-shadow: none;
         }
+
         .btn-mini.primary {
             background: var(--primary);
             color: white;
         }
+
         .btn-mini.danger {
             background: var(--danger);
             color: white;
         }
+
         .btn-mini .icon-svg { width: 10px; height: 10px; }
 
-        /* ===== EMPTY ORDERS ===== */
+        /* ============================================
+           EMPTY ORDERS
+           ============================================ */
         .empty-orders {
             text-align: center;
             padding: 48px 20px;
@@ -271,28 +353,45 @@
             color: var(--text-gray);
             margin-bottom: 24px;
         }
+
         .empty-orders .icon-box {
-            width: 64px; height: 64px;
+            width: 64px;
+            height: 64px;
             margin: 0 auto 14px;
             border-radius: 18px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             animation: float 3s ease-in-out infinite;
         }
+
         .empty-orders .icon-box .icon-svg { width: 28px; height: 28px; }
+
         .empty-orders h3 {
-            font-size: 1rem; font-weight: 800;
+            font-size: 1rem;
+            font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 4px;
         }
-        .empty-orders p { font-size: 0.85rem; margin-bottom: 0; }
 
-        /* ===== CTA ===== */
-        .cta-wrap { text-align: center; margin-bottom: 32px; }
+        .empty-orders p {
+            font-size: 0.85rem;
+            margin-bottom: 0;
+        }
+
+        /* ============================================
+           CTA
+           ============================================ */
+        .cta-wrap {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
         .btn-cta {
             display: inline-flex;
             align-items: center;
@@ -316,23 +415,29 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .btn-cta::before {
             content: '';
             position: absolute;
-            top: 50%; left: 50%;
-            width: 0; height: 0;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
             border-radius: 50%;
             background: rgba(255, 255, 255, 0.15);
             transform: translate(-50%, -50%);
             transition: width 0.6s, height 0.6s;
         }
+
         .btn-cta:hover::before { width: 400px; height: 400px; }
         .btn-cta:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-hard-lg); }
         .btn-cta:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
         .btn-cta .icon-svg { width: 20px; height: 20px; position: relative; z-index: 1; }
         .btn-cta span { position: relative; z-index: 1; }
 
-        /* ===== FEATURES ===== */
+        /* ============================================
+           FEATURES
+           ============================================ */
         .features-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -343,34 +448,88 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
         }
+
         .feature-item {
             display: flex;
             gap: 10px;
             align-items: flex-start;
         }
+
         .feature-item .feature-icon {
-            width: 32px; height: 32px;
+            width: 32px;
+            height: 32px;
             border-radius: 9px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
+
         .feature-item .feature-icon .icon-svg { width: 16px; height: 16px; }
+
         .feature-item h4 {
-            font-size: 0.88rem; font-weight: 800;
+            font-size: 0.88rem;
+            font-weight: 800;
             font-family: var(--font-display);
             margin-bottom: 4px;
             color: var(--text-dark);
         }
+
         .feature-item p {
             font-size: 0.78rem;
             color: var(--text-gray);
             line-height: 1.5;
         }
 
-        /* ===== BOTTOM SHEET ===== */
+        /* ============================================
+           FOOTER
+           ============================================ */
+        .site-footer {
+            margin-top: 40px;
+            padding: 24px 20px;
+            border-top: 2px dashed var(--border);
+            text-align: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .footer-links a {
+            color: var(--text-gray);
+            text-decoration: none;
+            font-size: 0.82rem;
+            font-weight: 600;
+            transition: color var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .footer-links a:hover {
+            color: var(--primary);
+        }
+
+        .footer-copy {
+            font-size: 0.75rem;
+            color: var(--text-light);
+            font-family: var(--font-mono);
+            letter-spacing: 0.02em;
+        }
+
+        .footer-copy strong {
+            color: var(--primary);
+            font-weight: 800;
+        }
+
+        /* ============================================
+           BOTTOM SHEET
+           ============================================ */
         .bottom-sheet-overlay {
             position: fixed;
             inset: 0;
@@ -383,10 +542,12 @@
             justify-content: center;
             padding: 0;
         }
+
         .bottom-sheet-overlay.active {
             display: flex;
             animation: fadeIn 0.2s var(--ease);
         }
+
         .bottom-sheet {
             background: var(--bg-card);
             width: 100%;
@@ -403,17 +564,21 @@
             animation: slideUp 0.35s var(--ease-bounce);
             overflow: hidden;
         }
+
         @keyframes slideUp {
             from { transform: translateY(100%); }
             to { transform: translateY(0); }
         }
+
         .sheet-handle {
-            width: 40px; height: 4px;
+            width: 40px;
+            height: 4px;
             background: var(--border);
             border-radius: 50px;
             margin: 12px auto 8px;
             flex-shrink: 0;
         }
+
         .sheet-header {
             padding: 0 20px 16px;
             display: flex;
@@ -423,31 +588,41 @@
             flex-shrink: 0;
             gap: 12px;
         }
+
         .sheet-header-left { flex: 1; min-width: 0; }
+
         .sheet-step {
-            font-size: 0.72rem; font-weight: 700;
+            font-size: 0.72rem;
+            font-weight: 700;
             font-family: var(--font-mono);
             color: var(--text-gray);
             text-transform: uppercase;
             letter-spacing: 0.06em;
             margin-bottom: 2px;
         }
+
         .sheet-title {
-            font-size: 1.05rem; font-weight: 800;
+            font-size: 1.05rem;
+            font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
             letter-spacing: -0.01em;
         }
+
         .sheet-balance { text-align: right; flex-shrink: 0; }
+
         .sheet-balance .label {
-            font-size: 0.68rem; font-weight: 700;
+            font-size: 0.68rem;
+            font-weight: 700;
             font-family: var(--font-mono);
             color: var(--text-gray);
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
+
         .sheet-balance .amount {
-            font-size: 0.95rem; font-weight: 800;
+            font-size: 0.95rem;
+            font-weight: 800;
             font-family: var(--font-mono);
             color: var(--primary);
         }
@@ -459,6 +634,7 @@
             padding: 20px;
             -webkit-overflow-scrolling: touch;
         }
+
         .sheet-body::-webkit-scrollbar { width: 6px; }
         .sheet-body::-webkit-scrollbar-track { background: transparent; }
         .sheet-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
@@ -481,15 +657,24 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .sheet-back:hover {
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
             background: var(--bg-white);
         }
+
         .sheet-back .icon-svg { width: 14px; height: 14px; }
 
-        /* ===== SERVER LIST ===== */
-        .server-list { display: flex; flex-direction: column; gap: 12px; }
+        /* ============================================
+           SERVER LIST
+           ============================================ */
+        .server-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
         .server-card {
             display: flex;
             align-items: center;
@@ -508,29 +693,41 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .server-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
+
         .server-icon {
-            width: 40px; height: 40px;
+            width: 40px;
+            height: 40px;
             border-radius: 11px;
             background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
+
         .server-icon .icon-svg { width: 20px; height: 20px; }
+
         .server-info { flex: 1; min-width: 0; }
+
         .server-title {
             font-weight: 800;
             font-size: 0.95rem;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 2px;
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
         }
+
         .server-badge {
             display: inline-flex;
             align-items: center;
@@ -545,20 +742,31 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
+
         .server-desc { font-size: 0.78rem; color: var(--text-gray); }
+
         .server-arrow { color: var(--text-light); flex-shrink: 0; }
         .server-arrow .icon-svg { width: 18px; height: 18px; }
 
-        /* ===== SEARCH ===== */
-        .sheet-search { position: relative; margin-bottom: 18px; }
+        /* ============================================
+           SEARCH
+           ============================================ */
+        .sheet-search {
+            position: relative;
+            margin-bottom: 18px;
+        }
+
         .sheet-search .icon-svg {
             position: absolute;
-            left: 14px; top: 50%;
+            left: 14px;
+            top: 50%;
             transform: translateY(-50%);
             color: var(--text-gray);
-            width: 18px; height: 18px;
+            width: 18px;
+            height: 18px;
             pointer-events: none;
         }
+
         .sheet-search input { padding-left: 42px; }
 
         .app-selected-card {
@@ -572,26 +780,32 @@
             margin-bottom: 18px;
             box-shadow: var(--shadow-hard-sm);
         }
+
         .app-selected-card .info { flex: 1; min-width: 0; }
+
         .app-selected-card .name {
             font-weight: 800;
             font-family: var(--font-display);
             font-size: 0.9rem;
             color: var(--text-dark);
         }
+
         .app-selected-card .sub {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
 
-        /* ===== APP GRID ===== */
+        /* ============================================
+           APP GRID
+           ============================================ */
         .app-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 10px;
             margin-bottom: 20px;
         }
+
         .app-card {
             display: flex;
             align-items: center;
@@ -611,11 +825,13 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .app-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
             border-color: var(--primary);
         }
+
         .app-card .name {
             font-size: 0.88rem;
             font-weight: 700;
@@ -625,9 +841,12 @@
             position: relative;
             z-index: 1;
         }
+
         .app-card:hover .name { color: var(--primary); }
 
-        /* ===== TABS ===== */
+        /* ============================================
+           TABS
+           ============================================ */
         .sheet-tabs {
             display: flex;
             gap: 6px;
@@ -637,6 +856,7 @@
             border-radius: 50px;
             border: 2px solid var(--border-dark);
         }
+
         .sheet-tab {
             flex: 1;
             padding: 8px 14px;
@@ -653,6 +873,7 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .sheet-tab.active {
             background: var(--bg-white);
             color: var(--primary);
@@ -660,8 +881,15 @@
             border: 2px solid var(--border-dark);
         }
 
-        /* ===== COUNTRY LIST ===== */
-        .country-list { display: flex; flex-direction: column; gap: 8px; }
+        /* ============================================
+           COUNTRY LIST
+           ============================================ */
+        .country-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
         .country-item {
             display: flex;
             align-items: center;
@@ -679,16 +907,23 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .country-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
+
         .country-flag {
-            width: 32px; height: 24px;
+            width: 32px;
+            height: 24px;
             flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+
         .country-info { flex: 1; min-width: 0; }
+
         .country-name {
             font-weight: 800;
             font-size: 0.88rem;
@@ -696,16 +931,25 @@
             color: var(--text-dark);
             margin-bottom: 2px;
         }
+
         .country-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
+
         .country-arrow { color: var(--text-light); flex-shrink: 0; }
         .country-arrow .icon-svg { width: 18px; height: 18px; }
 
-        /* ===== PRICE LIST ===== */
-        .price-list { display: flex; flex-direction: column; gap: 10px; }
+        /* ============================================
+           PRICE LIST
+           ============================================ */
+        .price-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
         .price-item {
             display: flex;
             align-items: center;
@@ -717,21 +961,29 @@
             box-shadow: var(--shadow-hard-sm);
             transition: all var(--transition);
         }
+
         .price-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
+
         .price-stock-icon {
-            width: 40px; height: 40px;
+            width: 40px;
+            height: 40px;
             border-radius: 10px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
+
         .price-stock-icon .icon-svg { width: 18px; height: 18px; }
+
         .price-info { flex: 1; min-width: 0; }
+
         .price-title {
             font-weight: 800;
             font-size: 0.88rem;
@@ -743,6 +995,7 @@
             gap: 6px;
             flex-wrap: wrap;
         }
+
         .price-stock {
             display: inline-flex;
             align-items: center;
@@ -755,14 +1008,25 @@
             background: var(--success-light);
             color: var(--success-dark);
         }
-        .price-stock.low { background: var(--warning-light); color: var(--warning-dark); }
-        .price-stock.out { background: var(--danger-light); color: var(--danger-dark); }
+
+        .price-stock.low {
+            background: var(--warning-light);
+            color: var(--warning-dark);
+        }
+
+        .price-stock.out {
+            background: var(--danger-light);
+            color: var(--danger-dark);
+        }
+
         .price-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
+
         .price-right { text-align: right; flex-shrink: 0; }
+
         .price-amount {
             font-size: 1rem;
             font-weight: 800;
@@ -772,13 +1036,16 @@
             letter-spacing: -0.02em;
         }
 
-        /* ===== OPERATOR ===== */
+        /* ============================================
+           OPERATOR
+           ============================================ */
         .operator-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 8px;
             margin-bottom: 16px;
         }
+
         .operator-item {
             padding: 12px 14px;
             background: var(--bg-white);
@@ -796,16 +1063,20 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .operator-item:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
+
         .operator-item.active {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
             color: white;
         }
 
-        /* ===== LOADING/EMPTY ===== */
+        /* ============================================
+           LOADING/EMPTY
+           ============================================ */
         .loading-block {
             display: flex;
             flex-direction: column;
@@ -815,24 +1086,35 @@
             gap: 14px;
             color: var(--text-gray);
         }
-        .loading-block .loading-spinner { width: 36px; height: 36px; border-width: 3px; }
+
+        .loading-block .loading-spinner {
+            width: 36px;
+            height: 36px;
+            border-width: 3px;
+        }
 
         .empty-block {
             text-align: center;
             padding: 40px 20px;
             color: var(--text-gray);
         }
+
         .empty-block .icon-box {
-            width: 60px; height: 60px;
+            width: 60px;
+            height: 60px;
             margin: 0 auto 14px;
             border-radius: 16px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
         }
+
         .empty-block .icon-box .icon-svg { width: 26px; height: 26px; }
+
         .empty-block h3 {
             font-size: 0.95rem;
             font-weight: 800;
@@ -840,22 +1122,35 @@
             color: var(--text-dark);
             margin-bottom: 4px;
         }
-        .empty-block p { font-size: 0.82rem; max-width: 280px; margin: 0 auto; }
 
-        /* ===== SUCCESS MODAL ===== */
+        .empty-block p {
+            font-size: 0.82rem;
+            max-width: 280px;
+            margin: 0 auto;
+        }
+
+        /* ============================================
+           SUCCESS MODAL
+           ============================================ */
         .success-modal { text-align: center; }
+
         .success-icon {
-            width: 72px; height: 72px;
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             background: var(--success-light);
             border: 3px solid var(--border-dark);
             color: var(--success);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
             animation: bounceIn 0.6s var(--ease-bounce);
         }
+
         .success-icon .icon-svg { width: 36px; height: 36px; }
+
         .phone-display {
             background: var(--bg-light);
             border: 2px solid var(--border-dark);
@@ -868,6 +1163,7 @@
             gap: 12px;
             flex-wrap: wrap;
         }
+
         .phone-display .label {
             font-size: 0.7rem;
             color: var(--text-gray);
@@ -877,6 +1173,7 @@
             margin-bottom: 4px;
             font-family: var(--font-mono);
         }
+
         .phone-display .number {
             font-size: 1.15rem;
             font-weight: 800;
@@ -884,28 +1181,36 @@
             color: var(--text-dark);
             letter-spacing: 0.02em;
         }
+
         .copy-btn {
-            width: 40px; height: 40px;
+            width: 40px;
+            height: 40px;
             border-radius: 10px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
             color: var(--text-dark);
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             transition: all var(--transition);
             flex-shrink: 0;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+
         .copy-btn:hover {
             background: var(--primary);
             color: white;
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
+
         .copy-btn .icon-svg { width: 18px; height: 18px; }
 
-        /* ===== MODAL ===== */
+        /* ============================================
+           MODAL OVERRIDE
+           ============================================ */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -918,17 +1223,23 @@
             justify-content: center;
             padding: 20px;
         }
+
         .modal-overlay.active { display: flex; }
+
         .modal-overlay .modal {
             position: relative;
-            top: auto; left: auto;
+            top: auto;
+            left: auto;
             transform: none;
             margin: 0;
         }
 
-        /* ===== FLAG ===== */
+        /* ============================================
+           FLAG
+           ============================================ */
         .flag-img {
-            width: 32px; height: 24px;
+            width: 32px;
+            height: 24px;
             border-radius: 4px;
             border: 1.5px solid var(--border-dark);
             box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
@@ -938,12 +1249,41 @@
             background: var(--bg-light);
         }
 
-        /* ===== RESPONSIVE ===== */
+        /* ============================================
+           SYNC INDICATOR
+           ============================================ */
+        .sync-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 50px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            border: 2px solid var(--primary);
+            animation: fadeIn 0.3s var(--ease);
+            margin-left: auto;
+        }
+
+        .sync-pill .loading-spinner {
+            width: 10px;
+            height: 10px;
+            border-width: 1.5px;
+            border-color: rgba(37, 99, 235, 0.2);
+            border-top-color: var(--primary);
+        }
+
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
         @media (max-width: 768px) {
             .features-grid { grid-template-columns: 1fr; }
             .nokos-hero-text h1 { font-size: 1.4rem; }
-            .nokos-hero-icon { width: 48px; height: 48px; }
-            .nokos-hero-icon .icon-svg { width: 24px; height: 24px; }
+            .nokos-hero-icon { width: 52px; height: 52px; }
+            .nokos-hero-icon .icon-svg { width: 26px; height: 26px; }
             .bottom-sheet { height: 92vh; max-height: 92vh; }
 
             .active-order-card {
@@ -951,7 +1291,9 @@
                 gap: 10px;
                 flex-wrap: wrap;
             }
-            .active-order-flag { width: 28px; height: 21px; }
+
+            .active-order-flag { width: 32px; height: 24px; }
+            .active-order-flag .flag-img { width: 32px; height: 24px; }
             .active-order-title { font-size: 0.82rem; }
             .active-order-meta { font-size: 0.7rem; }
             .active-order-otp { font-size: 0.82rem; padding: 4px 8px; letter-spacing: 0.1em; }
@@ -965,6 +1307,9 @@
             .active-order-price { font-size: 0.82rem; }
 
             .btn-cta { padding: 14px 24px; font-size: 0.88rem; width: 100%; }
+
+            .footer-links { gap: 14px; }
+            .footer-links a { font-size: 0.78rem; }
         }
 
         @media (max-width: 480px) {
@@ -1083,7 +1428,7 @@
             </div>
             <div class="nokos-hero-text">
                 <h1>Beli Nokos</h1>
-                <p>Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri. Expired dalam 15 menit & auto refund kalau ga masuk.</p>
+                <p>Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri. Expired 15 menit, auto refund kalau kode ga masuk.</p>
             </div>
         </div>
 
@@ -1092,6 +1437,10 @@
             <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Pesanan Aktif
             <span class="badge info" id="activeCount" style="display:none;">0</span>
+            <span class="sync-pill" id="syncPill" style="display:none;">
+                <span class="loading-spinner"></span>
+                <span>Sync...</span>
+            </span>
         </div>
 
         <div id="activeOrders">
@@ -1142,6 +1491,19 @@
                 </div>
             </div>
         </div>
+
+        <!-- FOOTER -->
+        <footer class="site-footer">
+            <div class="footer-links">
+                <a href="/ketentuan">Ketentuan Layanan</a>
+                <a href="/syarat">Syarat & Refund</a>
+                <a href="/dashboard">Dashboard</a>
+                <a href="/inbox">Inbox</a>
+            </div>
+            <div class="footer-copy">
+                &copy; 2026 <strong>AsyrofOTP</strong>. All rights reserved.
+            </div>
+        </footer>
     </main>
 </div>
 
@@ -1267,9 +1629,7 @@
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
     };
 
-    /* ============================================
-       CUSTOM ALERT
-       ============================================ */
+    /* ===== CUSTOM ALERT ===== */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
             const overlay = document.getElementById('customAlert');
@@ -1310,9 +1670,7 @@
         });
     }
 
-    /* ============================================
-       THEME
-       ============================================ */
+    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -1326,9 +1684,7 @@
         });
     })();
 
-    /* ============================================
-       SIDEBAR
-       ============================================ */
+    /* ===== SIDEBAR ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -1402,9 +1758,7 @@
         });
     })();
 
-    /* ============================================
-       FLAG — MULTI FALLBACK
-       ============================================ */
+    /* ===== FLAG MULTI-FALLBACK ===== */
     function countryCodeToTwemoji(countryCode) {
         const code = (countryCode || '').toUpperCase();
         if (code.length !== 2) return null;
@@ -1455,9 +1809,7 @@
         }
     };
 
-    /* ============================================
-       STATE
-       ============================================ */
+    /* ===== STATE ===== */
     let state = {
         step: 1,
         server: null,
@@ -1473,12 +1825,10 @@
     };
 
     let servicesCache = [];
-    let ordersPollingInterval = null;
+    let autoSyncInterval = null;
     let countdownIntervals = {};
 
-    /* ============================================
-       LOAD USER
-       ============================================ */
+    /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
@@ -1488,134 +1838,46 @@
         document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
     });
 
-    /* ============================================
-       LOAD ACTIVE ORDERS
-       ============================================ */
+    /* ===== CACHE HELPERS ===== */
+    function getActiveOrdersCacheKey() {
+        return 'nokos_active_orders';
+    }
+
+    /* ===== LOAD ACTIVE ORDERS ===== */
     async function loadActiveOrders(silent = false) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
+        const cacheKey = getActiveOrdersCacheKey();
 
+        // 1. Instant: pake cache dulu
+        const cached = CacheManager.get(cacheKey);
+        if (cached && cached.value) {
+            renderActiveOrders(cached.value.orders || []);
+            if (!silent) showSyncPill(true);
+        } else if (!silent) {
+            showSyncPill(true);
+        }
+
+        // 2. Fetch fresh
         try {
             const res = await fetch('/api/nokos/orders?status=pending&limit=5', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
 
-            if (!data.orders || data.orders.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-orders">
-                        <div class="icon-box">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                        </div>
-                        <h3>Belum ada pesanan aktif</h3>
-                        <p>Nomor yang kamu beli akan muncul di sini beserta kode OTP-nya.</p>
-                    </div>
-                `;
-                if (countEl) countEl.style.display = 'none';
-                return;
+            // Cache response
+            CacheManager.set(cacheKey, { orders: data.orders || [], total: data.total || 0 });
+
+            renderActiveOrders(data.orders || []);
+
+            // Kalo ada pending, sync ke provider
+            const pending = (data.orders || []).filter(o => o.status === 'pending');
+            if (pending.length > 0) {
+                syncPendingOrders(pending);
             }
-
-            if (countEl) {
-                countEl.textContent = data.orders.length;
-                countEl.style.display = 'inline-flex';
-            }
-
-            container.innerHTML = `<div class="active-orders">` + data.orders.map(o => {
-                const hasOtp = o.otp_code && o.otp_code.trim();
-                const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
-                const expiresIn = o.expires_in !== undefined ? o.expires_in : 900;
-                const mins = Math.floor(expiresIn / 60);
-                const secs = expiresIn % 60;
-                const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-
-                return `
-                    <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
-                        <div class="active-order-flag">${renderFlag(o.country)}</div>
-                        <div class="active-order-info">
-                            <div class="active-order-title">${o.service_name || o.service || '—'}</div>
-                            <div class="active-order-meta">
-                                <span>${o.phone_number || '—'}</span>
-                                <span style="opacity:0.5;">·</span>
-                                <span class="active-order-otpid">${otpId}</span>
-                            </div>
-                            ${hasOtp ? `
-                                <div class="active-order-otp">
-                                    OTP: ${o.otp_code}
-                                    <button type="button" class="copy-inline" data-copy="${o.otp_code}">
-                                        ${ICONS.copy}
-                                    </button>
-                                </div>
-                            ` : `
-                                <div class="active-order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
-                                    ${ICONS.clock}
-                                    <span class="countdown-text">${timeText}</span>
-                                </div>
-                            `}
-                        </div>
-                        <div class="active-order-right">
-                            <div class="active-order-price">${formatRupiah(o.price)}</div>
-                            <span class="badge ${hasOtp ? 'success' : 'warning'} ${hasOtp ? '' : 'badge-dot'}">${hasOtp ? 'OTP Masuk' : 'Pending'}</span>
-                            ${hasOtp ? `
-                                <div class="active-order-actions">
-                                    <button type="button" class="btn-mini primary" data-resend="${o.order_id}">
-                                        ${ICONS.refresh}
-                                        Resend
-                                    </button>
-                                    <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
-                                        ${ICONS.close}
-                                        Batal
-                                    </button>
-                                </div>
-                            ` : `
-                                <div class="active-order-actions">
-                                    <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
-                                        ${ICONS.close}
-                                        Batal
-                                    </button>
-                                </div>
-                            `}
-                        </div>
-                    </div>
-                `;
-            }).join('') + `</div>`;
-
-            // Bind copy OTP
-            container.querySelectorAll('[data-copy]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const text = btn.dataset.copy;
-                    navigator.clipboard.writeText(text).then(() => {
-                        const original = btn.innerHTML;
-                        btn.innerHTML = ICONS.check;
-                        setTimeout(() => btn.innerHTML = original, 1200);
-                    });
-                });
-            });
-
-            // Bind resend
-            container.querySelectorAll('[data-resend]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    resendOrder(btn.dataset.resend, btn);
-                });
-            });
-
-            // Bind cancel
-            container.querySelectorAll('[data-cancel]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    cancelOrder(btn.dataset.cancel, btn);
-                });
-            });
-
-            // Start countdown per card
-            startCountdowns();
-
-            // Auto-poll each pending
-            pollPendingOrders(data.orders);
         } catch (err) {
             console.error('Load active orders error:', err);
-            if (!silent) {
+            if (!cached && !silent) {
                 container.innerHTML = `
                     <div class="empty-orders">
                         <div class="icon-box">
@@ -1626,14 +1888,132 @@
                     </div>
                 `;
             }
+        } finally {
+            if (!silent) showSyncPill(false);
         }
     }
 
-    /* ============================================
-       COUNTDOWN PER CARD
-       ============================================ */
+    function showSyncPill(show) {
+        const pill = document.getElementById('syncPill');
+        if (!pill) return;
+        pill.style.display = show ? 'inline-flex' : 'none';
+    }
+
+    /* ===== RENDER ===== */
+    function renderActiveOrders(orders) {
+        const container = document.getElementById('activeOrders');
+        const countEl = document.getElementById('activeCount');
+
+        if (!orders || orders.length === 0) {
+            container.innerHTML = `
+                <div class="empty-orders">
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                    </div>
+                    <h3>Belum ada pesanan aktif</h3>
+                    <p>Nomor yang kamu beli akan muncul di sini beserta kode OTP-nya.</p>
+                </div>
+            `;
+            if (countEl) countEl.style.display = 'none';
+            return;
+        }
+
+        if (countEl) {
+            countEl.textContent = orders.length;
+            countEl.style.display = 'inline-flex';
+        }
+
+        container.innerHTML = `<div class="active-orders">` + orders.map(o => {
+            const hasOtp = o.otp_code && o.otp_code.trim();
+            const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
+            const expiresIn = o.expires_in !== undefined ? o.expires_in : 900;
+            const mins = Math.floor(expiresIn / 60);
+            const secs = expiresIn % 60;
+            const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+
+            return `
+                <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
+                    <div class="active-order-flag">${renderFlag(o.country)}</div>
+                    <div class="active-order-info">
+                        <div class="active-order-title">${o.service_name || o.service || '—'}</div>
+                        <div class="active-order-meta">
+                            <span>${o.phone_number || '—'}</span>
+                            <span style="opacity:0.5;">·</span>
+                            <span class="active-order-otpid">${otpId}</span>
+                        </div>
+                        ${hasOtp ? `
+                            <div class="active-order-otp">
+                                OTP: ${o.otp_code}
+                                <button type="button" class="copy-inline" data-copy="${o.otp_code}">
+                                    ${ICONS.copy}
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="active-order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
+                                ${ICONS.clock}
+                                <span class="countdown-text">${timeText}</span>
+                            </div>
+                        `}
+                    </div>
+                    <div class="active-order-right">
+                        <div class="active-order-price">${formatRupiah(o.price)}</div>
+                        <span class="badge ${hasOtp ? 'success' : 'warning'} ${hasOtp ? '' : 'badge-dot'}">${hasOtp ? 'OTP Masuk' : 'Pending'}</span>
+                        ${hasOtp ? `
+                            <div class="active-order-actions">
+                                <button type="button" class="btn-mini primary" data-resend="${o.order_id}">
+                                    ${ICONS.refresh}
+                                    Resend
+                                </button>
+                                <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
+                                    ${ICONS.close}
+                                    Batal
+                                </button>
+                            </div>
+                        ` : `
+                            <div class="active-order-actions">
+                                <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
+                                    ${ICONS.close}
+                                    Batal
+                                </button>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            `;
+        }).join('') + `</div>`;
+
+        // Bind actions
+        container.querySelectorAll('[data-copy]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+                    const original = btn.innerHTML;
+                    btn.innerHTML = ICONS.check;
+                    setTimeout(() => btn.innerHTML = original, 1200);
+                });
+            });
+        });
+
+        container.querySelectorAll('[data-resend]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                resendOrder(btn.dataset.resend, btn);
+            });
+        });
+
+        container.querySelectorAll('[data-cancel]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                cancelOrder(btn.dataset.cancel, btn);
+            });
+        });
+
+        // Countdown
+        startCountdowns();
+    }
+
+    /* ===== COUNTDOWN ===== */
     function startCountdowns() {
-        // Clear existing
         Object.values(countdownIntervals).forEach(clearInterval);
         countdownIntervals = {};
 
@@ -1649,7 +2029,6 @@
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
                     clearInterval(countdownIntervals[orderId]);
-                    // Auto-refresh biar dapet status terbaru (auto-cancel dari backend)
                     setTimeout(() => loadActiveOrders(true), 500);
                     return;
                 }
@@ -1664,14 +2043,13 @@
         });
     }
 
-    /* ============================================
-       POLL PENDING ORDERS (via /api/cekotp)
-       ============================================ */
-    async function pollPendingOrders(orders) {
-        const pending = orders.filter(o => o.status === 'pending' && (!o.otp_code || !o.otp_code.trim()));
-        if (pending.length === 0) return;
+    /* ===== SYNC PENDING ===== */
+    async function syncPendingOrders(orders) {
+        if (!orders || orders.length === 0) return;
 
-        for (const o of pending) {
+        let hasUpdate = false;
+        for (const o of orders) {
+            if (o.otp_code && o.otp_code.trim()) continue; // skip kalo udah ada OTP
             try {
                 const res = await fetch('/api/cekotp', {
                     method: 'POST',
@@ -1683,39 +2061,40 @@
                 });
                 const data = await safeJson(res);
 
-                // Kalo ada update / dapet OTP
                 if (data.updated || data.otp_code || data.status !== 'pending') {
-                    console.log(`Order ${o.order_id} updated:`, data.status);
-                    loadActiveOrders(true);
+                    hasUpdate = true;
                     if (data.otp_code) {
                         CacheManager.remove('user_profile');
                         swrFetch('/api/user', 'user_profile', (user) => {
                             if (!user) return;
                             document.getElementById('userBalance').textContent = formatRupiah(user.balance);
                             document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                            document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
                         });
                     }
-                    return; // Cukup 1 yang update, refresh semua
                 }
             } catch (err) {
-                console.error(`Poll order ${o.order_id} error:`, err);
+                console.error(`Sync order ${o.order_id} error:`, err);
             }
+        }
+
+        if (hasUpdate) {
+            CacheManager.remove(getActiveOrdersCacheKey());
+            loadActiveOrders(true);
         }
     }
 
-    /* ============================================
-       AUTO-REFRESH INTERVAL
-       ============================================ */
-    function startOrdersPolling() {
-        if (ordersPollingInterval) clearInterval(ordersPollingInterval);
-        ordersPollingInterval = setInterval(() => {
+    /* ===== AUTO REFRESH 5s ===== */
+    function startAutoSync() {
+        if (autoSyncInterval) clearInterval(autoSyncInterval);
+        autoSyncInterval = setInterval(() => {
+            // Skip kalo tab ga keliatan
+            if (document.hidden) return;
             loadActiveOrders(true);
         }, 5000);
     }
 
-    /* ============================================
-       RESEND ORDER
-       ============================================ */
+    /* ===== RESEND ===== */
     async function resendOrder(orderId, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
@@ -1735,6 +2114,7 @@
                 type: 'success'
             });
 
+            CacheManager.remove(getActiveOrdersCacheKey());
             loadActiveOrders(true);
         } catch (err) {
             await showCustomAlert({
@@ -1747,9 +2127,7 @@
         }
     }
 
-    /* ============================================
-       CANCEL ORDER
-       ============================================ */
+    /* ===== CANCEL ===== */
     async function cancelOrder(orderId, btn) {
         const ok = await showCustomAlert({
             title: 'Batalkan Pesanan',
@@ -1779,10 +2157,12 @@
             });
 
             CacheManager.remove('user_profile');
+            CacheManager.remove(getActiveOrdersCacheKey());
             swrFetch('/api/user', 'user_profile', (user) => {
                 if (!user) return;
                 document.getElementById('userBalance').textContent = formatRupiah(user.balance);
                 document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
             });
 
             loadActiveOrders(true);
@@ -1797,9 +2177,7 @@
         }
     }
 
-    /* ============================================
-       OPEN/CLOSE SHEET
-       ============================================ */
+    /* ===== OPEN/CLOSE SHEET ===== */
     function openSheet() {
         document.getElementById('sheetOverlay').classList.add('active');
         document.body.classList.add('sheet-open');
@@ -1819,9 +2197,7 @@
         if (e.target.id === 'sheetOverlay') closeSheet();
     });
 
-    /* ============================================
-       STEP NAVIGATION
-       ============================================ */
+    /* ===== STEP NAVIGATION ===== */
     function goToStep(step) {
         state.step = step;
         const body = document.getElementById('sheetBody');
@@ -1849,9 +2225,7 @@
         }
     }
 
-    /* ============================================
-       STEP 1: SERVER
-       ============================================ */
+    /* ===== STEP 1: SERVER ===== */
     async function renderServerStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `<div class="loading-block"><span class="loading-spinner"></span><span>Memuat server...</span></div>`;
@@ -1903,9 +2277,7 @@
         }
     }
 
-    /* ============================================
-       STEP 2: APP
-       ============================================ */
+    /* ===== STEP 2: APP ===== */
     async function renderAppStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `
@@ -1985,9 +2357,7 @@
         });
     }
 
-    /* ============================================
-       STEP 3: COUNTRY
-       ============================================ */
+    /* ===== STEP 3: COUNTRY ===== */
     async function renderCountryStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `
@@ -2078,9 +2448,7 @@
         });
     }
 
-    /* ============================================
-       STEP 4: PRICE
-       ============================================ */
+    /* ===== STEP 4: PRICE ===== */
     async function renderPriceStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `
@@ -2214,9 +2582,7 @@
         });
     }
 
-    /* ============================================
-       PLACE ORDER
-       ============================================ */
+    /* ===== PLACE ORDER ===== */
     async function placeOrder(priceData, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
@@ -2257,7 +2623,7 @@
             document.getElementById('successOtpId').textContent = data.order.otp_id || '—';
 
             CacheManager.remove('user_profile');
-            CacheManager.clear();
+            CacheManager.remove(getActiveOrdersCacheKey());
             document.getElementById('modalSuccess').classList.add('active');
 
             setTimeout(() => {
@@ -2267,7 +2633,7 @@
                     document.getElementById('balancePill').textContent = formatRupiah(user.balance);
                     document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
                 });
-                loadActiveOrders();
+                loadActiveOrders(true);
             }, 500);
         } catch (err) {
             await showCustomAlert({
@@ -2281,9 +2647,7 @@
         }
     }
 
-    /* ============================================
-       COPY PHONE
-       ============================================ */
+    /* ===== COPY PHONE ===== */
     document.getElementById('copyPhone').addEventListener('click', () => {
         const phone = document.getElementById('successPhone').textContent;
         navigator.clipboard.writeText(phone).then(() => {
@@ -2294,9 +2658,7 @@
         });
     });
 
-    /* ============================================
-       MODAL CLOSE
-       ============================================ */
+    /* ===== MODAL CLOSE ===== */
     document.addEventListener('click', (e) => {
         const closeBtn = e.target.closest('[data-modal-close]');
         if (closeBtn) {
@@ -2319,9 +2681,7 @@
         }
     });
 
-    /* ============================================
-       LOGOUT
-       ============================================ */
+    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -2336,14 +2696,19 @@
         window.location.href = '/landing';
     });
 
-    /* ============================================
-       INIT
-       ============================================ */
+    /* ===== INIT ===== */
     loadActiveOrders();
-    startOrdersPolling();
+    startAutoSync();
+
+    // Pause/resume sync pas tab berubah visibility
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            loadActiveOrders(true);
+        }
+    });
 
     window.addEventListener('beforeunload', () => {
-        if (ordersPollingInterval) clearInterval(ordersPollingInterval);
+        if (autoSyncInterval) clearInterval(autoSyncInterval);
         Object.values(countdownIntervals).forEach(clearInterval);
     });
 </script>
