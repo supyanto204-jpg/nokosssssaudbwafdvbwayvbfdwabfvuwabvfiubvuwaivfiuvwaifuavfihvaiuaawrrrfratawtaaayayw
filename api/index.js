@@ -1,7 +1,7 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v9)
-// All bugs fixed + performance optimized
-// Target response: < 1 second
+// ASYROFOTP - BACKEND API (FULL FIXED v10)
+// + Service code mapping untuk server 'khusus'
+// + Semua bugs fixed + performance optimized
 // ============================================
 
 const express = require('express');
@@ -30,19 +30,19 @@ app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf.toString('utf8');
     },
-    limit: '512kb'  // turunin dari 1mb
+    limit: '512kb'
 }));
 app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
-// ===== DATABASE — OPTIMIZED =====
+// ===== DATABASE =====
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 20,                        // naikin dari 5 → 20
-    min: 2,                         // maintain minimum connection
+    max: 20,
+    min: 2,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 5000,  // turunin dari 10s → 5s
-    statement_timeout: 10000,       // statement max 10s
+    connectionTimeoutMillis: 5000,
+    statement_timeout: 10000,
     query_timeout: 10000,
     keepAlive: true,
 });
@@ -64,6 +64,9 @@ const CRON_SECRET = process.env.CRON_SECRET;
 if (!CRON_SECRET) {
     console.error('⚠️  CRON_SECRET belum di-set!');
 }
+
+// ===== REST COUNTRIES API =====
+const API_CDN = process.env.API_CDN;
 
 // ===== DIBANANA =====
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
@@ -96,7 +99,7 @@ const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
 const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
-const PROVIDER_TIMEOUT_MS = 8000;   // turunin dari 20s → 8s
+const PROVIDER_TIMEOUT_MS = 8000;
 
 // ===== QRIS DANA MANUAL =====
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953093605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
@@ -121,13 +124,89 @@ function cacheDelPattern(prefix) {
     for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k);
 }
 
-// Cleanup cache tiap 5 menit
 setInterval(() => {
     const now = Date.now();
     for (const [k, v] of cache.entries()) {
         if (now > v.expiresAt) cache.delete(k);
     }
 }, 5 * 60 * 1000);
+
+// ============================================
+// ===== SERVICE NAME → CODE MAPPING =====
+// ===== Dipakai biar server 'khusus' dapet kode icon app
+// ============================================
+
+/**
+ * Normalisasi nama service jadi key lookup.
+ * Contoh: "WhatsApp" → "whatsapp", "X (Twitter)" → "xtwitter"
+ */
+function normalizeServiceName(name) {
+    return String(name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+/**
+ * Ambil mapping name → code dari server ekonomi.
+ * Cache di memory 5 menit biar ga query provider terus.
+ */
+async function getServiceCodeMap() {
+    const cacheKey = 'service_code_map_ekonomi';
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+
+    try {
+        const data = await dibananaFetch('/services?server=ekonomi');
+        const services = data.services || [];
+        const map = {};
+        for (const s of services) {
+            const code = String(s.code || '').trim();
+            const name = String(s.name || '').trim();
+            if (!code) continue;
+            const normName = normalizeServiceName(name);
+            if (normName) map[normName] = code;
+            // Juga map langsung dari code (kalo provider ekonomi kirim "name" = code)
+            map[normalizeServiceName(code)] = code;
+        }
+        cacheSet(cacheKey, map, 5 * 60 * 1000);
+        console.log(`✅ Service code map loaded: ${Object.keys(map).length} entries`);
+        return map;
+    } catch (err) {
+        console.error('Get service code map error:', err.message);
+        return {};
+    }
+}
+
+/**
+ * Enrich services dengan `code` hasil matching dari map ekonomi.
+ * - Kalo service sudah ada `code` → biarin
+ * - Kalo ada `name` → cari di map, inject `code`
+ * - Kalo ga ketemu → `code` = null (frontend fallback ke huruf awal)
+ */
+async function enrichServicesWithCode(services, server) {
+    if (!services || services.length === 0) return services;
+
+    // Server ekonomi = sumber kebenaran, udah punya code
+    if (server === 'ekonomi') return services;
+
+    // Server lain: butuh mapping dari ekonomi
+    const codeMap = await getServiceCodeMap();
+
+    return services.map(s => {
+        // Kalo udah ada code, tinggal pakai
+        if (s.code && String(s.code).trim()) return s;
+
+        // Cari berdasarkan name
+        const normName = normalizeServiceName(s.name);
+        const mappedCode = codeMap[normName] || null;
+
+        return {
+            ...s,
+            code: mappedCode,
+            _mapped_from: mappedCode ? 'ekonomi' : null,
+        };
+    });
+}
 
 // ============================================
 // ===== STATIC DATA (cached forever) =====
@@ -345,7 +424,6 @@ async function dibananaFetch(endpoint, options = {}) {
     }
 }
 
-// Fetch saldo API provider
 async function getProviderBalance() {
     try {
         const data = await dibananaFetch('/balance');
@@ -650,7 +728,7 @@ const SCHEMA = {
 };
 
 // ============================================
-// ===== ENSURE SCHEMA (Optimized) =====
+// ===== ENSURE SCHEMA =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -664,12 +742,10 @@ async function ensureSchema() {
         try {
             console.log('🔧 Ensuring schema...');
 
-            // Create tables (parallel)
             await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
                 if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
             })));
 
-            // Add columns (parallel per table)
             const colPromises = [];
             for (const table of SCHEMA.tables) {
                 if (!table.columns || table.columns.length === 0) continue;
@@ -686,7 +762,6 @@ async function ensureSchema() {
             }
             await Promise.all(colPromises);
 
-            // Create indexes (parallel)
             await Promise.all(SCHEMA.indexes.map(idxSql =>
                 pool.query(idxSql).catch(err => {
                     if (!err.message.includes('already exists')) {
@@ -695,7 +770,6 @@ async function ensureSchema() {
                 })
             ));
 
-            // Constraints + functions + triggers (sequential biar aman)
             await pool.query(`
                 DO $$
                 BEGIN
@@ -824,7 +898,7 @@ function requireAdmin(req, res, next) {
 }
 
 // ============================================
-// ===== MARK DEPOSIT PAID (TRANSACTIONAL) =====
+// ===== MARK DEPOSIT PAID =====
 // ============================================
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const saldoMasuk = Number(deposit.amount);
@@ -962,7 +1036,7 @@ async function syncDepositStatus(deposit) {
 }
 
 // ============================================
-// ===== REFUND ORDER (ATOMIC) =====
+// ===== REFUND ORDER =====
 // ============================================
 async function refundOrder(order, reason = 'auto_refund') {
     const o = order;
@@ -1080,7 +1154,6 @@ async function checkAndRefundUserOrders(userId) {
     const refunded = [];
 
     try {
-        // Query parallel
         const [expiredResult, needRefundResult] = await Promise.all([
             pool.query(
                 `SELECT * FROM orders 
@@ -1136,6 +1209,7 @@ app.get('/api/health', withDB(async (req, res) => {
             hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
             hasJwtSecret: !!JWT_SECRET,
             hasCronSecret: !!CRON_SECRET,
+            hasApiCdn: !!API_CDN,
             schemaEnsured,
             poolTotal: pool.totalCount,
             poolIdle: pool.idleCount,
@@ -1158,7 +1232,7 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
     if (password.length > 100) return res.status(400).json({ error: 'Password maksimal 100 karakter' });
 
     try {
-        const hash = await bcrypt.hash(password, 8); // cost 8 lebih cepet dari 10
+        const hash = await bcrypt.hash(password, 8);
         const result = await pool.query(
             `INSERT INTO users (username, password_hash, name)
              VALUES ($1, $2, $3)
@@ -1204,7 +1278,6 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
 
 app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
     try {
-        // Blacklist token
         if (req.user.jti) {
             const decoded = jwt.decode(req.headers.authorization.replace('Bearer ', ''));
             const exp = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -1291,7 +1364,7 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== DEPOSIT — STATIC DATA =====
+// ===== DEPOSIT =====
 // ============================================
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({ methods: DEPOSIT_METHODS });
@@ -1301,9 +1374,6 @@ app.get('/api/deposit/presets', requireAuth, (req, res) => {
     res.json(DEPOSIT_PRESETS);
 });
 
-// ============================================
-// ===== DEPOSIT — GENERATE REF =====
-// ============================================
 app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
     try {
         const referenceId = await generateUniqueReferenceId();
@@ -1313,9 +1383,6 @@ app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — SAVE QRISPY =====
-// ============================================
 app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
@@ -1353,9 +1420,6 @@ app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — QRIS DANA =====
-// ============================================
 app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
     const { amount } = req.body;
     if (!amount || amount < 1000) return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
@@ -1368,7 +1432,6 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
 
-        // FIX: sinkron expired_at antara response dan DB
         const expiredAt = new Date(Date.now() + QRIS_DANA_EXPIRY_MS);
 
         await pool.query(
@@ -1399,9 +1462,6 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — CEK STATUS =====
-// ============================================
 app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
@@ -1425,9 +1485,6 @@ app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res)
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — UPDATE FEE =====
-// ============================================
 app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
     const { total_amount, fee } = req.body;
@@ -1454,10 +1511,6 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — MARK EXPIRED (FIXED) =====
-// ===== Cek expired_at dulu sebelum allow =====
-// ============================================
 app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
@@ -1472,7 +1525,6 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
 
-        // FIX #9: cek expired_at dulu, jangan allow expire kalo belum waktunya
         if (deposit.expires_at && new Date(deposit.expires_at) > new Date()) {
             return res.status(400).json({
                 error: 'Deposit belum expired. Tunggu sampai waktu habis.',
@@ -1510,10 +1562,6 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — CANCEL (FIXED) =====
-// ===== Cek pembayaran dulu sebelum cancel =====
-// ============================================
 app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
@@ -1528,17 +1576,14 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit nggak bisa dibatalkan' });
 
-        // FIX #7: kalo udah expired, jangan bisa cancel
         if (deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
             return res.status(400).json({ error: 'Deposit sudah kedaluwarsa, tidak bisa dibatalkan' });
         }
 
-        // FIX #7: cek dulu pembayaran ke QRISPY, jangan asal cancel
         if (deposit.method === 'qrispy' && deposit.qris_id) {
             try {
                 const statusData = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (statusData.data?.status === 'paid') {
-                    // Udah dibayar! Mark success dulu
                     await markDepositPaid(deposit, statusData.data.received_amount || statusData.data.amount, statusData.data.paid_at);
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.status(400).json({
@@ -1574,10 +1619,6 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — HISTORY (OPTIMIZED) =====
-// ===== Fix #10: count pake filter yang sama =====
-// ============================================
 app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 5));
@@ -1588,7 +1629,6 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
         let query, countQuery, params, countParams;
 
         if (status) {
-            // FIX: count pake filter status juga
             query = `SELECT * FROM deposits WHERE user_id = $1 AND status = $2 
                      ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
             params = [req.user.id, status, limit, offset];
@@ -1602,7 +1642,6 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
             countParams = [req.user.id];
         }
 
-        // Parallel query
         const [result, countRes] = await Promise.all([
             pool.query(query, params),
             pool.query(countQuery, countParams),
@@ -1623,9 +1662,6 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== DEPOSIT — SYNC BATCH =====
-// ============================================
 app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     const { reference_ids } = req.body;
 
@@ -1643,7 +1679,6 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
         );
 
         const updated = [];
-        // Parallel sync (max 5 concurrent)
         const chunks = [];
         for (let i = 0; i < result.rows.length; i += 5) {
             chunks.push(result.rows.slice(i, i + 5));
@@ -1662,10 +1697,6 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== ADMIN — APPROVE DEPOSIT (FIXED) =====
-// ===== Verifikasi credit beneran masuk =====
-// ============================================
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
@@ -1676,25 +1707,21 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, w
         const deposit = result.rows[0];
         if (deposit.status === 'success') return res.status(400).json({ error: 'Sudah di-approve' });
 
-        // Get balance sebelum
         const beforeRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
         const balanceBefore = Number(beforeRes.rows[0]?.balance || 0);
 
-        // Process credit
         const result2 = await markDepositPaid(deposit, deposit.total_amount || deposit.amount, new Date());
 
         if (result2.alreadyProcessed) {
             return res.status(400).json({ error: 'Sudah diproses sebelumnya' });
         }
 
-        // Verify balance beneran nambah
         const afterRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
         const balanceAfter = Number(afterRes.rows[0]?.balance || 0);
         const credited = balanceAfter - balanceBefore;
 
         if (credited !== result2.saldoMasuk) {
             console.error(`⚠️ Mismatch credit: expected ${result2.saldoMasuk}, got ${credited}`);
-            // Warning aja, tetep return success karena DB transaksi udah commit
         }
 
         const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
@@ -1711,7 +1738,7 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, w
 }));
 
 // ============================================
-// ===== WEBHOOK QRISPY =====
+// ===== WEBHOOK =====
 // ============================================
 app.post('/api/webhook/qrispy', withDB(async (req, res) => {
     try {
@@ -1756,10 +1783,6 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== WEBHOOK OTP (FIXED: revive order) =====
-// ===== Bisa hidupkan order yang udah cancelled/refunded =====
-// ============================================
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     try {
         if (!WEBHOOK_OTP1_SECRET) {
@@ -1796,14 +1819,12 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 
         const order = orderRes.rows[0];
 
-        // FIX #3: revive order kalo udah cancelled/refunded/expired tapi masih dalam grace period
         const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
         let revived = false;
 
         if (isRevivable && otpCode) {
             const orderAge = Date.now() - new Date(order.created_at).getTime();
             if (orderAge <= REVIVE_GRACE_PERIOD_MS) {
-                // Revive: kalo udah ke-refund, potong balik saldo user
                 if (order.refunded_at && Number(order.refunded_at) > 0) {
                     const refundAmount = Number(order.refunded_amount) || Number(order.price);
 
@@ -1811,7 +1832,6 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
                     try {
                         await client.query('BEGIN');
 
-                        // Potong balik saldo (cek cukup)
                         const deductRes = await client.query(
                             `UPDATE users SET balance = balance - $1, updated_at = NOW() 
                              WHERE id = $2 AND balance >= $1
@@ -1822,9 +1842,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
                         if (deductRes.rowCount === 0) {
                             await client.query('ROLLBACK');
                             console.error(`⚠️ Revive gagal: saldo user ${order.user_id} tidak cukup untuk potong ${refundAmount}`);
-                            // Kalo gagal, tetap kirim OTP tapi ga revive
                         } else {
-                            // Reset refunded_at
                             await client.query(
                                 `UPDATE orders 
                                  SET status = 'received',
@@ -1865,7 +1883,6 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
                         client.release();
                     }
                 } else {
-                    // Belum di-refund, cuma cancelled/expired
                     await pool.query(
                         `UPDATE orders 
                          SET status = 'received',
@@ -1897,7 +1914,6 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             }
         }
 
-        // Kalo bukan revive, update normal
         if (!revived) {
             const updateFields = [];
             const updateParams = [];
@@ -1937,7 +1953,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CEK OTP (OPTIMIZED) =====
+// ===== CEK OTP =====
 // ============================================
 app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
@@ -2083,7 +2099,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CHECK & REFUND (auto) =====
+// ===== CHECK & REFUND =====
 // ============================================
 app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
     try {
@@ -2102,7 +2118,7 @@ app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== ORDERS STATS (FIXED #10) =====
+// ===== ORDERS STATS =====
 // ============================================
 app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     try {
@@ -2140,8 +2156,7 @@ app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== STATUS LOGS (FIXED #10) =====
-// ===== Count pake filter yang sama =====
+// ===== STATUS LOGS =====
 // ============================================
 app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
@@ -2150,7 +2165,6 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const offset = (pageNum - 1) * limitNum;
 
     try {
-        // Build query filters (dipake untuk data & count)
         const conditions = ['user_id = $1'];
         const baseParams = [req.user.id];
 
@@ -2165,7 +2179,6 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 
         const whereClause = conditions.join(' AND ');
 
-        // Parallel query
         const [result, countRes] = await Promise.all([
             pool.query(
                 `SELECT * FROM status_logs WHERE ${whereClause} 
@@ -2188,11 +2201,10 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CRON (with auth) =====
+// ===== CRON =====
 // ============================================
 app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
     try {
-        // Fix #18: limit 50, order by expired_at ASC (yang paling urgent dulu)
         const result = await pool.query(
             `SELECT * FROM orders 
              WHERE status = 'pending' AND created_at > NOW() - INTERVAL '30 minutes'
@@ -2202,7 +2214,6 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
 
         let updated = 0, expired = 0, refunded = 0;
 
-        // Batch processing: parallel chunks
         const chunks = [];
         for (let i = 0; i < result.rows.length; i += 10) {
             chunks.push(result.rows.slice(i, i + 10));
@@ -2286,7 +2297,6 @@ app.post('/api/cron/auto-refund-all', requireCron, withDB(async (req, res) => {
 
         let refunded = 0, totalAmount = 0;
 
-        // Parallel processing
         const chunks = [];
         for (let i = 0; i < result.rows.length; i += 10) {
             chunks.push(result.rows.slice(i, i + 10));
@@ -2382,6 +2392,7 @@ app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
 });
 
+// ===== SERVICES (dengan code mapping untuk 'khusus') =====
 app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi' } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -2395,7 +2406,12 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
 
     try {
         const data = await dibananaFetch(`/services?server=${encodeURIComponent(server)}`);
-        const response = { server, services: data.services || [] };
+        const rawServices = data.services || [];
+
+        // Enrich: inject `code` untuk server non-ekonomi dengan mapping dari ekonomi
+        const services = await enrichServicesWithCode(rawServices, server);
+
+        const response = { server, services };
         cacheSet(cacheKey, response, 5 * 60 * 1000);
         res.set('X-Cache', 'MISS');
         res.json(response);
@@ -2472,13 +2488,8 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — CREATE ORDER (MAJOR FIX) =====
-// ===== Fix #1, #2, #13, #14 =====
-// ===== 1. Pre-check saldo user =====
-// ===== 2. Pre-check saldo API/server =====
-// ===== 3. Abort early kalo ada yang kurang =====
-// ===== 4. Refund atomic (no double refund) =====
-// ===== 5. Order insert pake transaction =====
+// ===== NOKOS — CREATE ORDER (v10 FIX) =====
+// ===== Pre-check saldo lebih ketat =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     const startTime = Date.now();
@@ -2506,14 +2517,30 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     let saldoDeducted = false;
 
     try {
-        // ===== STEP 1: Pre-check saldo user =====
+        // ===== STEP 1: Ambil saldo user DULU =====
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         const userBalanceAtStart = Number(userRes.rows[0].balance);
 
-        const estimatedPrice = isPremium ? Number(provider_price) : 0;
+        // ===== STEP 2: Tentukan estimasi harga =====
+        let estimatedPrice = 0;
 
-        if (isPremium && userBalanceAtStart < estimatedPrice) {
+        if (isPremium) {
+            estimatedPrice = Number(provider_price);
+        } else {
+            // Non-premium: cari dari cache harga (di-set oleh /api/nokos/prices)
+            const cacheKey = `prices_${server}_${service}_${country}`;
+            const cachedPrices = cacheGet(cacheKey);
+            if (cachedPrices && Array.isArray(cachedPrices.providers)) {
+                const match = cachedPrices.providers.find(p => String(p.id) === String(id));
+                if (match && match.price_idr) {
+                    estimatedPrice = Number(match.price_idr);
+                }
+            }
+        }
+
+        // ===== STEP 3: Cek saldo user >= estimasi =====
+        if (estimatedPrice > 0 && userBalanceAtStart < estimatedPrice) {
             return res.status(400).json({
                 error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
                 code: 'INSUFFICIENT_USER_BALANCE',
@@ -2522,8 +2549,17 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // ===== STEP 2: Pre-check saldo API/server provider =====
-        // Skip kalo provider ga support (bisa di-disable kalo API provider ga ada endpoint balance)
+        // Kalau saldo user 0, langsung tolak
+        if (userBalanceAtStart <= 0) {
+            return res.status(400).json({
+                error: 'Saldo kamu kosong. Silakan deposit dulu.',
+                code: 'INSUFFICIENT_USER_BALANCE',
+                balance: userBalanceAtStart,
+                needed: estimatedPrice || 'unknown',
+            });
+        }
+
+        // ===== STEP 4: Pre-check saldo PROVIDER (khusus premium) =====
         if (isPremium) {
             try {
                 const providerBal = await getProviderBalance();
@@ -2538,7 +2574,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             }
         }
 
-        // ===== STEP 3: Panggil provider order =====
+        // ===== STEP 5: Panggil provider order =====
         let orderBody;
         if (isPremium) {
             orderBody = { server, service, country, provider_id, provider_price, operator };
@@ -2557,7 +2593,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // ===== STEP 4: Validasi response =====
+        // ===== STEP 6: Validasi response =====
         if (!data || !data.order_id) {
             return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
         }
@@ -2571,7 +2607,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ===== STEP 5: Final check saldo user >= price =====
+        // ===== STEP 7: Final check saldo user >= price dari provider =====
         if (userBalanceAtStart < price) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(400).json({
@@ -2582,7 +2618,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // ===== STEP 6: Insert order dulu (atomic) =====
+        // ===== STEP 8: Insert order + deduct saldo (atomic) =====
         const otpId = await generateOtpReferenceId();
         const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
 
@@ -2590,7 +2626,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
         try {
             await client.query('BEGIN');
 
-            // Insert order
             await client.query(
                 `INSERT INTO orders 
                  (user_id, order_id, otp_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
@@ -2604,7 +2639,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 ]
             );
 
-            // Deduct saldo (atomic)
             const deductRes = await client.query(
                 `UPDATE users 
                  SET balance = balance - $1, updated_at = NOW() 
@@ -2615,7 +2649,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
 
             if (deductRes.rowCount === 0) {
                 await client.query('ROLLBACK');
-                // Cancel provider order
                 try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
                 return res.status(400).json({
                     error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
@@ -2623,7 +2656,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 });
             }
 
-            // Insert transaction
             await client.query(
                 `INSERT INTO transactions 
                  (user_id, order_id, service_name, country, country_flag, phone_number, status, price)
@@ -2637,7 +2669,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 ]
             );
 
-            // Log
             await client.query(
                 `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -2674,10 +2705,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
         } catch (dbErr) {
             await client.query('ROLLBACK');
             console.error('DB insert error:', dbErr.message);
-
-            // Cancel provider order
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
-
             return res.status(500).json({ error: 'Gagal menyimpan order. Coba lagi.' });
         } finally {
             client.release();
@@ -2685,12 +2713,9 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
 
     } catch (err) {
         console.error('Create order error:', err);
-
-        // Cleanup: kalo provider order sukses tapi gagal di step lain
         if (providerOrderId && !saldoDeducted) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
         }
-
         res.status(err.status || 500).json({ error: err.message || 'Server error', code: err.code });
     }
 }));
@@ -2715,7 +2740,9 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 status: order.status, phone_number: order.phone_number,
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
-                service: order.service, country: order.country, operator: order.operator,
+                service: order.service, service_name: order.service_name,
+                country: order.country, country_name: order.country_name, country_flag: order.country_flag,
+                operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
                 refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason, created_at: order.created_at,
@@ -2756,6 +2783,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         res.json({
             ...data,
             otp_id: o.otp_id,
+            service: o.service,
+            service_name: o.service_name,
+            country: o.country,
+            country_name: o.country_name,
+            country_flag: o.country_flag,
+            operator: o.operator,
             refunded_at: o.refunded_at,
             refunded_amount: o.refunded_amount,
             refund_reason: o.refund_reason,
@@ -2768,8 +2801,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — RESEND (FIXED #19) =====
-// ===== Jangan allow kalo order udah final =====
+// ===== NOKOS — RESEND =====
 // ============================================
 app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
@@ -2800,7 +2832,6 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
 
         const order = orderRes.rows[0];
 
-        // Fix #19: cek status final dulu
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak perlu resend' });
         }
@@ -2840,7 +2871,6 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
 }));
 
 // ===== CONFIRM OTP ORDER =====
-// This endpoint is used by inbox.html after the user confirms the OTP worked.
 app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     const client = await pool.connect();
@@ -2892,8 +2922,7 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
 }));
 
 // ============================================
-// ===== NOKOS — CANCEL ORDER (FIXED #19) =====
-// ===== Jangan allow cancel kalo udah success =====
+// ===== NOKOS — CANCEL ORDER =====
 // ============================================
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
@@ -2906,7 +2935,6 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
 
         const order = orderRes.rows[0];
 
-        // Fix #19: jangan allow cancel kalo udah success
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak bisa dibatalkan' });
         }
@@ -3002,7 +3030,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — SYNC BATCH ORDERS =====
+// ===== NOKOS — SYNC BATCH =====
 // ============================================
 app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
     const { order_ids } = req.body;
@@ -3020,7 +3048,6 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 
         const updated = [];
 
-        // Parallel chunks
         const chunks = [];
         for (let i = 0; i < result.rows.length; i += 5) {
             chunks.push(result.rows.slice(i, i + 5));
@@ -3095,24 +3122,21 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
-// ===== ENV =====
-const API_CDN = process.env.API_CDN; // API key REST Countries
-
-// ===== PROXY COUNTRIES API (opsional) =====
+// ===== PROXY COUNTRIES API =====
 app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
     if (!API_CDN) return res.status(500).json({ error: 'API_CDN belum di-set' });
-    
+
     const code = String(req.params.code || '').toUpperCase();
     if (!/^[A-Z]{2}$/.test(code)) return res.status(400).json({ error: 'Kode negara tidak valid' });
-    
+
     const cacheKey = `country_${code}`;
     const cached = cacheGet(cacheKey);
     if (cached) return res.json(cached);
-    
+
     try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 8000);
-        
+
         const resp = await fetch(
             `https://api.restcountries.com/countries/v5?codes=${code}&pretty=1`,
             {
@@ -3121,11 +3145,11 @@ app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
             }
         );
         clearTimeout(timeout);
-        
+
         if (!resp.ok) throw new Error(`REST Countries error ${resp.status}`);
         const data = await resp.json();
-        
-        cacheSet(cacheKey, data, 24 * 60 * 60 * 1000); // cache 24 jam
+
+        cacheSet(cacheKey, data, 24 * 60 * 60 * 1000);
         res.json(data);
     } catch (err) {
         console.error('Countries API error:', err.message);
@@ -3135,11 +3159,12 @@ app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
 
 // ============================================
 // ===== STARTUP WARMUP =====
-// ===== Init schema sebelum request pertama biar ga lambat =====
 // ============================================
 (async () => {
     try {
         await ensureSchema();
+        // Warmup service code map
+        await getServiceCodeMap().catch(() => {});
         console.log('🚀 Server ready');
     } catch (err) {
         console.error('❌ Startup warmup failed:', err.message);
@@ -3151,6 +3176,6 @@ setInterval(async () => {
     try {
         await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`);
     } catch (err) {}
-}, 60 * 60 * 1000); // tiap 1 jam
+}, 60 * 60 * 1000);
 
 module.exports = app;
