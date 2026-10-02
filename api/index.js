@@ -1,5 +1,6 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v5)
+// ASYROFOTP - BACKEND API (FULL FIXED v6)
+// Auto-migration per request + bug fixes
 // ============================================
 
 const express = require('express');
@@ -73,11 +74,11 @@ const COUNTRY_NAMES = {
 const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 
-// ===== WEBHOOK OTP (dari provider Banana/OTP) =====
+// ===== WEBHOOK OTP =====
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 
 // ===== AUTO-VALIDATE CONFIG =====
-const ORDER_EXPIRY_MS = 15 * 60 * 1000; // 15 menit
+const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 
 // ===== QRIS DANA MANUAL =====
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
@@ -299,7 +300,7 @@ function generateUniqueCode() {
     return Math.floor(Math.random() * 900) + 100;
 }
 
-// ===== ANTI-DUPLIKAT REFERENCE ID (DEPOSIT) =====
+// ===== ANTI-DUPLIKAT REFERENCE ID =====
 async function generateUniqueReferenceId(maxRetries = 5) {
     for (let i = 0; i < maxRetries; i++) {
         const timestamp = Date.now();
@@ -312,9 +313,7 @@ async function generateUniqueReferenceId(maxRetries = 5) {
                 'SELECT 1 FROM deposits WHERE reference_id = $1 LIMIT 1',
                 [referenceId]
             );
-            if (check.rows.length === 0) {
-                return referenceId;
-            }
+            if (check.rows.length === 0) return referenceId;
         } catch (err) {
             console.error('Check reference ID error:', err.message);
         }
@@ -335,7 +334,7 @@ async function generateOtpReferenceId(maxRetries = 5) {
             );
             if (check.rows.length === 0) return otpId;
         } catch (err) {
-            // Column mungkin belum ada, skip
+            // Column belum ada, skip
         }
     }
     return `OTP${Date.now().toString().slice(-8)}`;
@@ -343,7 +342,6 @@ async function generateOtpReferenceId(maxRetries = 5) {
 
 // ============================================
 // ===== LOG STATUS CHANGE =====
-// ===== Simpen setiap perubahan status ke DB =====
 // ============================================
 async function logStatusChange({
     entityType,
@@ -380,42 +378,14 @@ async function logStatusChange({
 }
 
 // ============================================
-// ===== MIDDLEWARE =====
+// ===== SCHEMA DEFINITION =====
+// ===== Definisi semua tabel + kolom =====
 // ============================================
-function requireAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const token = authHeader.replace('Bearer ', '');
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET_FINAL);
-        req.user = decoded;
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Token invalid atau expired' });
-    }
-}
-
-function requireAdmin(req, res, next) {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-    next();
-}
-
-// ============================================
-// ===== INIT DATABASE =====
-// ============================================
-let dbInitialized = false;
-let dbInitPromise = null;
-
-async function initDatabase() {
-    if (dbInitialized) return;
-    if (dbInitPromise) return dbInitPromise;
-
-    dbInitPromise = (async () => {
-        try {
-            // ===== USERS =====
-            await pool.query(`
+const SCHEMA = {
+    tables: [
+        {
+            name: 'users',
+            create: `
                 CREATE TABLE IF NOT EXISTS users (
                     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                     username TEXT UNIQUE NOT NULL,
@@ -428,15 +398,228 @@ async function initDatabase() {
                     created_at TIMESTAMPTZ DEFAULT NOW(),
                     updated_at TIMESTAMPTZ DEFAULT NOW()
                 );
-            `);
+            `,
+            columns: [
+                { name: 'user_code', def: 'TEXT' },
+                { name: 'role', def: "TEXT DEFAULT 'user'" },
+                { name: 'status', def: "TEXT DEFAULT 'active'" },
+                { name: 'name', def: 'TEXT' },
+                { name: 'balance', def: 'BIGINT DEFAULT 0' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+            ],
+        },
+        {
+            name: 'orders',
+            create: `
+                CREATE TABLE IF NOT EXISTS orders (
+                    id SERIAL PRIMARY KEY,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    order_id TEXT UNIQUE,
+                    otp_id TEXT,
+                    server TEXT,
+                    service TEXT,
+                    service_name TEXT,
+                    country TEXT,
+                    country_name TEXT,
+                    country_flag TEXT,
+                    operator TEXT,
+                    phone_number TEXT,
+                    otp_code TEXT,
+                    otp_code_2 TEXT,
+                    full_sms TEXT,
+                    price BIGINT NOT NULL DEFAULT 0,
+                    status TEXT DEFAULT 'pending',
+                    expires_in INTEGER DEFAULT 0,
+                    resend_count INTEGER DEFAULT 0,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW(),
+                    received_at TIMESTAMPTZ,
+                    last_checked_at TIMESTAMPTZ,
+                    expired_at TIMESTAMPTZ
+                );
+            `,
+            columns: [
+                { name: 'otp_id', def: 'TEXT' },
+                { name: 'server', def: 'TEXT' },
+                { name: 'service', def: 'TEXT' },
+                { name: 'service_name', def: 'TEXT' },
+                { name: 'country', def: 'TEXT' },
+                { name: 'country_name', def: 'TEXT' },
+                { name: 'country_flag', def: 'TEXT' },
+                { name: 'operator', def: 'TEXT' },
+                { name: 'phone_number', def: 'TEXT' },
+                { name: 'otp_code', def: 'TEXT' },
+                { name: 'otp_code_2', def: 'TEXT' },
+                { name: 'full_sms', def: 'TEXT' },
+                { name: 'price', def: 'BIGINT DEFAULT 0' },
+                { name: 'status', def: "TEXT DEFAULT 'pending'" },
+                { name: 'expires_in', def: 'INTEGER DEFAULT 0' },
+                { name: 'resend_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'received_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_checked_at', def: 'TIMESTAMPTZ' },
+                { name: 'expired_at', def: 'TIMESTAMPTZ' },
+            ],
+        },
+        {
+            name: 'transactions',
+            create: `
+                CREATE TABLE IF NOT EXISTS transactions (
+                    id SERIAL PRIMARY KEY,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    order_id TEXT,
+                    service_name TEXT,
+                    country TEXT,
+                    country_flag TEXT,
+                    phone_number TEXT,
+                    otp_code TEXT,
+                    status TEXT DEFAULT 'pending',
+                    price BIGINT NOT NULL DEFAULT 0,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            `,
+            columns: [
+                { name: 'order_id', def: 'TEXT' },
+                { name: 'service_name', def: 'TEXT' },
+                { name: 'country', def: 'TEXT' },
+                { name: 'country_flag', def: 'TEXT' },
+                { name: 'phone_number', def: 'TEXT' },
+                { name: 'otp_code', def: 'TEXT' },
+                { name: 'status', def: "TEXT DEFAULT 'pending'" },
+                { name: 'price', def: 'BIGINT DEFAULT 0' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+            ],
+        },
+        {
+            name: 'deposits',
+            create: `
+                CREATE TABLE IF NOT EXISTS deposits (
+                    id SERIAL PRIMARY KEY,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    reference_id TEXT UNIQUE,
+                    method TEXT NOT NULL,
+                    amount BIGINT NOT NULL,
+                    unique_code INTEGER,
+                    total_amount BIGINT,
+                    fee BIGINT DEFAULT 0,
+                    status TEXT DEFAULT 'pending',
+                    qris_id TEXT,
+                    qris_url TEXT,
+                    qris_string TEXT,
+                    payment_reference TEXT,
+                    paid_at TIMESTAMPTZ,
+                    expires_at TIMESTAMPTZ,
+                    created_at TIMESTAMPTZ DEFAULT NOW(),
+                    updated_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            `,
+            columns: [
+                { name: 'unique_code', def: 'INTEGER' },
+                { name: 'total_amount', def: 'BIGINT' },
+                { name: 'fee', def: 'BIGINT DEFAULT 0' },
+                { name: 'qris_id', def: 'TEXT' },
+                { name: 'qris_url', def: 'TEXT' },
+                { name: 'qris_string', def: 'TEXT' },
+                { name: 'payment_reference', def: 'TEXT' },
+                { name: 'paid_at', def: 'TIMESTAMPTZ' },
+                { name: 'expires_at', def: 'TIMESTAMPTZ' },
+            ],
+        },
+        {
+            name: 'status_logs',
+            create: `
+                CREATE TABLE IF NOT EXISTS status_logs (
+                    id SERIAL PRIMARY KEY,
+                    entity_type TEXT NOT NULL,
+                    entity_id TEXT NOT NULL,
+                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                    old_status TEXT,
+                    new_status TEXT NOT NULL,
+                    reason TEXT,
+                    metadata JSONB,
+                    created_at TIMESTAMPTZ DEFAULT NOW()
+                );
+            `,
+            columns: [],
+        },
+    ],
+    indexes: [
+        'CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
+        'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
+    ],
+};
 
-            await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS user_code TEXT;`);
+// ============================================
+// ===== ENSURE SCHEMA =====
+// ===== Cek kolom ada apa belum, kalo belum bikin =====
+// ============================================
+let schemaEnsured = false;
+let schemaPromise = null;
 
+async function ensureSchema() {
+    if (schemaEnsured) return;
+    if (schemaPromise) return schemaPromise;
+
+    schemaPromise = (async () => {
+        try {
+            console.log('🔧 Ensuring schema...');
+
+            // Step 1: Create tables
+            for (const table of SCHEMA.tables) {
+                await pool.query(table.create);
+            }
+
+            // Step 2: Ensure columns (idempotent)
+            for (const table of SCHEMA.tables) {
+                if (!table.columns || table.columns.length === 0) continue;
+
+                for (const col of table.columns) {
+                    try {
+                        await pool.query(
+                            `ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`
+                        );
+                    } catch (err) {
+                        // Kalo error karena duplicate, skip
+                        if (!err.message.includes('already exists')) {
+                            console.error(`Add column ${table.name}.${col.name} error:`, err.message);
+                        }
+                    }
+                }
+            }
+
+            // Step 3: Ensure indexes
+            for (const idxSql of SCHEMA.indexes) {
+                try {
+                    await pool.query(idxSql);
+                } catch (err) {
+                    if (!err.message.includes('already exists')) {
+                        console.error(`Create index error:`, err.message);
+                    }
+                }
+            }
+
+            // Step 4: User code function + trigger
             await pool.query(`
                 DO $$
                 BEGIN
                     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key') THEN
-                        ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
+                        BEGIN
+                            ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
+                        EXCEPTION WHEN others THEN NULL;
+                        END;
                     END IF;
                 END $$;
             `);
@@ -480,148 +663,60 @@ async function initDatabase() {
 
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
 
-            // ===== ORDERS =====
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS orders (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    order_id TEXT UNIQUE,
-                    otp_id TEXT,
-                    server TEXT,
-                    service TEXT,
-                    service_name TEXT,
-                    country TEXT,
-                    country_name TEXT,
-                    country_flag TEXT,
-                    operator TEXT,
-                    phone_number TEXT,
-                    otp_code TEXT,
-                    otp_code_2 TEXT,
-                    full_sms TEXT,
-                    price BIGINT NOT NULL DEFAULT 0,
-                    status TEXT DEFAULT 'pending',
-                    expires_in INTEGER DEFAULT 0,
-                    resend_count INTEGER DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    received_at TIMESTAMPTZ,
-                    last_checked_at TIMESTAMPTZ,
-                    expired_at TIMESTAMPTZ
-                );
-            `);
-
-            const orderCols = [
-                'server TEXT', 'service TEXT', 'service_name TEXT',
-                'country TEXT', 'country_name TEXT', 'country_flag TEXT',
-                'operator TEXT', 'phone_number TEXT', 'otp_code TEXT',
-                'otp_code_2 TEXT', 'full_sms TEXT', 'price BIGINT DEFAULT 0',
-                'status TEXT DEFAULT \'pending\'', 'expires_in INTEGER DEFAULT 0',
-                'resend_count INTEGER DEFAULT 0', 'received_at TIMESTAMPTZ',
-                'created_at TIMESTAMPTZ DEFAULT NOW()', 'updated_at TIMESTAMPTZ DEFAULT NOW()',
-                'otp_id TEXT', 'last_checked_at TIMESTAMPTZ', 'expired_at TIMESTAMPTZ',
-            ];
-            for (const col of orderCols) {
-                await pool.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS ${col};`);
-            }
-
-            // ===== TRANSACTIONS =====
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    order_id TEXT,
-                    service_name TEXT,
-                    country TEXT,
-                    country_flag TEXT,
-                    phone_number TEXT,
-                    otp_code TEXT,
-                    status TEXT DEFAULT 'pending',
-                    price BIGINT NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `);
-
-            const txCols = [
-                'order_id TEXT', 'service_name TEXT', 'country TEXT',
-                'country_flag TEXT', 'phone_number TEXT', 'otp_code TEXT',
-                'status TEXT DEFAULT \'pending\'', 'price BIGINT DEFAULT 0',
-                'created_at TIMESTAMPTZ DEFAULT NOW()', 'updated_at TIMESTAMPTZ DEFAULT NOW()',
-            ];
-            for (const col of txCols) {
-                await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS ${col};`);
-            }
-
-            // ===== DEPOSITS =====
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS deposits (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    reference_id TEXT UNIQUE,
-                    method TEXT NOT NULL,
-                    amount BIGINT NOT NULL,
-                    unique_code INTEGER,
-                    total_amount BIGINT,
-                    fee BIGINT DEFAULT 0,
-                    status TEXT DEFAULT 'pending',
-                    qris_id TEXT,
-                    qris_url TEXT,
-                    qris_string TEXT,
-                    payment_reference TEXT,
-                    paid_at TIMESTAMPTZ,
-                    expires_at TIMESTAMPTZ,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `);
-
-            const depositCols = [
-                'unique_code INTEGER', 'total_amount BIGINT', 'fee BIGINT DEFAULT 0',
-                'qris_id TEXT', 'qris_url TEXT', 'qris_string TEXT',
-                'payment_reference TEXT', 'paid_at TIMESTAMPTZ', 'expires_at TIMESTAMPTZ',
-            ];
-            for (const col of depositCols) {
-                await pool.query(`ALTER TABLE deposits ADD COLUMN IF NOT EXISTS ${col};`);
-            }
-
-            // ===== STATUS LOGS =====
-            await pool.query(`
-                CREATE TABLE IF NOT EXISTS status_logs (
-                    id SERIAL PRIMARY KEY,
-                    entity_type TEXT NOT NULL,
-                    entity_id TEXT NOT NULL,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    old_status TEXT,
-                    new_status TEXT NOT NULL,
-                    reason TEXT,
-                    metadata JSONB,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `);
-
-            // ===== INDEXES =====
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC);`);
-            await pool.query(`CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC);`);
-
-            dbInitialized = true;
-            console.log('✅ Database initialized');
+            schemaEnsured = true;
+            console.log('✅ Schema ensured');
         } catch (err) {
-            console.error('❌ Database init failed:', err.message);
-            dbInitPromise = null;
+            console.error('❌ Ensure schema failed:', err.message);
+            schemaPromise = null;
             throw err;
         }
     })();
 
-    return dbInitPromise;
+    return schemaPromise;
+}
+
+// ===== Shorthand alias =====
+async function initDatabase() {
+    return ensureSchema();
+}
+
+// ============================================
+// ===== withDB WRAPPER =====
+// ===== Auto-ensure schema sebelum handler =====
+// ============================================
+function withDB(handler) {
+    return async (req, res, next) => {
+        try {
+            await ensureSchema();
+        } catch (err) {
+            console.error('withDB ensureSchema error:', err.message);
+            return res.status(500).json({ error: 'Database tidak siap' });
+        }
+        return handler(req, res, next);
+    };
+}
+
+// ============================================
+// ===== MIDDLEWARE =====
+// ============================================
+function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET_FINAL);
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Token invalid atau expired' });
+    }
+}
+
+function requireAdmin(req, res, next) {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    next();
 }
 
 // ============================================
@@ -662,7 +757,6 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
         ]
     );
 
-    // LOG
     await logStatusChange({
         entityType: 'deposit',
         entityId: deposit.reference_id,
@@ -688,7 +782,6 @@ async function syncDepositStatus(deposit) {
     const now = new Date();
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
 
-    // ===== QRIS DANA (manual) =====
     if (deposit.method === 'qris_dana') {
         if (deposit.status === 'pending' && expiresAt && expiresAt < now) {
             const upd = await pool.query(
@@ -711,7 +804,6 @@ async function syncDepositStatus(deposit) {
         return deposit;
     }
 
-    // ===== QRISPY =====
     if (deposit.method === 'qrispy' && deposit.status === 'pending') {
         if (expiresAt && expiresAt < now) {
             if (deposit.qris_id) {
@@ -845,7 +937,6 @@ async function autoCancelAndRefund(order) {
         [String(o.order_id)]
     );
 
-    // LOG
     await logStatusChange({
         entityType: 'order',
         entityId: o.order_id,
@@ -874,10 +965,13 @@ async function autoCancelAndRefund(order) {
 // ============================================
 // ===== HEALTH =====
 // ============================================
-app.get('/api/health', async (req, res) => {
+app.get('/api/health', withDB(async (req, res) => {
     try {
-        await initDatabase();
         const result = await pool.query('SELECT NOW() as time');
+        const colCheck = await pool.query(`
+            SELECT column_name FROM information_schema.columns 
+            WHERE table_name = 'orders' AND column_name IN ('otp_id', 'last_checked_at', 'expired_at')
+        `);
         res.json({
             status: 'ok',
             time: result.rows[0].time,
@@ -885,18 +979,18 @@ app.get('/api/health', async (req, res) => {
             hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
             hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
             hasJwtSecret: !!JWT_SECRET,
+            schemaEnsured,
+            columnsPresent: colCheck.rows.map(r => r.column_name),
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
-});
+}));
 
 // ============================================
 // ===== AUTH =====
 // ============================================
-app.post('/api/auth/register', rateLimit(10, 60 * 1000), async (req, res) => {
-    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
-
+app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { username, password, name } = req.body;
 
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
@@ -918,11 +1012,9 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), async (req, res) => {
         console.error('Register error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
-app.post('/api/auth/login', rateLimit(20, 60 * 1000), async (req, res) => {
-    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
-
+app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
 
@@ -946,9 +1038,9 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), async (req, res) => {
         console.error('Login error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
-app.get('/api/user', requireAuth, async (req, res) => {
+app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             'SELECT id, username, name, balance, role, user_code, created_at FROM users WHERE id = $1',
@@ -959,9 +1051,9 @@ app.get('/api/user', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
-app.post('/api/user/update', requireAuth, async (req, res) => {
+app.post('/api/user/update', requireAuth, withDB(async (req, res) => {
     const { name } = req.body;
     if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Nama minimal 2 karakter' });
     if (name.trim().length > 50) return res.status(400).json({ error: 'Nama maksimal 50 karakter' });
@@ -975,9 +1067,9 @@ app.post('/api/user/update', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
-app.post('/api/user/change-password', requireAuth, async (req, res) => {
+app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) return res.status(400).json({ error: 'Semua field wajib diisi' });
     if (new_password.length < 6) return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
@@ -995,9 +1087,9 @@ app.post('/api/user/change-password', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
-app.get('/api/dashboard', requireAuth, async (req, res) => {
+app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
@@ -1014,7 +1106,7 @@ app.get('/api/dashboard', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 app.post('/api/auth/logout', requireAuth, (req, res) => {
     res.json({ message: 'Logout berhasil' });
@@ -1050,23 +1142,20 @@ app.get('/api/deposit/presets', requireAuth, (req, res) => {
 // ============================================
 // ===== DEPOSIT — GENERATE REFERENCE ID =====
 // ============================================
-app.post('/api/deposit/generate-ref', requireAuth, async (req, res) => {
+app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
     try {
-        await initDatabase();
         const referenceId = await generateUniqueReferenceId();
         res.json({ reference_id: referenceId });
     } catch (err) {
         console.error('Generate ref error:', err);
         res.status(500).json({ error: 'Gagal generate reference ID' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — SAVE QRISPY =====
 // ============================================
-app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
-    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
-
+app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -1097,7 +1186,6 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
             [req.user.id, reference_id, 'qrispy', Number(amount), Number(amount), 0, 'pending', qris_id, qris_url, reference_id, new Date(expired_at)]
         );
 
-        // LOG
         await logStatusChange({
             entityType: 'deposit',
             entityId: reference_id,
@@ -1120,14 +1208,12 @@ app.post('/api/deposit/qrispy-save', requireAuth, async (req, res) => {
         console.error('Save deposit error:', err);
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — QRIS DANA MANUAL =====
 // ============================================
-app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
-    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
-
+app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
     const { amount } = req.body;
     if (!amount || amount < 1000) return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
     if (amount > 10000000) return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
@@ -1145,7 +1231,6 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
             [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, new Date(Date.now() + 30 * 60 * 1000)]
         );
 
-        // LOG
         await logStatusChange({
             entityType: 'deposit',
             entityId: referenceId,
@@ -1171,12 +1256,12 @@ app.post('/api/deposit/qris-dana', requireAuth, async (req, res) => {
         console.error('QRIS DANA deposit error:', err);
         res.status(500).json({ error: err.message });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — CEK STATUS (POLLING) =====
 // ============================================
-app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
+app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
@@ -1198,12 +1283,12 @@ app.get('/api/deposit/:referenceId/status', requireAuth, async (req, res) => {
         console.error('Check deposit status error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — UPDATE FEE =====
 // ============================================
-app.post('/api/deposit/:referenceId/update-fee', requireAuth, async (req, res) => {
+app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
     const { total_amount, fee } = req.body;
 
@@ -1228,12 +1313,12 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, async (req, res) =
         console.error('Update fee error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — MARK EXPIRED =====
 // ============================================
-app.post('/api/deposit/:referenceId/expire', requireAuth, async (req, res) => {
+app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
@@ -1282,12 +1367,12 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, async (req, res) => {
         console.error('Expire deposit error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — CANCEL =====
 // ============================================
-app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
+app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
@@ -1314,7 +1399,6 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
             [deposit.id]
         );
 
-        // LOG
         await logStatusChange({
             entityType: 'deposit',
             entityId: deposit.reference_id,
@@ -1330,12 +1414,12 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, async (req, res) => {
         console.error('Cancel deposit error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — LIST (PAGINATION) =====
 // ============================================
-app.get('/api/deposit/history', requireAuth, async (req, res) => {
+app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 5));
     const status = req.query.status;
@@ -1367,12 +1451,12 @@ app.get('/api/deposit/history', requireAuth, async (req, res) => {
         console.error('List deposits error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== DEPOSIT — SYNC BATCH =====
 // ============================================
-app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
+app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     const { reference_ids } = req.body;
 
     if (!Array.isArray(reference_ids) || reference_ids.length === 0) {
@@ -1401,12 +1485,12 @@ app.post('/api/deposit/sync-batch', requireAuth, async (req, res) => {
         console.error('Sync batch error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== ADMIN — APPROVE DEPOSIT MANUAL =====
 // ============================================
-app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, async (req, res) => {
+app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
@@ -1424,12 +1508,12 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, a
         console.error('Approve error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== WEBHOOK QRISPY =====
 // ============================================
-app.post('/api/webhook/qrispy', async (req, res) => {
+app.post('/api/webhook/qrispy', withDB(async (req, res) => {
     try {
         const signature = req.headers['x-qrispy-signature'];
         if (!signature) return res.status(401).json({ error: 'No signature' });
@@ -1470,16 +1554,13 @@ app.post('/api/webhook/qrispy', async (req, res) => {
         console.error('Webhook error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== WEBHOOK OTP (dari provider Banana/OTP) =====
-// ===== Header: X-Banana-Signature: sha256=<hmac> =====
 // ============================================
-app.post('/api/webhook/otp1', async (req, res) => {
+app.post('/api/webhook/otp1', withDB(async (req, res) => {
     try {
-        await initDatabase();
-
         if (!WEBHOOK_OTP1_SECRET) {
             console.error('Webhook OTP1: WEBHOOK_OTP1 not set');
             return res.status(500).json({ error: 'Webhook secret not configured' });
@@ -1559,7 +1640,6 @@ app.post('/api/webhook/otp1', async (req, res) => {
             [otpCode || null, String(order.order_id)]
         );
 
-        // LOG
         await logStatusChange({
             entityType: 'order',
             entityId: String(order.order_id),
@@ -1581,12 +1661,12 @@ app.post('/api/webhook/otp1', async (req, res) => {
         console.error('Webhook OTP1 error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== CEK OTP — POLLING / MANUAL =====
 // ============================================
-app.post('/api/cekotp', requireAuth, async (req, res) => {
+app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
 
     if (!order_id && !otp_id) {
@@ -1621,7 +1701,6 @@ app.post('/api/cekotp', requireAuth, async (req, res) => {
             });
         }
 
-        // Cek expired lokal
         if (order.expired_at && new Date(order.expired_at) < new Date()) {
             const cancelResult = await autoCancelAndRefund(order);
             return res.json({
@@ -1661,7 +1740,6 @@ app.post('/api/cekotp', requireAuth, async (req, res) => {
                     [data.status, data.otp_code, String(order.order_id)]
                 );
 
-                // LOG
                 if (data.status !== order.status) {
                     await logStatusChange({
                         entityType: 'order',
@@ -1718,12 +1796,12 @@ app.post('/api/cekotp', requireAuth, async (req, res) => {
         console.error('CekOTP error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
-// ===== STATUS LOGS — LIHAT RIWAYAT =====
+// ===== STATUS LOGS =====
 // ============================================
-app.get('/api/status-logs', requireAuth, async (req, res) => {
+app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
@@ -1761,12 +1839,12 @@ app.get('/api/status-logs', requireAuth, async (req, res) => {
         console.error('Get status logs error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== CRON: AUTO-VALIDATE PENDING ORDERS =====
 // ============================================
-app.post('/api/cron/validate-pending-orders', async (req, res) => {
+app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM orders 
@@ -1810,7 +1888,6 @@ app.post('/api/cron/validate-pending-orders', async (req, res) => {
                         [data.status, data.otp_code, String(order.order_id)]
                     );
 
-                    // LOG
                     if (data.status !== order.status) {
                         await logStatusChange({
                             entityType: 'order',
@@ -1849,12 +1926,12 @@ app.post('/api/cron/validate-pending-orders', async (req, res) => {
         console.error('Auto-validate error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== CRON: AUTO-EXPIRE PENDING DEPOSITS =====
 // ============================================
-app.post('/api/cron/expire-pending-deposits', async (req, res) => {
+app.post('/api/cron/expire-pending-deposits', withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM deposits 
@@ -1876,12 +1953,12 @@ app.post('/api/cron/expire-pending-deposits', async (req, res) => {
         console.error('Cron expire error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== CRON: SYNC PENDING QRISPY =====
 // ============================================
-app.post('/api/cron/sync-pending-qrispy', async (req, res) => {
+app.post('/api/cron/sync-pending-qrispy', withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM deposits 
@@ -1904,7 +1981,7 @@ app.post('/api/cron/sync-pending-qrispy', async (req, res) => {
         console.error('Cron sync error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — SERVERS =====
@@ -1921,7 +1998,7 @@ app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers });
 });
 
-app.get('/api/nokos/services', requireAuth, async (req, res) => {
+app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi' } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
 
@@ -1938,9 +2015,9 @@ app.get('/api/nokos/services', requireAuth, async (req, res) => {
         console.error('Get services error:', err.message);
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
-app.get('/api/nokos/countries', requireAuth, async (req, res) => {
+app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
 
@@ -1976,9 +2053,9 @@ app.get('/api/nokos/countries', requireAuth, async (req, res) => {
     const response = { server, countries };
     cacheSet(cacheKey, response, 5 * 60 * 1000);
     res.json(response);
-});
+}));
 
-app.get('/api/nokos/prices', requireAuth, async (req, res) => {
+app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
     if (!service || !country) return res.status(400).json({ error: 'Service dan country wajib' });
@@ -1996,14 +2073,12 @@ app.get('/api/nokos/prices', requireAuth, async (req, res) => {
         console.error('Get prices error:', err.message);
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — CREATE ORDER =====
 // ============================================
-app.post('/api/nokos/order', requireAuth, async (req, res) => {
-    try { await initDatabase(); } catch (err) { return res.status(500).json({ error: 'Database belum siap' }); }
-
+app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -2024,7 +2099,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
     let userBalanceAtStart = 0;
 
     try {
-        // STEP 1: Pre-check saldo
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         userBalanceAtStart = Number(userRes.rows[0].balance);
@@ -2034,7 +2108,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // STEP 2: Panggil provider
         let orderBody;
         if (isPremium) {
             orderBody = { server, service, country, provider_id, provider_price, operator };
@@ -2053,7 +2126,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             });
         }
 
-        // STEP 3: Validasi response
         if (!data || !data.order_id) {
             console.error('Provider response invalid:', data);
             return res.status(500).json({ error: 'Provider response tidak valid (no order_id)' });
@@ -2068,7 +2140,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid' });
         }
 
-        // STEP 4: Potong saldo ATOMIC
         const deductRes = await pool.query(
             `UPDATE users 
              SET balance = balance - $1, updated_at = NOW() 
@@ -2082,7 +2153,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
             return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
         }
 
-        // STEP 5: Insert ke DB dengan otp_id
         const otpId = await generateOtpReferenceId();
         const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
 
@@ -2113,7 +2183,6 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
                 ]
             );
 
-            // LOG
             await logStatusChange({
                 entityType: 'order',
                 entityId: String(providerOrderId),
@@ -2188,12 +2257,12 @@ app.post('/api/nokos/order', requireAuth, async (req, res) => {
 
         res.status(err.status || 500).json({ error: err.message || 'Server error', code: err.code });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — CHECK ORDER STATUS =====
 // ============================================
-app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
+app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
 
     try {
@@ -2224,7 +2293,6 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
                 [data.status, data.otp_code, String(orderId)]
             );
 
-            // LOG
             if (data.status !== order.status) {
                 await logStatusChange({
                     entityType: 'order',
@@ -2246,12 +2314,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, async (req, res) => {
         console.error('Check status error:', err);
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — RESEND (cuma kalo udah pernah dapet OTP) =====
 // ============================================
-app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
+app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
 
     try {
@@ -2287,7 +2355,6 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
             [data.status, String(orderId)]
         );
 
-        // LOG
         await logStatusChange({
             entityType: 'order',
             entityId: String(orderId),
@@ -2305,12 +2372,12 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — CANCEL ORDER =====
 // ============================================
-app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
+app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
         const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 AND user_id = $2', [String(orderId), req.user.id]);
@@ -2335,7 +2402,6 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
         await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
 
-        // LOG
         await logStatusChange({
             entityType: 'order',
             entityId: String(orderId),
@@ -2358,12 +2424,12 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — LIST ORDERS =====
 // ============================================
-app.get('/api/nokos/orders', requireAuth, async (req, res) => {
+app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     const { page = 1, limit = 20, status } = req.query;
     try {
         let query = 'SELECT * FROM orders WHERE user_id = $1';
@@ -2383,12 +2449,12 @@ app.get('/api/nokos/orders', requireAuth, async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== NOKOS — SYNC BATCH ORDERS =====
 // ============================================
-app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
+app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
     const { order_ids } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
         return res.json({ updated: [], count: 0 });
@@ -2426,7 +2492,6 @@ app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
                         [data.status, data.otp_code, String(order.order_id)]
                     );
 
-                    // LOG
                     if (data.status !== order.status) {
                         await logStatusChange({
                             entityType: 'order',
@@ -2452,19 +2517,19 @@ app.post('/api/nokos/sync-batch', requireAuth, async (req, res) => {
         console.error('Sync batch orders error:', err);
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 // ============================================
 // ===== ADMIN — SERVER BALANCE =====
 // ============================================
-app.get('/api/admin/server-balance', requireAuth, requireAdmin, async (req, res) => {
+app.get('/api/admin/server-balance', requireAuth, requireAdmin, withDB(async (req, res) => {
     try {
         const data = await dibananaFetch('/balance');
         res.json(data);
     } catch (err) {
         res.status(err.status || 500).json({ error: err.message, code: err.code });
     }
-});
+}));
 
 // ===== GLOBAL ERROR HANDLER =====
 app.use((err, req, res, next) => {
