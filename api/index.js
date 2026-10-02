@@ -3095,6 +3095,44 @@ app.use((err, req, res, next) => {
     res.status(500).json({ error: 'Internal server error' });
 });
 
+// ===== ENV =====
+const API_CDN = process.env.API_CDN; // API key REST Countries
+
+// ===== PROXY COUNTRIES API (opsional) =====
+app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
+    if (!API_CDN) return res.status(500).json({ error: 'API_CDN belum di-set' });
+    
+    const code = String(req.params.code || '').toUpperCase();
+    if (!/^[A-Z]{2}$/.test(code)) return res.status(400).json({ error: 'Kode negara tidak valid' });
+    
+    const cacheKey = `country_${code}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return res.json(cached);
+    
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        
+        const resp = await fetch(
+            `https://api.restcountries.com/countries/v5?codes=${code}&pretty=1`,
+            {
+                signal: controller.signal,
+                headers: { 'Authorization': `Bearer ${API_CDN}` }
+            }
+        );
+        clearTimeout(timeout);
+        
+        if (!resp.ok) throw new Error(`REST Countries error ${resp.status}`);
+        const data = await resp.json();
+        
+        cacheSet(cacheKey, data, 24 * 60 * 60 * 1000); // cache 24 jam
+        res.json(data);
+    } catch (err) {
+        console.error('Countries API error:', err.message);
+        res.status(500).json({ error: 'Gagal fetch data negara' });
+    }
+}));
+
 // ============================================
 // ===== STARTUP WARMUP =====
 // ===== Init schema sebelum request pertama biar ga lambat =====
