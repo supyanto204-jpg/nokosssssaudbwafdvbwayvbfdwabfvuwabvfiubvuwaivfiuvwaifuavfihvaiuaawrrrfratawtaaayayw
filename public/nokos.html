@@ -48,7 +48,6 @@
             border-radius: 18px;
             background: linear-gradient(135deg, #3b82f6, #7c3aed);
             background-size: 200% 200%;
-            animation: gradientMove 5s ease infinite;
             border: 2.5px solid var(--border-dark);
             display: flex;
             align-items: center;
@@ -58,17 +57,6 @@
             flex-shrink: 0;
             position: relative;
             overflow: hidden;
-        }
-
-        .nokos-hero-icon::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
-            animation: shine 3s infinite;
         }
 
         .nokos-hero-icon .icon-svg {
@@ -144,6 +132,11 @@
             width: 100%; height: 100%;
             object-fit: contain;
             display: block;
+        }
+        .app-icon-wrap img.app-icon-lazy:not([src]),
+        .app-icon-wrap img.app-icon-lazy[src=""] {
+            background: var(--bg-light);
+            border-radius: 4px;
         }
         .app-icon-wrap .icon-fallback {
             font-size: 0.7rem;
@@ -1279,6 +1272,18 @@
             background: var(--bg-light);
         }
 
+        .country-inline {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .country-inline .flag-img {
+            width: 20px; height: 15px;
+            border-radius: 3px;
+            border: 1px solid var(--border-dark);
+            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
+        }
+
         /* ============================================
            SYNC INDICATOR
            ============================================ */
@@ -1630,6 +1635,15 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
+       UTIL: escapeHtml (dibutuhkan semua render)
+       ============================================ */
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+    }
+
+    /* ============================================
        NOKOS SCRIPT
        ============================================ */
     const token = localStorage.getItem('access_token');
@@ -1647,7 +1661,7 @@
     };
 
     /* ============================================
-       APP ICON CDN HELPER
+       APP ICON CDN HELPER — LAZY LOAD
        ============================================ */
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
     function getAppIconUrl(serviceCode) {
@@ -1655,23 +1669,65 @@
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
         return `${APP_CDN_BASE}/${code}.png`;
     }
-    /* Render icon app dari kode `service`. Fallback: huruf awal nama */
-    function renderAppIcon(serviceCode, serviceName, size = 'small') {
+
+    /* Lazy loader — icon cuma di-load saat masuk viewport */
+    function renderAppIcon(serviceCode, serviceName) {
         const name = String(serviceName || serviceCode || '?').trim();
         const initial = String(name).charAt(0).toUpperCase() || '?';
         const url = getAppIconUrl(serviceCode);
         if (!url) {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
+        /* Simpan URL di data-src, nanti di-load sama IntersectionObserver */
+        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}"
+                     class="app-icon-lazy"
                      onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
+    }
+
+    /* IntersectionObserver global — 1 observer untuk semua icon */
+    let appIconObserver = null;
+    function getAppIconObserver() {
+        if (appIconObserver) return appIconObserver;
+        if (!('IntersectionObserver' in window)) {
+            appIconObserver = {
+                observe(el) {
+                    const img = el.matches('img.app-icon-lazy') ? el : el.querySelector('img.app-icon-lazy');
+                    if (img && img.dataset.src) {
+                        img.src = img.dataset.src;
+                        img.removeAttribute('data-src');
+                    }
+                }
+            };
+            return appIconObserver;
+        }
+        appIconObserver = new IntersectionObserver((entries, obs) => {
+            entries.forEach(entry => {
+                if (!entry.isIntersecting) return;
+                const img = entry.target;
+                if (img.dataset.src) {
+                    img.src = img.dataset.src;
+                    img.removeAttribute('data-src');
+                }
+                obs.unobserve(img);
+            });
+        }, {
+            rootMargin: '100px',
+            threshold: 0.01,
+        });
+        return appIconObserver;
+    }
+
+    function observeAppIcons(root = document) {
+        const observer = getAppIconObserver();
+        root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => {
+            observer.observe(img);
+        });
     }
 
     /* ============================================
        REST COUNTRIES API — enrich nama negara
        ============================================ */
-    /* Cache in-memory nama negara dari restcountries */
     const countryNameCache = new Map();
     async function fetchCountryNameFromAPI(code) {
         if (!code) return null;
@@ -1683,9 +1739,6 @@
             });
             if (!res.ok) throw new Error('Gagal');
             const data = await safeJson(res);
-            /* REST Countries API v5 response shape:
-               { data: { objects: [ { names: { common, official }, ... } ] } }
-               Tapi backend bisa juga return yang sudah di-flatten. Handle both. */
             let name = null;
             if (data?.data?.objects?.[0]?.names?.common) {
                 name = data.data.objects[0].names.common;
@@ -1703,7 +1756,6 @@
             return null;
         }
     }
-    /* Batch enrich: ambil nama-nama negara dari list, fetch parallel (max 5 concurrent) */
     async function enrichCountryNames(countries) {
         if (!countries || countries.length === 0) return;
         const needFetch = countries.filter(c => {
@@ -1712,7 +1764,6 @@
         });
         if (needFetch.length === 0) return;
 
-        /* Batch 5 concurrent */
         const chunks = [];
         for (let i = 0; i < needFetch.length; i += 5) {
             chunks.push(needFetch.slice(i, i + 5));
@@ -1721,7 +1772,6 @@
             await Promise.all(chunk.map(c => fetchCountryNameFromAPI(c.code)));
         }
 
-        /* Update nama di `countries` (mutate) */
         countries.forEach(c => {
             const key = String(c.code || '').toLowerCase();
             const apiName = countryNameCache.get(key);
@@ -1938,7 +1988,6 @@
         document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
     });
 
-    /* ===== CACHE HELPERS ===== */
     function getActiveOrdersCacheKey() {
         return 'nokos_active_orders';
     }
@@ -1978,7 +2027,7 @@
                             <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </div>
                         <h3>Gagal memuat pesanan</h3>
-                        <p>${err.message || 'Coba refresh halaman'}</p>
+                        <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
                     </div>
                 `;
             }
@@ -2109,6 +2158,9 @@
                 cancelOrder(btn.dataset.cancel, btn);
             });
         });
+
+        /* Lazy load icon app */
+        observeAppIcons(container);
 
         startCountdowns();
     }
@@ -2344,14 +2396,14 @@
             body.innerHTML = `
                 <div class="server-list">
                     ${data.servers.map(s => `
-                        <button class="server-card" type="button" data-server="${s.id}" data-label="${s.label}" data-operator="${s.requiresOperator}">
+                        <button class="server-card" type="button" data-server="${escapeHtml(s.id)}" data-label="${escapeHtml(s.label)}" data-operator="${s.requiresOperator}">
                             <div class="server-icon">${ICONS.server}</div>
                             <div class="server-info">
                                 <div class="server-title">
-                                    ${s.label}
-                                    ${s.badge ? `<span class="server-badge">${s.badge}</span>` : ''}
+                                    ${escapeHtml(s.label)}
+                                    ${s.badge ? `<span class="server-badge">${escapeHtml(s.badge)}</span>` : ''}
                                 </div>
-                                <div class="server-desc">${s.desc || ''}</div>
+                                <div class="server-desc">${escapeHtml(s.desc || '')}</div>
                             </div>
                             <div class="server-arrow">
                                 <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
@@ -2373,7 +2425,7 @@
             });
         } catch (err) {
             console.error(err);
-            body.innerHTML = `<div class="empty-block"><h3>Gagal memuat server</h3><p>${err.message}</p></div>`;
+            body.innerHTML = `<div class="empty-block"><h3>Gagal memuat server</h3><p>${escapeHtml(err.message)}</p></div>`;
         }
     }
 
@@ -2422,12 +2474,12 @@
         } catch (err) {
             console.error(err);
             if (!cached) {
-                document.getElementById('appContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>${err.message}</p></div>`;
+                document.getElementById('appContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
         }
     }
 
-    /* Render grid app + icon dari CDN assets.cindigital.id */
+    /* Render grid app — icon lazy load */
     function renderApps(services) {
         const content = document.getElementById('appContent');
         if (!content) return;
@@ -2457,6 +2509,9 @@
                 goToStep(3);
             });
         });
+
+        /* Lazy load semua icon app yang baru dirender */
+        observeAppIcons(content);
     }
 
     /* ===== STEP 3: COUNTRY ===== */
@@ -2483,15 +2538,17 @@
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
 
+        /* Lazy load icon di selected card */
+        observeAppIcons(body);
+
         const cacheKey = `countries_${state.server}_${state.service}`;
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value && cached.value.countries) {
-            /* Enrich dulu dari cache API (kalau ada) */
             enrichCountryNames(cached.value.countries).then(() => {
-                renderCountries(cached.value.countries);
+                if (state.step === 3) renderCountries(cached.value.countries);
             });
-            renderCountries(cached.value.countries); /* render cepat, nama bisa update setelah enrich */
+            renderCountries(cached.value.countries);
         }
 
         try {
@@ -2503,10 +2560,8 @@
 
             CacheManager.set(cacheKey, { countries });
 
-            /* Enrich nama negara dari REST Countries API (via backend proxy) */
-            renderCountries(countries); /* render cepat dulu */
+            renderCountries(countries);
             enrichCountryNames(countries).then(() => {
-                /* Re-render setelah nama negara ter-update */
                 if (state.step === 3) renderCountries(countries);
             });
 
@@ -2520,7 +2575,7 @@
         } catch (err) {
             console.error(err);
             if (!cached) {
-                document.getElementById('countryContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat negara</h3><p>${err.message}</p></div>`;
+                document.getElementById('countryContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat negara</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
         }
     }
@@ -2600,6 +2655,8 @@
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(3));
 
+        observeAppIcons(body);
+
         if (state.requiresOperator) {
             document.getElementById('operatorGrid').addEventListener('click', (e) => {
                 const btn = e.target.closest('.operator-item');
@@ -2639,7 +2696,7 @@
         } catch (err) {
             console.error(err);
             if (!cached) {
-                document.getElementById('priceContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat harga</h3><p>${err.message}</p></div>`;
+                document.getElementById('priceContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat harga</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
         }
     }
