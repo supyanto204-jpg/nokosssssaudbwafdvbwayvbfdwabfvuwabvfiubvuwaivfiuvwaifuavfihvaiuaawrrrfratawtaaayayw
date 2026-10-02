@@ -81,9 +81,9 @@
         }
         .inbox-tabs::-webkit-scrollbar { display: none; }
         .inbox-tab {
-            padding: 8px 18px;
+            padding: 8px 16px;
             border-radius: 50px;
-            font-size: 0.85rem;
+            font-size: 0.82rem;
             font-weight: 700;
             color: var(--text-gray);
             white-space: nowrap;
@@ -94,6 +94,9 @@
             font-family: var(--font-body);
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
         .inbox-tab:hover {
             color: var(--primary);
@@ -104,6 +107,24 @@
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
             border: 2px solid var(--border-dark);
+        }
+        .inbox-tab .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 50px;
+            background: var(--bg-hover);
+            color: var(--text-gray);
+            font-size: 0.62rem;
+            font-weight: 800;
+            font-family: var(--font-mono);
+        }
+        .inbox-tab.active .tab-count {
+            background: var(--primary);
+            color: white;
         }
 
         /* ===== ORDER CARD ===== */
@@ -230,6 +251,7 @@
         }
         .order-field-value.price { color: var(--primary); }
         .order-field-value.success { color: var(--success); }
+        .order-field-value.refunded { color: var(--purple); font-weight: 800; }
 
         /* ===== OTP BOX ===== */
         .otp-box {
@@ -311,6 +333,57 @@
             box-shadow: var(--shadow-hard-sm);
         }
         .otp-copy .icon-svg { width: 18px; height: 18px; }
+
+        /* ===== REFUND BOX ===== */
+        .refund-box {
+            background: var(--purple-light);
+            border: 2px solid var(--purple);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        [data-theme="dark"] .refund-box {
+            background: rgba(167, 139, 250, 0.15);
+        }
+        .refund-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: var(--purple);
+            color: white;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid var(--border-dark);
+        }
+        .refund-icon .icon-svg { width: 20px; height: 20px; }
+        .refund-info { flex: 1; min-width: 0; }
+        .refund-info-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--purple);
+            margin-bottom: 2px;
+        }
+        .refund-info-value {
+            font-size: 1.15rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            color: var(--purple);
+            letter-spacing: -0.02em;
+        }
+        [data-theme="dark"] .refund-info-value { color: var(--purple); }
+        .refund-note {
+            font-size: 0.7rem;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            margin-top: 2px;
+        }
 
         /* ===== PENDING ===== */
         .pending-box {
@@ -429,10 +502,6 @@
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
-        .page-btn:active:not(:disabled) {
-            transform: translate(1px, 1px);
-            box-shadow: none;
-        }
         .page-btn:disabled {
             opacity: 0.4;
             cursor: not-allowed;
@@ -456,6 +525,30 @@
             background: var(--bg-light);
         }
 
+        /* ===== SYNC INDICATOR ===== */
+        .sync-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 50px;
+            background: var(--primary-light);
+            color: var(--primary);
+            font-size: 0.72rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            border: 2px solid var(--primary);
+            margin-bottom: 16px;
+            animation: fadeIn 0.3s var(--ease);
+        }
+        .sync-indicator .loading-spinner {
+            width: 12px;
+            height: 12px;
+            border-width: 2px;
+            border-color: rgba(37, 99, 235, 0.2);
+            border-top-color: var(--primary);
+        }
+
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .inbox-hero-text h1 { font-size: 1.4rem; }
@@ -468,12 +561,16 @@
             .otp-info-value { font-size: 1.2rem; }
             .otp-icon { width: 36px; height: 36px; }
             .otp-copy { width: 36px; height: 36px; }
+            .refund-icon { width: 36px; height: 36px; }
+            .refund-info-value { font-size: 1rem; }
 
             .order-actions .btn {
                 min-width: 100%;
                 padding: 8px 12px;
                 font-size: 0.78rem;
             }
+
+            .inbox-tab { padding: 6px 12px; font-size: 0.75rem; }
         }
 
         @media (max-width: 480px) {
@@ -593,15 +690,36 @@
             </div>
             <div class="inbox-hero-text">
                 <h1>Inbox</h1>
-                <p>Kode OTP muncul otomatis di sini. Refresh tiap 5 detik, kalo ada kode baru langsung tampil.</p>
+                <p>Kode OTP muncul otomatis di sini. Refund otomatis kalau order expired atau gagal.</p>
             </div>
         </div>
 
+        <!-- SYNC INDICATOR -->
+        <div id="syncIndicator" class="sync-indicator" style="display:none;">
+            <span class="loading-spinner"></span>
+            <span>Cek refund & update status...</span>
+        </div>
+
+        <!-- TABS -->
         <div class="inbox-tabs" id="inboxTabs">
-            <button class="inbox-tab active" type="button" data-status="all">Semua</button>
-            <button class="inbox-tab" type="button" data-status="pending">Pending</button>
-            <button class="inbox-tab" type="button" data-status="success">Berhasil</button>
-            <button class="inbox-tab" type="button" data-status="failed">Gagal</button>
+            <button class="inbox-tab active" type="button" data-status="all">
+                Semua <span class="tab-count" data-count="all">0</span>
+            </button>
+            <button class="inbox-tab" type="button" data-status="pending">
+                Pending <span class="tab-count" data-count="pending">0</span>
+            </button>
+            <button class="inbox-tab" type="button" data-status="success">
+                Berhasil <span class="tab-count" data-count="success">0</span>
+            </button>
+            <button class="inbox-tab" type="button" data-status="failed">
+                Gagal <span class="tab-count" data-count="failed">0</span>
+            </button>
+            <button class="inbox-tab" type="button" data-status="expired">
+                Exp <span class="tab-count" data-count="expired">0</span>
+            </button>
+            <button class="inbox-tab" type="button" data-status="cancelled">
+                Dibatalkan <span class="tab-count" data-count="cancelled">0</span>
+            </button>
         </div>
 
         <div id="ordersContainer">
@@ -671,6 +789,7 @@
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
         clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+        coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
     };
 
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
@@ -860,7 +979,18 @@
         totalPages: 1,
         refreshInterval: null,
         countdownIntervals: {},
+        counts: { all: 0, pending: 0, success: 0, failed: 0, expired: 0, cancelled: 0 },
+        refundChecked: false,
     };
+
+    /* ===== CACHE KEY ===== */
+    function getCacheKey(page, status) {
+        return `inbox_orders_p${page}_s${status}`;
+    }
+
+    function getCountsCacheKey() {
+        return 'inbox_counts';
+    }
 
     /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
@@ -871,12 +1001,74 @@
         document.getElementById('balancePill').textContent = formatRupiah(user.balance);
     });
 
+    /* ===== CHECK REFUNDS (auto-refund) ===== */
+    async function checkRefunds() {
+        const indicator = document.getElementById('syncIndicator');
+        if (!state.refundChecked) {
+            indicator.style.display = 'inline-flex';
+        }
+
+        try {
+            const res = await fetch('/api/nokos/check-refunds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            const data = await safeJson(res);
+            if (data.refunded && data.refunded.length > 0) {
+                // Ada refund baru
+                console.log(`💰 ${data.refunded.length} order di-refund:`, data.refunded);
+
+                // Update balance
+                CacheManager.remove('user_profile');
+                swrFetch('/api/user', 'user_profile', (user) => {
+                    if (!user) return;
+                    document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                    document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                });
+
+                // Invalidate cache orders
+                invalidateInboxCache();
+
+                // Show alert kalo ada refund baru
+                const totalRefund = data.refunded.reduce((sum, r) => sum + (r.refunded_amount || 0), 0);
+                if (totalRefund > 0) {
+                    showCustomAlert({
+                        title: 'Refund Otomatis',
+                        message: `${data.refunded.length} pesanan di-refund. Total Rp${totalRefund.toLocaleString('id-ID')} udah masuk ke saldo kamu.`,
+                        type: 'success'
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Check refunds error:', err);
+        } finally {
+            state.refundChecked = true;
+            indicator.style.display = 'none';
+        }
+    }
+
+    /* ===== INVALIDATE INBOX CACHE ===== */
+    function invalidateInboxCache() {
+        Object.keys(localStorage)
+            .filter(k => k.startsWith('asyrofotp_cache_inbox_'))
+            .forEach(k => localStorage.removeItem(k));
+    }
+
     /* ===== LOAD ORDERS ===== */
     async function loadOrders(silent = false) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
+        const cacheKey = getCacheKey(state.page, state.status);
 
-        if (!silent) {
+        // 1. Tampilkan cache dulu
+        const cached = CacheManager.get(cacheKey);
+        if (cached && cached.value) {
+            renderOrders(cached.value, true);
+        } else if (!silent) {
             container.innerHTML = `
                 <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
                 <div class="skeleton-order"><div class="skeleton-line" style="width:55%"></div><div class="skeleton-line" style="width:45%"></div></div>
@@ -884,16 +1076,23 @@
             `;
         }
 
+        // 2. Fetch fresh
         try {
             const statusParam = state.status === 'all' ? '' : `&status=${state.status}`;
             const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}${statusParam}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
-            renderOrders(data);
+
+            // Simpan cache
+            CacheManager.set(cacheKey, data);
+            renderOrders(data, false);
+
+            // Load counts (dari cache dulu, terus fetch)
+            loadCounts();
         } catch (err) {
             console.error('Load orders error:', err);
-            if (!silent) {
+            if (!cached && !silent) {
                 container.innerHTML = `
                     <div class="empty-inbox">
                         <div class="icon-box">${ICONS.warning}</div>
@@ -905,8 +1104,45 @@
         }
     }
 
+    /* ===== LOAD COUNTS ===== */
+    async function loadCounts() {
+        const cacheKey = getCountsCacheKey();
+        const cached = CacheManager.get(cacheKey);
+        if (cached && cached.value) {
+            applyCounts(cached.value);
+        }
+
+        try {
+            const res = await fetch('/api/nokos/orders/stats', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            CacheManager.set(cacheKey, data);
+            applyCounts(data);
+        } catch (err) {
+            console.error('Load counts error:', err);
+        }
+    }
+
+    function applyCounts(data) {
+        if (!data) return;
+        state.counts = {
+            all: data.all || 0,
+            pending: data.pending || 0,
+            success: data.success || 0,
+            failed: data.failed || 0,
+            expired: data.expired || 0,
+            cancelled: data.cancelled || 0,
+        };
+
+        document.querySelectorAll('.tab-count').forEach(el => {
+            const key = el.dataset.count;
+            el.textContent = state.counts[key] || 0;
+        });
+    }
+
     /* ===== RENDER ===== */
-    function renderOrders(data) {
+    function renderOrders(data, fromCache) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
 
@@ -916,12 +1152,14 @@
                     <div class="icon-box">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                     </div>
-                    <h3>Belum ada pesanan</h3>
+                    <h3>${state.status === 'all' ? 'Belum ada pesanan' : 'Belum ada pesanan di kategori ini'}</h3>
                     <p>Mulai beli nokos buat lihat riwayat & kode OTP di sini.</p>
-                    <a href="/nokos" class="btn btn-primary">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                        Beli Nokos
-                    </a>
+                    ${state.status === 'all' ? `
+                        <a href="/nokos" class="btn btn-primary">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+                            Beli Nokos
+                        </a>
+                    ` : ''}
                 </div>
             `;
             paginationEl.style.display = 'none';
@@ -942,6 +1180,7 @@
             const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
             const hasOtp = o.otp_code && o.otp_code.trim();
             const isPending = o.status === 'pending';
+            const isRefunded = o.status === 'refunded' || (o.refunded_at && Number(o.refunded_at) > 0);
             const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
             const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
             const mins = Math.floor(expiresIn / 60);
@@ -953,7 +1192,7 @@
                 hour: '2-digit', minute: '2-digit'
             });
 
-            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : 'danger');
+            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : (s.class === 'refunded' ? 'info' : 'danger'));
 
             return `
                 <div class="order-card ${s.class}" data-order-id="${o.order_id}">
@@ -1015,7 +1254,20 @@
                                 <strong style="color:var(--text-dark);font-size:0.68rem;text-transform:uppercase;">SMS:</strong> ${o.full_sms}
                             </div>
                         ` : ''}
-                    ` : isPending ? `
+                    ` : ''}
+
+                    ${isRefunded ? `
+                        <div class="refund-box">
+                            <div class="refund-icon">${ICONS.coin}</div>
+                            <div class="refund-info">
+                                <div class="refund-info-label">Refund Diterima</div>
+                                <div class="refund-info-value">${formatRupiah(o.refunded_amount || o.price)}</div>
+                                <div class="refund-note">Saldo udah otomatis masuk ke akun kamu</div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    ${isPending && !hasOtp && !isRefunded ? `
                         <div class="pending-box">
                             <span class="loading-spinner"></span>
                             <span>Menunggu kode OTP masuk... auto-refresh tiap 5 detik.</span>
@@ -1097,7 +1349,6 @@
             btn.addEventListener('click', () => showOrderDetail(btn.dataset.detail));
         });
 
-        // Countdown
         startCountdowns();
     }
 
@@ -1124,7 +1375,10 @@
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
                     clearInterval(state.countdownIntervals[orderId]);
-                    setTimeout(() => loadOrders(true), 500);
+                    setTimeout(() => {
+                        invalidateInboxCache();
+                        loadOrders(true);
+                    }, 500);
                     return;
                 }
                 const m = Math.floor(remaining / 60);
@@ -1143,6 +1397,8 @@
         const pending = orders.filter(o => o.status === 'pending' && (!o.otp_code || !o.otp_code.trim()));
         if (pending.length === 0) return;
 
+        let hasUpdate = false;
+
         for (const o of pending) {
             try {
                 const res = await fetch('/api/cekotp', {
@@ -1156,7 +1412,7 @@
                 const data = await safeJson(res);
 
                 if (data.updated || data.otp_code || data.status !== 'pending') {
-                    loadOrders(true);
+                    hasUpdate = true;
                     if (data.otp_code) {
                         CacheManager.remove('user_profile');
                         swrFetch('/api/user', 'user_profile', (user) => {
@@ -1165,11 +1421,16 @@
                             document.getElementById('balancePill').textContent = formatRupiah(user.balance);
                         });
                     }
-                    return;
                 }
             } catch (err) {
                 console.error(`Poll order ${o.order_id} error:`, err);
             }
+        }
+
+        if (hasUpdate) {
+            invalidateInboxCache();
+            loadOrders(true);
+            loadCounts();
         }
     }
 
@@ -1192,6 +1453,7 @@
                 message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.',
                 type: 'success'
             });
+            invalidateInboxCache();
             loadOrders(true);
         } catch (err) {
             await showCustomAlert({
@@ -1240,7 +1502,9 @@
                 document.getElementById('balancePill').textContent = formatRupiah(user.balance);
             });
 
+            invalidateInboxCache();
             loadOrders(true);
+            loadCounts();
         } catch (err) {
             await showCustomAlert({
                 title: 'Gagal',
@@ -1274,6 +1538,8 @@
                     hour: '2-digit', minute: '2-digit', second: '2-digit'
                 });
             };
+
+            const isRefunded = o.refunded_at && Number(o.refunded_at) > 0;
 
             const detailHtml = `
                 <div style="text-align:center;margin-bottom:16px;">
@@ -1314,6 +1580,12 @@
                         <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
                             <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">OTP</span>
                             <span style="font-weight:800;font-family:var(--font-mono);color:var(--success);letter-spacing:0.1em;">${o.otp_code}</span>
+                        </div>
+                    ` : ''}
+                    ${isRefunded ? `
+                        <div style="display:flex;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--border);font-size:0.82rem;">
+                            <span style="color:var(--text-gray);font-family:var(--font-mono);font-size:0.72rem;">REFUND</span>
+                            <span style="font-weight:800;font-family:var(--font-mono);color:var(--purple);">${formatRupiah(o.refunded_amount || o.price)}</span>
                         </div>
                     ` : ''}
                     <div style="display:flex;justify-content:space-between;padding:10px 14px;font-size:0.82rem;">
@@ -1361,7 +1633,10 @@
     document.getElementById('refreshBtn').addEventListener('click', async function() {
         const btn = this;
         btn.classList.add('spinning');
+        invalidateInboxCache();
+        await checkRefunds();
         await loadOrders(true);
+        await loadCounts();
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
 
@@ -1369,16 +1644,22 @@
     function startAutoRefresh() {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(async () => {
-            if (state.status === 'all' || state.status === 'pending') {
-                const container = document.getElementById('ordersContainer');
-                const cards = container.querySelectorAll('.order-card.pending');
-                const pendingOrders = Array.from(cards).map(c => ({
-                    order_id: c.dataset.orderId,
-                }));
-                if (pendingOrders.length > 0) {
-                    await pollPendingOrders(pendingOrders);
-                }
-                loadOrders(true);
+            // Polling order pending yang keliatan
+            const container = document.getElementById('ordersContainer');
+            const cards = container.querySelectorAll('.order-card.pending');
+            const pendingOrders = Array.from(cards).map(c => ({
+                order_id: c.dataset.orderId,
+            }));
+
+            if (pendingOrders.length > 0) {
+                await pollPendingOrders(pendingOrders);
+            }
+
+            // Re-check refunds + reload (silent)
+            if (state.refundChecked) {
+                await checkRefunds();
+                await loadOrders(true);
+                await loadCounts();
             }
         }, 5000);
     }
@@ -1399,8 +1680,20 @@
     });
 
     /* ===== INIT ===== */
-    loadOrders();
-    startAutoRefresh();
+    (async function init() {
+        // 1. Load orders dari cache dulu
+        loadOrders(true);
+
+        // 2. Auto-check refund (backend cek semua pending yang expired/gagal)
+        await checkRefunds();
+
+        // 3. Load fresh orders
+        await loadOrders(true);
+        await loadCounts();
+
+        // 4. Start auto-refresh
+        startAutoRefresh();
+    })();
 
     window.addEventListener('beforeunload', () => {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
