@@ -563,7 +563,7 @@
             background: var(--bg-light);
         }
 
-        /* ===== SYNC INDICATOR (no animation) ===== */
+        /* ===== SYNC INDICATOR ===== */
         .sync-indicator {
             display: inline-flex;
             align-items: center;
@@ -586,7 +586,7 @@
             border-top-color: var(--primary);
         }
 
-        /* ===== DETAIL MODAL (NEW) ===== */
+        /* ===== DETAIL MODAL ===== */
         .detail-modal-overlay {
             position: fixed;
             inset: 0;
@@ -810,6 +810,95 @@
         }
         .detail-actions .btn { flex: 1; min-width: 120px; }
 
+        /* ===== FOOTER ===== */
+        .app-footer {
+            margin-top: 40px;
+            padding: 24px 0;
+            border-top: 2px dashed var(--border);
+            text-align: center;
+        }
+        .app-footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+        .app-footer-links a {
+            color: var(--text-gray);
+            font-size: 0.82rem;
+            font-family: var(--font-mono);
+            text-decoration: none;
+            font-weight: 700;
+            transition: color 0.15s;
+        }
+        .app-footer-links a:hover { color: var(--primary); }
+        .app-footer-copy {
+            color: var(--text-light);
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+        }
+
+        /* ===== DEPOSIT CARD STYLE ===== */
+        .deposit-info-box {
+            background: var(--primary-light);
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-sm);
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        [data-theme="dark"] .deposit-info-box {
+            background: rgba(37, 99, 235, 0.15);
+        }
+        .deposit-info-icon {
+            width: 40px; height: 40px;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid var(--border-dark);
+        }
+        .deposit-info-icon .icon-svg { width: 20px; height: 20px; }
+        .deposit-info-content { flex: 1; min-width: 0; }
+        .deposit-info-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--primary);
+            margin-bottom: 2px;
+        }
+        .deposit-info-value {
+            font-size: 1.15rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+        .deposit-info-note {
+            font-size: 0.7rem;
+            color: var(--text-gray);
+            font-family: var(--font-mono);
+            margin-top: 2px;
+        }
+
+        .deposit-badge-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            border: 2px solid var(--border-dark);
+        }
+        .deposit-badge-icon .icon-svg { width: 16px; height: 16px; }
+
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .inbox-hero-text h1 { font-size: 1.4rem; }
@@ -824,6 +913,8 @@
             .otp-copy { width: 36px; height: 36px; }
             .refund-icon { width: 36px; height: 36px; }
             .refund-info-value { font-size: 1rem; }
+            .deposit-info-icon { width: 36px; height: 36px; }
+            .deposit-info-value { font-size: 1rem; }
 
             .order-actions .btn {
                 min-width: 100%;
@@ -883,16 +974,6 @@
             <a href="/deposit" class="nav-item" data-tooltip="Deposit">
                 <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <span class="nav-label">Deposit</span>
-            </a>
-
-            <div class="nav-section-label">Bantuan</div>
-            <a href="/ketentuan" class="nav-item" data-tooltip="Ketentuan">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                <span class="nav-label">Ketentuan</span>
-            </a>
-            <a href="/syarat" class="nav-item" data-tooltip="Syarat">
-                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                <span class="nav-label">Syarat</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
@@ -965,15 +1046,15 @@
             <span>Cek refund & update status...</span>
         </div>
 
-        <!-- TABS: hanya Semua, Nokos, Deposit -->
+        <!-- TABS: Semua, Nokos, Deposit -->
         <div class="inbox-tabs" id="inboxTabs">
-            <button class="inbox-tab active" type="button" data-status="all">
+            <button class="inbox-tab active" type="button" data-tab="all">
                 Semua <span class="tab-count" data-count="all">0</span>
             </button>
-            <button class="inbox-tab" type="button" data-status="nokos">
+            <button class="inbox-tab" type="button" data-tab="nokos">
                 Nokos <span class="tab-count" data-count="nokos">0</span>
             </button>
-            <button class="inbox-tab" type="button" data-status="deposit">
+            <button class="inbox-tab" type="button" data-tab="deposit">
                 Deposit <span class="tab-count" data-count="deposit">0</span>
             </button>
         </div>
@@ -985,6 +1066,15 @@
         </div>
 
         <div class="pagination" id="pagination" style="display:none;"></div>
+
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <div class="app-footer-links">
+                <a href="/ketentuan">Ketentuan</a>
+                <a href="/syarat">Syarat</a>
+            </div>
+            <p class="app-footer-copy">© 2025 AsyrofOTP. All rights reserved.</p>
+        </footer>
     </main>
 </div>
 
@@ -1015,7 +1105,6 @@
     </div>
 </nav>
 
-<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -1029,11 +1118,8 @@
     </div>
 </div>
 
-<!-- DETAIL MODAL (NEW) -->
 <div class="detail-modal-overlay" id="detailModal">
-    <div class="detail-modal" id="detailModalContent">
-        <!-- diisi JS -->
-    </div>
+    <div class="detail-modal" id="detailModalContent"></div>
 </div>
 
 <script src="/js/main.js"></script>
@@ -1056,6 +1142,7 @@
         coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
         phone: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
         checkCircle: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+        wallet: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`,
     };
 
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
@@ -1239,7 +1326,7 @@
 
     /* ===== STATE ===== */
     let state = {
-        status: 'all',
+        tab: 'all',
         page: 1,
         limit: 10,
         totalPages: 1,
@@ -1250,8 +1337,8 @@
     };
 
     /* ===== CACHE KEY ===== */
-    function getCacheKey(page, status) {
-        return `inbox_orders_p${page}_s${status}`;
+    function getCacheKey(page, tab) {
+        return `inbox_items_p${page}_t${tab}`;
     }
 
     function getCountsCacheKey() {
@@ -1319,15 +1406,15 @@
             .forEach(k => localStorage.removeItem(k));
     }
 
-    /* ===== LOAD ORDERS ===== */
-    async function loadOrders(silent = false) {
+    /* ===== LOAD ITEMS ===== */
+    async function loadItems(silent = false) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
-        const cacheKey = getCacheKey(state.page, state.status);
+        const cacheKey = getCacheKey(state.page, state.tab);
 
         const cached = CacheManager.get(cacheKey);
         if (cached && cached.value) {
-            renderOrders(cached.value, true);
+            renderItems(cached.value, true);
         } else if (!silent) {
             container.innerHTML = `
                 <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
@@ -1337,23 +1424,23 @@
         }
 
         try {
-            const statusParam = state.status === 'all' ? '' : `&status=${state.status}`;
-            const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}${statusParam}`, {
+            const tabParam = state.tab === 'all' ? '' : `&tab=${state.tab}`;
+            const res = await fetch(`/api/inbox?page=${state.page}&limit=${state.limit}${tabParam}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
 
             CacheManager.set(cacheKey, data);
-            renderOrders(data, false);
+            renderItems(data, false);
 
             loadCounts();
         } catch (err) {
-            console.error('Load orders error:', err);
+            console.error('Load items error:', err);
             if (!cached && !silent) {
                 container.innerHTML = `
                     <div class="empty-inbox">
                         <div class="icon-box">${ICONS.warning}</div>
-                        <h3>Gagal memuat pesanan</h3>
+                        <h3>Gagal memuat data</h3>
                         <p>${err.message || 'Coba refresh halaman'}</p>
                     </div>
                 `;
@@ -1370,7 +1457,7 @@
         }
 
         try {
-            const res = await fetch('/api/nokos/orders/stats', {
+            const res = await fetch('/api/inbox/stats', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
@@ -1385,7 +1472,7 @@
         if (!data) return;
         state.counts = {
             all: data.all || 0,
-            nokos: data.nokos || data.all || 0,
+            nokos: data.nokos || 0,
             deposit: data.deposit || 0,
         };
 
@@ -1408,7 +1495,6 @@
                 }, 1200);
             }
         }).catch(() => {
-            // fallback
             const ta = document.createElement('textarea');
             ta.value = text;
             document.body.appendChild(ta);
@@ -1418,23 +1504,45 @@
         });
     }
 
-    /* ===== RENDER ===== */
-    function renderOrders(data, fromCache) {
+    /* ===== RENDER ITEMS ===== */
+    function renderItems(data, fromCache) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
 
-        if (!data.orders || data.orders.length === 0) {
+        const items = data.items || data.orders || [];
+
+        if (!items || items.length === 0) {
+            let emptyTitle = 'Belum ada data';
+            let emptyDesc = 'Data akan muncul di sini.';
+            let showBtn = false;
+            let btnHref = '/nokos';
+            let btnText = 'Beli Nokos';
+
+            if (state.tab === 'nokos') {
+                emptyTitle = 'Belum ada order nokos';
+                emptyDesc = 'Mulai beli nokos buat lihat riwayat & kode OTP di sini.';
+                showBtn = true;
+            } else if (state.tab === 'deposit') {
+                emptyTitle = 'Belum ada deposit';
+                emptyDesc = 'Deposit pertama kamu bakal muncul di sini.';
+                showBtn = true;
+                btnHref = '/deposit';
+                btnText = 'Deposit Sekarang';
+            } else {
+                emptyTitle = 'Inbox kosong';
+                emptyDesc = 'Order nokos & deposit kamu bakal muncul di sini.';
+                showBtn = true;
+            }
+
             container.innerHTML = `
                 <div class="empty-inbox">
-                    <div class="icon-box">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                    </div>
-                    <h3>${state.status === 'all' ? 'Belum ada pesanan' : 'Belum ada pesanan di kategori ini'}</h3>
-                    <p>Mulai beli nokos buat lihat riwayat & kode OTP di sini.</p>
-                    ${state.status === 'all' ? `
-                        <a href="/nokos" class="btn btn-primary">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                            Beli Nokos
+                    <div class="icon-box">${ICONS.wallet}</div>
+                    <h3>${emptyTitle}</h3>
+                    <p>${emptyDesc}</p>
+                    ${showBtn ? `
+                        <a href="${btnHref}" class="btn btn-primary">
+                            ${state.tab === 'deposit' ? ICONS.wallet : ICONS.phone}
+                            ${btnText}
                         </a>
                     ` : ''}
                 </div>
@@ -1443,160 +1551,14 @@
             return;
         }
 
-        const statusMap = {
-            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
-            received: { class: 'success', label: 'Berhasil', icon: ICONS.check },
-            pending: { class: 'pending', label: 'Pending', icon: ICONS.info },
-            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
-            cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
-            expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
-            refunded: { class: 'refunded', label: 'Refund', icon: ICONS.refresh },
-            confirmed: { class: 'success', label: 'Sukses', icon: ICONS.checkCircle },
-        };
-
-        container.innerHTML = `<div class="orders-list">` + data.orders.map(o => {
-            const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
-            const hasOtp = o.otp_code && o.otp_code.trim();
-            const isPending = o.status === 'pending';
-            const isRefunded = o.status === 'refunded' || (o.refunded_at && Number(o.refunded_at) > 0);
-            const isConfirmed = o.status === 'confirmed' || o.status === 'success';
-            const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
-            const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
-            const mins = Math.floor(expiresIn / 60);
-            const secs = expiresIn % 60;
-            const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            const hasValidCountdown = isPending && !isConfirmed && expiresIn > 0;
-
-            const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
-                day: '2-digit', month: 'short', year: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
-
-            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : (s.class === 'refunded' ? 'info' : 'danger'));
-
-            return `
-                <div class="order-card ${s.class}" data-order-id="${o.order_id}">
-                    <div class="order-header">
-                        <div class="order-flag">${renderFlag(o.country)}</div>
-                        <div class="order-title-wrap">
-                            <div class="order-title">
-                                ${o.service_name || o.service || '—'}
-                                ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${o.operator}</span>` : ''}
-                            </div>
-                            <div class="order-ref">
-                                <span class="otp-id">${otpId}</span> · ${o.order_id || '—'}
-                            </div>
-                        </div>
-                        <div class="order-status-badge">
-                            <span class="badge ${badgeClass}">${s.label}</span>
-                        </div>
-                    </div>
-
-                    <div class="order-body">
-                        <div class="order-field">
-                            <span class="order-field-label">Nomor</span>
-                            <span class="order-field-value">
-                                ${o.phone_number || '—'}
-                                ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${o.phone_number}" title="Copy nomor">${ICONS.copy}</button>` : ''}
-                            </span>
-                        </div>
-                        <div class="order-field">
-                            <span class="order-field-label">Negara</span>
-                            <span class="order-field-value">${o.country_name || o.country || '—'}</span>
-                        </div>
-                        <div class="order-field">
-                            <span class="order-field-label">Harga</span>
-                            <span class="order-field-value price">${formatRupiah(o.price)}</span>
-                        </div>
-                        <div class="order-field">
-                            <span class="order-field-label">Dibuat</span>
-                            <span class="order-field-value" style="font-size:0.75rem;">${createdDate}</span>
-                        </div>
-                    </div>
-
-                    ${hasValidCountdown && !hasOtp ? `
-                        <div class="order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
-                            ${ICONS.clock}
-                            <span class="countdown-text">${timeText}</span> tersisa
-                        </div>
-                    ` : ''}
-
-                    ${hasOtp ? `
-                        <div class="otp-box">
-                            <div class="otp-icon">${ICONS.key}</div>
-                            <div class="otp-info">
-                                <div class="otp-info-label">Kode OTP</div>
-                                <div class="otp-info-value" id="otp-${o.order_id}">${o.otp_code}</div>
-                            </div>
-                            <button class="otp-copy" type="button" data-copy="${o.otp_code}" title="Copy OTP">
-                                ${ICONS.copy}
-                            </button>
-                        </div>
-                        ${o.full_sms ? `
-                            <div class="sms-box">
-                                <span class="sms-label">SMS:</span>
-                                <span class="sms-text">${o.full_sms}</span>
-                                <button class="copy-inline" type="button" data-copy="${o.full_sms.replace(/"/g, '&quot;')}" title="Copy SMS">${ICONS.copy}</button>
-                            </div>
-                        ` : ''}
-                    ` : ''}
-
-                    ${isRefunded ? `
-                        <div class="refund-box">
-                            <div class="refund-icon">${ICONS.coin}</div>
-                            <div class="refund-info">
-                                <div class="refund-info-label">Refund Diterima</div>
-                                <div class="refund-info-value">${formatRupiah(o.refunded_amount || o.price)}</div>
-                                <div class="refund-note">Saldo udah otomatis masuk ke akun kamu</div>
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${isPending && !hasOtp && !isRefunded ? `
-                        <div class="pending-box">
-                            <span class="loading-spinner"></span>
-                            <span>Menunggu kode OTP masuk... auto-refresh tiap 5 detik.</span>
-                        </div>
-                    ` : ''}
-
-                    ${isPending && hasOtp ? `
-                        <div class="pending-box" style="border-style:solid;border-color:var(--success);background:var(--success-light);color:var(--success-dark);">
-                            <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">${ICONS.check} OTP sudah diterima. Konfirmasi atau tunggu waktu habis.</span>
-                        </div>
-                    ` : ''}
-
-                    <div class="order-actions">
-                        ${isPending ? `
-                            ${hasOtp && hasValidCountdown ? `
-                                <button class="btn" type="button" data-resend="${o.order_id}">
-                                    ${ICONS.refresh}
-                                    Resend SMS
-                                </button>
-                            ` : ''}
-                            ${hasOtp && hasValidCountdown ? `
-                                <button class="btn btn-primary" type="button" data-confirm="${o.order_id}">
-                                    ${ICONS.checkCircle}
-                                    Konfirmasi Sukses
-                                </button>
-                            ` : ''}
-                            ${!hasOtp ? `
-                                <button class="btn btn-danger" type="button" data-cancel="${o.order_id}">
-                                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                    Batalkan
-                                </button>
-                            ` : ''}
-                        ` : `
-                            <button class="btn btn-primary" type="button" data-detail="${o.order_id}">
-                                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                Lihat Detail
-                            </button>
-                        `}
-                    </div>
-                </div>
-            `;
+        container.innerHTML = `<div class="orders-list">` + items.map(o => {
+            if (o.type === 'deposit' || o.method) {
+                return renderDepositCard(o);
+            }
+            return renderNokosCard(o);
         }).join('') + `</div>`;
 
-        // Pagination
+        /* Pagination */
         if (data.total > state.limit) {
             state.totalPages = Math.ceil(data.total / state.limit);
             paginationEl.style.display = 'flex';
@@ -1615,7 +1577,7 @@
                     const p = Number(btn.dataset.page);
                     if (p >= 1 && p <= state.totalPages) {
                         state.page = p;
-                        loadOrders();
+                        loadItems();
                         window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
                 });
@@ -1624,7 +1586,7 @@
             paginationEl.style.display = 'none';
         }
 
-        // Bind copy buttons
+        /* Bind copy */
         container.querySelectorAll('[data-copy]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1632,27 +1594,270 @@
             });
         });
 
-        // Resend
+        /* Bind nokos actions */
         container.querySelectorAll('[data-resend]').forEach(btn => {
             btn.addEventListener('click', () => resendOrder(btn.dataset.resend, btn));
         });
 
-        // Confirm
         container.querySelectorAll('[data-confirm]').forEach(btn => {
             btn.addEventListener('click', () => confirmOrder(btn.dataset.confirm, btn));
         });
 
-        // Cancel
         container.querySelectorAll('[data-cancel]').forEach(btn => {
             btn.addEventListener('click', () => cancelOrder(btn.dataset.cancel, btn));
         });
 
-        // Detail
-        container.querySelectorAll('[data-detail]').forEach(btn => {
-            btn.addEventListener('click', () => showOrderDetail(btn.dataset.detail));
+        /* Bind detail nokos */
+        container.querySelectorAll('[data-detail-nokos]').forEach(btn => {
+            btn.addEventListener('click', () => showNokosDetail(btn.dataset.detailNokos));
+        });
+
+        /* Bind detail deposit */
+        container.querySelectorAll('[data-detail-deposit]').forEach(btn => {
+            btn.addEventListener('click', () => showDepositDetail(btn.dataset.detailDeposit));
         });
 
         startCountdowns();
+    }
+
+    /* ===== RENDER NOKOS CARD ===== */
+    function renderNokosCard(o) {
+        const statusMap = {
+            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            received: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            confirmed: { class: 'success', label: 'Sukses', icon: ICONS.checkCircle },
+            pending: { class: 'pending', label: 'Pending', icon: ICONS.info },
+            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
+            cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
+            expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
+            refunded: { class: 'refunded', label: 'Refund', icon: ICONS.refresh },
+        };
+
+        const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
+        const hasOtp = o.otp_code && o.otp_code.trim();
+        const isPending = o.status === 'pending';
+        const isRefunded = o.status === 'refunded' || (o.refunded_at && Number(o.refunded_at) > 0);
+        const isConfirmed = o.status === 'confirmed' || o.status === 'success';
+        const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
+        const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
+        const mins = Math.floor(expiresIn / 60);
+        const secs = expiresIn % 60;
+        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const hasValidCountdown = isPending && !isConfirmed && expiresIn > 0;
+
+        const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : (s.class === 'refunded' ? 'info' : 'danger'));
+
+        return `
+            <div class="order-card ${s.class}" data-order-id="${o.order_id}">
+                <div class="order-header">
+                    <div class="order-flag">${renderFlag(o.country)}</div>
+                    <div class="order-title-wrap">
+                        <div class="order-title">
+                            ${o.service_name || o.service || '—'}
+                            ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${o.operator}</span>` : ''}
+                        </div>
+                        <div class="order-ref">
+                            <span class="otp-id">${otpId}</span> · ${o.order_id || '—'}
+                        </div>
+                    </div>
+                    <div class="order-status-badge">
+                        <span class="badge ${badgeClass}">${s.label}</span>
+                    </div>
+                </div>
+
+                <div class="order-body">
+                    <div class="order-field">
+                        <span class="order-field-label">Nomor</span>
+                        <span class="order-field-value">
+                            ${o.phone_number || '—'}
+                            ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${o.phone_number}" title="Copy nomor">${ICONS.copy}</button>` : ''}
+                        </span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Negara</span>
+                        <span class="order-field-value">${o.country_name || o.country || '—'}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Harga</span>
+                        <span class="order-field-value price">${formatRupiah(o.price)}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Dibuat</span>
+                        <span class="order-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                    </div>
+                </div>
+
+                ${hasValidCountdown && !hasOtp ? `
+                    <div class="order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
+                        ${ICONS.clock}
+                        <span class="countdown-text">${timeText}</span> tersisa
+                    </div>
+                ` : ''}
+
+                ${hasOtp ? `
+                    <div class="otp-box">
+                        <div class="otp-icon">${ICONS.key}</div>
+                        <div class="otp-info">
+                            <div class="otp-info-label">Kode OTP</div>
+                            <div class="otp-info-value" id="otp-${o.order_id}">${o.otp_code}</div>
+                        </div>
+                        <button class="otp-copy" type="button" data-copy="${o.otp_code}" title="Copy OTP">
+                            ${ICONS.copy}
+                        </button>
+                    </div>
+                    ${o.full_sms ? `
+                        <div class="sms-box">
+                            <span class="sms-label">SMS:</span>
+                            <span class="sms-text">${o.full_sms}</span>
+                            <button class="copy-inline" type="button" data-copy="${o.full_sms.replace(/"/g, '&quot;')}" title="Copy SMS">${ICONS.copy}</button>
+                        </div>
+                    ` : ''}
+                ` : ''}
+
+                ${isRefunded ? `
+                    <div class="refund-box">
+                        <div class="refund-icon">${ICONS.coin}</div>
+                        <div class="refund-info">
+                            <div class="refund-info-label">Refund Diterima</div>
+                            <div class="refund-info-value">${formatRupiah(o.refunded_amount || o.price)}</div>
+                            <div class="refund-note">Saldo udah otomatis masuk ke akun kamu</div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${isPending && !hasOtp && !isRefunded ? `
+                    <div class="pending-box">
+                        <span class="loading-spinner"></span>
+                        <span>Menunggu kode OTP masuk... auto-refresh tiap 5 detik.</span>
+                    </div>
+                ` : ''}
+
+                ${isPending && hasOtp ? `
+                    <div class="pending-box" style="border-style:solid;border-color:var(--success);background:var(--success-light);color:var(--success-dark);">
+                        <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">${ICONS.check} OTP sudah diterima. Konfirmasi atau tunggu waktu habis.</span>
+                    </div>
+                ` : ''}
+
+                <div class="order-actions">
+                    ${isPending ? `
+                        ${hasOtp && hasValidCountdown ? `
+                            <button class="btn" type="button" data-resend="${o.order_id}">
+                                ${ICONS.refresh}
+                                Resend SMS
+                            </button>
+                        ` : ''}
+                        ${hasOtp && hasValidCountdown ? `
+                            <button class="btn btn-primary" type="button" data-confirm="${o.order_id}">
+                                ${ICONS.checkCircle}
+                                Konfirmasi Sukses
+                            </button>
+                        ` : ''}
+                        ${!hasOtp ? `
+                            <button class="btn btn-danger" type="button" data-cancel="${o.order_id}">
+                                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                Batalkan
+                            </button>
+                        ` : ''}
+                    ` : `
+                        <button class="btn btn-primary" type="button" data-detail-nokos="${o.order_id}">
+                            ${ICONS.info}
+                            Lihat Detail
+                        </button>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+
+    /* ===== RENDER DEPOSIT CARD ===== */
+    function renderDepositCard(d) {
+        const statusMap = {
+            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            pending: { class: 'pending', label: 'Pending', icon: ICONS.clock },
+            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
+            cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
+            expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
+        };
+
+        const s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
+        const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : (d.method === 'qris_dana' ? 'QRIS DANA Manual' : (d.method || 'Deposit'));
+        const saldoMasuk = Number(d.amount || 0);
+        const totalBayar = Number(d.total_amount || d.amount || 0);
+        const fee = Number(d.fee || 0) || Math.max(0, totalBayar - saldoMasuk);
+        const uniqueCode = Number(d.unique_code || 0);
+
+        const createdDate = new Date(d.created_at).toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : 'danger');
+
+        return `
+            <div class="order-card ${s.class}" data-ref="${d.reference_id}">
+                <div class="order-header">
+                    <div class="order-flag">
+                        <div class="deposit-badge-icon">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        </div>
+                    </div>
+                    <div class="order-title-wrap">
+                        <div class="order-title">
+                            Deposit Saldo
+                            <span class="badge info" style="font-size:0.6rem;">${methodLabel}</span>
+                        </div>
+                        <div class="order-ref">
+                            <span class="otp-id">${d.reference_id || '—'}</span>
+                        </div>
+                    </div>
+                    <div class="order-status-badge">
+                        <span class="badge ${badgeClass}">${s.label}</span>
+                    </div>
+                </div>
+
+                <div class="order-body">
+                    <div class="order-field">
+                        <span class="order-field-label">Saldo Top Up</span>
+                        <span class="order-field-value success">${formatRupiah(saldoMasuk)}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Total Bayar</span>
+                        <span class="order-field-value price">${formatRupiah(totalBayar)}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Fee</span>
+                        <span class="order-field-value">${formatRupiah(fee)}</span>
+                    </div>
+                    <div class="order-field">
+                        <span class="order-field-label">Dibuat</span>
+                        <span class="order-field-value" style="font-size:0.75rem;">${createdDate}</span>
+                    </div>
+                </div>
+
+                ${uniqueCode > 0 ? `
+                    <div class="deposit-info-box">
+                        <div class="deposit-info-icon">${ICONS.coin}</div>
+                        <div class="deposit-info-content">
+                            <div class="deposit-info-label">Kode Unik</div>
+                            <div class="deposit-info-value">+${uniqueCode}</div>
+                            <div class="deposit-info-note">Transfer tepat Rp${totalBayar.toLocaleString('id-ID')}</div>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <div class="order-actions">
+                    <button class="btn btn-primary" type="button" data-detail-deposit="${d.reference_id}">
+                        ${ICONS.info}
+                        Lihat Detail
+                    </button>
+                </div>
+            </div>
+        `;
     }
 
     /* ===== COUNTDOWN ===== */
@@ -1680,7 +1885,7 @@
                     clearInterval(state.countdownIntervals[orderId]);
                     setTimeout(() => {
                         invalidateInboxCache();
-                        loadOrders(true);
+                        loadItems(true);
                     }, 500);
                     return;
                 }
@@ -1732,7 +1937,7 @@
 
         if (hasUpdate) {
             invalidateInboxCache();
-            loadOrders(true);
+            loadItems(true);
             loadCounts();
         }
     }
@@ -1766,7 +1971,7 @@
                 type: 'success'
             });
             invalidateInboxCache();
-            loadOrders(true);
+            loadItems(true);
         } catch (err) {
             await showCustomAlert({
                 title: 'Gagal Resend',
@@ -1808,7 +2013,7 @@
             });
 
             invalidateInboxCache();
-            loadOrders(true);
+            loadItems(true);
             loadCounts();
         } catch (err) {
             await showCustomAlert({
@@ -1858,7 +2063,7 @@
             });
 
             invalidateInboxCache();
-            loadOrders(true);
+            loadItems(true);
             loadCounts();
         } catch (err) {
             await showCustomAlert({
@@ -1871,8 +2076,8 @@
         }
     }
 
-    /* ===== DETAIL MODAL (NEW) ===== */
-    async function showOrderDetail(orderId) {
+    /* ===== DETAIL NOKOS ===== */
+    async function showNokosDetail(orderId) {
         try {
             const res = await fetch(`/api/nokos/order/${orderId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1999,7 +2204,6 @@
                 </div>
             `;
 
-            // Bind copy di modal
             modalContent.querySelectorAll('[data-copy]').forEach(btn => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -2007,7 +2211,6 @@
                 });
             });
 
-            // Bind close
             const overlay = document.getElementById('detailModal');
             const close = () => overlay.classList.remove('active');
             document.getElementById('detailModalClose').addEventListener('click', close);
@@ -2027,6 +2230,147 @@
         }
     }
 
+    /* ===== DETAIL DEPOSIT ===== */
+    async function showDepositDetail(referenceId) {
+        try {
+            const res = await fetch(`/api/deposit/${referenceId}/status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            const d = data.deposit || data;
+            if (!d || d.error) throw new Error(d.error || 'Deposit tidak ditemukan');
+
+            const statusMap = {
+                success: { label: 'BERHASIL', cls: 'success' },
+                pending: { label: 'PENDING', cls: 'pending' },
+                failed: { label: 'GAGAL', cls: 'danger' },
+                cancelled: { label: 'DIBATALKAN', cls: 'danger' },
+                expired: { label: 'EXPIRED', cls: 'gray' },
+            };
+            const s = statusMap[d.status] || { label: (d.status || '—').toUpperCase(), cls: 'gray' };
+
+            const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : (d.method === 'qris_dana' ? 'QRIS DANA Manual' : (d.method || 'Deposit'));
+            const saldoMasuk = Number(d.amount || 0);
+            const totalBayar = Number(d.total_amount || d.amount || 0);
+            const fee = Number(d.fee || 0) || Math.max(0, totalBayar - saldoMasuk);
+            const uniqueCode = Number(d.unique_code || 0);
+
+            const formatDate = (date) => {
+                if (!date) return '—';
+                return new Date(date).toLocaleString('id-ID', {
+                    day: '2-digit', month: 'long', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+            };
+
+            const showQr = d.status === 'pending' && d.qris_url;
+
+            const modalContent = document.getElementById('detailModalContent');
+            modalContent.innerHTML = `
+                <div class="detail-modal-header">
+                    <div class="detail-modal-icon">${ICONS.wallet}</div>
+                    <div class="detail-modal-title-wrap">
+                        <div class="detail-modal-title">Detail Deposit</div>
+                        <div class="detail-modal-subtitle">${d.reference_id || '—'}</div>
+                    </div>
+                    <button class="detail-modal-close" type="button" id="detailModalClose">
+                        ${ICONS.close}
+                    </button>
+                </div>
+                <div class="detail-modal-body">
+                    <div class="detail-status-badge ${s.cls}">
+                        ${ICONS.info}
+                        ${s.label}
+                    </div>
+
+                    ${showQr ? `
+                        <div style="text-align:center;margin-bottom:16px;padding:16px;background:var(--bg-light);border:2px solid var(--border-dark);border-radius:12px;">
+                            <div style="background:white;padding:12px;border-radius:12px;border:2px solid var(--border-dark);display:inline-block;">
+                                <img src="${d.qris_url}" alt="QR Code" style="width:200px;height:200px;display:block;border-radius:6px;">
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="detail-grid">
+                        <div class="detail-item full">
+                            <span class="detail-item-label">Reference ID</span>
+                            <span class="detail-item-value primary">
+                                ${d.reference_id || '—'}
+                                <button class="copy-inline" type="button" data-copy="${d.reference_id || ''}" title="Copy">${ICONS.copy}</button>
+                            </span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-item-label">Metode</span>
+                            <span class="detail-item-value">${methodLabel}</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-item-label">Saldo Top Up</span>
+                            <span class="detail-item-value success">${formatRupiah(saldoMasuk)}</span>
+                        </div>
+                        ${uniqueCode > 0 ? `
+                            <div class="detail-item">
+                                <span class="detail-item-label">Kode Unik</span>
+                                <span class="detail-item-value purple">+${uniqueCode}</span>
+                            </div>
+                        ` : ''}
+                        <div class="detail-item">
+                            <span class="detail-item-label">Fee</span>
+                            <span class="detail-item-value">${formatRupiah(fee)}</span>
+                        </div>
+                        <div class="detail-item full">
+                            <span class="detail-item-label">Total Bayar</span>
+                            <span class="detail-item-value primary">${formatRupiah(totalBayar)}</span>
+                        </div>
+                        <div class="detail-item full">
+                            <span class="detail-item-label">Dibuat</span>
+                            <span class="detail-item-value" style="font-size:0.78rem;">${formatDate(d.created_at)}</span>
+                        </div>
+                        ${d.expires_at ? `
+                            <div class="detail-item full">
+                                <span class="detail-item-label">Kedaluwarsa</span>
+                                <span class="detail-item-value" style="font-size:0.78rem;">${formatDate(d.expires_at)}</span>
+                            </div>
+                        ` : ''}
+                        ${d.paid_at ? `
+                            <div class="detail-item full">
+                                <span class="detail-item-label">Dibayar</span>
+                                <span class="detail-item-value success" style="font-size:0.78rem;">${formatDate(d.paid_at)}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="detail-actions">
+                        <button class="btn btn-primary btn-block" type="button" id="detailModalCloseBtn">Tutup</button>
+                    </div>
+                </div>
+            `;
+
+            modalContent.querySelectorAll('[data-copy]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    copyToClipboard(btn.dataset.copy, btn);
+                });
+            });
+
+            const overlay = document.getElementById('detailModal');
+            const close = () => overlay.classList.remove('active');
+            document.getElementById('detailModalClose').addEventListener('click', close);
+            document.getElementById('detailModalCloseBtn').addEventListener('click', close);
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) close();
+            });
+
+            overlay.classList.add('active');
+        } catch (err) {
+            console.error(err);
+            await showCustomAlert({
+                title: 'Gagal',
+                message: err.message || 'Gagal memuat detail deposit',
+                type: 'danger'
+            });
+        }
+    }
+
     /* ===== TABS ===== */
     document.getElementById('inboxTabs').addEventListener('click', (e) => {
         const tab = e.target.closest('.inbox-tab');
@@ -2035,9 +2379,9 @@
         document.querySelectorAll('.inbox-tab').forEach(t => t.classList.remove('active'));
         tab.classList.add('active');
 
-        state.status = tab.dataset.status;
+        state.tab = tab.dataset.tab;
         state.page = 1;
-        loadOrders();
+        loadItems();
     });
 
     /* ===== REFRESH BUTTON ===== */
@@ -2046,7 +2390,7 @@
         btn.classList.add('spinning');
         invalidateInboxCache();
         await checkRefunds();
-        await loadOrders(true);
+        await loadItems(true);
         await loadCounts();
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
@@ -2059,7 +2403,7 @@
             const cards = container.querySelectorAll('.order-card.pending');
             const pendingOrders = Array.from(cards).map(c => ({
                 order_id: c.dataset.orderId,
-            }));
+            })).filter(o => o.order_id);
 
             if (pendingOrders.length > 0) {
                 await pollPendingOrders(pendingOrders);
@@ -2067,7 +2411,7 @@
 
             if (state.refundChecked) {
                 await checkRefunds();
-                await loadOrders(true);
+                await loadItems(true);
                 await loadCounts();
             }
         }, 5000);
@@ -2090,9 +2434,9 @@
 
     /* ===== INIT ===== */
     (async function init() {
-        loadOrders(true);
+        loadItems(true);
         await checkRefunds();
-        await loadOrders(true);
+        await loadItems(true);
         await loadCounts();
         startAutoRefresh();
     })();
