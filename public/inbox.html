@@ -126,6 +126,35 @@
             color: white;
         }
 
+        .inbox-mode-note {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 16px; margin: -6px 0 18px;
+            border: 1px solid var(--border); border-radius: 12px;
+            background: var(--bg-card); color: var(--text-gray);
+            font-size: .84rem; line-height: 1.5;
+        }
+        .inbox-mode-note .icon-svg { width: 20px; height: 20px; flex: 0 0 auto; color: var(--primary); }
+        .inbox-mode-note strong { display: block; color: var(--text-dark); margin-bottom: 2px; }
+        .deposit-state-box {
+            display: flex; align-items: center; gap: 10px;
+            padding: 12px 14px; margin-bottom: 12px;
+            border-radius: var(--radius-sm); border: 1px solid var(--border);
+            background: var(--bg-light); color: var(--text-gray); font-size: .82rem;
+        }
+        .deposit-state-box.pending { border-color: var(--warning); background: var(--warning-light); color: var(--warning-dark); }
+        .deposit-state-box.success { border-color: var(--success); background: var(--success-light); color: var(--success-dark); }
+        .order-card.deposit-pending::before { background: var(--warning); }
+        .order-card.deposit-success::before { background: var(--success); }
+        .order-card.deposit-expired::before, .order-card.deposit-cancelled::before { background: #64748b; }
+        .site-footer {
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            flex-wrap: wrap; margin-top: 30px; padding: 18px 4px 8px;
+            border-top: 1px solid var(--border); color: var(--text-light); font-size: .78rem;
+        }
+        .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .site-footer a { color: var(--text-gray); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary); text-decoration: underline; }
+
         /* ===== ORDER CARD ===== */
         .orders-list {
             display: flex;
@@ -885,16 +914,6 @@
                 <span class="nav-label">Deposit</span>
             </a>
 
-            <div class="nav-section-label">Bantuan</div>
-            <a href="/ketentuan" class="nav-item" data-tooltip="Ketentuan">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                <span class="nav-label">Ketentuan</span>
-            </a>
-            <a href="/syarat" class="nav-item" data-tooltip="Syarat">
-                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                <span class="nav-label">Syarat</span>
-            </a>
-
             <div class="nav-section-label">Akun</div>
             <a href="/profile" class="nav-item" data-tooltip="Profile">
                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -965,17 +984,21 @@
             <span>Cek refund & update status...</span>
         </div>
 
-        <!-- TABS: hanya Semua, Nokos, Deposit -->
+        <!-- Hanya dua kategori: Nokos dan Deposit -->
         <div class="inbox-tabs" id="inboxTabs">
-            <button class="inbox-tab active" type="button" data-status="all">
-                Semua <span class="tab-count" data-count="all">0</span>
-            </button>
-            <button class="inbox-tab" type="button" data-status="nokos">
+            <button class="inbox-tab active" type="button" data-status="nokos" aria-pressed="true">
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 Nokos <span class="tab-count" data-count="nokos">0</span>
             </button>
-            <button class="inbox-tab" type="button" data-status="deposit">
+            <button class="inbox-tab" type="button" data-status="deposit" aria-pressed="false">
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 Deposit <span class="tab-count" data-count="deposit">0</span>
             </button>
+        </div>
+
+        <div class="inbox-mode-note" id="inboxModeNote" aria-live="polite">
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <div><strong id="inboxModeTitle">Pesanan Nokos</strong><span id="inboxModeText">Status nomor dan kode OTP diperbarui otomatis setiap beberapa detik.</span></div>
         </div>
 
         <div id="ordersContainer">
@@ -985,6 +1008,14 @@
         </div>
 
         <div class="pagination" id="pagination" style="display:none;"></div>
+
+        <footer class="site-footer">
+            <div class="site-footer-links">
+                <a href="/syarat">Syarat</a>
+                <a href="/ketentuan">Ketentuan</a>
+            </div>
+            <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+        </footer>
     </main>
 </div>
 
@@ -1195,7 +1226,7 @@
 
     function getFlagSources(countryCode) {
         const code = (countryCode || '').toLowerCase();
-        if (code.length !== 2) return [];
+        if (!/^[a-z]{2}$/.test(code)) return [];
         const twemoji = countryCodeToTwemoji(countryCode);
         return [
             twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
@@ -1210,7 +1241,7 @@
     function renderFlag(countryCode, className = 'flag-img') {
         const sources = getFlagSources(countryCode);
         if (sources.length === 0) {
-            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${(countryCode || '??').toUpperCase()}</div>`;
+            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${escapeHtml((countryCode || '??').toUpperCase())}</div>`;
         }
         const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
         return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
@@ -1239,7 +1270,7 @@
 
     /* ===== STATE ===== */
     let state = {
-        status: 'all',
+        status: 'nokos',
         page: 1,
         limit: 10,
         totalPages: 1,
@@ -1342,6 +1373,7 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal memuat data inbox');
 
             CacheManager.set(cacheKey, data);
             renderOrders(data, false);
@@ -1354,7 +1386,7 @@
                     <div class="empty-inbox">
                         <div class="icon-box">${ICONS.warning}</div>
                         <h3>Gagal memuat pesanan</h3>
-                        <p>${err.message || 'Coba refresh halaman'}</p>
+                        <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
                     </div>
                 `;
             }
@@ -1374,6 +1406,7 @@
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal memuat ringkasan inbox');
             CacheManager.set(cacheKey, data);
             applyCounts(data);
         } catch (err) {
@@ -1384,15 +1417,34 @@
     function applyCounts(data) {
         if (!data) return;
         state.counts = {
-            all: data.all || 0,
-            nokos: data.nokos || data.all || 0,
-            deposit: data.deposit || 0,
+            all: Number(data.all ?? 0),
+            nokos: Number(data.nokos ?? data.all ?? 0),
+            deposit: Number(data.deposit ?? 0),
         };
 
         document.querySelectorAll('.tab-count').forEach(el => {
             const key = el.dataset.count;
             el.textContent = state.counts[key] || 0;
         });
+    }
+
+    function setInboxMode(mode) {
+        const isDeposit = mode === 'deposit';
+        document.getElementById('inboxModeTitle').textContent = isDeposit ? 'Riwayat Deposit' : 'Pesanan Nokos';
+        document.getElementById('inboxModeText').textContent = isDeposit
+            ? 'Status pembayaran QRIS otomatis disinkronkan. Deposit QRIS DANA manual mengikuti konfirmasi admin.'
+            : 'Status nomor dan kode OTP diperiksa otomatis. Pesanan yang sudah menerima OTP bisa dikonfirmasi di sini.';
+        document.querySelectorAll('.inbox-tab').forEach(tab => {
+            const active = tab.dataset.status === mode;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-pressed', String(active));
+        });
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
     }
 
     /* ===== COPY HELPER ===== */
@@ -1424,14 +1476,16 @@
         const paginationEl = document.getElementById('pagination');
 
         if (!data.orders || data.orders.length === 0) {
+            const emptyTitle = state.status === 'deposit' ? 'Belum ada deposit' : 'Belum ada pesanan Nokos';
+            const emptyCopy = state.status === 'deposit' ? 'Riwayat deposit kamu akan muncul di sini.' : 'Beli nomor Nokos untuk melihat status dan kode OTP di sini.';
             container.innerHTML = `
                 <div class="empty-inbox">
                     <div class="icon-box">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                     </div>
-                    <h3>${state.status === 'all' ? 'Belum ada pesanan' : 'Belum ada pesanan di kategori ini'}</h3>
-                    <p>Mulai beli nokos buat lihat riwayat & kode OTP di sini.</p>
-                    ${state.status === 'all' ? `
+                    <h3>${emptyTitle}</h3>
+                    <p>${emptyCopy}</p>
+                    ${state.status === 'nokos' ? `
                         <a href="/nokos" class="btn btn-primary">
                             <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                             Beli Nokos
@@ -1452,12 +1506,19 @@
             expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
             refunded: { class: 'refunded', label: 'Refund', icon: ICONS.refresh },
             confirmed: { class: 'success', label: 'Sukses', icon: ICONS.checkCircle },
+            deposit_pending: { class: 'deposit-pending', label: 'Menunggu pembayaran', icon: ICONS.clock },
+            deposit_success: { class: 'deposit-success', label: 'Berhasil', icon: ICONS.checkCircle },
+            deposit_expired: { class: 'deposit-expired', label: 'Kedaluwarsa', icon: ICONS.clock },
+            deposit_cancelled: { class: 'deposit-cancelled', label: 'Dibatalkan', icon: ICONS.close },
+            deposit_failed: { class: 'deposit-expired', label: 'Gagal', icon: ICONS.close },
         };
 
         container.innerHTML = `<div class="orders-list">` + data.orders.map(o => {
-            const s = statusMap[o.status] || { class: 'pending', label: o.status, icon: ICONS.info };
+            const s = statusMap[o.status] || { class: 'pending', label: escapeHtml(o.status), icon: ICONS.info };
             const hasOtp = o.otp_code && o.otp_code.trim();
-            const isPending = o.status === 'pending';
+            const isDeposit = o.order_type === 'deposit';
+            const isDepositPending = isDeposit && o.status === 'deposit_pending';
+            const isPending = !isDeposit && o.status === 'pending';
             const isRefunded = o.status === 'refunded' || (o.refunded_at && Number(o.refunded_at) > 0);
             const isConfirmed = o.status === 'confirmed' || o.status === 'success';
             const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
@@ -1472,19 +1533,19 @@
                 hour: '2-digit', minute: '2-digit'
             });
 
-            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : (s.class === 'refunded' ? 'info' : 'danger'));
+            const badgeClass = (s.class === 'success' || s.class === 'deposit-success') ? 'success' : (s.class === 'pending' || s.class === 'deposit-pending') ? 'warning' : ((s.class === 'expired' || s.class === 'deposit-expired' || s.class === 'deposit-cancelled') ? 'gray' : (s.class === 'refunded' ? 'info' : 'danger'));
 
             return `
-                <div class="order-card ${s.class}" data-order-id="${o.order_id}">
+                    <div class="order-card ${s.class}" data-order-id="${escapeHtml(o.order_id)}" data-order-type="${isDeposit ? 'deposit' : 'nokos'}">
                     <div class="order-header">
-                        <div class="order-flag">${renderFlag(o.country)}</div>
+                        <div class="order-flag">${isDeposit ? ICONS.coin : renderFlag(o.country)}</div>
                         <div class="order-title-wrap">
                             <div class="order-title">
-                                ${o.service_name || o.service || '—'}
-                                ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${o.operator}</span>` : ''}
+                                ${escapeHtml(o.service_name || o.service || '—')}
+                                ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${escapeHtml(o.operator)}</span>` : ''}
                             </div>
                             <div class="order-ref">
-                                <span class="otp-id">${otpId}</span> · ${o.order_id || '—'}
+                                <span class="otp-id">${escapeHtml(otpId)}</span> · ${escapeHtml(o.order_id || '—')}
                             </div>
                         </div>
                         <div class="order-status-badge">
@@ -1496,13 +1557,13 @@
                         <div class="order-field">
                             <span class="order-field-label">Nomor</span>
                             <span class="order-field-value">
-                                ${o.phone_number || '—'}
-                                ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${o.phone_number}" title="Copy nomor">${ICONS.copy}</button>` : ''}
+                                ${escapeHtml(o.phone_number || '—')}
+                                ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${ICONS.copy}</button>` : ''}
                             </span>
                         </div>
                         <div class="order-field">
                             <span class="order-field-label">Negara</span>
-                            <span class="order-field-value">${o.country_name || o.country || '—'}</span>
+                            <span class="order-field-value">${escapeHtml(o.country_name || o.country || '—')}</span>
                         </div>
                         <div class="order-field">
                             <span class="order-field-label">Harga</span>
@@ -1514,8 +1575,15 @@
                         </div>
                     </div>
 
+                    ${isDeposit ? `
+                        <div class="deposit-state-box ${isDepositPending ? 'pending' : (o.status === 'deposit_success' ? 'success' : '')}">
+                            ${o.status === 'deposit_success' ? ICONS.checkCircle : ICONS.clock}
+                            <span>${isDepositPending ? 'Menunggu pembayaran. Status akan disinkronkan otomatis.' : (o.status === 'deposit_success' ? 'Pembayaran diterima dan saldo sudah ditambahkan.' : `Status deposit: ${escapeHtml(s.label)}`)}</span>
+                        </div>
+                    ` : ''}
+
                     ${hasValidCountdown && !hasOtp ? `
-                        <div class="order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
+                        <div class="order-countdown" data-order-id="${escapeHtml(o.order_id)}" data-expires="${expiresIn}">
                             ${ICONS.clock}
                             <span class="countdown-text">${timeText}</span> tersisa
                         </div>
@@ -1526,17 +1594,17 @@
                             <div class="otp-icon">${ICONS.key}</div>
                             <div class="otp-info">
                                 <div class="otp-info-label">Kode OTP</div>
-                                <div class="otp-info-value" id="otp-${o.order_id}">${o.otp_code}</div>
+                                <div class="otp-info-value" id="otp-${escapeHtml(o.order_id)}">${escapeHtml(o.otp_code)}</div>
                             </div>
-                            <button class="otp-copy" type="button" data-copy="${o.otp_code}" title="Copy OTP">
+                            <button class="otp-copy" type="button" data-copy="${escapeHtml(o.otp_code)}" title="Copy OTP">
                                 ${ICONS.copy}
                             </button>
                         </div>
                         ${o.full_sms ? `
                             <div class="sms-box">
                                 <span class="sms-label">SMS:</span>
-                                <span class="sms-text">${o.full_sms}</span>
-                                <button class="copy-inline" type="button" data-copy="${o.full_sms.replace(/"/g, '&quot;')}" title="Copy SMS">${ICONS.copy}</button>
+                                <span class="sms-text">${escapeHtml(o.full_sms)}</span>
+                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${ICONS.copy}</button>
                             </div>
                         ` : ''}
                     ` : ''}
@@ -1568,25 +1636,25 @@
                     <div class="order-actions">
                         ${isPending ? `
                             ${hasOtp && hasValidCountdown ? `
-                                <button class="btn" type="button" data-resend="${o.order_id}">
+                                <button class="btn" type="button" data-resend="${escapeHtml(o.order_id)}">
                                     ${ICONS.refresh}
                                     Resend SMS
                                 </button>
                             ` : ''}
                             ${hasOtp && hasValidCountdown ? `
-                                <button class="btn btn-primary" type="button" data-confirm="${o.order_id}">
+                                <button class="btn btn-primary" type="button" data-confirm="${escapeHtml(o.order_id)}">
                                     ${ICONS.checkCircle}
                                     Konfirmasi Sukses
                                 </button>
                             ` : ''}
                             ${!hasOtp ? `
-                                <button class="btn btn-danger" type="button" data-cancel="${o.order_id}">
+                                <button class="btn btn-danger" type="button" data-cancel="${escapeHtml(o.order_id)}">
                                     <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                                     Batalkan
                                 </button>
                             ` : ''}
                         ` : `
-                            <button class="btn btn-primary" type="button" data-detail="${o.order_id}">
+                            <button class="btn btn-primary" type="button" data-detail="${escapeHtml(o.order_id)}">
                                 <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 Lihat Detail
                             </button>
@@ -1697,7 +1765,8 @@
 
     /* ===== POLLING PENDING ===== */
     async function pollPendingOrders(orders) {
-        const pending = orders.filter(o => o.status === 'pending' && (!o.otp_code || !o.otp_code.trim()));
+        // The caller passes only visible pending Nokos cards; the DOM payload contains order_id only.
+        const pending = orders;
         if (pending.length === 0) return;
 
         let hasUpdate = false;
@@ -1734,6 +1803,28 @@
             invalidateInboxCache();
             loadOrders(true);
             loadCounts();
+        }
+    }
+
+    async function syncVisibleDeposits() {
+        const ids = Array.from(document.querySelectorAll('.order-card[data-order-type="deposit"].deposit-pending'))
+            .map(card => card.dataset.orderId).filter(Boolean).slice(0, 10);
+        if (!ids.length) return;
+        try {
+            const res = await fetch('/api/deposit/sync-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ reference_ids: ids })
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal menyinkronkan deposit');
+            if (data.count > 0) {
+                invalidateInboxCache();
+                await loadOrders(true);
+                await loadCounts();
+            }
+        } catch (err) {
+            console.error('Deposit sync error:', err);
         }
     }
 
@@ -1889,8 +1980,13 @@
                 cancelled: { label: 'Dibatalkan', cls: 'danger' },
                 expired: { label: 'Expired', cls: 'gray' },
                 refunded: { label: 'Refund', cls: 'purple' },
+                deposit_pending: { label: 'Menunggu pembayaran', cls: 'pending' },
+                deposit_success: { label: 'Pembayaran diterima', cls: 'success' },
+                deposit_expired: { label: 'Kedaluwarsa', cls: 'gray' },
+                deposit_cancelled: { label: 'Dibatalkan', cls: 'gray' },
+                deposit_failed: { label: 'Gagal', cls: 'danger' },
             };
-            const s = statusMap[o.status] || { label: o.status || '—', cls: 'gray' };
+            const s = statusMap[o.status] || { label: escapeHtml(o.status || '—'), cls: 'gray' };
 
             const formatDate = (date) => {
                 if (!date) return '—';
@@ -1904,14 +2000,22 @@
             const hasOtp = o.otp_code && o.otp_code.trim();
             const hasPhone = o.phone_number && o.phone_number.trim();
             const hasSms = o.full_sms && o.full_sms.trim();
+            const isDeposit = o.order_type === 'deposit';
+            let safeQrisUrl = '';
+            if (isDeposit && o.qris_url) {
+                try {
+                    const parsedUrl = new URL(o.qris_url, window.location.origin);
+                    if (parsedUrl.protocol === 'https:' || parsedUrl.protocol === 'http:') safeQrisUrl = parsedUrl.href;
+                } catch (_) {}
+            }
 
             const modalContent = document.getElementById('detailModalContent');
             modalContent.innerHTML = `
                 <div class="detail-modal-header">
                     <div class="detail-modal-icon">${ICONS.phone}</div>
                     <div class="detail-modal-title-wrap">
-                        <div class="detail-modal-title">${o.service_name || o.service || 'Detail Pesanan'}</div>
-                        <div class="detail-modal-subtitle">${o.otp_id || o.order_id || '—'}</div>
+                        <div class="detail-modal-title">${escapeHtml(o.service_name || o.service || 'Detail Pesanan')}</div>
+                        <div class="detail-modal-subtitle">${escapeHtml(o.otp_id || o.order_id || '—')}</div>
                     </div>
                     <button class="detail-modal-close" type="button" id="detailModalClose">
                         ${ICONS.close}
@@ -1926,8 +2030,8 @@
                     ${hasOtp ? `
                         <div class="detail-otp-highlight">
                             <div class="label">Kode OTP</div>
-                            <div class="value">${o.otp_code}</div>
-                            <button class="copy-btn" type="button" data-copy="${o.otp_code}">
+                            <div class="value">${escapeHtml(o.otp_code)}</div>
+                            <button class="copy-btn" type="button" data-copy="${escapeHtml(o.otp_code)}">
                                 ${ICONS.copy} Copy OTP
                             </button>
                         </div>
@@ -1936,35 +2040,38 @@
                     <div class="detail-grid">
                         <div class="detail-item">
                             <span class="detail-item-label">OTP ID</span>
-                            <span class="detail-item-value primary">${o.otp_id || '—'}</span>
+                            <span class="detail-item-value primary">${escapeHtml(o.otp_id || '—')}</span>
                         </div>
                         <div class="detail-item">
                             <span class="detail-item-label">Order ID</span>
-                            <span class="detail-item-value">${o.order_id || '—'}</span>
+                            <span class="detail-item-value">${escapeHtml(o.order_id || '—')}</span>
                         </div>
                         ${hasPhone ? `
                             <div class="detail-item full">
                                 <span class="detail-item-label">Nomor</span>
                                 <span class="detail-item-value">
-                                    ${o.phone_number}
-                                    <button class="copy-inline" type="button" data-copy="${o.phone_number}" title="Copy nomor">${ICONS.copy}</button>
+                                    ${escapeHtml(o.phone_number)}
+                                    <button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${ICONS.copy}</button>
                                 </span>
                             </div>
                         ` : ''}
                         <div class="detail-item">
                             <span class="detail-item-label">Negara</span>
-                            <span class="detail-item-value">${o.country_name || o.country || '—'}</span>
+                            <span class="detail-item-value">${escapeHtml(o.country_name || o.country || '—')}</span>
                         </div>
                         ${o.operator ? `
                             <div class="detail-item">
                                 <span class="detail-item-label">Operator</span>
-                                <span class="detail-item-value">${o.operator}</span>
+                                <span class="detail-item-value">${escapeHtml(o.operator)}</span>
                             </div>
                         ` : ''}
                         <div class="detail-item">
                             <span class="detail-item-label">Harga</span>
                             <span class="detail-item-value primary">${formatRupiah(o.price)}</span>
                         </div>
+                        ${isDeposit && o.total_amount ? `<div class="detail-item"><span class="detail-item-label">Total dibayar</span><span class="detail-item-value primary">${formatRupiah(o.total_amount)}</span></div>` : ''}
+                        ${isDeposit && o.fee ? `<div class="detail-item"><span class="detail-item-label">Kode unik / biaya</span><span class="detail-item-value">${formatRupiah(o.fee)}</span></div>` : ''}
+                        ${safeQrisUrl ? `<div class="detail-item full"><span class="detail-item-label">QR pembayaran</span><a class="detail-item-value" href="${escapeHtml(safeQrisUrl)}" target="_blank" rel="noopener noreferrer">Buka QR</a></div>` : ''}
                         ${isRefunded ? `
                             <div class="detail-item">
                                 <span class="detail-item-label">Refund</span>
@@ -1987,8 +2094,8 @@
                         <div class="detail-item full" style="margin-bottom:16px;">
                             <span class="detail-item-label">Isi SMS</span>
                             <span class="detail-item-value" style="font-size:0.78rem;font-weight:600;line-height:1.5;">
-                                ${o.full_sms}
-                                <button class="copy-inline" type="button" data-copy="${o.full_sms.replace(/"/g, '&quot;')}" title="Copy SMS">${ICONS.copy}</button>
+                                ${escapeHtml(o.full_sms)}
+                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${ICONS.copy}</button>
                             </span>
                         </div>
                     ` : ''}
@@ -2032,11 +2139,11 @@
         const tab = e.target.closest('.inbox-tab');
         if (!tab) return;
 
-        document.querySelectorAll('.inbox-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-
+        if (!['nokos', 'deposit'].includes(tab.dataset.status)) return;
         state.status = tab.dataset.status;
         state.page = 1;
+        setInboxMode(state.status);
+        invalidateInboxCache();
         loadOrders();
     });
 
@@ -2045,8 +2152,9 @@
         const btn = this;
         btn.classList.add('spinning');
         invalidateInboxCache();
-        await checkRefunds();
+        if (state.status === 'nokos') await checkRefunds();
         await loadOrders(true);
+        if (state.status === 'deposit') await syncVisibleDeposits();
         await loadCounts();
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
@@ -2056,6 +2164,10 @@
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(async () => {
             const container = document.getElementById('ordersContainer');
+            if (state.status === 'deposit') {
+                await syncVisibleDeposits();
+                return;
+            }
             const cards = container.querySelectorAll('.order-card.pending');
             const pendingOrders = Array.from(cards).map(c => ({
                 order_id: c.dataset.orderId,
@@ -2065,7 +2177,7 @@
                 await pollPendingOrders(pendingOrders);
             }
 
-            if (state.refundChecked) {
+            if (state.refundChecked && state.status === 'nokos') {
                 await checkRefunds();
                 await loadOrders(true);
                 await loadCounts();
@@ -2090,8 +2202,9 @@
 
     /* ===== INIT ===== */
     (async function init() {
+        setInboxMode(state.status);
         loadOrders(true);
-        await checkRefunds();
+        if (state.status === 'nokos') await checkRefunds();
         await loadOrders(true);
         await loadCounts();
         startAutoRefresh();
