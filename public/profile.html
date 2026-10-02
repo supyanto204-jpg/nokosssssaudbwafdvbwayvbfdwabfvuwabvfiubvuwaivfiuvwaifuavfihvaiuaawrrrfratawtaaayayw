@@ -183,6 +183,37 @@
 
         .info-row-value.primary { color: var(--primary); }
 
+        /* Tombol copy inline di info row */
+        .copy-inline-btn {
+            background: none;
+            border: none;
+            color: var(--text-light);
+            cursor: pointer;
+            padding: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            flex-shrink: 0;
+        }
+
+        .copy-inline-btn:hover {
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .copy-inline-btn.copied {
+            color: var(--success);
+        }
+
+        .copy-inline-btn .icon-svg {
+            width: 14px;
+            height: 14px;
+        }
+
         /* ============================================
            ACTION BUTTONS
            ============================================ */
@@ -390,7 +421,6 @@
 
 <div class="dashboard-layout">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -489,7 +519,7 @@
                         <span class="skeleton skeleton-text-sm" style="width: 120px;"></span>
                     </div>
                     <div class="user-code-badge" id="profileCodeBadge" style="display:none;" title="Klik untuk copy">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         <span id="profileCodeText">—</span>
                     </div>
                 </div>
@@ -519,8 +549,11 @@
                 </div>
                 <div class="info-row">
                     <span class="info-row-label">User ID</span>
-                    <span class="info-row-value primary" id="infoUserCode">
-                        <span class="skeleton skeleton-text-sm"></span>
+                    <span class="info-row-value primary" style="display:flex;align-items:center;gap:8px;">
+                        <span id="infoUserCode"><span class="skeleton skeleton-text-sm"></span></span>
+                        <button class="copy-inline-btn" type="button" id="btnCopyUserCode" title="Copy User ID" style="display:none;">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        </button>
                     </span>
                 </div>
                 <div class="info-row">
@@ -574,7 +607,6 @@
     </main>
 </div>
 
-<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item" data-page="dashboard">
@@ -602,7 +634,6 @@
     </div>
 </nav>
 
-<!-- MODAL: EDIT NAMA -->
 <div class="modal-overlay" id="modalName">
     <div class="modal">
         <div class="modal-icon">
@@ -632,7 +663,6 @@
     </div>
 </div>
 
-<!-- MODAL: GANTI PASSWORD -->
 <div class="modal-overlay" id="modalPassword">
     <div class="modal">
         <div class="modal-icon">
@@ -690,13 +720,9 @@
 
 <script src="/js/main.js"></script>
 <script>
-    /* ============================================
-       PROFILE SCRIPT
-       ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
-    /* ===== THEME TOGGLE ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -710,7 +736,6 @@
         });
     })();
 
-    /* ===== SIDEBAR COLLAPSE ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -731,7 +756,6 @@
         });
     })();
 
-    /* ===== MOBILE SIDEBAR ===== */
     (function initMobileSidebar() {
         const mobileToggle = document.getElementById('mobileToggle');
         const sidebar = document.getElementById('sidebar');
@@ -785,23 +809,19 @@
         });
     })();
 
-    /* ===== LOAD USER (SWR) ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
 
-        // Sidebar
         document.getElementById('userName').textContent = user.name || user.username;
         document.getElementById('userBalance').textContent = formatRupiah(user.balance);
         document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
         document.getElementById('balancePill').textContent = formatRupiah(user.balance);
 
-        // Profile hero
         document.getElementById('profileAvatar').textContent = getInitial(user.name || user.username);
         document.getElementById('profileName').textContent = user.name || user.username;
         document.getElementById('profileUsername').textContent = '@' + user.username;
         document.getElementById('inputName').value = user.name || '';
 
-        // Info list
         document.getElementById('infoUsername').textContent = '@' + user.username;
         document.getElementById('infoName').textContent = user.name || '—';
         document.getElementById('infoBalance').textContent = formatRupiah(user.balance);
@@ -810,10 +830,10 @@
             document.getElementById('profileCodeBadge').style.display = 'inline-flex';
             document.getElementById('profileCodeText').textContent = user.user_code;
             document.getElementById('infoUserCode').textContent = user.user_code;
+            document.getElementById('btnCopyUserCode').style.display = 'inline-flex';
         }
     });
 
-    /* ===== MODAL OPEN/CLOSE ===== */
     function openModal(id) {
         document.getElementById(id).classList.add('active');
         document.body.classList.add('modal-open');
@@ -849,7 +869,6 @@
         }
     });
 
-    /* ===== PASSWORD TOGGLE (EYE) ===== */
     document.querySelectorAll('.password-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const inputId = btn.dataset.toggle;
@@ -879,7 +898,6 @@
         document.getElementById(id).classList.remove('show');
     }
 
-    /* ===== SAVE NAME ===== */
     document.getElementById('formName').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertName');
@@ -905,7 +923,6 @@
 
             showAlert('alertName', 'Nama berhasil diupdate!', 'success');
 
-            // Update UI
             document.getElementById('profileName').textContent = name;
             document.getElementById('infoName').textContent = name;
             document.getElementById('userName').textContent = name;
@@ -926,7 +943,6 @@
         }
     });
 
-    /* ===== SAVE PASSWORD ===== */
     document.getElementById('formPassword').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertPassword');
@@ -975,7 +991,6 @@
         }
     });
 
-    /* ===== COPY USER CODE ===== */
     document.getElementById('profileCodeBadge').addEventListener('click', () => {
         const code = document.getElementById('profileCodeText').textContent;
         navigator.clipboard.writeText(code).then(() => {
@@ -986,7 +1001,20 @@
         });
     });
 
-    /* ===== LOGOUT ===== */
+    document.getElementById('btnCopyUserCode').addEventListener('click', () => {
+        const code = document.getElementById('infoUserCode').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            const btn = document.getElementById('btnCopyUserCode');
+            const original = btn.innerHTML;
+            btn.classList.add('copied');
+            btn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
+            setTimeout(() => {
+                btn.classList.remove('copied');
+                btn.innerHTML = original;
+            }, 1200);
+        });
+    });
+
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
