@@ -1,7 +1,8 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v10)
-// + Service code mapping untuk server 'khusus'
-// + Semua bugs fixed + performance optimized
+// ASYROFOTP - BACKEND API (FULL FIXED v11)
+// + icon_code mapping (code asli tidak tertimpa)
+// + Handle INSUFFICIENT_BALANCE dari provider
+// + Pre-check saldo user + cache harga
 // ============================================
 
 const express = require('express');
@@ -105,7 +106,7 @@ const PROVIDER_TIMEOUT_MS = 8000;
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953093605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
 // ============================================
-// ===== PERFORMANCE: IN-MEMORY CACHE =====
+// ===== IN-MEMORY CACHE =====
 // ============================================
 const cache = new Map();
 
@@ -132,8 +133,10 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 // ============================================
-// ===== SERVICE NAME → CODE MAPPING =====
-// ===== Dipakai biar server 'khusus' dapet kode icon app
+// ===== SERVICE NAME → ICON CODE MAPPING =====
+// ===== Server ekonomi: code = "wa", "tt", "ig" (huruf → untuk icon)
+// ===== Server khusus: code = "1", "2", "3" (angka → untuk API call)
+// ===== Kita mapping NAME → kode HURUF untuk icon, tanpa nimpa code asli
 // ============================================
 
 /**
@@ -147,8 +150,9 @@ function normalizeServiceName(name) {
 }
 
 /**
- * Ambil mapping name → code dari server ekonomi.
- * Cache di memory 5 menit biar ga query provider terus.
+ * Ambil mapping name → icon_code HURUF dari server ekonomi.
+ * Server ekonomi: kode = "wa", "tt", "ig" (huruf).
+ * Cache di memory 5 menit.
  */
 async function getServiceCodeMap() {
     const cacheKey = 'service_code_map_ekonomi';
@@ -163,10 +167,14 @@ async function getServiceCodeMap() {
             const code = String(s.code || '').trim();
             const name = String(s.name || '').trim();
             if (!code) continue;
+
+            // Simpan map by name (normalized)
             const normName = normalizeServiceName(name);
             if (normName) map[normName] = code;
-            // Juga map langsung dari code (kalo provider ekonomi kirim "name" = code)
-            map[normalizeServiceName(code)] = code;
+
+            // Simpan juga map by code itu sendiri (biar bisa cari by code juga)
+            const normCode = normalizeServiceName(code);
+            if (normCode) map[normCode] = code;
         }
         cacheSet(cacheKey, map, 5 * 60 * 1000);
         console.log(`✅ Service code map loaded: ${Object.keys(map).length} entries`);
@@ -178,38 +186,43 @@ async function getServiceCodeMap() {
 }
 
 /**
- * Enrich services dengan `code` hasil matching dari map ekonomi.
- * - Kalo service sudah ada `code` → biarin
- * - Kalo ada `name` → cari di map, inject `code`
- * - Kalo ga ketemu → `code` = null (frontend fallback ke huruf awal)
+ * Enrich services dengan `icon_code` hasil matching dari map ekonomi.
+ * - `code` tetap code asli dari provider (angka untuk server khusus, huruf untuk ekonomi)
+ * - `icon_code` = kode huruf dari ekonomi (untuk load gambar icon)
+ *
+ * Tidak menimpa `code` asli — cuma nambah field baru `icon_code`.
  */
 async function enrichServicesWithCode(services, server) {
     if (!services || services.length === 0) return services;
 
-    // Server ekonomi = sumber kebenaran, udah punya code
-    if (server === 'ekonomi') return services;
+    // Server ekonomi = sumber kebenaran, code-nya udah huruf (wa, tt, ig)
+    if (server === 'ekonomi') {
+        return services.map(s => ({
+            ...s,
+            icon_code: s.code || null,
+        }));
+    }
 
-    // Server lain: butuh mapping dari ekonomi
+    // Server lain: butuh mapping dari ekonomi berdasarkan NAME
     const codeMap = await getServiceCodeMap();
 
     return services.map(s => {
-        // Kalo udah ada code, tinggal pakai
-        if (s.code && String(s.code).trim()) return s;
-
-        // Cari berdasarkan name
+        // Cari icon_code berdasarkan name
         const normName = normalizeServiceName(s.name);
-        const mappedCode = codeMap[normName] || null;
+        const mappedIconCode = codeMap[normName] || null;
 
         return {
             ...s,
-            code: mappedCode,
-            _mapped_from: mappedCode ? 'ekonomi' : null,
+            // code asli dari provider — JANGAN diubah
+            code: s.code,
+            // icon_code = kode huruf dari ekonomi, buat load gambar
+            icon_code: mappedIconCode,
         };
     });
 }
 
 // ============================================
-// ===== STATIC DATA (cached forever) =====
+// ===== STATIC DATA =====
 // ============================================
 const DEPOSIT_METHODS = [
     { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
@@ -570,6 +583,7 @@ const SCHEMA = {
                 server TEXT,
                 service TEXT,
                 service_name TEXT,
+                icon_code TEXT,
                 country TEXT,
                 country_name TEXT,
                 country_flag TEXT,
@@ -598,6 +612,7 @@ const SCHEMA = {
                 { name: 'server', def: 'TEXT' },
                 { name: 'service', def: 'TEXT' },
                 { name: 'service_name', def: 'TEXT' },
+                { name: 'icon_code', def: 'TEXT' },
                 { name: 'country', def: 'TEXT' },
                 { name: 'country_name', def: 'TEXT' },
                 { name: 'country_flag', def: 'TEXT' },
@@ -1981,7 +1996,10 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 status: order.status, phone_number: order.phone_number,
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
-                service: order.service, country: order.country, operator: order.operator,
+                service: order.service, service_name: order.service_name,
+                icon_code: order.icon_code,
+                country: order.country, country_name: order.country_name,
+                operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
                 refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason,
@@ -1998,7 +2016,10 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 status: o.status, phone_number: o.phone_number,
                 otp_code: o.otp_code, otp_code_2: o.otp_code_2,
                 full_sms: o.full_sms, price_idr: o.price,
-                service: o.service, country: o.country, operator: o.operator,
+                service: o.service, service_name: o.service_name,
+                icon_code: o.icon_code,
+                country: o.country, country_name: o.country_name,
+                operator: o.operator,
                 expired_at: o.expired_at, refunded: cancelResult.refunded,
                 refunded_amount: cancelResult.refundedAmount, expires_in: 0,
                 refunded_at: o.refunded_at, refund_reason: o.refund_reason,
@@ -2052,7 +2073,10 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                     status: fresh.rows[0].status, phone_number: fresh.rows[0].phone_number,
                     otp_code: fresh.rows[0].otp_code, otp_code_2: fresh.rows[0].otp_code_2,
                     full_sms: fresh.rows[0].full_sms, price_idr: fresh.rows[0].price,
-                    service: fresh.rows[0].service, country: fresh.rows[0].country, operator: fresh.rows[0].operator,
+                    service: fresh.rows[0].service, service_name: fresh.rows[0].service_name,
+                    icon_code: fresh.rows[0].icon_code,
+                    country: fresh.rows[0].country, country_name: fresh.rows[0].country_name,
+                    operator: fresh.rows[0].operator,
                     received_at: fresh.rows[0].received_at,
                     expires_in: fresh.rows[0].expired_at ? Math.max(0, Math.floor((new Date(fresh.rows[0].expired_at) - Date.now()) / 1000)) : 0,
                     expired_at: fresh.rows[0].expired_at, updated: true,
@@ -2067,7 +2091,10 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 status: order.status, phone_number: order.phone_number,
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
-                service: order.service, country: order.country, operator: order.operator,
+                service: order.service, service_name: order.service_name,
+                icon_code: order.icon_code,
+                country: order.country, country_name: order.country_name,
+                operator: order.operator,
                 received_at: order.received_at,
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
@@ -2082,7 +2109,10 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 status: order.status, phone_number: order.phone_number,
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
-                service: order.service, country: order.country, operator: order.operator,
+                service: order.service, service_name: order.service_name,
+                icon_code: order.icon_code,
+                country: order.country, country_name: order.country_name,
+                operator: order.operator,
                 received_at: order.received_at,
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
@@ -2392,7 +2422,7 @@ app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
 });
 
-// ===== SERVICES (dengan code mapping untuk 'khusus') =====
+// ===== SERVICES (dengan icon_code mapping) =====
 app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi' } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -2408,7 +2438,7 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
         const data = await dibananaFetch(`/services?server=${encodeURIComponent(server)}`);
         const rawServices = data.services || [];
 
-        // Enrich: inject `code` untuk server non-ekonomi dengan mapping dari ekonomi
+        // Enrich: inject `icon_code` (huruf) dari ekonomi, tanpa nimpa `code` asli
         const services = await enrichServicesWithCode(rawServices, server);
 
         const response = { server, services };
@@ -2488,12 +2518,13 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — CREATE ORDER (v10 FIX) =====
-// ===== Pre-check saldo lebih ketat =====
+// ===== NOKOS — CREATE ORDER (v11) =====
+// ===== Pre-check saldo + cache harga + icon_code
+// ===== Handle INSUFFICIENT_BALANCE dari provider
 // ============================================
 app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     const startTime = Date.now();
-    const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator } = req.body;
+    const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator, icon_code } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
 
@@ -2515,6 +2546,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     let price = 0;
     let phoneNumber = null;
     let saldoDeducted = false;
+    let finalIconCode = String(icon_code || '').trim() || null;
 
     try {
         // ===== STEP 1: Ambil saldo user DULU =====
@@ -2528,7 +2560,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
         if (isPremium) {
             estimatedPrice = Number(provider_price);
         } else {
-            // Non-premium: cari dari cache harga (di-set oleh /api/nokos/prices)
             const cacheKey = `prices_${server}_${service}_${country}`;
             const cachedPrices = cacheGet(cacheKey);
             if (cachedPrices && Array.isArray(cachedPrices.providers)) {
@@ -2549,7 +2580,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // Kalau saldo user 0, langsung tolak
         if (userBalanceAtStart <= 0) {
             return res.status(400).json({
                 error: 'Saldo kamu kosong. Silakan deposit dulu.',
@@ -2565,8 +2595,8 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 const providerBal = await getProviderBalance();
                 if (providerBal.ok && providerBal.balance < estimatedPrice) {
                     return res.status(503).json({
-                        error: 'Server lagi sibuk / saldo habis. Coba lagi nanti.',
-                        code: 'INSUFFICIENT_PROVIDER_BALANCE',
+                        error: 'Server sedang sibuk, coba lagi nanti.',
+                        code: 'INSUFFICIENT_BALANCE',
                     });
                 }
             } catch (err) {
@@ -2587,9 +2617,19 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             data = await dibananaFetch('/order', { method: 'POST', body: JSON.stringify(orderBody) });
         } catch (err) {
             console.error('Provider order error:', err.message);
+
+            // Handle INSUFFICIENT_BALANCE dari provider (saldo server kurang)
+            const errCode = err.code || err.data?.error;
+            if (errCode === 'INSUFFICIENT_BALANCE' || /saldo tidak cukup/i.test(err.message)) {
+                return res.status(503).json({
+                    error: 'Server sedang sibuk, coba lagi nanti.',
+                    code: 'INSUFFICIENT_BALANCE',
+                });
+            }
+
             return res.status(err.status || 500).json({
                 error: err.message || 'Gagal order dari provider',
-                code: err.code || 'PROVIDER_ERROR'
+                code: errCode || 'PROVIDER_ERROR'
             });
         }
 
@@ -2618,6 +2658,15 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
+        // Kalau icon_code belum di-set dari frontend, coba mapping dari service_name
+        if (!finalIconCode && service_name) {
+            try {
+                const codeMap = await getServiceCodeMap();
+                const normName = normalizeServiceName(service_name);
+                finalIconCode = codeMap[normName] || null;
+            } catch (e) {}
+        }
+
         // ===== STEP 8: Insert order + deduct saldo (atomic) =====
         const otpId = await generateOtpReferenceId();
         const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
@@ -2628,13 +2677,17 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
 
             await client.query(
                 `INSERT INTO orders 
-                 (user_id, order_id, otp_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+                 (user_id, order_id, otp_id, server, service, service_name, icon_code, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
                 [
                     req.user.id, String(providerOrderId), otpId, server,
-                    service || data.service || null, service_name || null,
-                    country || data.country || null, COUNTRY_NAMES[country] || country || null,
-                    country_flag || country || null, operator || null,
+                    service || data.service || null,
+                    service_name || null,
+                    finalIconCode,
+                    country || data.country || null,
+                    COUNTRY_NAMES[country] || country || null,
+                    country_flag || country || null,
+                    operator || null,
                     phoneNumber, price, 'pending', 1200, expiredAt
                 ]
             );
@@ -2673,7 +2726,7 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                 ['order', String(providerOrderId), req.user.id, null, 'pending', 'order_created',
-                 JSON.stringify({ otp_id: otpId, service: service_name || data.service, country: country || data.country, price, phone_number: phoneNumber, server, operator: operator || null })]
+                 JSON.stringify({ otp_id: otpId, service: service_name || data.service, country: country || data.country, price, phone_number: phoneNumber, server, operator: operator || null, icon_code: finalIconCode })]
             );
 
             await client.query('COMMIT');
@@ -2692,6 +2745,8 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                     price_idr: price,
                     server: data.server || server,
                     service: data.service || service,
+                    service_name: service_name || null,
+                    icon_code: finalIconCode,
                     country: data.country || country,
                     operator: operator || null,
                     status: data.status || 'pending',
@@ -2741,6 +2796,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
                 service: order.service, service_name: order.service_name,
+                icon_code: order.icon_code,
                 country: order.country, country_name: order.country_name, country_flag: order.country_flag,
                 operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
@@ -2785,6 +2841,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             otp_id: o.otp_id,
             service: o.service,
             service_name: o.service_name,
+            icon_code: o.icon_code,
             country: o.country,
             country_name: o.country_name,
             country_flag: o.country_flag,
@@ -2994,6 +3051,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
                 id: `deposit-${d.id}`, order_id: d.reference_id, otp_id: null,
                 order_type: 'deposit', server: null, service: 'Deposit',
                 service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
+                icon_code: d.method === 'qrispy' ? 'qris' : 'dana',
                 country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA', country_flag: null,
                 operator: null, phone_number: null, otp_code: null, otp_code_2: null, full_sms: null,
                 price: d.amount, status: `deposit_${d.status}`, expires_in: d.expires_at ? Math.max(0, Math.floor((new Date(d.expires_at) - Date.now()) / 1000)) : 0,
@@ -3163,7 +3221,6 @@ app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
 (async () => {
     try {
         await ensureSchema();
-        // Warmup service code map
         await getServiceCodeMap().catch(() => {});
         console.log('🚀 Server ready');
     } catch (err) {
