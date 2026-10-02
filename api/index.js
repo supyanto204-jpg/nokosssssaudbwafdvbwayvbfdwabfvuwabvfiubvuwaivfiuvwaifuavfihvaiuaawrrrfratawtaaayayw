@@ -1,6 +1,7 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v7)
-// Auto-refund + auto-migration + bug fixes
+// ASYROFOTP - BACKEND API (FULL FIXED v9)
+// All bugs fixed + performance optimized
+// Target response: < 1 second
 // ============================================
 
 const express = require('express');
@@ -11,11 +12,15 @@ const crypto = require('crypto');
 
 const app = express();
 
+// ===== PERFORMANCE: Disable etag & x-powered-by =====
+app.disable('x-powered-by');
+app.set('etag', false);
+
 // ===== CORS =====
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
@@ -25,17 +30,21 @@ app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf.toString('utf8');
     },
-    limit: '1mb'
+    limit: '512kb'  // turunin dari 1mb
 }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
-// ===== DATABASE =====
+// ===== DATABASE — OPTIMIZED =====
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 5,
+    max: 20,                        // naikin dari 5 → 20
+    min: 2,                         // maintain minimum connection
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 5000,  // turunin dari 10s → 5s
+    statement_timeout: 10000,       // statement max 10s
+    query_timeout: 10000,
+    keepAlive: true,
 });
 
 pool.on('error', (err) => {
@@ -49,6 +58,12 @@ if (!JWT_SECRET) {
 }
 const JWT_SECRET_FINAL = JWT_SECRET || 'asyrofotp-secret-ganti-di-env';
 const JWT_EXPIRES = '7d';
+
+// ===== CRON SECRET =====
+const CRON_SECRET = process.env.CRON_SECRET;
+if (!CRON_SECRET) {
+    console.error('⚠️  CRON_SECRET belum di-set!');
+}
 
 // ===== DIBANANA =====
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
@@ -79,24 +94,74 @@ const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 
 // ===== AUTO CONFIG =====
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
+const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
+const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
+const PROVIDER_TIMEOUT_MS = 8000;   // turunin dari 20s → 8s
 
 // ===== QRIS DANA MANUAL =====
-const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
+const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953093605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
-// ===== CACHE =====
+// ============================================
+// ===== PERFORMANCE: IN-MEMORY CACHE =====
+// ============================================
 const cache = new Map();
+
 function cacheGet(key) {
     const item = cache.get(key);
     if (!item) return null;
     if (Date.now() > item.expiresAt) { cache.delete(key); return null; }
     return item.value;
 }
-function cacheSet(key, value, ttlMs) { cache.set(key, { value, expiresAt: Date.now() + ttlMs }); }
+
+function cacheSet(key, value, ttlMs) {
+    cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+}
+
 function cacheDelPattern(prefix) {
     for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k);
 }
 
+// Cleanup cache tiap 5 menit
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of cache.entries()) {
+        if (now > v.expiresAt) cache.delete(k);
+    }
+}, 5 * 60 * 1000);
+
+// ============================================
+// ===== STATIC DATA (cached forever) =====
+// ============================================
+const DEPOSIT_METHODS = [
+    { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
+    { id: 'qris_dana', label: 'QRIS DANA Manual', desc: 'Scan QR DANA, butuh konfirmasi admin', icon: 'dana', fee: 0, uniqueCode: true },
+];
+
+const DEPOSIT_PRESETS = {
+    presets: [
+        { amount: 10000, label: 'Rp10.000' },
+        { amount: 20000, label: 'Rp20.000' },
+        { amount: 50000, label: 'Rp50.000' },
+        { amount: 100000, label: 'Rp100.000' },
+        { amount: 200000, label: 'Rp200.000' },
+        { amount: 500000, label: 'Rp500.000' },
+    ],
+    min: 1000,
+    max: 10000000,
+};
+
+const SERVERS_LIST = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
+    id: key,
+    label: config.label,
+    desc: config.desc,
+    badge: config.badge,
+    countries: config.countries,
+    requiresOperator: !!config.requiresOperator,
+}));
+
+// ============================================
 // ===== RATE LIMITER =====
+// ============================================
 const rateLimitStore = new Map();
 function rateLimit(maxRequests, windowMs) {
     return (req, res, next) => {
@@ -200,10 +265,10 @@ function toDynamicQRIS(staticQRIS, amount) {
 // ============================================
 async function qrispyFetch(endpoint, options = {}) {
     const fullUrl = `${QRISPY_BASE}${endpoint}`;
-    console.log('🌐 QRISPY request:', fullUrl);
+    console.log('🌐 QRISPY:', fullUrl);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
 
     try {
         const res = await fetch(fullUrl, {
@@ -221,7 +286,6 @@ async function qrispyFetch(endpoint, options = {}) {
         try {
             data = JSON.parse(text);
         } catch (e) {
-            console.error('QRISPY returned non-JSON:', text.substring(0, 300));
             const err = new Error(`QRISPY error ${res.status}: response bukan JSON`);
             err.status = res.status;
             err.raw = text.substring(0, 500);
@@ -245,7 +309,7 @@ async function dibananaFetch(endpoint, options = {}) {
     if (!DIBANANA_API_KEY) throw new Error('API_SERVER_EKONOMI belum di-set');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20000);
+    const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
 
     try {
         const res = await fetch(`${DIBANANA_BASE}${endpoint}`, {
@@ -262,7 +326,7 @@ async function dibananaFetch(endpoint, options = {}) {
         try {
             data = await res.json();
         } catch (e) {
-            const err = new Error(`Provider error: ${res.status} (response bukan JSON)`);
+            const err = new Error(`Provider error: ${res.status}`);
             err.status = res.status;
             throw err;
         }
@@ -281,6 +345,17 @@ async function dibananaFetch(endpoint, options = {}) {
     }
 }
 
+// Fetch saldo API provider
+async function getProviderBalance() {
+    try {
+        const data = await dibananaFetch('/balance');
+        const balance = Number(data.balance) || Number(data.saldo) || Number(data.data?.balance) || 0;
+        return { ok: true, balance };
+    } catch (err) {
+        return { ok: false, error: err.message, balance: 0 };
+    }
+}
+
 // ============================================
 // ===== HELPERS =====
 // ============================================
@@ -290,7 +365,7 @@ function isValidUsername(username) {
 
 function signToken(user) {
     return jwt.sign(
-        { id: user.id, username: user.username, role: user.role },
+        { id: user.id, username: user.username, role: user.role, jti: crypto.randomBytes(16).toString('hex') },
         JWT_SECRET_FINAL,
         { expiresIn: JWT_EXPIRES }
     );
@@ -300,7 +375,7 @@ function generateUniqueCode() {
     return Math.floor(Math.random() * 900) + 100;
 }
 
-async function generateUniqueReferenceId(maxRetries = 5) {
+async function generateUniqueReferenceId(maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
         const timestamp = Date.now();
         const random1 = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -313,14 +388,12 @@ async function generateUniqueReferenceId(maxRetries = 5) {
                 [referenceId]
             );
             if (check.rows.length === 0) return referenceId;
-        } catch (err) {
-            console.error('Check reference ID error:', err.message);
-        }
+        } catch (err) {}
     }
-    throw new Error('Gagal generate unique reference ID');
+    return `DEP${Date.now()}${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
 
-async function generateOtpReferenceId(maxRetries = 5) {
+async function generateOtpReferenceId(maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
         const random = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
         const otpId = `OTP${random}`;
@@ -331,46 +404,52 @@ async function generateOtpReferenceId(maxRetries = 5) {
                 [otpId]
             );
             if (check.rows.length === 0) return otpId;
-        } catch (err) {
-            // Column belum ada, skip
-        }
+        } catch (err) {}
     }
-    return `OTP${Date.now().toString().slice(-8)}`;
+    return `OTP${Date.now().toString().slice(-8)}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
 }
 
-// ============================================
-// ===== LOG STATUS CHANGE =====
-// ============================================
-async function logStatusChange({
-    entityType,
-    entityId,
-    userId = null,
-    oldStatus = null,
-    newStatus,
-    reason = null,
-    metadata = null,
-}) {
+async function logStatusChange({ entityType, entityId, userId = null, oldStatus = null, newStatus, reason = null, metadata = null }, client = null) {
     if (!newStatus) return;
     if (oldStatus === newStatus) return;
 
+    const executor = client || pool;
+    try {
+        await executor.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [entityType, String(entityId), userId, oldStatus, newStatus, reason, metadata ? JSON.stringify(metadata) : null]
+        );
+    } catch (err) {
+        console.error('Log error:', err.message);
+    }
+}
+
+// ============================================
+// ===== TOKEN BLACKLIST =====
+// ============================================
+async function isTokenBlacklisted(jti) {
+    if (!jti) return false;
+    try {
+        const result = await pool.query(
+            'SELECT 1 FROM token_blacklist WHERE jti = $1 AND expires_at > NOW() LIMIT 1',
+            [jti]
+        );
+        return result.rows.length > 0;
+    } catch (err) {
+        return false;
+    }
+}
+
+async function blacklistToken(jti, expiresAt) {
+    if (!jti) return;
     try {
         await pool.query(
-            `INSERT INTO status_logs 
-             (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-                entityType,
-                String(entityId),
-                userId,
-                oldStatus,
-                newStatus,
-                reason,
-                metadata ? JSON.stringify(metadata) : null,
-            ]
+            `INSERT INTO token_blacklist (jti, expires_at) VALUES ($1, $2) ON CONFLICT (jti) DO NOTHING`,
+            [jti, expiresAt]
         );
-        console.log(`📝 Log: [${entityType}] ${entityId} ${oldStatus || 'null'} → ${newStatus} (${reason || 'unknown'})`);
     } catch (err) {
-        console.error('Log status change error:', err.message);
+        console.error('Blacklist error:', err.message);
     }
 }
 
@@ -381,20 +460,18 @@ const SCHEMA = {
     tables: [
         {
             name: 'users',
-            create: `
-                CREATE TABLE IF NOT EXISTS users (
-                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                    username TEXT UNIQUE NOT NULL,
-                    password_hash TEXT NOT NULL,
-                    name TEXT,
-                    balance BIGINT DEFAULT 0,
-                    role TEXT DEFAULT 'user',
-                    status TEXT DEFAULT 'active',
-                    user_code TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `,
+            create: `CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT,
+                balance BIGINT DEFAULT 0,
+                role TEXT DEFAULT 'user',
+                status TEXT DEFAULT 'active',
+                user_code TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
             columns: [
                 { name: 'user_code', def: 'TEXT' },
                 { name: 'role', def: "TEXT DEFAULT 'user'" },
@@ -407,37 +484,37 @@ const SCHEMA = {
         },
         {
             name: 'orders',
-            create: `
-                CREATE TABLE IF NOT EXISTS orders (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    order_id TEXT UNIQUE,
-                    otp_id TEXT,
-                    server TEXT,
-                    service TEXT,
-                    service_name TEXT,
-                    country TEXT,
-                    country_name TEXT,
-                    country_flag TEXT,
-                    operator TEXT,
-                    phone_number TEXT,
-                    otp_code TEXT,
-                    otp_code_2 TEXT,
-                    full_sms TEXT,
-                    price BIGINT NOT NULL DEFAULT 0,
-                    status TEXT DEFAULT 'pending',
-                    expires_in INTEGER DEFAULT 0,
-                    resend_count INTEGER DEFAULT 0,
-                    refunded_at BIGINT,
-                    refunded_amount BIGINT,
-                    refund_reason TEXT,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW(),
-                    received_at TIMESTAMPTZ,
-                    last_checked_at TIMESTAMPTZ,
-                    expired_at TIMESTAMPTZ
-                );
-            `,
+            create: `CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                order_id TEXT UNIQUE,
+                otp_id TEXT UNIQUE,
+                server TEXT,
+                service TEXT,
+                service_name TEXT,
+                country TEXT,
+                country_name TEXT,
+                country_flag TEXT,
+                operator TEXT,
+                phone_number TEXT,
+                otp_code TEXT,
+                otp_code_2 TEXT,
+                full_sms TEXT,
+                price BIGINT NOT NULL DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                expires_in INTEGER DEFAULT 0,
+                resend_count INTEGER DEFAULT 0,
+                refunded_at BIGINT,
+                refunded_amount BIGINT,
+                refund_reason TEXT,
+                revived_at TIMESTAMPTZ,
+                revived_count INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                received_at TIMESTAMPTZ,
+                last_checked_at TIMESTAMPTZ,
+                expired_at TIMESTAMPTZ
+            );`,
             columns: [
                 { name: 'otp_id', def: 'TEXT' },
                 { name: 'server', def: 'TEXT' },
@@ -458,6 +535,8 @@ const SCHEMA = {
                 { name: 'refunded_at', def: 'BIGINT' },
                 { name: 'refunded_amount', def: 'BIGINT' },
                 { name: 'refund_reason', def: 'TEXT' },
+                { name: 'revived_at', def: 'TIMESTAMPTZ' },
+                { name: 'revived_count', def: 'INTEGER DEFAULT 0' },
                 { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'received_at', def: 'TIMESTAMPTZ' },
@@ -467,22 +546,20 @@ const SCHEMA = {
         },
         {
             name: 'transactions',
-            create: `
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    order_id TEXT,
-                    service_name TEXT,
-                    country TEXT,
-                    country_flag TEXT,
-                    phone_number TEXT,
-                    otp_code TEXT,
-                    status TEXT DEFAULT 'pending',
-                    price BIGINT NOT NULL DEFAULT 0,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `,
+            create: `CREATE TABLE IF NOT EXISTS transactions (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                order_id TEXT,
+                service_name TEXT,
+                country TEXT,
+                country_flag TEXT,
+                phone_number TEXT,
+                otp_code TEXT,
+                status TEXT DEFAULT 'pending',
+                price BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
             columns: [
                 { name: 'order_id', def: 'TEXT' },
                 { name: 'service_name', def: 'TEXT' },
@@ -498,27 +575,25 @@ const SCHEMA = {
         },
         {
             name: 'deposits',
-            create: `
-                CREATE TABLE IF NOT EXISTS deposits (
-                    id SERIAL PRIMARY KEY,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    reference_id TEXT UNIQUE,
-                    method TEXT NOT NULL,
-                    amount BIGINT NOT NULL,
-                    unique_code INTEGER,
-                    total_amount BIGINT,
-                    fee BIGINT DEFAULT 0,
-                    status TEXT DEFAULT 'pending',
-                    qris_id TEXT,
-                    qris_url TEXT,
-                    qris_string TEXT,
-                    payment_reference TEXT,
-                    paid_at TIMESTAMPTZ,
-                    expires_at TIMESTAMPTZ,
-                    created_at TIMESTAMPTZ DEFAULT NOW(),
-                    updated_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `,
+            create: `CREATE TABLE IF NOT EXISTS deposits (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                reference_id TEXT UNIQUE,
+                method TEXT NOT NULL,
+                amount BIGINT NOT NULL,
+                unique_code INTEGER,
+                total_amount BIGINT,
+                fee BIGINT DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                qris_id TEXT,
+                qris_url TEXT,
+                qris_string TEXT,
+                payment_reference TEXT,
+                paid_at TIMESTAMPTZ,
+                expires_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
             columns: [
                 { name: 'unique_code', def: 'INTEGER' },
                 { name: 'total_amount', def: 'BIGINT' },
@@ -533,19 +608,26 @@ const SCHEMA = {
         },
         {
             name: 'status_logs',
-            create: `
-                CREATE TABLE IF NOT EXISTS status_logs (
-                    id SERIAL PRIMARY KEY,
-                    entity_type TEXT NOT NULL,
-                    entity_id TEXT NOT NULL,
-                    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                    old_status TEXT,
-                    new_status TEXT NOT NULL,
-                    reason TEXT,
-                    metadata JSONB,
-                    created_at TIMESTAMPTZ DEFAULT NOW()
-                );
-            `,
+            create: `CREATE TABLE IF NOT EXISTS status_logs (
+                id SERIAL PRIMARY KEY,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                old_status TEXT,
+                new_status TEXT NOT NULL,
+                reason TEXT,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [],
+        },
+        {
+            name: 'token_blacklist',
+            create: `CREATE TABLE IF NOT EXISTS token_blacklist (
+                jti TEXT PRIMARY KEY,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
             columns: [],
         },
     ],
@@ -555,6 +637,7 @@ const SCHEMA = {
         'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
         'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
         'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
@@ -562,11 +645,12 @@ const SCHEMA = {
         'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)',
     ],
 };
 
 // ============================================
-// ===== ENSURE SCHEMA =====
+// ===== ENSURE SCHEMA (Optimized) =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -576,41 +660,51 @@ async function ensureSchema() {
     if (schemaPromise) return schemaPromise;
 
     schemaPromise = (async () => {
+        const start = Date.now();
         try {
             console.log('🔧 Ensuring schema...');
 
-            for (const table of SCHEMA.tables) {
-                await pool.query(table.create);
-            }
+            // Create tables (parallel)
+            await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
+                if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
+            })));
 
+            // Add columns (parallel per table)
+            const colPromises = [];
             for (const table of SCHEMA.tables) {
                 if (!table.columns || table.columns.length === 0) continue;
                 for (const col of table.columns) {
-                    try {
-                        await pool.query(
-                            `ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`
-                        );
-                    } catch (err) {
-                        if (!err.message.includes('already exists')) {
-                            console.error(`Add column ${table.name}.${col.name} error:`, err.message);
-                        }
-                    }
+                    colPromises.push(
+                        pool.query(`ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`)
+                            .catch(err => {
+                                if (!err.message.includes('already exists')) {
+                                    console.error(`Add col ${table.name}.${col.name}:`, err.message);
+                                }
+                            })
+                    );
                 }
             }
+            await Promise.all(colPromises);
 
-            for (const idxSql of SCHEMA.indexes) {
-                try {
-                    await pool.query(idxSql);
-                } catch (err) {
+            // Create indexes (parallel)
+            await Promise.all(SCHEMA.indexes.map(idxSql =>
+                pool.query(idxSql).catch(err => {
                     if (!err.message.includes('already exists')) {
-                        console.error(`Create index error:`, err.message);
+                        console.error('Index error:', err.message);
                     }
-                }
-            }
+                })
+            ));
 
+            // Constraints + functions + triggers (sequential biar aman)
             await pool.query(`
                 DO $$
                 BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'orders_otp_id_key') THEN
+                        BEGIN
+                            ALTER TABLE orders ADD CONSTRAINT orders_otp_id_key UNIQUE (otp_id);
+                        EXCEPTION WHEN others THEN NULL;
+                        END;
+                    END IF;
                     IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key') THEN
                         BEGIN
                             ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
@@ -623,9 +717,7 @@ async function ensureSchema() {
             await pool.query(`
                 CREATE OR REPLACE FUNCTION generate_user_code()
                 RETURNS TEXT AS $$
-                DECLARE
-                    new_code TEXT;
-                    exists_check BOOLEAN;
+                DECLARE new_code TEXT; exists_check BOOLEAN;
                 BEGIN
                     LOOP
                         new_code := 'SRF' || LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0');
@@ -657,10 +749,11 @@ async function ensureSchema() {
                     EXECUTE FUNCTION set_user_code();
             `);
 
-            await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`);
+            await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`).catch(() => {});
+            await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`).catch(() => {});
 
             schemaEnsured = true;
-            console.log('✅ Schema ensured');
+            console.log(`✅ Schema ensured in ${Date.now() - start}ms`);
         } catch (err) {
             console.error('❌ Ensure schema failed:', err.message);
             schemaPromise = null;
@@ -671,29 +764,38 @@ async function ensureSchema() {
     return schemaPromise;
 }
 
-async function initDatabase() {
-    return ensureSchema();
-}
-
 // ============================================
 // ===== withDB WRAPPER =====
 // ============================================
 function withDB(handler) {
     return async (req, res, next) => {
-        try {
-            await ensureSchema();
-        } catch (err) {
-            console.error('withDB ensureSchema error:', err.message);
-            return res.status(500).json({ error: 'Database tidak siap' });
+        if (!schemaEnsured) {
+            try {
+                await ensureSchema();
+            } catch (err) {
+                console.error('withDB error:', err.message);
+                return res.status(500).json({ error: 'Database tidak siap' });
+            }
         }
         return handler(req, res, next);
     };
 }
 
+// ===== CRON AUTH =====
+function requireCron(req, res, next) {
+    if (!CRON_SECRET) {
+        return res.status(500).json({ error: 'CRON_SECRET belum di-set' });
+    }
+    const provided = req.headers['x-cron-secret'] || req.query.secret;
+    if (!provided) return res.status(401).json({ error: 'Cron secret wajib' });
+    if (provided !== CRON_SECRET) return res.status(401).json({ error: 'Cron secret invalid' });
+    next();
+}
+
 // ============================================
 // ===== MIDDLEWARE =====
 // ============================================
-function requireAuth(req, res, next) {
+async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ error: 'Unauthorized' });
@@ -701,6 +803,14 @@ function requireAuth(req, res, next) {
     const token = authHeader.replace('Bearer ', '');
     try {
         const decoded = jwt.verify(token, JWT_SECRET_FINAL);
+
+        if (decoded.jti) {
+            const blacklisted = await isTokenBlacklisted(decoded.jti);
+            if (blacklisted) {
+                return res.status(401).json({ error: 'Token sudah di-logout' });
+            }
+        }
+
         req.user = decoded;
         next();
     } catch (err) {
@@ -714,7 +824,7 @@ function requireAdmin(req, res, next) {
 }
 
 // ============================================
-// ===== MARK DEPOSIT PAID (IDEMPOTENT) =====
+// ===== MARK DEPOSIT PAID (TRANSACTIONAL) =====
 // ============================================
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const saldoMasuk = Number(deposit.amount);
@@ -722,56 +832,59 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const fee = Math.max(0, totalBayar - saldoMasuk);
     const paidTime = paidAt ? new Date(paidAt) : new Date();
 
-    const updateRes = await pool.query(
-        `UPDATE deposits 
-         SET status = 'success', paid_at = $1, updated_at = NOW(),
-             total_amount = $2, fee = $3
-         WHERE id = $4 AND status = 'pending'`,
-        [paidTime, totalBayar, fee, deposit.id]
-    );
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
 
-    if (updateRes.rowCount === 0) {
-        return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
+        const updateRes = await client.query(
+            `UPDATE deposits 
+             SET status = 'success', paid_at = $1, updated_at = NOW(),
+                 total_amount = $2, fee = $3
+             WHERE id = $4 AND status = 'pending'
+             RETURNING *`,
+            [paidTime, totalBayar, fee, deposit.id]
+        );
+
+        if (updateRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
+        }
+
+        await client.query(
+            `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
+            [saldoMasuk, deposit.user_id]
+        );
+
+        await client.query(
+            `INSERT INTO transactions (user_id, order_id, service_name, status, price)
+             VALUES ($1, $2, $3, $4, $5)`,
+            [deposit.user_id, deposit.reference_id, `Deposit ${deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`, 'success', totalBayar]
+        );
+
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ['deposit', deposit.reference_id, deposit.user_id, deposit.status, 'success', 'payment_received',
+             JSON.stringify({ saldoMasuk, totalBayar, fee, method: deposit.method })]
+        );
+
+        await client.query('COMMIT');
+        console.log(`✅ Deposit ${deposit.reference_id} | +${saldoMasuk} | fee ${fee}`);
+        return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('markDepositPaid error:', err.message);
+        throw err;
+    } finally {
+        client.release();
     }
-
-    await pool.query(
-        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-        [saldoMasuk, deposit.user_id]
-    );
-
-    await pool.query(
-        `INSERT INTO transactions (user_id, order_id, service_name, status, price)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [
-            deposit.user_id,
-            deposit.reference_id,
-            `Deposit ${deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
-            'success',
-            totalBayar
-        ]
-    );
-
-    await logStatusChange({
-        entityType: 'deposit',
-        entityId: deposit.reference_id,
-        userId: deposit.user_id,
-        oldStatus: deposit.status,
-        newStatus: 'success',
-        reason: 'payment_received',
-        metadata: { saldoMasuk, totalBayar, fee, method: deposit.method },
-    });
-
-    console.log(`✅ Deposit ${deposit.reference_id} sukses | Saldo +${saldoMasuk} | Fee ${fee}`);
-    return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
 }
 
 // ============================================
-// ===== SYNC SINGLE DEPOSIT =====
+// ===== SYNC DEPOSIT =====
 // ============================================
 async function syncDepositStatus(deposit) {
-    if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) {
-        return deposit;
-    }
+    if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) return deposit;
 
     const now = new Date();
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
@@ -784,14 +897,7 @@ async function syncDepositStatus(deposit) {
                 [deposit.id]
             );
             if (upd.rows[0]) {
-                await logStatusChange({
-                    entityType: 'deposit',
-                    entityId: deposit.reference_id,
-                    userId: deposit.user_id,
-                    oldStatus: 'pending',
-                    newStatus: 'expired',
-                    reason: 'expired_qris_dana',
-                });
+                await logStatusChange({ entityType: 'deposit', entityId: deposit.reference_id, userId: deposit.user_id, oldStatus: 'pending', newStatus: 'expired', reason: 'expired_qris_dana' });
             }
             return upd.rows[0] || deposit;
         }
@@ -803,47 +909,29 @@ async function syncDepositStatus(deposit) {
             if (deposit.qris_id) {
                 try {
                     const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-                    if (data.data && data.data.status === 'paid') {
+                    if (data.data?.status === 'paid') {
                         await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
                         const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                         return fresh.rows[0];
                     }
-                    if (data.data && data.data.status === 'expired') {
+                    if (data.data?.status === 'expired') {
                         const upd = await pool.query(
-                            `UPDATE deposits SET status = 'expired', updated_at = NOW() 
-                             WHERE id = $1 AND status = 'pending' RETURNING *`,
+                            `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING *`,
                             [deposit.id]
                         );
                         if (upd.rows[0]) {
-                            await logStatusChange({
-                                entityType: 'deposit',
-                                entityId: deposit.reference_id,
-                                userId: deposit.user_id,
-                                oldStatus: 'pending',
-                                newStatus: 'expired',
-                                reason: 'expired_qrispy',
-                            });
+                            await logStatusChange({ entityType: 'deposit', entityId: deposit.reference_id, userId: deposit.user_id, oldStatus: 'pending', newStatus: 'expired', reason: 'expired_qrispy' });
                         }
                         return upd.rows[0] || deposit;
                     }
-                } catch (err) {
-                    console.error(`Sync ${deposit.reference_id} error:`, err.message);
-                }
+                } catch (err) {}
             }
             const upd = await pool.query(
-                `UPDATE deposits SET status = 'expired', updated_at = NOW() 
-                 WHERE id = $1 AND status = 'pending' RETURNING *`,
+                `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING *`,
                 [deposit.id]
             );
             if (upd.rows[0]) {
-                await logStatusChange({
-                    entityType: 'deposit',
-                    entityId: deposit.reference_id,
-                    userId: deposit.user_id,
-                    oldStatus: 'pending',
-                    newStatus: 'expired',
-                    reason: 'expired_fallback',
-                });
+                await logStatusChange({ entityType: 'deposit', entityId: deposit.reference_id, userId: deposit.user_id, oldStatus: 'pending', newStatus: 'expired', reason: 'expired_fallback' });
             }
             return upd.rows[0] || deposit;
         }
@@ -851,34 +939,22 @@ async function syncDepositStatus(deposit) {
         if (deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-
-                if (data.data && data.data.status === 'paid') {
+                if (data.data?.status === 'paid') {
                     await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return fresh.rows[0];
                 }
-
-                if (data.data && data.data.status === 'expired') {
+                if (data.data?.status === 'expired') {
                     const upd = await pool.query(
-                        `UPDATE deposits SET status = 'expired', updated_at = NOW() 
-                         WHERE id = $1 AND status = 'pending' RETURNING *`,
+                        `UPDATE deposits SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending' RETURNING *`,
                         [deposit.id]
                     );
                     if (upd.rows[0]) {
-                        await logStatusChange({
-                            entityType: 'deposit',
-                            entityId: deposit.reference_id,
-                            userId: deposit.user_id,
-                            oldStatus: 'pending',
-                            newStatus: 'expired',
-                            reason: 'expired_qrispy',
-                        });
+                        await logStatusChange({ entityType: 'deposit', entityId: deposit.reference_id, userId: deposit.user_id, oldStatus: 'pending', newStatus: 'expired', reason: 'expired_qrispy' });
                     }
                     return upd.rows[0] || deposit;
                 }
-            } catch (err) {
-                console.error(`Sync ${deposit.reference_id} error:`, err.message);
-            }
+            } catch (err) {}
         }
     }
 
@@ -886,97 +962,83 @@ async function syncDepositStatus(deposit) {
 }
 
 // ============================================
-// ===== REFUND ORDER (helper idempotent) =====
-// ===== Return: { refunded: bool, amount: number, alreadyProcessed: bool }
+// ===== REFUND ORDER (ATOMIC) =====
 // ============================================
 async function refundOrder(order, reason = 'auto_refund') {
     const o = order;
 
-    // Kalo udah pernah di-refund → skip
     if (o.refunded_at && Number(o.refunded_at) > 0) {
-        return {
-            refunded: false,
-            amount: Number(o.refunded_amount) || 0,
-            alreadyProcessed: true,
-        };
+        return { refunded: false, amount: Number(o.refunded_amount) || 0, alreadyProcessed: true };
     }
 
-    // Kalo status final yang ga perlu refund (misal received/success), skip
     if (['received', 'success'].includes(o.status)) {
         return { refunded: false, amount: 0, alreadyProcessed: true };
     }
 
     const refundAmount = Number(o.price) || 0;
-    if (refundAmount <= 0) {
-        return { refunded: false, amount: 0, alreadyProcessed: false };
-    }
+    if (refundAmount <= 0) return { refunded: false, amount: 0, alreadyProcessed: false };
 
     const refundTime = Date.now();
 
-    // Atomic: update cuma kalo belum pernah refund
-    const updateRes = await pool.query(
-        `UPDATE orders 
-         SET refunded_at = $1, 
-             refunded_amount = $2, 
-             refund_reason = $3,
-             updated_at = NOW()
-         WHERE id = $4 AND (refunded_at IS NULL OR refunded_at = 0)
-         RETURNING *`,
-        [refundTime, refundAmount, reason, o.id]
-    );
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
 
-    if (updateRes.rowCount === 0) {
-        return { refunded: false, amount: 0, alreadyProcessed: true };
+        const updateRes = await client.query(
+            `UPDATE orders 
+             SET refunded_at = $1, refunded_amount = $2, refund_reason = $3, updated_at = NOW()
+             WHERE id = $4 AND (refunded_at IS NULL OR refunded_at = 0)
+             RETURNING *`,
+            [refundTime, refundAmount, reason, o.id]
+        );
+
+        if (updateRes.rowCount === 0) {
+            await client.query('ROLLBACK');
+            return { refunded: false, amount: 0, alreadyProcessed: true };
+        }
+
+        await client.query(
+            `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
+            [refundAmount, o.user_id]
+        );
+
+        await client.query(
+            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            ['order', String(o.order_id), o.user_id, o.status, 'refunded', reason,
+             JSON.stringify({ refunded_amount: refundAmount, otp_id: o.otp_id, original_status: o.status })]
+        );
+
+        await client.query('COMMIT');
+        console.log(`💰 Refund ${refundAmount} (order ${o.order_id}, ${reason})`);
+
+        return { refunded: true, amount: refundAmount, alreadyProcessed: false };
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('refundOrder error:', err.message);
+        throw err;
+    } finally {
+        client.release();
     }
-
-    // Add ke balance
-    await pool.query(
-        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-        [refundAmount, o.user_id]
-    );
-
-    // Log
-    await logStatusChange({
-        entityType: 'order',
-        entityId: String(o.order_id),
-        userId: o.user_id,
-        oldStatus: o.status,
-        newStatus: 'refunded',
-        reason: reason,
-        metadata: {
-            refunded_amount: refundAmount,
-            otp_id: o.otp_id,
-            original_status: o.status,
-        },
-    });
-
-    console.log(`💰 Refund Rp${refundAmount} to user ${o.user_id} (order ${o.order_id}, reason: ${reason})`);
-
-    return {
-        refunded: true,
-        amount: refundAmount,
-        alreadyProcessed: false,
-    };
 }
 
 // ============================================
-// ===== AUTO-CANCEL & REFUND ORDER =====
+// ===== AUTO-CANCEL & REFUND =====
 // ============================================
 async function autoCancelAndRefund(order) {
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
     if (fresh.rows.length === 0) return { refunded: false };
 
     const o = fresh.rows[0];
-    if (['cancelled', 'refunded', 'expired', 'received', 'success'].includes(o.status)) {
-        // Masih mungkin refund kalo status = cancelled/expired tapi belum direfund
-        if (['cancelled', 'expired', 'failed'].includes(o.status) && (!o.refunded_at || Number(o.refunded_at) === 0)) {
+
+    if (['received', 'success'].includes(o.status)) {
+        return { refunded: false, alreadyProcessed: true };
+    }
+
+    if (['cancelled', 'refunded', 'expired'].includes(o.status)) {
+        if (!o.refunded_at || Number(o.refunded_at) === 0) {
             const refundRes = await refundOrder(o, 'auto_refund_' + o.status);
-            return {
-                refunded: refundRes.refunded,
-                refundedAmount: refundRes.amount,
-                orderId: o.order_id,
-                otpId: o.otp_id,
-            };
+            return { refunded: refundRes.refunded, refundedAmount: refundRes.amount, orderId: o.order_id, otpId: o.otp_id };
         }
         return { refunded: false, alreadyProcessed: true };
     }
@@ -991,97 +1053,67 @@ async function autoCancelAndRefund(order) {
             providerRefund = Number(cancelData.refunded);
         }
     } catch (err) {
-        console.error(`Provider cancel error for ${o.order_id}:`, err.message);
+        console.error(`Provider cancel ${o.order_id}:`, err.message);
     }
 
-    // Update status ke expired
     const updateRes = await pool.query(
         `UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1 AND status = 'pending'`,
         [o.id]
     );
 
-    if (updateRes.rowCount === 0) {
-        return { refunded: false, alreadyProcessed: true };
-    }
+    if (updateRes.rowCount === 0) return { refunded: false, alreadyProcessed: true };
 
     await pool.query(
         `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
         [String(o.order_id)]
     );
 
-    // Refund (selalu refund dari saldo kita biar user-friend)
     const refundRes = await refundOrder({ ...o, status: 'expired' }, 'auto_cancel_expired');
 
-    console.log(`💰 Auto-refund Rp${refundRes.amount} to user ${o.user_id} (order ${o.order_id} expired)`);
-
-    return {
-        refunded: refundRes.refunded,
-        refundedAmount: refundRes.amount,
-        orderId: o.order_id,
-        otpId: o.otp_id,
-    };
+    return { refunded: refundRes.refunded, refundedAmount: refundRes.amount, orderId: o.order_id, otpId: o.otp_id };
 }
 
 // ============================================
-// ===== CHECK & REFUND ALL PENDING (per user) =====
-// ===== Dipanggil pas user buka inbox/nokos =====
+// ===== CHECK & REFUND ALL PENDING =====
 // ============================================
 async function checkAndRefundUserOrders(userId) {
     const refunded = [];
 
     try {
-        // 1. Order yang expired (expired_at < now) tapi masih pending
-        const expiredResult = await pool.query(
-            `SELECT * FROM orders 
-             WHERE user_id = $1 
-               AND status = 'pending'
-               AND expired_at IS NOT NULL 
-               AND expired_at < NOW()
-             LIMIT 20`,
-            [userId]
-        );
+        // Query parallel
+        const [expiredResult, needRefundResult] = await Promise.all([
+            pool.query(
+                `SELECT * FROM orders 
+                 WHERE user_id = $1 AND status = 'pending'
+                   AND expired_at IS NOT NULL AND expired_at < NOW()
+                 ORDER BY expired_at ASC LIMIT 50`,
+                [userId]
+            ),
+            pool.query(
+                `SELECT * FROM orders 
+                 WHERE user_id = $1 AND status IN ('cancelled', 'failed', 'expired')
+                   AND (refunded_at IS NULL OR refunded_at = 0) AND price > 0
+                 LIMIT 50`,
+                [userId]
+            ),
+        ]);
 
         for (const order of expiredResult.rows) {
             try {
                 const res = await autoCancelAndRefund(order);
                 if (res.refunded) {
-                    refunded.push({
-                        order_id: res.orderId,
-                        otp_id: res.otpId,
-                        refunded_amount: res.refundedAmount,
-                        reason: 'expired',
-                    });
+                    refunded.push({ order_id: res.orderId, otp_id: res.otpId, refunded_amount: res.refundedAmount, reason: 'expired' });
                 }
-            } catch (err) {
-                console.error(`Auto-cancel order ${order.order_id} error:`, err.message);
-            }
+            } catch (err) {}
         }
-
-        // 2. Order dengan status cancelled/failed/expired yang BELUM di-refund
-        const needRefundResult = await pool.query(
-            `SELECT * FROM orders 
-             WHERE user_id = $1 
-               AND status IN ('cancelled', 'failed', 'expired')
-               AND (refunded_at IS NULL OR refunded_at = 0)
-               AND price > 0
-             LIMIT 20`,
-            [userId]
-        );
 
         for (const order of needRefundResult.rows) {
             try {
                 const res = await refundOrder(order, 'auto_refund_' + order.status);
                 if (res.refunded) {
-                    refunded.push({
-                        order_id: order.order_id,
-                        otp_id: order.otp_id,
-                        refunded_amount: res.amount,
-                        reason: order.status,
-                    });
+                    refunded.push({ order_id: order.order_id, otp_id: order.otp_id, refunded_amount: res.amount, reason: order.status });
                 }
-            } catch (err) {
-                console.error(`Refund order ${order.order_id} error:`, err.message);
-            }
+            } catch (err) {}
         }
     } catch (err) {
         console.error('checkAndRefundUserOrders error:', err.message);
@@ -1096,16 +1128,6 @@ async function checkAndRefundUserOrders(userId) {
 app.get('/api/health', withDB(async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW() as time');
-
-        const requiredCols = ['otp_id', 'last_checked_at', 'expired_at', 'otp_code_2', 'refunded_at', 'refunded_amount', 'refund_reason'];
-        const colCheck = await pool.query(`
-            SELECT column_name FROM information_schema.columns 
-            WHERE table_name = 'orders' AND column_name = ANY($1)
-        `, [requiredCols]);
-
-        const present = colCheck.rows.map(r => r.column_name);
-        const missing = requiredCols.filter(c => !present.includes(c));
-
         res.json({
             status: 'ok',
             time: result.rows[0].time,
@@ -1113,11 +1135,11 @@ app.get('/api/health', withDB(async (req, res) => {
             hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
             hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
             hasJwtSecret: !!JWT_SECRET,
-            schema: {
-                ok: missing.length === 0,
-                present,
-                missing,
-            },
+            hasCronSecret: !!CRON_SECRET,
+            schemaEnsured,
+            poolTotal: pool.totalCount,
+            poolIdle: pool.idleCount,
+            poolWaiting: pool.waitingCount,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -1136,7 +1158,7 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
     if (password.length > 100) return res.status(400).json({ error: 'Password maksimal 100 karakter' });
 
     try {
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, 8); // cost 8 lebih cepet dari 10
         const result = await pool.query(
             `INSERT INTO users (username, password_hash, name)
              VALUES ($1, $2, $3)
@@ -1156,7 +1178,10 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
 
     try {
-        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username.toLowerCase()]);
+        const result = await pool.query(
+            'SELECT id, username, name, balance, role, status, user_code, password_hash FROM users WHERE username = $1 LIMIT 1',
+            [username.toLowerCase()]
+        );
         if (result.rows.length === 0) return res.status(401).json({ error: 'Username atau password salah' });
 
         const user = result.rows[0];
@@ -1177,10 +1202,28 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
     }
 }));
 
+app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
+    try {
+        // Blacklist token
+        if (req.user.jti) {
+            const decoded = jwt.decode(req.headers.authorization.replace('Bearer ', ''));
+            const exp = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            await blacklistToken(req.user.jti, exp);
+        }
+        res.json({ message: 'Logout berhasil' });
+    } catch (err) {
+        console.error('Logout error:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== USER =====
+// ============================================
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT id, username, name, balance, role, user_code, created_at FROM users WHERE id = $1',
+            'SELECT id, username, name, balance, role, user_code, created_at FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
@@ -1200,6 +1243,7 @@ app.post('/api/user/update', requireAuth, withDB(async (req, res) => {
             'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, name, balance, user_code',
             [name.trim(), req.user.id]
         );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         res.json({ message: 'Profil berhasil diupdate', user: result.rows[0] });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
@@ -1212,13 +1256,13 @@ app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
     if (new_password.length < 6) return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
 
     try {
-        const result = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+        const result = await pool.query('SELECT password_hash FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
 
         const valid = await bcrypt.compare(current_password, result.rows[0].password_hash);
         if (!valid) return res.status(401).json({ error: 'Password lama salah' });
 
-        const newHash = await bcrypt.hash(new_password, 10);
+        const newHash = await bcrypt.hash(new_password, 8);
         await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
         res.json({ message: 'Password berhasil diubah' });
     } catch (err) {
@@ -1229,7 +1273,8 @@ app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
 app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT * FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+            `SELECT order_id, service_name, country, country_flag, phone_number, status, price, otp_code, created_at
+             FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
             [req.user.id]
         );
         const transactions = result.rows;
@@ -1245,46 +1290,25 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-app.post('/api/auth/logout', requireAuth, (req, res) => {
-    res.json({ message: 'Logout berhasil' });
-});
-
 // ============================================
-// ===== DEPOSIT — METODE & PRESETS =====
+// ===== DEPOSIT — STATIC DATA =====
 // ============================================
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
-    res.json({
-        methods: [
-            { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
-            { id: 'qris_dana', label: 'QRIS DANA Manual', desc: 'Scan QR DANA, butuh konfirmasi admin', icon: 'dana', fee: 0, uniqueCode: true },
-        ],
-    });
+    res.json({ methods: DEPOSIT_METHODS });
 });
 
 app.get('/api/deposit/presets', requireAuth, (req, res) => {
-    res.json({
-        presets: [
-            { amount: 10000, label: 'Rp10.000' },
-            { amount: 20000, label: 'Rp20.000' },
-            { amount: 50000, label: 'Rp50.000' },
-            { amount: 100000, label: 'Rp100.000' },
-            { amount: 200000, label: 'Rp200.000' },
-            { amount: 500000, label: 'Rp500.000' },
-        ],
-        min: 1000,
-        max: 10000000,
-    });
+    res.json(DEPOSIT_PRESETS);
 });
 
 // ============================================
-// ===== DEPOSIT — GENERATE REFERENCE ID =====
+// ===== DEPOSIT — GENERATE REF =====
 // ============================================
 app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
     try {
         const referenceId = await generateUniqueReferenceId();
         res.json({ reference_id: referenceId });
     } catch (err) {
-        console.error('Generate ref error:', err);
         res.status(500).json({ error: 'Gagal generate reference ID' });
     }
 }));
@@ -1296,24 +1320,15 @@ app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
-    if (amount < 1000 || amount > 10000000) return res.status(400).json({ error: 'Nominal tidak valid (Rp1.000 - Rp10.000.000)' });
+    if (amount < 1000 || amount > 10000000) return res.status(400).json({ error: 'Nominal tidak valid' });
 
     try {
-        const existing = await pool.query('SELECT * FROM deposits WHERE reference_id = $1', [reference_id]);
-
+        const existing = await pool.query('SELECT * FROM deposits WHERE reference_id = $1 LIMIT 1', [reference_id]);
         if (existing.rows.length > 0) {
             const d = existing.rows[0];
             return res.json({
                 message: 'Deposit sudah tercatat',
-                deposit: {
-                    reference_id: d.reference_id,
-                    method: d.method,
-                    amount: Number(d.amount),
-                    qris_id: d.qris_id,
-                    qris_url: d.qris_url,
-                    expired_at: d.expires_at,
-                    expires_in_seconds: expires_in_seconds || 900,
-                },
+                deposit: { reference_id: d.reference_id, method: d.method, amount: Number(d.amount), qris_id: d.qris_id, qris_url: d.qris_url, expired_at: d.expires_at, expires_in_seconds: expires_in_seconds || 900 },
             });
         }
 
@@ -1324,31 +1339,22 @@ app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
         );
 
         await logStatusChange({
-            entityType: 'deposit',
-            entityId: reference_id,
-            userId: req.user.id,
-            oldStatus: null,
-            newStatus: 'pending',
-            reason: 'qrispy_created',
+            entityType: 'deposit', entityId: reference_id, userId: req.user.id,
+            oldStatus: null, newStatus: 'pending', reason: 'qrispy_created',
             metadata: { amount: Number(amount), method: 'qrispy', qris_id },
         });
 
         res.json({
             message: 'Deposit tercatat',
-            deposit: {
-                reference_id, method: 'qrispy', amount: Number(amount),
-                qris_id, qris_url, expired_at,
-                expires_in_seconds: expires_in_seconds || 900,
-            },
+            deposit: { reference_id, method: 'qrispy', amount: Number(amount), qris_id, qris_url, expired_at, expires_in_seconds: expires_in_seconds || 900 },
         });
     } catch (err) {
-        console.error('Save deposit error:', err);
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
 }));
 
 // ============================================
-// ===== DEPOSIT — QRIS DANA MANUAL =====
+// ===== DEPOSIT — QRIS DANA =====
 // ============================================
 app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
     const { amount } = req.body;
@@ -1362,19 +1368,18 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
 
+        // FIX: sinkron expired_at antara response dan DB
+        const expiredAt = new Date(Date.now() + QRIS_DANA_EXPIRY_MS);
+
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, fee, status, qris_string, qris_url, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, new Date(Date.now() + 30 * 60 * 1000)]
+            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, expiredAt]
         );
 
         await logStatusChange({
-            entityType: 'deposit',
-            entityId: referenceId,
-            userId: req.user.id,
-            oldStatus: null,
-            newStatus: 'pending',
-            reason: 'qris_dana_created',
+            entityType: 'deposit', entityId: referenceId, userId: req.user.id,
+            oldStatus: null, newStatus: 'pending', reason: 'qris_dana_created',
             metadata: { amount: Number(amount), unique_code: uniqueCode, total_amount: totalAmount },
         });
 
@@ -1385,12 +1390,11 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
                 amount: Number(amount), unique_code: uniqueCode,
                 total_amount: totalAmount, fee: uniqueCode,
                 qris_string: dynamicQRIS, qris_url: qrImageUrl,
-                expired_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
-                expires_in_seconds: 1800,
+                expired_at: expiredAt.toISOString(),
+                expires_in_seconds: Math.floor(QRIS_DANA_EXPIRY_MS / 1000),
             },
         });
     } catch (err) {
-        console.error('QRIS DANA deposit error:', err);
         res.status(500).json({ error: err.message });
     }
 }));
@@ -1403,7 +1407,7 @@ app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res)
 
     try {
         const result = await pool.query(
-            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
 
@@ -1417,7 +1421,6 @@ app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res)
 
         res.json({ status: 'ok', deposit });
     } catch (err) {
-        console.error('Check deposit status error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1431,7 +1434,7 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
 
     try {
         const result = await pool.query(
-            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
 
@@ -1447,20 +1450,20 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
 
         res.json({ message: 'Fee updated' });
     } catch (err) {
-        console.error('Update fee error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 // ============================================
-// ===== DEPOSIT — MARK EXPIRED =====
+// ===== DEPOSIT — MARK EXPIRED (FIXED) =====
+// ===== Cek expired_at dulu sebelum allow =====
 // ============================================
 app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
         const result = await pool.query(
-            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
 
@@ -1469,17 +1472,23 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
 
+        // FIX #9: cek expired_at dulu, jangan allow expire kalo belum waktunya
+        if (deposit.expires_at && new Date(deposit.expires_at) > new Date()) {
+            return res.status(400).json({
+                error: 'Deposit belum expired. Tunggu sampai waktu habis.',
+                expires_at: deposit.expires_at
+            });
+        }
+
         if (deposit.method === 'qrispy' && deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
-                if (data.data && data.data.status === 'paid') {
+                if (data.data?.status === 'paid') {
                     await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.json({ message: 'Deposit sudah dibayar', deposit: fresh.rows[0] });
                 }
-            } catch (err) {
-                console.error('Cross-check expire error:', err.message);
-            }
+            } catch (err) {}
         }
 
         const upd = await pool.query(
@@ -1490,31 +1499,27 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
 
         if (upd.rows[0]) {
             await logStatusChange({
-                entityType: 'deposit',
-                entityId: deposit.reference_id,
-                userId: req.user.id,
-                oldStatus: 'pending',
-                newStatus: 'expired',
-                reason: 'manual_expire',
+                entityType: 'deposit', entityId: deposit.reference_id, userId: req.user.id,
+                oldStatus: 'pending', newStatus: 'expired', reason: 'manual_expire',
             });
         }
 
         res.json({ message: 'Deposit expired', deposit: upd.rows[0] });
     } catch (err) {
-        console.error('Expire deposit error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 // ============================================
-// ===== DEPOSIT — CANCEL =====
+// ===== DEPOSIT — CANCEL (FIXED) =====
+// ===== Cek pembayaran dulu sebelum cancel =====
 // ============================================
 app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
         const result = await pool.query(
-            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2',
+            'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
 
@@ -1523,7 +1528,28 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit nggak bisa dibatalkan' });
 
+        // FIX #7: kalo udah expired, jangan bisa cancel
+        if (deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
+            return res.status(400).json({ error: 'Deposit sudah kedaluwarsa, tidak bisa dibatalkan' });
+        }
+
+        // FIX #7: cek dulu pembayaran ke QRISPY, jangan asal cancel
         if (deposit.method === 'qrispy' && deposit.qris_id) {
+            try {
+                const statusData = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
+                if (statusData.data?.status === 'paid') {
+                    // Udah dibayar! Mark success dulu
+                    await markDepositPaid(deposit, statusData.data.received_amount || statusData.data.amount, statusData.data.paid_at);
+                    const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
+                    return res.status(400).json({
+                        error: 'Deposit sudah dibayar, tidak bisa dibatalkan',
+                        deposit: fresh.rows[0]
+                    });
+                }
+            } catch (err) {
+                console.error('Check payment before cancel error:', err.message);
+            }
+
             try {
                 await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/cancel`, { method: 'POST' });
             } catch (err) {
@@ -1537,44 +1563,51 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
         );
 
         await logStatusChange({
-            entityType: 'deposit',
-            entityId: deposit.reference_id,
-            userId: req.user.id,
-            oldStatus: 'pending',
-            newStatus: 'cancelled',
-            reason: 'manual_cancel',
+            entityType: 'deposit', entityId: deposit.reference_id, userId: req.user.id,
+            oldStatus: 'pending', newStatus: 'cancelled', reason: 'manual_cancel',
             metadata: { method: deposit.method, amount: Number(deposit.amount) },
         });
 
         res.json({ message: 'Deposit dibatalkan' });
     } catch (err) {
-        console.error('Cancel deposit error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 // ============================================
-// ===== DEPOSIT — LIST (PAGINATION) =====
+// ===== DEPOSIT — HISTORY (OPTIMIZED) =====
+// ===== Fix #10: count pake filter yang sama =====
 // ============================================
 app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 5));
     const status = req.query.status;
+    const offset = (page - 1) * limit;
 
     try {
-        let query = 'SELECT * FROM deposits WHERE user_id = $1';
-        const params = [req.user.id];
+        let query, countQuery, params, countParams;
 
         if (status) {
-            query += ` AND status = $${params.length + 1}`;
-            params.push(status);
+            // FIX: count pake filter status juga
+            query = `SELECT * FROM deposits WHERE user_id = $1 AND status = $2 
+                     ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
+            params = [req.user.id, status, limit, offset];
+            countQuery = `SELECT COUNT(*) FROM deposits WHERE user_id = $1 AND status = $2`;
+            countParams = [req.user.id, status];
+        } else {
+            query = `SELECT * FROM deposits WHERE user_id = $1 
+                     ORDER BY created_at DESC LIMIT $2 OFFSET $3`;
+            params = [req.user.id, limit, offset];
+            countQuery = `SELECT COUNT(*) FROM deposits WHERE user_id = $1`;
+            countParams = [req.user.id];
         }
 
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limit, (page - 1) * limit);
+        // Parallel query
+        const [result, countRes] = await Promise.all([
+            pool.query(query, params),
+            pool.query(countQuery, countParams),
+        ]);
 
-        const result = await pool.query(query, params);
-        const countRes = await pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id]);
         const total = Number(countRes.rows[0].count);
         const totalPages = Math.ceil(total / limit);
 
@@ -1605,42 +1638,72 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM deposits 
-             WHERE reference_id = ANY($1) 
-               AND user_id = $2 
-               AND status = 'pending'`,
+             WHERE reference_id = ANY($1) AND user_id = $2 AND status = 'pending'`,
             [ids, req.user.id]
         );
 
         const updated = [];
-        for (const deposit of result.rows) {
-            const fresh = await syncDepositStatus(deposit);
-            if (fresh.status !== 'pending') updated.push(fresh);
+        // Parallel sync (max 5 concurrent)
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 5) {
+            chunks.push(result.rows.slice(i, i + 5));
+        }
+
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
+            for (const fresh of results) {
+                if (fresh.status !== 'pending') updated.push(fresh);
+            }
         }
 
         res.json({ updated, count: updated.length });
     } catch (err) {
-        console.error('Sync batch error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 // ============================================
-// ===== ADMIN — APPROVE DEPOSIT MANUAL =====
+// ===== ADMIN — APPROVE DEPOSIT (FIXED) =====
+// ===== Verifikasi credit beneran masuk =====
 // ============================================
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, withDB(async (req, res) => {
     const { referenceId } = req.params;
 
     try {
-        const result = await pool.query('SELECT * FROM deposits WHERE reference_id = $1', [referenceId]);
+        const result = await pool.query('SELECT * FROM deposits WHERE reference_id = $1 LIMIT 1', [referenceId]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
         if (deposit.status === 'success') return res.status(400).json({ error: 'Sudah di-approve' });
 
-        await markDepositPaid(deposit, deposit.total_amount || deposit.amount, new Date());
+        // Get balance sebelum
+        const beforeRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
+        const balanceBefore = Number(beforeRes.rows[0]?.balance || 0);
+
+        // Process credit
+        const result2 = await markDepositPaid(deposit, deposit.total_amount || deposit.amount, new Date());
+
+        if (result2.alreadyProcessed) {
+            return res.status(400).json({ error: 'Sudah diproses sebelumnya' });
+        }
+
+        // Verify balance beneran nambah
+        const afterRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
+        const balanceAfter = Number(afterRes.rows[0]?.balance || 0);
+        const credited = balanceAfter - balanceBefore;
+
+        if (credited !== result2.saldoMasuk) {
+            console.error(`⚠️ Mismatch credit: expected ${result2.saldoMasuk}, got ${credited}`);
+            // Warning aja, tetep return success karena DB transaksi udah commit
+        }
 
         const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-        res.json({ message: 'Deposit di-approve', deposit: updated.rows[0] });
+        res.json({
+            message: 'Deposit di-approve',
+            deposit: updated.rows[0],
+            credit_verified: credited === result2.saldoMasuk,
+            credited_amount: credited,
+        });
     } catch (err) {
         console.error('Approve error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -1694,20 +1757,17 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== WEBHOOK OTP =====
+// ===== WEBHOOK OTP (FIXED: revive order) =====
+// ===== Bisa hidupkan order yang udah cancelled/refunded =====
 // ============================================
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     try {
         if (!WEBHOOK_OTP1_SECRET) {
-            console.error('Webhook OTP1: WEBHOOK_OTP1 not set');
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
         const signature = req.headers['x-banana-signature'] || req.headers['x-otp1-signature'];
-        if (!signature) {
-            console.error('Webhook OTP1: no signature');
-            return res.status(401).json({ error: 'No signature' });
-        }
+        if (!signature) return res.status(401).json({ error: 'No signature' });
 
         const rawBody = req.rawBody || JSON.stringify(req.body);
         const expectedSig = 'sha256=' + crypto
@@ -1718,82 +1778,158 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         const sigBuffer = Buffer.from(signature);
         const expectedBuffer = Buffer.from(expectedSig);
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-            console.error('Webhook OTP1: invalid signature');
             return res.status(401).json({ error: 'Invalid signature' });
         }
 
         const data = req.body;
-        console.log('📥 Webhook OTP1 received:', JSON.stringify(data).substring(0, 300));
+        console.log('📥 Webhook OTP1:', JSON.stringify(data).substring(0, 300));
 
         const providerOrderId = data.order_id || data.orderId || data.reference;
         const otpCode = data.otp_code || data.otpCode || data.code || data.otp;
         const fullSms = data.full_sms || data.fullSms || data.message || data.sms || '';
         const otpCode2 = data.otp_code_2 || data.otpCode2 || null;
 
-        if (!providerOrderId) {
-            console.error('Webhook OTP1: no order_id in payload');
-            return res.status(400).json({ error: 'Missing order_id' });
-        }
+        if (!providerOrderId) return res.status(400).json({ error: 'Missing order_id' });
 
-        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1', [String(providerOrderId)]);
-
-        if (orderRes.rows.length === 0) {
-            console.error('Webhook OTP1: order not found', providerOrderId);
-            return res.json({ status: 'ok', message: 'Order not found' });
-        }
+        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [String(providerOrderId)]);
+        if (orderRes.rows.length === 0) return res.json({ status: 'ok', message: 'Order not found' });
 
         const order = orderRes.rows[0];
 
-        const updateFields = [];
-        const updateParams = [];
+        // FIX #3: revive order kalo udah cancelled/refunded/expired tapi masih dalam grace period
+        const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
+        let revived = false;
 
-        if (otpCode) {
-            updateFields.push(`otp_code = $${updateParams.length + 1}`);
-            updateParams.push(otpCode);
+        if (isRevivable && otpCode) {
+            const orderAge = Date.now() - new Date(order.created_at).getTime();
+            if (orderAge <= REVIVE_GRACE_PERIOD_MS) {
+                // Revive: kalo udah ke-refund, potong balik saldo user
+                if (order.refunded_at && Number(order.refunded_at) > 0) {
+                    const refundAmount = Number(order.refunded_amount) || Number(order.price);
+
+                    const client = await pool.connect();
+                    try {
+                        await client.query('BEGIN');
+
+                        // Potong balik saldo (cek cukup)
+                        const deductRes = await client.query(
+                            `UPDATE users SET balance = balance - $1, updated_at = NOW() 
+                             WHERE id = $2 AND balance >= $1
+                             RETURNING balance`,
+                            [refundAmount, order.user_id]
+                        );
+
+                        if (deductRes.rowCount === 0) {
+                            await client.query('ROLLBACK');
+                            console.error(`⚠️ Revive gagal: saldo user ${order.user_id} tidak cukup untuk potong ${refundAmount}`);
+                            // Kalo gagal, tetap kirim OTP tapi ga revive
+                        } else {
+                            // Reset refunded_at
+                            await client.query(
+                                `UPDATE orders 
+                                 SET status = 'received',
+                                     otp_code = $1,
+                                     otp_code_2 = $2,
+                                     full_sms = $3,
+                                     received_at = NOW(),
+                                     refunded_at = NULL,
+                                     refunded_amount = NULL,
+                                     refund_reason = 'revived_by_webhook',
+                                     revived_at = NOW(),
+                                     revived_count = COALESCE(revived_count, 0) + 1,
+                                     updated_at = NOW()
+                                 WHERE id = $4`,
+                                [otpCode, otpCode2, fullSms, order.id]
+                            );
+
+                            await client.query(
+                                `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                                [otpCode, String(order.order_id)]
+                            );
+
+                            await client.query(
+                                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                                ['order', String(order.order_id), order.user_id, order.status, 'received', 'webhook_revive',
+                                 JSON.stringify({ otp_code: otpCode, refunded_balance_deducted: refundAmount, revived: true })]
+                            );
+
+                            await client.query('COMMIT');
+                            revived = true;
+                            console.log(`🔄 Order ${order.order_id} revived via webhook`);
+                        }
+                    } catch (err) {
+                        await client.query('ROLLBACK');
+                        console.error('Revive error:', err.message);
+                    } finally {
+                        client.release();
+                    }
+                } else {
+                    // Belum di-refund, cuma cancelled/expired
+                    await pool.query(
+                        `UPDATE orders 
+                         SET status = 'received',
+                             otp_code = $1,
+                             otp_code_2 = $2,
+                             full_sms = $3,
+                             received_at = NOW(),
+                             revived_at = NOW(),
+                             revived_count = COALESCE(revived_count, 0) + 1,
+                             updated_at = NOW()
+                         WHERE id = $4`,
+                        [otpCode, otpCode2, fullSms, order.id]
+                    );
+
+                    await pool.query(
+                        `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                        [otpCode, String(order.order_id)]
+                    );
+
+                    await logStatusChange({
+                        entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                        oldStatus: order.status, newStatus: 'received', reason: 'webhook_revive',
+                        metadata: { otp_code: otpCode, revived: true },
+                    });
+
+                    revived = true;
+                    console.log(`🔄 Order ${order.order_id} revived (no refund)`);
+                }
+            }
         }
-        if (otpCode2) {
-            updateFields.push(`otp_code_2 = $${updateParams.length + 1}`);
-            updateParams.push(otpCode2);
+
+        // Kalo bukan revive, update normal
+        if (!revived) {
+            const updateFields = [];
+            const updateParams = [];
+
+            if (otpCode) { updateFields.push(`otp_code = $${updateParams.length + 1}`); updateParams.push(otpCode); }
+            if (otpCode2) { updateFields.push(`otp_code_2 = $${updateParams.length + 1}`); updateParams.push(otpCode2); }
+            if (fullSms) { updateFields.push(`full_sms = $${updateParams.length + 1}`); updateParams.push(fullSms); }
+
+            updateFields.push(`status = $${updateParams.length + 1}`);
+            updateParams.push('received');
+            updateFields.push(`received_at = NOW()`);
+            updateFields.push(`updated_at = NOW()`);
+            updateParams.push(order.id);
+
+            await pool.query(
+                `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $${updateParams.length}`,
+                updateParams
+            );
+
+            await pool.query(
+                `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                [otpCode || null, String(order.order_id)]
+            );
+
+            await logStatusChange({
+                entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                oldStatus: order.status, newStatus: 'received', reason: 'webhook_otp1',
+                metadata: { otp_code: otpCode || null, otp_code_2: otpCode2 || null, has_full_sms: !!fullSms, otp_id: order.otp_id },
+            });
         }
-        if (fullSms) {
-            updateFields.push(`full_sms = $${updateParams.length + 1}`);
-            updateParams.push(fullSms);
-        }
 
-        updateFields.push(`status = $${updateParams.length + 1}`);
-        updateParams.push('received');
-        updateFields.push(`received_at = NOW()`);
-        updateFields.push(`updated_at = NOW()`);
-
-        updateParams.push(order.id);
-
-        await pool.query(
-            `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $${updateParams.length}`,
-            updateParams
-        );
-
-        await pool.query(
-            `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
-            [otpCode || null, String(order.order_id)]
-        );
-
-        await logStatusChange({
-            entityType: 'order',
-            entityId: String(order.order_id),
-            userId: order.user_id,
-            oldStatus: order.status,
-            newStatus: 'received',
-            reason: 'webhook_otp1',
-            metadata: {
-                otp_code: otpCode || null,
-                otp_code_2: otpCode2 || null,
-                has_full_sms: !!fullSms,
-                otp_id: order.otp_id,
-            },
-        });
-
-        console.log(`✅ Webhook OTP1: order ${order.order_id} updated with OTP`);
-        res.status(200).json({ status: 'ok', message: 'received' });
+        res.status(200).json({ status: 'ok', message: 'received', revived });
     } catch (err) {
         console.error('Webhook OTP1 error:', err);
         res.status(500).json({ error: 'Server error' });
@@ -1801,29 +1937,25 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CEK OTP =====
+// ===== CEK OTP (OPTIMIZED) =====
 // ============================================
 app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
 
-    if (!order_id && !otp_id) {
-        return res.status(400).json({ error: 'order_id atau otp_id wajib' });
-    }
+    if (!order_id && !otp_id) return res.status(400).json({ error: 'order_id atau otp_id wajib' });
 
     try {
         let query, params;
         if (otp_id) {
-            query = 'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2';
+            query = 'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 LIMIT 1';
             params = [otp_id, req.user.id];
         } else {
-            query = 'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2';
+            query = 'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1';
             params = [String(order_id), req.user.id];
         }
 
         const orderRes = await pool.query(query, params);
-        if (orderRes.rows.length === 0) {
-            return res.status(404).json({ error: 'Order tidak ditemukan' });
-        }
+        if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
 
@@ -1842,7 +1974,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
         if (order.expired_at && new Date(order.expired_at) < new Date()) {
             const cancelResult = await autoCancelAndRefund(order);
-            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
+            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
             const o = fresh.rows[0] || order;
 
             return res.json({
@@ -1858,7 +1990,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
         }
 
         try {
-            const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
+            const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
 
             await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
 
@@ -1885,28 +2017,20 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
                 if (data.status !== order.status) {
                     await logStatusChange({
-                        entityType: 'order',
-                        entityId: String(order.order_id),
-                        userId: order.user_id,
-                        oldStatus: order.status,
-                        newStatus: data.status,
-                        reason: 'polling_provider',
-                        metadata: {
-                            otp_code: data.otp_code || null,
-                            otp_id: order.otp_id,
-                        },
+                        entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                        oldStatus: order.status, newStatus: data.status, reason: 'polling_provider',
+                        metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
                     });
                 }
 
-                // Auto-refund kalo status dari provider = cancelled/expired/refunded
                 if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
                     if (fresh.rows[0]) {
                         await refundOrder(fresh.rows[0], 'provider_' + data.status);
                     }
                 }
 
-                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
                     status: fresh.rows[0].status, phone_number: fresh.rows[0].phone_number,
@@ -1960,14 +2084,11 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
 // ============================================
 // ===== CHECK & REFUND (auto) =====
-// ===== Dipanggil user pas buka inbox/nokos =====
 // ============================================
 app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
     try {
         const refunded = await checkAndRefundUserOrders(req.user.id);
-
-        // Ambil balance terbaru
-        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
+        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
 
         res.json({
             refunded,
@@ -1981,7 +2102,7 @@ app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== ORDERS STATS (count per status) =====
+// ===== ORDERS STATS (FIXED #10) =====
 // ============================================
 app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     try {
@@ -1993,8 +2114,7 @@ app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
                 COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
                 COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
                 COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
-             FROM orders 
-             WHERE user_id = $1`,
+             FROM orders WHERE user_id = $1`,
             [req.user.id]
         );
 
@@ -2008,41 +2128,45 @@ app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
             cancelled: Number(row.cancelled_count || 0),
         });
     } catch (err) {
-        console.error('Orders stats error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 // ============================================
-// ===== STATUS LOGS =====
+// ===== STATUS LOGS (FIXED #10) =====
+// ===== Count pake filter yang sama =====
 // ============================================
 app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * limitNum;
 
     try {
-        let query = 'SELECT * FROM status_logs WHERE user_id = $1';
-        const params = [req.user.id];
+        // Build query filters (dipake untuk data & count)
+        const conditions = ['user_id = $1'];
+        const baseParams = [req.user.id];
 
         if (entity_type) {
-            query += ` AND entity_type = $${params.length + 1}`;
-            params.push(entity_type);
+            conditions.push(`entity_type = $${baseParams.length + 1}`);
+            baseParams.push(entity_type);
         }
-
         if (entity_id) {
-            query += ` AND entity_id = $${params.length + 1}`;
-            params.push(String(entity_id));
+            conditions.push(`entity_id = $${baseParams.length + 1}`);
+            baseParams.push(String(entity_id));
         }
 
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(limitNum, (pageNum - 1) * limitNum);
+        const whereClause = conditions.join(' AND ');
 
-        const result = await pool.query(query, params);
-        const countRes = await pool.query(
-            'SELECT COUNT(*) FROM status_logs WHERE user_id = $1',
-            [req.user.id]
-        );
+        // Parallel query
+        const [result, countRes] = await Promise.all([
+            pool.query(
+                `SELECT * FROM status_logs WHERE ${whereClause} 
+                 ORDER BY created_at DESC LIMIT $${baseParams.length + 1} OFFSET $${baseParams.length + 2}`,
+                [...baseParams, limitNum, offset]
+            ),
+            pool.query(`SELECT COUNT(*) FROM status_logs WHERE ${whereClause}`, baseParams),
+        ]);
 
         res.json({
             logs: result.rows,
@@ -2057,190 +2181,189 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CRON: AUTO-VALIDATE + AUTO-REFUND =====
+// ===== CRON (with auth) =====
 // ============================================
-app.post('/api/cron/validate-pending-orders', withDB(async (req, res) => {
+app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
     try {
+        // Fix #18: limit 50, order by expired_at ASC (yang paling urgent dulu)
         const result = await pool.query(
             `SELECT * FROM orders 
-             WHERE status = 'pending' 
-               AND created_at > NOW() - INTERVAL '30 minutes'
-             ORDER BY created_at DESC
-             LIMIT 30`
+             WHERE status = 'pending' AND created_at > NOW() - INTERVAL '30 minutes'
+             ORDER BY expired_at ASC NULLS LAST
+             LIMIT 50`
         );
 
-        let updated = 0;
-        let expired = 0;
-        let refunded = 0;
+        let updated = 0, expired = 0, refunded = 0;
 
-        for (const order of result.rows) {
-            try {
-                if (order.expired_at && new Date(order.expired_at) < new Date()) {
-                    const cancelRes = await autoCancelAndRefund(order);
-                    if (cancelRes.refunded) refunded++;
-                    expired++;
-                    continue;
-                }
-
-                const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
-
-                if (data.status !== order.status || data.otp_code) {
-                    await pool.query(
-                        `UPDATE orders 
-                         SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
-                             received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
-                             last_checked_at = NOW(), updated_at = NOW() 
-                         WHERE id = $5`,
-                        [data.status, data.otp_code, data.otp_code_2, data.full_sms, order.id]
-                    );
-                    await pool.query(
-                        `UPDATE transactions 
-                         SET status = CASE 
-                            WHEN $1 IN ('received', 'success') THEN 'success' 
-                            WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
-                            ELSE status 
-                         END, 
-                         otp_code = $2, updated_at = NOW() 
-                         WHERE order_id = $3`,
-                        [data.status, data.otp_code, String(order.order_id)]
-                    );
-
-                    if (data.status !== order.status) {
-                        await logStatusChange({
-                            entityType: 'order',
-                            entityId: String(order.order_id),
-                            userId: order.user_id,
-                            oldStatus: order.status,
-                            newStatus: data.status,
-                            reason: 'cron_validate',
-                            metadata: {
-                                otp_code: data.otp_code || null,
-                                otp_id: order.otp_id,
-                            },
-                        });
-                    }
-
-                    if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                        const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
-                        if (fresh.rows[0]) {
-                            const refundRes = await refundOrder(fresh.rows[0], 'provider_' + data.status);
-                            if (refundRes.refunded) refunded++;
-                        }
-                        expired++;
-                    } else {
-                        updated++;
-                    }
-                } else {
-                    await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
-                }
-            } catch (err) {
-                console.error(`Validate order ${order.order_id} error:`, err.message);
-            }
+        // Batch processing: parallel chunks
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
         }
 
-        console.log(`⏰ Auto-validate: checked ${result.rows.length}, updated ${updated}, expired ${expired}, refunded ${refunded}`);
-        res.json({
-            message: `Validated ${result.rows.length} orders`,
-            checked: result.rows.length, updated, expired, refunded,
-        });
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (order) => {
+                try {
+                    if (order.expired_at && new Date(order.expired_at) < new Date()) {
+                        const cancelRes = await autoCancelAndRefund(order);
+                        if (cancelRes.refunded) refunded++;
+                        expired++;
+                        return;
+                    }
+
+                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+
+                    if (data.status !== order.status || data.otp_code) {
+                        await pool.query(
+                            `UPDATE orders 
+                             SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                                 received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
+                                 last_checked_at = NOW(), updated_at = NOW() 
+                             WHERE id = $5`,
+                            [data.status, data.otp_code, data.otp_code_2, data.full_sms, order.id]
+                        );
+                        await pool.query(
+                            `UPDATE transactions 
+                             SET status = CASE 
+                                WHEN $1 IN ('received', 'success') THEN 'success' 
+                                WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                                ELSE status 
+                             END, otp_code = $2, updated_at = NOW() 
+                             WHERE order_id = $3`,
+                            [data.status, data.otp_code, String(order.order_id)]
+                        );
+
+                        if (data.status !== order.status) {
+                            await logStatusChange({
+                                entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                                oldStatus: order.status, newStatus: data.status, reason: 'cron_validate',
+                                metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                            });
+                        }
+
+                        if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                            if (fresh.rows[0]) {
+                                const refundRes = await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                                if (refundRes.refunded) refunded++;
+                            }
+                            expired++;
+                        } else {
+                            updated++;
+                        }
+                    } else {
+                        await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
+                    }
+                } catch (err) {
+                    console.error(`Validate ${order.order_id}:`, err.message);
+                }
+            }));
+        }
+
+        res.json({ checked: result.rows.length, updated, expired, refunded });
     } catch (err) {
         console.error('Auto-validate error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
-// ============================================
-// ===== CRON: AUTO-REFUND ALL EXPIRED/FAILED =====
-// ============================================
-app.post('/api/cron/auto-refund-all', withDB(async (req, res) => {
+app.post('/api/cron/auto-refund-all', requireCron, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM orders 
              WHERE status IN ('cancelled', 'failed', 'expired')
                AND (refunded_at IS NULL OR refunded_at = 0)
                AND price > 0
-             LIMIT 50`
+             LIMIT 100`
         );
 
-        let refunded = 0;
-        let totalAmount = 0;
+        let refunded = 0, totalAmount = 0;
 
-        for (const order of result.rows) {
-            try {
-                const refundRes = await refundOrder(order, 'cron_auto_refund_' + order.status);
-                if (refundRes.refunded) {
-                    refunded++;
-                    totalAmount += refundRes.amount;
+        // Parallel processing
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
+        }
+
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(async (order) => {
+                try {
+                    return await refundOrder(order, 'cron_auto_refund_' + order.status);
+                } catch (err) {
+                    console.error(`Refund ${order.order_id}:`, err.message);
+                    return { refunded: false, amount: 0 };
                 }
-            } catch (err) {
-                console.error(`Cron refund order ${order.order_id} error:`, err.message);
+            }));
+
+            for (const r of results) {
+                if (r.refunded) {
+                    refunded++;
+                    totalAmount += r.amount;
+                }
             }
         }
 
-        console.log(`💰 Cron auto-refund: ${refunded} orders, total Rp${totalAmount}`);
-        res.json({
-            message: `Refunded ${refunded} orders`,
-            checked: result.rows.length,
-            refunded,
-            total_amount: totalAmount,
-        });
+        res.json({ checked: result.rows.length, refunded, total_amount: totalAmount });
     } catch (err) {
-        console.error('Cron auto-refund error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
-// ============================================
-// ===== CRON: AUTO-EXPIRE PENDING DEPOSITS =====
-// ============================================
-app.post('/api/cron/expire-pending-deposits', withDB(async (req, res) => {
+app.post('/api/cron/expire-pending-deposits', requireCron, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM deposits 
-             WHERE status = 'pending' 
-               AND expires_at IS NOT NULL 
-               AND expires_at < NOW()
+             WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
              LIMIT 50`
         );
 
         let expired = 0, synced = 0;
-        for (const deposit of result.rows) {
-            const fresh = await syncDepositStatus(deposit);
-            if (fresh.status === 'success') synced++;
-            else if (fresh.status === 'expired') expired++;
+
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
         }
 
-        res.json({ message: `Checked ${result.rows.length} deposits`, checked: result.rows.length, expired, synced });
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
+            for (const fresh of results) {
+                if (fresh.status === 'success') synced++;
+                else if (fresh.status === 'expired') expired++;
+            }
+        }
+
+        res.json({ checked: result.rows.length, expired, synced });
     } catch (err) {
-        console.error('Cron expire error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
-// ============================================
-// ===== CRON: SYNC PENDING QRISPY =====
-// ============================================
-app.post('/api/cron/sync-pending-qrispy', withDB(async (req, res) => {
+app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT * FROM deposits 
-             WHERE method = 'qrispy' 
-               AND status = 'pending' 
-               AND qris_id IS NOT NULL
+             WHERE method = 'qrispy' AND status = 'pending' AND qris_id IS NOT NULL
                AND created_at > NOW() - INTERVAL '1 hour'
-             ORDER BY created_at DESC LIMIT 20`
+             ORDER BY created_at DESC LIMIT 30`
         );
 
         let synced = 0, expired = 0;
-        for (const deposit of result.rows) {
-            const fresh = await syncDepositStatus(deposit);
-            if (fresh.status === 'success') synced++;
-            else if (fresh.status === 'expired') expired++;
+
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 5) {
+            chunks.push(result.rows.slice(i, i + 5));
         }
 
-        res.json({ message: `Synced ${synced}, expired ${expired}`, checked: result.rows.length, synced, expired });
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
+            for (const fresh of results) {
+                if (fresh.status === 'success') synced++;
+                else if (fresh.status === 'expired') expired++;
+            }
+        }
+
+        res.json({ checked: result.rows.length, synced, expired });
     } catch (err) {
-        console.error('Cron sync error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2249,15 +2372,7 @@ app.post('/api/cron/sync-pending-qrispy', withDB(async (req, res) => {
 // ===== NOKOS — SERVERS =====
 // ============================================
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
-    const servers = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
-        id: key,
-        label: config.label,
-        desc: config.desc,
-        badge: config.badge,
-        countries: config.countries,
-        requiresOperator: !!config.requiresOperator,
-    }));
-    res.json({ servers });
+    res.json({ servers: SERVERS_LIST });
 });
 
 app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
@@ -2266,12 +2381,16 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `services_${server}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);
+    if (cached) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cached);
+    }
 
     try {
-        const data = await dibananaFetch(`/services?server=${server}`);
+        const data = await dibananaFetch(`/services?server=${encodeURIComponent(server)}`);
         const response = { server, services: data.services || [] };
         cacheSet(cacheKey, response, 5 * 60 * 1000);
+        res.set('X-Cache', 'MISS');
         res.json(response);
     } catch (err) {
         console.error('Get services error:', err.message);
@@ -2285,7 +2404,10 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `countries_${server}_${service || 'all'}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);
+    if (cached) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cached);
+    }
 
     try {
         const params = new URLSearchParams({ server });
@@ -2294,10 +2416,11 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
         if (data.countries) {
             const response = { server, countries: data.countries };
             cacheSet(cacheKey, response, 5 * 60 * 1000);
+            res.set('X-Cache', 'MISS');
             return res.json(response);
         }
     } catch (err) {
-        console.error('Dibanana countries error, fallback to static:', err.message);
+        console.error('Countries error, fallback:', err.message);
     }
 
     const config = SERVER_CONFIG[server];
@@ -2324,12 +2447,16 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `prices_${server}_${service}_${country}`;
     const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);
+    if (cached) {
+        res.set('X-Cache', 'HIT');
+        return res.json(cached);
+    }
 
     try {
-        const data = await dibananaFetch(`/prices?server=${server}&service=${service}&country=${country}`);
+        const data = await dibananaFetch(`/prices?server=${encodeURIComponent(server)}&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`);
         const response = { server, service, country, providers: data.providers || [] };
         cacheSet(cacheKey, response, 2 * 60 * 1000);
+        res.set('X-Cache', 'MISS');
         res.json(response);
     } catch (err) {
         console.error('Get prices error:', err.message);
@@ -2338,9 +2465,16 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — CREATE ORDER =====
+// ===== NOKOS — CREATE ORDER (MAJOR FIX) =====
+// ===== Fix #1, #2, #13, #14 =====
+// ===== 1. Pre-check saldo user =====
+// ===== 2. Pre-check saldo API/server =====
+// ===== 3. Abort early kalo ada yang kurang =====
+// ===== 4. Refund atomic (no double refund) =====
+// ===== 5. Order insert pake transaction =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
+    const startTime = Date.now();
     const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -2349,8 +2483,12 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     const isPremium = !!config.requiresOperator;
 
     if (isPremium) {
-        if (!provider_id || !provider_price || !operator) return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
-        if (!VALID_OPERATORS.includes(operator)) return res.status(400).json({ error: `Operator tidak valid. Pilih: ${VALID_OPERATORS.join(', ')}` });
+        if (!provider_id || !provider_price || !operator) {
+            return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
+        }
+        if (!VALID_OPERATORS.includes(operator)) {
+            return res.status(400).json({ error: `Operator tidak valid` });
+        }
     } else {
         if (!id) return res.status(400).json({ error: 'ID provider wajib' });
     }
@@ -2358,18 +2496,42 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     let providerOrderId = null;
     let price = 0;
     let phoneNumber = null;
-    let userBalanceAtStart = 0;
+    let saldoDeducted = false;
 
     try {
-        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
+        // ===== STEP 1: Pre-check saldo user =====
+        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
-        userBalanceAtStart = Number(userRes.rows[0].balance);
+        const userBalanceAtStart = Number(userRes.rows[0].balance);
 
         const estimatedPrice = isPremium ? Number(provider_price) : 0;
+
         if (isPremium && userBalanceAtStart < estimatedPrice) {
-            return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
+            return res.status(400).json({
+                error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
+                code: 'INSUFFICIENT_USER_BALANCE',
+                balance: userBalanceAtStart,
+                needed: estimatedPrice,
+            });
         }
 
+        // ===== STEP 2: Pre-check saldo API/server provider =====
+        // Skip kalo provider ga support (bisa di-disable kalo API provider ga ada endpoint balance)
+        if (isPremium) {
+            try {
+                const providerBal = await getProviderBalance();
+                if (providerBal.ok && providerBal.balance < estimatedPrice) {
+                    return res.status(503).json({
+                        error: 'Server lagi sibuk / saldo habis. Coba lagi nanti.',
+                        code: 'INSUFFICIENT_PROVIDER_BALANCE',
+                    });
+                }
+            } catch (err) {
+                console.warn('Provider balance check skipped:', err.message);
+            }
+        }
+
+        // ===== STEP 3: Panggil provider order =====
         let orderBody;
         if (isPremium) {
             orderBody = { server, service, country, provider_id, provider_price, operator };
@@ -2388,9 +2550,9 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
+        // ===== STEP 4: Validasi response =====
         if (!data || !data.order_id) {
-            console.error('Provider response invalid:', data);
-            return res.status(500).json({ error: 'Provider response tidak valid (no order_id)' });
+            return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
         }
 
         providerOrderId = data.order_id;
@@ -2399,27 +2561,30 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
 
         if (price <= 0) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
-            return res.status(500).json({ error: 'Provider memberikan harga tidak valid' });
+            return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        const deductRes = await pool.query(
-            `UPDATE users 
-             SET balance = balance - $1, updated_at = NOW() 
-             WHERE id = $2 AND balance >= $1
-             RETURNING balance`,
-            [price, req.user.id]
-        );
-
-        if (deductRes.rowCount === 0) {
+        // ===== STEP 5: Final check saldo user >= price =====
+        if (userBalanceAtStart < price) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
-            return res.status(400).json({ error: 'Saldo kamu tidak cukup. Silakan deposit dulu.' });
+            return res.status(400).json({
+                error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
+                code: 'INSUFFICIENT_USER_BALANCE',
+                balance: userBalanceAtStart,
+                needed: price,
+            });
         }
 
+        // ===== STEP 6: Insert order dulu (atomic) =====
         const otpId = await generateOtpReferenceId();
         const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
 
+        const client = await pool.connect();
         try {
-            await pool.query(
+            await client.query('BEGIN');
+
+            // Insert order
+            await client.query(
                 `INSERT INTO orders 
                  (user_id, order_id, otp_id, server, service, service_name, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
@@ -2432,7 +2597,27 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 ]
             );
 
-            await pool.query(
+            // Deduct saldo (atomic)
+            const deductRes = await client.query(
+                `UPDATE users 
+                 SET balance = balance - $1, updated_at = NOW() 
+                 WHERE id = $2 AND balance >= $1
+                 RETURNING balance`,
+                [price, req.user.id]
+            );
+
+            if (deductRes.rowCount === 0) {
+                await client.query('ROLLBACK');
+                // Cancel provider order
+                try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+                return res.status(400).json({
+                    error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
+                    code: 'INSUFFICIENT_USER_BALANCE',
+                });
+            }
+
+            // Insert transaction
+            await client.query(
                 `INSERT INTO transactions 
                  (user_id, order_id, service_name, country, country_flag, phone_number, status, price)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -2445,75 +2630,57 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                 ]
             );
 
-            await logStatusChange({
-                entityType: 'order',
-                entityId: String(providerOrderId),
-                userId: req.user.id,
-                oldStatus: null,
-                newStatus: 'pending',
-                reason: 'order_created',
-                metadata: {
-                    otp_id: otpId,
-                    service: service_name || data.service,
-                    country: country || data.country,
-                    price,
-                    phone_number: phoneNumber,
-                    server,
-                    operator: operator || null,
-                },
-            });
-        } catch (dbErr) {
-            console.error('DB insert error, refunding:', dbErr.message);
-
-            await pool.query(
-                `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-                [price, req.user.id]
+            // Log
+            await client.query(
+                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                ['order', String(providerOrderId), req.user.id, null, 'pending', 'order_created',
+                 JSON.stringify({ otp_id: otpId, service: service_name || data.service, country: country || data.country, price, phone_number: phoneNumber, server, operator: operator || null })]
             );
 
+            await client.query('COMMIT');
+            saldoDeducted = true;
+
+            cacheDelPattern('prices_');
+
+            const newBalance = Number(deductRes.rows[0].balance);
+
+            res.json({
+                message: 'Order berhasil!',
+                order: {
+                    order_id: providerOrderId,
+                    otp_id: otpId,
+                    phone_number: phoneNumber,
+                    price_idr: price,
+                    server: data.server || server,
+                    service: data.service || service,
+                    country: data.country || country,
+                    operator: operator || null,
+                    status: data.status || 'pending',
+                    expires_in: 1200,
+                    expired_at: expiredAt.toISOString(),
+                },
+                balance: newBalance,
+            });
+
+            console.log(`⏱️ Order ${providerOrderId} in ${Date.now() - startTime}ms`);
+        } catch (dbErr) {
+            await client.query('ROLLBACK');
+            console.error('DB insert error:', dbErr.message);
+
+            // Cancel provider order
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
 
-            return res.status(500).json({ error: 'Gagal menyimpan order. Saldo sudah dikembalikan.' });
+            return res.status(500).json({ error: 'Gagal menyimpan order. Coba lagi.' });
+        } finally {
+            client.release();
         }
-
-        cacheDelPattern('prices_');
-
-        const newBalance = Number(deductRes.rows[0].balance);
-
-        res.json({
-            message: 'Order berhasil!',
-            order: {
-                order_id: providerOrderId,
-                otp_id: otpId,
-                phone_number: phoneNumber,
-                price_idr: price,
-                server: data.server || server,
-                service: data.service || service,
-                country: data.country || country,
-                operator: operator || null,
-                status: data.status || 'pending',
-                expires_in: 1200,
-                expired_at: expiredAt.toISOString(),
-            },
-            balance: newBalance,
-        });
 
     } catch (err) {
         console.error('Create order error:', err);
 
-        if (providerOrderId && price > 0) {
-            try {
-                const checkRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
-                if (checkRes.rows.length > 0 && Number(checkRes.rows[0].balance) < userBalanceAtStart) {
-                    await pool.query(
-                        `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
-                        [price, req.user.id]
-                    );
-                    console.log(`💰 Refunded ${price} to user ${req.user.id}`);
-                }
-            } catch (refundErr) {
-                console.error('Refund error:', refundErr.message);
-            }
-
+        // Cleanup: kalo provider order sukses tapi gagal di step lain
+        if (providerOrderId && !saldoDeducted) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
         }
 
@@ -2528,7 +2695,10 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
 
     try {
-        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 AND user_id = $2', [String(orderId), req.user.id]);
+        const orderRes = await pool.query(
+            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
+            [String(orderId), req.user.id]
+        );
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
@@ -2540,14 +2710,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 full_sms: order.full_sms, price_idr: order.price,
                 service: order.service, country: order.country, operator: order.operator,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
-                refunded_at: order.refunded_at,
-                refunded_amount: order.refunded_amount,
-                refund_reason: order.refund_reason,
-                created_at: order.created_at,
+                refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
+                refund_reason: order.refund_reason, created_at: order.created_at,
             });
         }
 
-        const data = await dibananaFetch(`/status?order_id=${orderId}`);
+        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(orderId)}`);
 
         if (data.status !== order.status || data.otp_code) {
             await pool.query(
@@ -2561,26 +2729,21 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 
             if (data.status !== order.status) {
                 await logStatusChange({
-                    entityType: 'order',
-                    entityId: String(order.order_id),
-                    userId: order.user_id,
-                    oldStatus: order.status,
-                    newStatus: data.status,
-                    reason: 'check_status',
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: data.status, reason: 'check_status',
                     metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
                 });
             }
 
-            // Auto-refund kalo status final yang perlu refund
             if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
                 if (fresh.rows[0]) {
                     await refundOrder(fresh.rows[0], 'provider_' + data.status);
                 }
             }
         }
 
-        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
         const o = fresh.rows[0];
 
         res.json({
@@ -2598,28 +2761,32 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — RESEND =====
+// ===== NOKOS — RESEND (FIXED #19) =====
+// ===== Jangan allow kalo order udah final =====
 // ============================================
 app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
 
     try {
         const orderRes = await pool.query(
-            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2',
+            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
             [String(orderId), req.user.id]
         );
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
 
-        if (!order.otp_code || order.otp_code.trim() === '') {
-            return res.status(400).json({
-                error: 'Resend hanya bisa dilakukan setelah kode OTP pertama masuk'
-            });
+        // Fix #19: cek status final dulu
+        if (['received', 'success'].includes(order.status)) {
+            return res.status(400).json({ error: 'Order sudah sukses, tidak perlu resend' });
         }
 
-        if (['received', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
-            return res.status(400).json({ error: 'Order sudah tidak bisa di-resend' });
+        if (['cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+            return res.status(400).json({ error: 'Order sudah tidak aktif' });
+        }
+
+        if (!order.otp_code || order.otp_code.trim() === '') {
+            return res.status(400).json({ error: 'Resend hanya bisa setelah OTP pertama masuk' });
         }
 
         if (order.resend_count >= 3) {
@@ -2637,16 +2804,9 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
         );
 
         await logStatusChange({
-            entityType: 'order',
-            entityId: String(orderId),
-            userId: req.user.id,
-            oldStatus: order.status,
-            newStatus: data.status || order.status,
-            reason: 'resend_sms',
-            metadata: {
-                resend_count: order.resend_count + 1,
-                otp_id: order.otp_id,
-            },
+            entityType: 'order', entityId: String(orderId), userId: req.user.id,
+            oldStatus: order.status, newStatus: data.status || order.status, reason: 'resend_sms',
+            metadata: { resend_count: order.resend_count + 1, otp_id: order.otp_id },
         });
 
         res.json(data);
@@ -2656,45 +2816,49 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
 }));
 
 // ============================================
-// ===== NOKOS — CANCEL ORDER =====
+// ===== NOKOS — CANCEL ORDER (FIXED #19) =====
+// ===== Jangan allow cancel kalo udah success =====
 // ============================================
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 AND user_id = $2', [String(orderId), req.user.id]);
+        const orderRes = await pool.query(
+            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
+            [String(orderId), req.user.id]
+        );
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
 
-        if (['cancelled', 'expired', 'refunded', 'received'].includes(order.status)) {
-            return res.status(400).json({ error: 'Order sudah tidak bisa dibatalkan' });
+        // Fix #19: jangan allow cancel kalo udah success
+        if (['received', 'success'].includes(order.status)) {
+            return res.status(400).json({ error: 'Order sudah sukses, tidak bisa dibatalkan' });
         }
 
-        const data = await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: Number(orderId) }) });
+        if (['cancelled', 'expired', 'refunded'].includes(order.status)) {
+            return res.status(400).json({ error: 'Order sudah tidak aktif' });
+        }
+
+        const data = await dibananaFetch('/cancel', {
+            method: 'POST',
+            body: JSON.stringify({ order_id: Number(orderId) })
+        });
 
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
         await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
 
         await logStatusChange({
-            entityType: 'order',
-            entityId: String(orderId),
-            userId: req.user.id,
-            oldStatus: order.status,
-            newStatus: 'cancelled',
-            reason: 'manual_cancel',
-            metadata: {
-                refunded_amount: Number(data.refunded) || Number(order.price) || 0,
-                otp_id: order.otp_id,
-            },
+            entityType: 'order', entityId: String(orderId), userId: req.user.id,
+            oldStatus: order.status, newStatus: 'cancelled', reason: 'manual_cancel',
+            metadata: { refunded_amount: Number(data.refunded) || Number(order.price) || 0, otp_id: order.otp_id },
         });
 
-        // Refund otomatis
-        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [orderId]);
+        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
         if (fresh.rows[0]) {
             await refundOrder(fresh.rows[0], 'manual_cancel');
         }
 
-        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1', [req.user.id]);
+        const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
 
         res.json({
             ...data,
@@ -2710,30 +2874,45 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
 // ============================================
 app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     const { page = 1, limit = 20, status } = req.query;
+    const limitNum = Math.min(100, Math.max(1, Number(limit) || 20));
+    const offset = (Math.max(1, Number(page)) - 1) * limitNum;
+
     try {
-        let query = 'SELECT * FROM orders WHERE user_id = $1';
+        let conditions = ['user_id = $1'];
         const params = [req.user.id];
 
         if (status) {
             if (status === 'success') {
-                query += ` AND status IN ('success', 'received')`;
+                conditions.push(`status IN ('success', 'received')`);
             } else {
-                query += ` AND status = $${params.length + 1}`;
+                conditions.push(`status = $${params.length + 1}`);
                 params.push(status);
             }
         }
 
-        query += ` ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
-        params.push(Number(limit), (Number(page) - 1) * Number(limit));
-        const result = await pool.query(query, params);
-        const countRes = await pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]);
+        const whereClause = conditions.join(' AND ');
+
+        // Parallel: data + count (count pake filter sama)
+        const [result, countRes] = await Promise.all([
+            pool.query(
+                `SELECT * FROM orders WHERE ${whereClause} 
+                 ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+                [...params, limitNum, offset]
+            ),
+            pool.query(`SELECT COUNT(*) FROM orders WHERE ${whereClause}`, params),
+        ]);
 
         const orders = result.rows.map(o => ({
             ...o,
             expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0,
         }));
 
-        res.json({ orders, total: Number(countRes.rows[0].count), page: Number(page), limit: Number(limit) });
+        res.json({
+            orders,
+            total: Number(countRes.rows[0].count),
+            page: Number(page),
+            limit: limitNum
+        });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -2752,64 +2931,65 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 
     try {
         const result = await pool.query(
-            `SELECT * FROM orders 
-             WHERE order_id = ANY($1) 
-               AND user_id = $2 
-               AND status = 'pending'`,
+            `SELECT * FROM orders WHERE order_id = ANY($1) AND user_id = $2 AND status = 'pending'`,
             [ids, req.user.id]
         );
 
         const updated = [];
 
-        for (const order of result.rows) {
-            try {
-                const data = await dibananaFetch(`/status?order_id=${order.order_id}`);
+        // Parallel chunks
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 5) {
+            chunks.push(result.rows.slice(i, i + 5));
+        }
 
-                if (data.status !== order.status || data.otp_code) {
-                    await pool.query(
-                        `UPDATE orders SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
-                         received_at = CASE WHEN $1 = 'received' THEN NOW() ELSE received_at END, 
-                         updated_at = NOW() WHERE order_id = $5`,
-                        [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(order.order_id)]
-                    );
-                    await pool.query(
-                        `UPDATE transactions SET status = CASE WHEN $1 = 'received' THEN 'success' 
-                         WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
-                         ELSE status END, otp_code = $2, updated_at = NOW() 
-                         WHERE order_id = $3`,
-                        [data.status, data.otp_code, String(order.order_id)]
-                    );
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (order) => {
+                try {
+                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
 
-                    if (data.status !== order.status) {
-                        await logStatusChange({
-                            entityType: 'order',
-                            entityId: String(order.order_id),
-                            userId: order.user_id,
-                            oldStatus: order.status,
-                            newStatus: data.status,
-                            reason: 'sync_batch',
-                            metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
-                        });
-                    }
+                    if (data.status !== order.status || data.otp_code) {
+                        await pool.query(
+                            `UPDATE orders SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                             received_at = CASE WHEN $1 = 'received' THEN NOW() ELSE received_at END, 
+                             updated_at = NOW() WHERE order_id = $5`,
+                            [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(order.order_id)]
+                        );
+                        await pool.query(
+                            `UPDATE transactions SET status = CASE WHEN $1 = 'received' THEN 'success' 
+                             WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                             ELSE status END, otp_code = $2, updated_at = NOW() 
+                             WHERE order_id = $3`,
+                            [data.status, data.otp_code, String(order.order_id)]
+                        );
 
-                    if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
-                        if (fresh.rows[0]) {
-                            await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                        if (data.status !== order.status) {
+                            await logStatusChange({
+                                entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                                oldStatus: order.status, newStatus: data.status, reason: 'sync_batch',
+                                metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                            });
                         }
-                    }
 
-                    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1', [order.order_id]);
-                    updated.push(fresh.rows[0]);
+                        if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                            const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+                            if (fresh.rows[0]) {
+                                await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                            }
+                        }
+
+                        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+                        if (fresh.rows[0]) updated.push(fresh.rows[0]);
+                    }
+                } catch (err) {
+                    console.error(`Sync ${order.order_id}:`, err.message);
                 }
-            } catch (err) {
-                console.error(`Sync order ${order.order_id} error:`, err.message);
-            }
+            }));
         }
 
         res.json({ updated, count: updated.length });
     } catch (err) {
-        console.error('Sync batch orders error:', err);
+        console.error('Sync batch error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2831,5 +3011,25 @@ app.use((err, req, res, next) => {
     console.error('Unhandled error:', err);
     res.status(500).json({ error: 'Internal server error' });
 });
+
+// ============================================
+// ===== STARTUP WARMUP =====
+// ===== Init schema sebelum request pertama biar ga lambat =====
+// ============================================
+(async () => {
+    try {
+        await ensureSchema();
+        console.log('🚀 Server ready');
+    } catch (err) {
+        console.error('❌ Startup warmup failed:', err.message);
+    }
+})();
+
+// ===== CLEANUP INTERVAL =====
+setInterval(async () => {
+    try {
+        await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`);
+    } catch (err) {}
+}, 60 * 60 * 1000); // tiap 1 jam
 
 module.exports = app;
