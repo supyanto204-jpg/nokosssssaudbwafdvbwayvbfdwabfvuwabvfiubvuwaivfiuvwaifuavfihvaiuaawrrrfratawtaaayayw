@@ -12,10 +12,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://flags.restcountries.com">
     <link rel="preconnect" href="https://favicon.restcountries.com">
-
-    <!-- Font Awesome 6 dari cdnjs -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" integrity="sha512-SnH5WK+bZxgPHs44uWIX+LLJAJ9/2PkPKZ5QiAj6Ta86w+fsb2TkcmfRyVX3pBnMFcV7oQPJkl9QevSCWr3W6A==" crossorigin="anonymous" referrerpolicy="no-referrer">
-
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -50,8 +46,11 @@
             color: white;
             box-shadow: var(--shadow-hard-sm);
             flex-shrink: 0;
+            position: relative;
+            animation: iconFloat 3.6s ease-in-out infinite;
         }
-        .inbox-hero-icon i { font-size: 24px; }
+        .inbox-hero-icon::after { content:''; position:absolute; inset:-6px; border-radius:20px; border:1px solid color-mix(in srgb, var(--purple) 36%, transparent); animation: haloPulse 2.8s ease-out infinite; pointer-events:none; }
+        .inbox-hero-icon .icon-svg { width: 28px; height: 28px; }
         .inbox-hero-text h1 {
             font-size: 1.8rem; font-weight: 900;
             font-family: var(--font-display);
@@ -132,6 +131,27 @@
             color: white;
         }
 
+        @keyframes iconFloat { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-4px) rotate(-2deg); } }
+        @keyframes haloPulse { 0% { transform:scale(.94); opacity:.75; } 100% { transform:scale(1.22); opacity:0; } }
+        @keyframes cardReveal { from { opacity:0; transform:translateY(12px) scale(.99); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes overlayReveal { from { opacity:0; } to { opacity:1; } }
+        @keyframes modalReveal { from { opacity:0; transform:translateY(18px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes softGlow { 0%,100% { box-shadow:var(--shadow-hard-sm); } 50% { box-shadow:0 0 0 4px color-mix(in srgb, var(--primary) 10%, transparent),var(--shadow-hard-sm); } }
+        .inbox-section-tag { display:inline-flex; align-items:center; gap:8px; padding:9px 14px; margin-bottom:18px; border:1px solid var(--border); border-radius:999px; background:var(--bg-card); color:var(--text-gray); font-size:.8rem; font-weight:700; }
+        .inbox-section-tag .icon-svg { color:var(--primary); width:16px;height:16px; }
+        .site-footer {
+            display: flex; justify-content: space-between; align-items: center; gap: 12px;
+            flex-wrap: wrap; margin-top: 30px; padding: 18px 4px 8px;
+            border-top: 1px solid var(--border); color: var(--text-light); font-size: .78rem;
+        }
+        .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
+        .site-footer a { color: var(--text-gray); text-decoration: none; }
+        .site-footer a:hover { color: var(--primary); text-decoration: underline; }
+        .brand-mark { width:30px;height:30px;display:block; }
+        .platform-mark { width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:9px;background:var(--primary-light);color:var(--primary);flex-shrink:0; }
+        .platform-mark .icon-svg { width:16px;height:16px; }
+        @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration:.01ms !important; animation-iteration-count:1 !important; scroll-behavior:auto !important; } }
+
         /* ===== ORDER CARD ===== */
         .orders-list {
             display: flex;
@@ -147,7 +167,11 @@
             transition: all var(--transition);
             position: relative;
             overflow: hidden;
+            animation: cardReveal .38s cubic-bezier(.2,.75,.25,1) both;
         }
+        .order-card:nth-child(2) { animation-delay:.04s; }
+        .order-card:nth-child(3) { animation-delay:.08s; }
+        .order-card:nth-child(4) { animation-delay:.12s; }
         .order-card::before {
             content: '';
             position: absolute;
@@ -178,6 +202,11 @@
             border-bottom: 1px dashed var(--border);
             flex-wrap: wrap;
         }
+        .order-flag {
+            width: 32px; height: 24px;
+            flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+        }
         /* ===== APP ICON (favicon dari CDN) ===== */
         .order-app-icon {
             width: 40px; height: 40px;
@@ -196,13 +225,12 @@
             display: block;
         }
         .order-app-icon .icon-fallback {
-            font-size: 0.75rem;
+            font-size: 0.85rem;
             font-weight: 900;
             color: var(--text-dark);
             font-family: var(--font-mono);
             text-transform: uppercase;
         }
-
         .order-title-wrap { flex: 1; min-width: 0; }
         .order-title {
             font-weight: 800;
@@ -213,7 +241,7 @@
             display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
         .order-ref {
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
             word-break: break-all;
@@ -249,7 +277,7 @@
             color: white;
             border-color: var(--text-dark);
         }
-        .order-countdown i { font-size: 11px; }
+        .order-countdown .icon-svg { width: 12px; height: 12px; }
 
         /* ===== ORDER BODY ===== */
         .order-body {
@@ -281,6 +309,7 @@
         .order-field-value.success { color: var(--success); }
         .order-field-value.refunded { color: var(--purple); font-weight: 800; }
 
+        /* ===== NEGARA + FLAG inline ===== */
         .country-inline {
             display: inline-flex;
             align-items: center;
@@ -302,7 +331,7 @@
             border: none;
             color: var(--text-light);
             cursor: pointer;
-            padding: 3px;
+            padding: 2px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -311,12 +340,12 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             flex-shrink: 0;
-            font-size: 12px;
         }
         .copy-inline:hover {
             color: var(--primary);
             background: var(--primary-light);
         }
+        .copy-inline .icon-svg { width: 13px; height: 13px; }
         .copy-inline.copied { color: var(--success); }
 
         /* ===== OTP BOX ===== */
@@ -346,8 +375,8 @@
             border: 2px solid var(--border-dark);
             position: relative;
             z-index: 1;
-            font-size: 18px;
         }
+        .otp-icon .icon-svg { width: 20px; height: 20px; }
         .otp-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
         .otp-info-label {
             font-size: 0.68rem;
@@ -381,7 +410,6 @@
             z-index: 1;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            font-size: 16px;
         }
         .otp-copy:hover {
             background: var(--success);
@@ -389,6 +417,7 @@
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
+        .otp-copy .icon-svg { width: 18px; height: 18px; }
 
         /* ===== SMS BOX ===== */
         .sms-box {
@@ -414,6 +443,7 @@
             padding-top: 1px;
         }
         .sms-box .sms-text { flex: 1; }
+        .sms-box .copy-inline { flex-shrink: 0; }
 
         /* ===== REFUND BOX ===== */
         .refund-box {
@@ -425,6 +455,8 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            position: relative;
+            overflow: hidden;
         }
         [data-theme="dark"] .refund-box {
             background: rgba(167, 139, 250, 0.15);
@@ -437,8 +469,8 @@
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border: 2px solid var(--border-dark);
-            font-size: 18px;
         }
+        .refund-icon .icon-svg { width: 20px; height: 20px; }
         .refund-info { flex: 1; min-width: 0; }
         .refund-info-label {
             font-size: 0.68rem;
@@ -517,8 +549,8 @@
             display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
-            font-size: 32px;
         }
+        .empty-inbox .icon-box .icon-svg { width: 32px; height: 32px; }
         .empty-inbox h3 {
             font-size: 1.05rem;
             font-weight: 800;
@@ -637,16 +669,8 @@
             align-items: center;
             justify-content: center;
             padding: 20px;
-            opacity: 0;
-            transition: opacity 0.22s ease;
         }
-        .detail-modal-overlay.active {
-            display: flex;
-            opacity: 1;
-        }
-        .detail-modal-overlay.closing {
-            opacity: 0;
-        }
+        .detail-modal-overlay.active { display: flex; animation: overlayReveal .22s ease-out both; }
         .detail-modal {
             background: var(--bg-card);
             border: 2px solid var(--border-dark);
@@ -657,19 +681,8 @@
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
-            transform: scale(0.94) translateY(12px);
-            opacity: 0;
-            transition: transform 0.26s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+            animation: modalReveal .28s cubic-bezier(.2,.8,.2,1) both;
         }
-        .detail-modal-overlay.active .detail-modal {
-            transform: scale(1) translateY(0);
-            opacity: 1;
-        }
-        .detail-modal-overlay.closing .detail-modal {
-            transform: scale(0.96) translateY(8px);
-            opacity: 0;
-        }
-
         .detail-modal-header {
             padding: 20px 20px 16px;
             border-bottom: 2px solid var(--border);
@@ -699,7 +712,7 @@
             display: block;
         }
         .detail-modal-app .icon-fallback {
-            font-size: 1rem;
+            font-size: 1.1rem;
             font-weight: 900;
             color: var(--text-dark);
             font-family: var(--font-mono);
@@ -720,6 +733,8 @@
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
+        #customAlert.active { animation: overlayReveal .2s ease-out both; }
+        #customAlert.active .custom-alert { animation: modalReveal .26s cubic-bezier(.2,.8,.2,1) both; }
         .detail-modal-close {
             width: 36px; height: 36px;
             border-radius: 10px;
@@ -732,25 +747,15 @@
             flex-shrink: 0;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            font-size: 14px;
         }
         .detail-modal-close:hover {
             background: var(--danger);
             color: white;
             border-color: var(--danger);
         }
+        .detail-modal-close .icon-svg { width: 18px; height: 18px; }
 
         .detail-modal-body { padding: 20px; }
-
-        .detail-skeleton-row {
-            height: 14px;
-            background: linear-gradient(90deg, var(--bg-hover) 25%, var(--border) 50%, var(--bg-hover) 75%);
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            border-radius: 8px;
-            margin-bottom: 10px;
-        }
-
         .detail-status-badge {
             display: inline-flex;
             align-items: center;
@@ -882,7 +887,7 @@
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
         }
-        .detail-otp-highlight .copy-btn i { font-size: 12px; }
+        .detail-otp-highlight .copy-btn .icon-svg { width: 14px; height: 14px; }
 
         .detail-actions {
             display: flex;
@@ -891,28 +896,11 @@
         }
         .detail-actions .btn { flex: 1; min-width: 120px; }
 
-        /* ===== FOOTER ===== */
-        .site-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
-            margin-top: 30px;
-            padding: 18px 4px 8px;
-            border-top: 1px solid var(--border);
-            color: var(--text-light);
-            font-size: 0.78rem;
-        }
-        .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
-        .site-footer a { color: var(--text-gray); text-decoration: none; }
-        .site-footer a:hover { color: var(--primary); text-decoration: underline; }
-
         /* ===== RESPONSIVE ===== */
         @media (max-width: 768px) {
             .inbox-hero-text h1 { font-size: 1.4rem; }
             .inbox-hero-icon { width: 48px; height: 48px; }
-            .inbox-hero-icon i { font-size: 20px; }
+            .inbox-hero-icon .icon-svg { width: 24px; height: 24px; }
 
             .order-card { padding: 14px; }
             .order-body { grid-template-columns: 1fr; gap: 8px; }
@@ -953,38 +941,39 @@
 
 <div class="dashboard-layout">
 
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
-                <div class="logo-icon">A</div>
+                <div class="logo-icon" aria-hidden="true"><svg class="brand-mark" viewBox="0 0 40 40" fill="none"><path d="M20 3.5 34 9v10.4c0 8.8-5.6 14-14 17.1-8.4-3.1-14-8.3-14-17.1V9l14-5.5Z" fill="currentColor" opacity=".18"/><path d="M20 3.5 34 9v10.4c0 8.8-5.6 14-14 17.1-8.4-3.1-14-8.3-14-17.1V9l14-5.5Z" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><path d="M13.5 20.3h3.1l1.8-4.8 3.3 9 1.9-4.2h3" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
                 <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
             <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
-                <i class="fa-solid fa-chevron-left"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
         </div>
 
         <nav class="sidebar-nav">
             <a href="/dashboard" class="nav-item" data-tooltip="Home">
-                <i class="fa-solid fa-house"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                 <span class="nav-label">Home</span>
             </a>
             <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
-                <i class="fa-solid fa-mobile-screen"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                 <span class="nav-label">Beli Nokos</span>
             </a>
             <a href="/inbox" class="nav-item active" data-tooltip="Inbox">
-                <i class="fa-solid fa-inbox"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.8 7.3L3 20l1.2-4.3A8.5 8.5 0 1 1 20.5 11.5Z"/><path d="m8.2 8.2 2 2.2-.9 1.1a9.5 9.5 0 0 0 3.2 3.2l1.1-.9 2.2 2c-.5 1-1.5 1.4-2.6 1.1-3.2-.8-6.4-4-7.2-7.2-.3-1.1.1-2.1 1.1-2.6Z"/></svg>
                 <span class="nav-label">Inbox</span>
             </a>
             <a href="/deposit" class="nav-item" data-tooltip="Deposit">
-                <i class="fa-solid fa-money-bill-wave"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                 <span class="nav-label">Deposit</span>
             </a>
 
             <div class="nav-section-label">Akun</div>
             <a href="/profile" class="nav-item" data-tooltip="Profile">
-                <i class="fa-solid fa-user"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 <span class="nav-label">Profile</span>
             </a>
         </nav>
@@ -999,7 +988,11 @@
                     <div class="user-balance" id="userBalance"><span class="skeleton skeleton-text-sm"></span></div>
                 </div>
                 <button class="logout-btn" id="logoutBtn" title="Keluar">
-                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                        <polyline points="16 17 21 12 16 7"/>
+                        <line x1="21" y1="12" x2="9" y2="12"/>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -1015,17 +1008,17 @@
             </div>
             <div class="topbar-right">
                 <button class="icon-btn" id="refreshBtn" title="Refresh" type="button">
-                    <i class="fa-solid fa-rotate"></i>
+                    <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
                 </button>
                 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-                    <i class="fa-solid fa-sun sun-icon"></i>
-                    <i class="fa-solid fa-moon moon-icon"></i>
+                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
                 </button>
                 <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
-                    <i class="fa-solid fa-bars"></i>
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
                 <div class="balance-pill">
-                    <i class="fa-solid fa-wallet"></i>
+                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     <span class="label">Saldo:</span>
                     <span class="amount" id="balancePill">—</span>
                 </div>
@@ -1034,25 +1027,21 @@
 
         <div class="inbox-hero">
             <div class="inbox-hero-icon">
-                <i class="fa-solid fa-inbox"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             </div>
             <div class="inbox-hero-text">
                 <h1>Inbox</h1>
-                <p>Kode OTP muncul otomatis di sini. Refund otomatis kalau order expired atau gagal.</p>
+                <p>Semua nomor Nokos, kode OTP, dan status pesananmu tersusun rapi di satu tempat.</p>
             </div>
         </div>
 
+        <!-- NOKOS STATUS SYNC -->
         <div id="syncIndicator" class="sync-indicator" style="display:none;">
             <span class="loading-spinner"></span>
-            <span>Cek refund & update status...</span>
+            <span>Menyinkronkan status pesanan...</span>
         </div>
 
-        <!-- Tab hanya Nokos — jangan tambah deposit -->
-        <div class="inbox-tabs" id="inboxTabs">
-            <button class="inbox-tab active" type="button" data-status="nokos">
-                Nokos <span class="tab-count" data-count="nokos">0</span>
-            </button>
-        </div>
+        <div class="inbox-section-tag"><svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.2"/><path d="M10 5h4M11 18.5h2"/></svg>Pesanan Nokos <span aria-hidden="true">·</span> Pembaruan otomatis</div>
 
         <div id="ordersContainer">
             <div class="skeleton-order"><div class="skeleton-line" style="width:60%"></div><div class="skeleton-line" style="width:40%"></div></div>
@@ -1075,34 +1064,35 @@
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item" data-page="dashboard">
-            <i class="fa-solid fa-house"></i>
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
             <span class="taskbar-label">Home</span>
         </a>
         <a href="/nokos" class="taskbar-item" data-page="nokos">
-            <i class="fa-solid fa-mobile-screen"></i>
+            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
             <span class="taskbar-label">Nokos</span>
         </a>
         <a href="/deposit" class="taskbar-item taskbar-primary" data-page="deposit">
             <div class="icon-wrapper">
-                <i class="fa-solid fa-money-bill-wave"></i>
+                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <span class="taskbar-label">Deposit</span>
         </a>
         <a href="/inbox" class="taskbar-item active" data-page="inbox">
-            <i class="fa-solid fa-inbox"></i>
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
             <span class="taskbar-label">Inbox</span>
         </a>
         <a href="/profile" class="taskbar-item" data-page="profile">
-            <i class="fa-solid fa-user"></i>
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span class="taskbar-label">Profile</span>
         </a>
     </div>
 </nav>
 
+<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
-            <i class="fa-solid fa-circle-info"></i>
+            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         </div>
         <h3 id="customAlertTitle">Informasi</h3>
         <p id="customAlertMessage">—</p>
@@ -1112,6 +1102,7 @@
     </div>
 </div>
 
+<!-- DETAIL MODAL -->
 <div class="detail-modal-overlay" id="detailModal">
     <div class="detail-modal" id="detailModalContent"></div>
 </div>
@@ -1124,23 +1115,20 @@
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
-    /* Font Awesome helper */
-    const I = {
-        check: '<i class="fa-solid fa-check"></i>',
-        close: '<i class="fa-solid fa-xmark"></i>',
-        info: '<i class="fa-solid fa-circle-info"></i>',
-        warning: '<i class="fa-solid fa-triangle-exclamation"></i>',
-        key: '<i class="fa-solid fa-key"></i>',
-        copy: '<i class="fa-regular fa-copy"></i>',
-        refresh: '<i class="fa-solid fa-rotate"></i>',
-        clock: '<i class="fa-regular fa-clock"></i>',
-        coin: '<i class="fa-solid fa-coins"></i>',
-        phone: '<i class="fa-solid fa-mobile-screen"></i>',
-        checkCircle: '<i class="fa-solid fa-circle-check"></i>',
-        inbox: '<i class="fa-solid fa-inbox"></i>',
-        app: '<i class="fa-solid fa-cube"></i>',
-        search: '<i class="fa-solid fa-circle-info"></i>',
-        ban: '<i class="fa-solid fa-ban"></i>',
+    const ICONS = {
+        check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
+        close: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+        info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+        warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+        copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
+        refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+        clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
+        coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
+        phone: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>`,
+        checkCircle: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+        app: `<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>`,
+        ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     };
 
     /* ============================================
@@ -1186,10 +1174,23 @@
         if (/goo\s?gle/i.test(raw)) return 'google.com';
         return null;
     }
-    function renderServiceIcon(serviceName, service) {
-        const domain = getServiceDomain(serviceName, service);
-        const name = getPlatformName(serviceName, service);
-        const initial = String(name || '?').trim().charAt(0).toUpperCase() || '?';
+    /* Nama service: AMBIL DARI DB apa adanya (service_name / service), jangan di-mapping manual.
+       Mapping cuma dipakai untuk cari domain favicon. */
+    function getServiceDisplayName(order) {
+        const name = String(order?.service_name || '').trim();
+        if (name) return name;
+        const svc = String(order?.service || '').trim();
+        if (svc) return svc;
+        return 'Layanan OTP';
+    }
+    function getServiceInitial(order) {
+        const name = getServiceDisplayName(order);
+        return String(name).trim().charAt(0).toUpperCase() || '?';
+    }
+    function renderServiceIcon(order) {
+        const domain = getServiceDomain(order?.service_name, order?.service);
+        const name = getServiceDisplayName(order);
+        const initial = getServiceInitial(order);
         if (!domain) {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
@@ -1214,13 +1215,7 @@
             const actionsEl = document.getElementById('customAlertActions');
 
             iconEl.className = 'custom-alert-icon ' + type;
-            const iconMap = {
-                success: I.check,
-                warning: I.warning,
-                danger: I.close,
-                info: I.info,
-            };
-            iconEl.innerHTML = iconMap[type] || I.info;
+            iconEl.innerHTML = ICONS[type] || ICONS.info;
             titleEl.textContent = title || 'Informasi';
             msgEl.textContent = message || '';
 
@@ -1251,6 +1246,7 @@
         });
     }
 
+    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -1264,6 +1260,7 @@
         });
     })();
 
+    /* ===== SIDEBAR ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -1401,6 +1398,7 @@
         refundChecked: false,
     };
 
+    /* ===== CACHE KEY ===== */
     function getCacheKey(page, status) {
         return `inbox_orders_p${page}_s${status}`;
     }
@@ -1409,6 +1407,7 @@
         return 'inbox_counts';
     }
 
+    /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
         document.getElementById('userName').textContent = user.name || user.username;
@@ -1417,6 +1416,7 @@
         document.getElementById('balancePill').textContent = formatRupiah(user.balance);
     });
 
+    /* ===== CHECK REFUNDS ===== */
     async function checkRefunds() {
         const indicator = document.getElementById('syncIndicator');
         if (!state.refundChecked) {
@@ -1468,6 +1468,7 @@
             .forEach(k => localStorage.removeItem(k));
     }
 
+    /* ===== LOAD ORDERS ===== */
     async function loadOrders(silent = false) {
         const container = document.getElementById('ordersContainer');
         const paginationEl = document.getElementById('pagination');
@@ -1485,7 +1486,7 @@
         }
 
         try {
-            const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}`, {
+            const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}&status=nokos`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
@@ -1500,7 +1501,7 @@
             if (!cached && !silent) {
                 container.innerHTML = `
                     <div class="empty-inbox">
-                        <div class="icon-box">${I.warning}</div>
+                        <div class="icon-box">${ICONS.warning}</div>
                         <h3>Gagal memuat pesanan</h3>
                         <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
                     </div>
@@ -1509,6 +1510,7 @@
         }
     }
 
+    /* ===== LOAD COUNTS ===== */
     async function loadCounts() {
         const cacheKey = getCountsCacheKey();
         const cached = CacheManager.get(cacheKey);
@@ -1545,24 +1547,6 @@
         })[ch]);
     }
 
-    function getPlatformName(serviceName, service) {
-        const raw = String(serviceName || service || 'Layanan OTP').trim();
-        const key = raw.toLowerCase().replace(/[^a-z0-9]+/g, '');
-        const known = {
-            tiktok: 'TikTok', tt: 'TikTok', whatsapp: 'WhatsApp', wa: 'WhatsApp',
-            telegram: 'Telegram', tg: 'Telegram', instagram: 'Instagram', ig: 'Instagram',
-            facebook: 'Facebook', fb: 'Facebook', google: 'Google', gmail: 'Gmail',
-            discord: 'Discord', twitter: 'X (Twitter)', x: 'X (Twitter)',
-            line: 'LINE', viber: 'Viber', signal: 'Signal', uber: 'Uber',
-            microsoft: 'Microsoft', snapchat: 'Snapchat', amazon: 'Amazon',
-            lazada: 'Lazada', shopee: 'Shopee', grab: 'Grab', gojek: 'Gojek',
-        };
-        if (known[key]) return known[key];
-        if (/whats?app/i.test(raw)) return 'WhatsApp';
-        if (/tik\s?tok/i.test(raw)) return 'TikTok';
-        return raw.replace(/\b\w/g, c => c.toUpperCase());
-    }
-
     function getCountryName(order) {
         const names = {
             id:'Indonesia', ru:'Rusia', us:'Amerika Serikat', my:'Malaysia', vn:'Vietnam',
@@ -1590,26 +1574,22 @@
         return supplied || 'Negara tidak diketahui';
     }
 
-    /* ===== OTP ID helper =====
-       OTP ID = o.otp_id (contoh: OTP80651855).
-       Order ID = o.order_id (ID provider), JANGAN ditampilkan sebagai identifier utama.
-    */
     function getOtpId(order) {
         const id = String(order?.otp_id || '').trim();
         if (id) return id;
-        // Fallback kalau otp_id tidak ada
         const seed = [order?.order_id, order?.created_at, order?.service, order?.phone_number].join('|');
         let hash = 2166136261;
         for (let i = 0; i < seed.length; i++) hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
         return `OTP${(hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0')}`;
     }
 
+    /* ===== COPY HELPER ===== */
     function copyToClipboard(text, btnEl) {
         navigator.clipboard.writeText(text).then(() => {
             if (btnEl) {
                 btnEl.classList.add('copied');
                 const orig = btnEl.innerHTML;
-                btnEl.innerHTML = I.check;
+                btnEl.innerHTML = ICONS.check;
                 setTimeout(() => {
                     btnEl.classList.remove('copied');
                     btnEl.innerHTML = orig;
@@ -1633,11 +1613,13 @@
         if (!data.orders || data.orders.length === 0) {
             container.innerHTML = `
                 <div class="empty-inbox">
-                    <div class="icon-box">${I.inbox}</div>
+                    <div class="icon-box">
+                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+                    </div>
                     <h3>Belum ada pesanan Nokos</h3>
                     <p>Pesanan nomor virtual dan kode OTP kamu akan muncul di sini.</p>
                     <a href="/nokos" class="btn btn-primary">
-                        ${I.phone}
+                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                         Beli Nokos
                     </a>
                 </div>
@@ -1666,7 +1648,7 @@
             const otpId = getOtpId(o);
             const apiOrderId = String(o.order_id || '').trim();
             const hasApiOrderId = Boolean(apiOrderId);
-            const platformName = getPlatformName(o.service_name, o.service);
+            const serviceDisplayName = getServiceDisplayName(o);
             const countryName = getCountryName(o);
             const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
             const mins = Math.floor(expiresIn / 60);
@@ -1687,18 +1669,18 @@
                      data-order-id="${escapeHtml(apiOrderId)}"
                      data-otp-id="${escapeHtml(otpId)}"
                      data-price="${priceIdr}"
-                     data-service="${escapeHtml(o.service_name || o.service || '')}"
+                     data-service="${escapeHtml(serviceDisplayName)}"
                      data-country="${escapeHtml(countryName)}"
                      data-country-code="${escapeHtml(o.country || '')}"
                      data-status="${escapeHtml(o.status || '')}"
                      data-phone="${escapeHtml(o.phone_number || '')}">
                     <div class="order-header">
-                        <div class="order-app-icon" title="${escapeHtml(platformName)}">
-                            ${renderServiceIcon(o.service_name, o.service)}
+                        <div class="order-app-icon" title="${escapeHtml(serviceDisplayName)}">
+                            ${renderServiceIcon(o)}
                         </div>
                         <div class="order-title-wrap">
                             <div class="order-title">
-                                ${escapeHtml(platformName)}
+                                ${escapeHtml(serviceDisplayName)}
                                 ${o.operator ? `<span class="badge info" style="font-size:0.6rem;">${escapeHtml(o.operator)}</span>` : ''}
                             </div>
                             <div class="order-ref">
@@ -1715,7 +1697,7 @@
                             <span class="order-field-label">Nomor</span>
                             <span class="order-field-value">
                                 ${escapeHtml(o.phone_number || '—')}
-                                ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${I.copy}</button>` : ''}
+                                ${o.phone_number ? `<button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${ICONS.copy}</button>` : ''}
                             </span>
                         </div>
                         <div class="order-field">
@@ -1739,34 +1721,34 @@
 
                     ${hasValidCountdown && !hasOtp ? `
                         <div class="order-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-expires="${expiresIn}">
-                            ${I.clock}
+                            ${ICONS.clock}
                             <span class="countdown-text">${timeText}</span> tersisa
                         </div>
                     ` : ''}
 
                     ${hasOtp ? `
                         <div class="otp-box">
-                            <div class="otp-icon">${I.key}</div>
+                            <div class="otp-icon">${ICONS.key}</div>
                             <div class="otp-info">
                                 <div class="otp-info-label">Kode OTP</div>
                                 <div class="otp-info-value" id="otp-${escapeHtml(apiOrderId)}">${escapeHtml(o.otp_code)}</div>
                             </div>
                             <button class="otp-copy" type="button" data-copy="${escapeHtml(o.otp_code)}" title="Copy OTP">
-                                ${I.copy}
+                                ${ICONS.copy}
                             </button>
                         </div>
                         ${o.full_sms ? `
                             <div class="sms-box">
                                 <span class="sms-label">SMS:</span>
                                 <span class="sms-text">${escapeHtml(o.full_sms)}</span>
-                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${I.copy}</button>
+                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${ICONS.copy}</button>
                             </div>
                         ` : ''}
                     ` : ''}
 
                     ${isRefunded ? `
                         <div class="refund-box">
-                            <div class="refund-icon">${I.coin}</div>
+                            <div class="refund-icon">${ICONS.coin}</div>
                             <div class="refund-info">
                                 <div class="refund-info-label">Refund Diterima</div>
                                 <div class="refund-info-value">${formatRupiah(o.refunded_amount || priceIdr)}</div>
@@ -1784,7 +1766,7 @@
 
                     ${isPending && hasOtp ? `
                         <div class="pending-box" style="border-style:solid;border-color:var(--success);background:var(--success-light);color:var(--success-dark);">
-                            <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">${I.check} OTP sudah diterima. Konfirmasi atau tunggu waktu habis.</span>
+                            <span style="display:inline-flex;align-items:center;gap:6px;font-weight:700;">${ICONS.check} OTP sudah diterima. Konfirmasi atau tunggu waktu habis.</span>
                         </div>
                     ` : ''}
 
@@ -1792,25 +1774,25 @@
                         ${isPending ? `
                             ${hasOtp && hasValidCountdown && hasApiOrderId ? `
                                 <button class="btn" type="button" data-resend="${escapeHtml(apiOrderId)}">
-                                    ${I.refresh}
+                                    ${ICONS.refresh}
                                     Resend SMS
                                 </button>
                             ` : ''}
                             ${hasOtp && hasValidCountdown && hasApiOrderId ? `
                                 <button class="btn btn-primary" type="button" data-confirm="${escapeHtml(apiOrderId)}">
-                                    ${I.checkCircle}
+                                    ${ICONS.checkCircle}
                                     Konfirmasi Sukses
                                 </button>
                             ` : ''}
                             ${!hasOtp && hasApiOrderId ? `
                                 <button class="btn btn-danger" type="button" data-cancel="${escapeHtml(apiOrderId)}">
-                                    ${I.ban}
+                                    ${ICONS.ban}
                                     Batalkan
                                 </button>
                             ` : ''}
                         ` : `
                             <button class="btn btn-primary" type="button" data-detail="${escapeHtml(apiOrderId)}" ${hasApiOrderId ? '' : 'disabled title="Provider belum memberi ID untuk membuka detail"'}>
-                                ${I.search}
+                                ${ICONS.info}
                                 ${hasApiOrderId ? 'Lihat Detail' : 'Detail tidak tersedia'}
                             </button>
                         `}
@@ -1875,6 +1857,7 @@
         startCountdowns();
     }
 
+    /* ===== COUNTDOWN ===== */
     function startCountdowns() {
         Object.values(state.countdownIntervals).forEach(clearInterval);
         state.countdownIntervals = {};
@@ -1914,6 +1897,7 @@
         });
     }
 
+    /* ===== POLLING PENDING ===== */
     async function pollPendingOrders(orders) {
         const pending = orders;
         if (pending.length === 0) return;
@@ -1955,6 +1939,7 @@
         }
     }
 
+    /* ===== RESEND ===== */
     async function resendOrder(orderId, btn) {
         const ok = await showCustomAlert({
             title: 'Resend SMS',
@@ -1995,6 +1980,7 @@
         }
     }
 
+    /* ===== CONFIRM ORDER ===== */
     async function confirmOrder(orderId, btn) {
         const ok = await showCustomAlert({
             title: 'Konfirmasi Sukses',
@@ -2037,6 +2023,7 @@
         }
     }
 
+    /* ===== CANCEL ===== */
     async function cancelOrder(orderId, btn) {
         const ok = await showCustomAlert({
             title: 'Batalkan Pesanan',
@@ -2086,9 +2073,7 @@
         }
     }
 
-    /* ============================================
-       DETAIL MODAL
-       ============================================ */
+    /* ===== DETAIL MODAL ===== */
     function openDetailModal() {
         const overlay = document.getElementById('detailModal');
         overlay.classList.remove('closing');
@@ -2109,29 +2094,28 @@
     function renderDetailSkeleton(card) {
         const otpId = card?.dataset.otpId || '';
         const priceIdr = Number(card?.dataset.price || 0);
-        const service = card?.dataset.service || '';
+        const serviceName = card?.dataset.service || '';
         const country = card?.dataset.country || '';
         const countryCode = card?.dataset.countryCode || '';
         const phone = card?.dataset.phone || '';
-        const platformName = getPlatformName(service, service);
 
         const modalContent = document.getElementById('detailModalContent');
         modalContent.innerHTML = `
             <div class="detail-modal-header">
-                <div class="detail-modal-app" title="${escapeHtml(platformName)}">
-                    ${renderServiceIcon(service, service)}
+                <div class="detail-modal-app" title="${escapeHtml(serviceName)}">
+                    ${renderServiceIcon({ service_name: serviceName, service: serviceName })}
                 </div>
                 <div class="detail-modal-title-wrap">
-                    <div class="detail-modal-title">${escapeHtml(platformName)}</div>
+                    <div class="detail-modal-title">${escapeHtml(serviceName || 'Layanan OTP')}</div>
                     <div class="detail-modal-subtitle">OTP ID · ${escapeHtml(otpId)}</div>
                 </div>
                 <button class="detail-modal-close" type="button" id="detailModalClose">
-                    ${I.close}
+                    ${ICONS.close}
                 </button>
             </div>
             <div class="detail-modal-body">
                 <div class="detail-status-badge gray">
-                    ${I.info}
+                    ${ICONS.info}
                     Memuat...
                 </div>
 
@@ -2161,9 +2145,8 @@
                     </div>
                 </div>
 
-                <div class="detail-skeleton-row" style="width:100%"></div>
-                <div class="detail-skeleton-row" style="width:80%"></div>
-                <div class="detail-skeleton-row" style="width:60%"></div>
+                <div class="detail-skeleton-row" style="height:14px;background:linear-gradient(90deg,var(--bg-hover) 25%,var(--border) 50%,var(--bg-hover) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;margin-bottom:10px;width:100%"></div>
+                <div class="detail-skeleton-row" style="height:14px;background:linear-gradient(90deg,var(--bg-hover) 25%,var(--border) 50%,var(--bg-hover) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:8px;margin-bottom:10px;width:80%"></div>
 
                 <div class="detail-actions" style="margin-top:16px;">
                     <button class="btn btn-primary btn-block" type="button" id="detailModalCloseBtn">Tutup</button>
@@ -2200,7 +2183,7 @@
         const hasOtp = o.otp_code && o.otp_code.trim();
         const hasPhone = o.phone_number && o.phone_number.trim();
         const hasSms = o.full_sms && o.full_sms.trim();
-        const platformName = getPlatformName(o.service_name, o.service);
+        const serviceDisplayName = getServiceDisplayName(o);
         const countryName = getCountryName(o);
         const otpId = getOtpId(o);
         const priceIdr = Number(o.price_idr ?? o.price ?? 0);
@@ -2208,20 +2191,20 @@
         const modalContent = document.getElementById('detailModalContent');
         modalContent.innerHTML = `
             <div class="detail-modal-header">
-                <div class="detail-modal-app" title="${escapeHtml(platformName)}">
-                    ${renderServiceIcon(o.service_name, o.service)}
+                <div class="detail-modal-app" title="${escapeHtml(serviceDisplayName)}">
+                    ${renderServiceIcon(o)}
                 </div>
                 <div class="detail-modal-title-wrap">
-                    <div class="detail-modal-title">${escapeHtml(platformName)}</div>
+                    <div class="detail-modal-title">${escapeHtml(serviceDisplayName)}</div>
                     <div class="detail-modal-subtitle">OTP ID · ${escapeHtml(otpId)}</div>
                 </div>
                 <button class="detail-modal-close" type="button" id="detailModalClose">
-                    ${I.close}
+                    ${ICONS.close}
                 </button>
             </div>
             <div class="detail-modal-body">
                 <div class="detail-status-badge ${s.cls}">
-                    ${I.info}
+                    ${ICONS.info}
                     ${s.label}
                 </div>
 
@@ -2230,7 +2213,7 @@
                         <div class="label">Kode OTP</div>
                         <div class="value">${escapeHtml(o.otp_code)}</div>
                         <button class="copy-btn" type="button" data-copy="${escapeHtml(o.otp_code)}">
-                            ${I.copy} Copy OTP
+                            ${ICONS.copy} Copy OTP
                         </button>
                     </div>
                 ` : ''}
@@ -2240,7 +2223,7 @@
                         <span class="detail-item-label">OTP ID</span>
                         <span class="detail-item-value primary">
                             ${escapeHtml(otpId)}
-                            <button class="copy-inline" type="button" data-copy="${escapeHtml(otpId)}" title="Copy OTP ID">${I.copy}</button>
+                            <button class="copy-inline" type="button" data-copy="${escapeHtml(otpId)}" title="Copy OTP ID">${ICONS.copy}</button>
                         </span>
                     </div>
                     ${hasPhone ? `
@@ -2248,7 +2231,7 @@
                             <span class="detail-item-label">Nomor</span>
                             <span class="detail-item-value">
                                 ${escapeHtml(o.phone_number)}
-                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${I.copy}</button>
+                                <button class="copy-inline" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${ICONS.copy}</button>
                             </span>
                         </div>
                     ` : ''}
@@ -2294,7 +2277,7 @@
                         <span class="detail-item-label">Isi SMS</span>
                         <span class="detail-item-value" style="font-size:0.78rem;font-weight:600;line-height:1.5;">
                             ${escapeHtml(o.full_sms)}
-                            <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${I.copy}</button>
+                            <button class="copy-inline" type="button" data-copy="${escapeHtml(o.full_sms)}" title="Copy SMS">${ICONS.copy}</button>
                         </span>
                     </div>
                 ` : ''}
@@ -2334,7 +2317,7 @@
                 const badge = modalBody.querySelector('.detail-status-badge');
                 if (badge) {
                     badge.className = 'detail-status-badge danger';
-                    badge.innerHTML = `${I.warning} Gagal memuat detail`;
+                    badge.innerHTML = `${ICONS.warning} Gagal memuat detail`;
                 }
                 modalBody.querySelectorAll('.detail-skeleton-row').forEach(el => el.remove());
                 const p = document.createElement('p');
@@ -2355,6 +2338,7 @@
         }
     });
 
+    /* ===== REFRESH BUTTON ===== */
     document.getElementById('refreshBtn').addEventListener('click', async function() {
         const btn = this;
         btn.classList.add('spinning');
@@ -2365,6 +2349,7 @@
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
 
+    /* ===== AUTO REFRESH ===== */
     function startAutoRefresh() {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(async () => {
@@ -2387,6 +2372,7 @@
         }, 5000);
     }
 
+    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -2401,6 +2387,7 @@
         window.location.href = '/landing';
     });
 
+    /* ===== INIT ===== */
     (async function init() {
         loadOrders(true);
         await checkRefunds();
