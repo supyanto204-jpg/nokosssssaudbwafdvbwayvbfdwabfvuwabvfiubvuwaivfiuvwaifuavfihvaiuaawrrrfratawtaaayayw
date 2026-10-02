@@ -147,227 +147,224 @@
         }
 
         /* ============================================
-           PESANAN AKTIF
+           PESANAN AKTIF — gaya sama seperti Inbox
            ============================================ */
         .active-orders {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
-            margin-bottom: 24px;
+            margin-bottom: 8px;
         }
 
-        .active-order-card {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 16px 18px;
+        @media (max-width: 720px) {
+            .active-orders { grid-template-columns: 1fr; }
+        }
+
+        .aoc-card {
             background: var(--bg-card);
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
+            padding: 16px;
             transition: all var(--transition);
             position: relative;
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
         }
-
-        .active-order-card::before {
+        .aoc-card::before {
             content: '';
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 4px;
-            height: 100%;
+            left: 0; top: 0;
+            width: 4px; height: 100%;
             background: var(--warning);
         }
-
-        .active-order-card.has-otp::before { background: var(--success); }
-        .active-order-card.expired::before { background: #64748b; }
-
-        .active-order-card:hover {
+        .aoc-card.is-success::before { background: var(--success); }
+        .aoc-card.is-expired::before { background: #64748b; }
+        .aoc-card.is-cancelled::before { background: var(--danger); }
+        .aoc-card:hover {
             transform: translate(-2px, -2px);
             box-shadow: var(--shadow-hard);
         }
 
-        .active-order-app {
+        .aoc-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px dashed var(--border);
+            flex-wrap: wrap;
+        }
+        .aoc-app-icon {
+            width: 38px; height: 38px;
+            border-radius: 10px;
+            border: 2px solid var(--border-dark);
+            background: var(--bg-white);
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
+            overflow: hidden;
+            padding: 4px;
+            box-shadow: var(--shadow-hard-sm);
         }
-
-        .active-order-app .app-icon-wrap {
-            width: 44px;
-            height: 44px;
-            border-radius: 11px;
-            padding: 5px;
+        .aoc-app-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
+        .aoc-app-icon .icon-fallback {
+            font-size: 0.8rem; font-weight: 900;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
         }
-
-        .active-order-info { flex: 1; min-width: 0; }
-
-        .active-order-title {
+        .aoc-title-wrap { flex: 1; min-width: 0; }
+        .aoc-title {
             font-weight: 800;
             font-size: 0.9rem;
             font-family: var(--font-display);
             color: var(--text-dark);
-            margin-bottom: 3px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            margin-bottom: 2px;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-
-        .active-order-title .flag-img {
-            width: 20px; height: 15px;
-            border-radius: 3px;
-            border: 1px solid var(--border-dark);
-            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
-            object-fit: cover;
-            display: block;
-            flex-shrink: 0;
-            background: var(--bg-light);
-        }
-
-        .active-order-meta {
-            font-size: 0.78rem;
+        .aoc-ref {
+            font-size: 0.68rem;
             font-family: var(--font-mono);
             color: var(--text-gray);
+            word-break: break-all;
+        }
+        .aoc-ref .otp-id { color: var(--primary); font-weight: 800; }
+
+        .aoc-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .aoc-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .aoc-field-label {
+            font-size: 0.62rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-gray);
+        }
+        .aoc-field-value {
+            font-weight: 700;
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            color: var(--text-dark);
+            word-break: break-all;
+            display: flex; align-items: center; gap: 4px;
+        }
+        .aoc-field-value.price { color: var(--primary); }
+
+        .aoc-otp {
+            background: var(--success-light);
+            border: 2px solid var(--success-dark);
+            border-radius: 10px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            gap: 10px;
         }
-
-        .active-order-otpid {
-            font-weight: 800;
-            color: var(--primary);
-            font-size: 0.72rem;
-        }
-
-        .active-order-otp {
-            margin-top: 8px;
-            padding: 6px 12px;
-            background: var(--success-light);
-            border: 1.5px solid var(--success-dark);
-            border-radius: 8px;
-            font-family: var(--font-mono);
-            font-weight: 800;
-            color: var(--success-dark);
-            letter-spacing: 0.15em;
-            font-size: 0.95rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        [data-theme="dark"] .active-order-otp {
+        [data-theme="dark"] .aoc-otp {
             background: rgba(16, 185, 129, 0.15);
             border-color: var(--success);
-            color: var(--success);
         }
-
-        .active-order-otp .copy-inline {
-            background: none;
-            border: none;
-            color: inherit;
+        .aoc-otp-icon {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: var(--success);
+            color: white;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid var(--border-dark);
+        }
+        .aoc-otp-icon .icon-svg { width: 16px; height: 16px; }
+        .aoc-otp-info { flex: 1; min-width: 0; }
+        .aoc-otp-label {
+            font-size: 0.6rem; font-weight: 700;
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--success-dark);
+            margin-bottom: 1px;
+        }
+        [data-theme="dark"] .aoc-otp-label { color: var(--success); }
+        .aoc-otp-value {
+            font-size: 1.15rem;
+            font-weight: 900;
+            font-family: var(--font-mono);
+            color: var(--success-dark);
+            letter-spacing: 0.12em;
+            word-break: break-all;
+        }
+        [data-theme="dark"] .aoc-otp-value { color: var(--success); }
+        .aoc-otp-copy {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            padding: 2px;
-            display: flex;
-            opacity: 0.7;
-            transition: opacity 0.2s;
+            flex-shrink: 0;
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
+        .aoc-otp-copy:hover { background: var(--success); color: white; }
+        .aoc-otp-copy .icon-svg { width: 15px; height: 15px; }
 
-        .active-order-otp .copy-inline:hover { opacity: 1; }
-        .active-order-otp .copy-inline .icon-svg { width: 14px; height: 14px; }
-
-        .active-order-countdown {
-            margin-top: 8px;
+        .aoc-countdown {
             display: inline-flex;
             align-items: center;
             gap: 6px;
             padding: 4px 10px;
+            border-radius: 50px;
             background: var(--warning-light);
             border: 1.5px solid var(--warning-dark);
-            border-radius: 50px;
             font-family: var(--font-mono);
             font-weight: 800;
-            font-size: 0.72rem;
+            font-size: 0.7rem;
             color: var(--warning-dark);
+            margin-bottom: 10px;
+            align-self: flex-start;
         }
-
-        [data-theme="dark"] .active-order-countdown {
+        [data-theme="dark"] .aoc-countdown {
             background: rgba(251, 191, 36, 0.15);
             color: var(--warning);
             border-color: var(--warning);
         }
-
-        .active-order-countdown.expired {
+        .aoc-countdown.expired {
             background: linear-gradient(135deg, #334155, #475569);
             color: white;
             border-color: var(--text-dark);
         }
+        .aoc-countdown .icon-svg { width: 12px; height: 12px; }
 
-        .active-order-countdown .icon-svg { width: 12px; height: 12px; }
-
-        .active-order-right {
-            text-align: right;
-            flex-shrink: 0;
+        .aoc-actions {
             display: flex;
-            flex-direction: column;
             gap: 6px;
-            align-items: flex-end;
-        }
-
-        .active-order-price {
-            font-weight: 800;
-            font-family: var(--font-mono);
-            font-size: 0.9rem;
-            color: var(--primary);
-        }
-
-        .active-order-actions {
-            display: flex;
-            gap: 4px;
             flex-wrap: wrap;
-            justify-content: flex-end;
+            margin-top: auto;
         }
+        .aoc-actions .btn {
+            flex: 1;
+            min-width: 90px;
+            font-size: 0.72rem;
+            padding: 7px 10px;
+        }
+        .aoc-actions .btn .icon-svg { width: 13px; height: 13px; }
 
-        .btn-mini {
-            padding: 4px 10px;
-            border-radius: 50px;
-            background: var(--bg-white);
-            border: 1.5px solid var(--border-dark);
-            color: var(--text-dark);
-            font-family: var(--font-mono);
-            font-weight: 800;
-            font-size: 0.65rem;
-            cursor: pointer;
-            transition: all var(--transition);
-            display: inline-flex;
+        .active-orders-pagination {
+            display: flex;
             align-items: center;
-            gap: 4px;
-            box-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 1);
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
+            justify-content: center;
+            gap: 8px;
+            margin: 4px 0 24px;
+            flex-wrap: wrap;
         }
-
-        .btn-mini:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
-        }
-
-        .btn-mini:active {
-            transform: translate(1px, 1px);
-            box-shadow: none;
-        }
-
-        .btn-mini.primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-mini.danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-mini .icon-svg { width: 10px; height: 10px; }
 
         /* ============================================
            EMPTY ORDERS
@@ -557,22 +554,21 @@
         }
 
         .bottom-sheet {
-    background: var(--bg-card);
-    width: 100%;
-    max-width: 560px;
-    /* Hapus height: 88vh → biar auto */
-    height: auto;
-    max-height: 85vh;
-    border-top-left-radius: 24px;
-    border-top-right-radius: 24px;
-    border: 2px solid var(--border-dark);
-    border-bottom: none;
-    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
-    display: flex;
-    flex-direction: column;
-    animation: slideUp 0.35s var(--ease-bounce);
-    overflow: hidden;
-}
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 560px;
+            height: auto;
+            max-height: 85vh;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            border: 2px solid var(--border-dark);
+            border-bottom: none;
+            box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.35s var(--ease-bounce);
+            overflow: hidden;
+        }
 
         @keyframes slideUp {
             from { transform: translateY(100%); }
@@ -1175,63 +1171,6 @@
 
         .success-icon .icon-svg { width: 36px; height: 36px; }
 
-        .phone-display {
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            padding: 16px;
-            margin: 20px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .phone-display .label {
-            font-size: 0.7rem;
-            color: var(--text-gray);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 4px;
-            font-family: var(--font-mono);
-        }
-
-        .phone-display .number {
-            font-size: 1.15rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            color: var(--text-dark);
-            letter-spacing: 0.02em;
-        }
-
-        .copy-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all var(--transition);
-            flex-shrink: 0;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-
-        .copy-btn:hover {
-            background: var(--primary);
-            color: white;
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .copy-btn .icon-svg { width: 18px; height: 18px; }
-
         /* ============================================
            MODAL OVERRIDE
            ============================================ */
@@ -1319,25 +1258,7 @@
             .nokos-hero-text h1 { font-size: 1.4rem; }
             .nokos-hero-icon { width: 52px; height: 52px; }
             .nokos-hero-icon .icon-svg { width: 26px; height: 26px; }
-            .bottom-sheet { max-height: 90vh; }  /* height auto, cuma batasi max */
-            .active-order-card {
-                padding: 12px;
-                gap: 10px;
-                flex-wrap: wrap;
-            }
-
-            .active-order-app .app-icon-wrap { width: 36px; height: 36px; padding: 4px; }
-            .active-order-title { font-size: 0.82rem; }
-            .active-order-meta { font-size: 0.7rem; }
-            .active-order-otp { font-size: 0.82rem; padding: 4px 8px; letter-spacing: 0.1em; }
-            .active-order-right {
-                width: 100%;
-                text-align: left;
-                align-items: flex-start;
-                flex-direction: row;
-                justify-content: space-between;
-            }
-            .active-order-price { font-size: 0.82rem; }
+            .bottom-sheet { max-height: 90vh; }
 
             .btn-cta { padding: 14px 24px; font-size: 0.88rem; width: 100%; }
 
@@ -1362,7 +1283,7 @@
 
 <div class="dashboard-layout">
 
-    <!-- SIDEBAR (Ketentuan & Syarat dihapus) -->
+    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -1472,6 +1393,7 @@
                 <p>Nomor yang kamu beli akan muncul di sini beserta kode OTP-nya.</p>
             </div>
         </div>
+        <div class="active-orders-pagination" id="activeOrdersPagination" style="display:none;"></div>
 
         <div class="cta-wrap">
             <button class="btn-cta" id="btnOrder" type="button">
@@ -1541,6 +1463,7 @@
     </div>
 </div>
 
+<!-- MODAL SUKSES — disederhanakan -->
 <div class="modal-overlay" id="modalSuccess">
     <div class="modal">
         <div class="success-modal">
@@ -1550,30 +1473,7 @@
             <h2>Order Berhasil!</h2>
             <p style="color:var(--text-gray);font-size:0.9rem;margin-top:8px;">Nomor kamu sudah siap. Tunggu OTP masuk ya.</p>
 
-            <div class="phone-display">
-                <div style="flex:1;text-align:left;">
-                    <div class="label">Nomor Kamu</div>
-                    <div class="number" id="successPhone">—</div>
-                </div>
-                <button class="copy-btn" id="copyPhone" type="button" title="Copy nomor">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                </button>
-            </div>
-
-            <div style="text-align:left;margin-bottom:16px;">
-                <div class="label" style="font-size:0.7rem;color:var(--text-gray);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;font-family:var(--font-mono);">OTP ID</div>
-                <div style="font-family:var(--font-mono);font-weight:800;color:var(--primary);font-size:1rem;" id="successOtpId">—</div>
-            </div>
-
-            <div class="alert alert-info show">
-                <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                <div>
-                    OTP biasanya masuk dalam <strong>1-5 menit</strong>. Kalo belum masuk dalam <strong>15 menit</strong>, pesanan auto-cancel & saldo refund.
-                </div>
-            </div>
-
-            <div style="display:flex;gap:10px;margin-top:20px;">
-                <button type="button" class="btn btn-block" data-modal-close>Tutup</button>
+            <div style="display:flex;gap:10px;margin-top:24px;">
                 <a href="/inbox" class="btn btn-primary btn-block">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
                     Lihat Inbox
@@ -1649,6 +1549,9 @@
         copy: `<svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`,
         clock: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`,
         refresh: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`,
+        key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
+        checkCircle: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+        ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     };
 
     /* ============================================
@@ -1656,7 +1559,6 @@
        ============================================ */
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
     function getAppIconUrl(serviceCode, iconCode) {
-        // Prioritas: icon_code (huruf: wa, tt, ig) > code (kalau huruf) > null
         let code = String(iconCode || '').trim().toLowerCase();
         if (!code) {
             code = String(serviceCode || '').trim().toLowerCase();
@@ -1714,6 +1616,83 @@
         const observer = getAppIconObserver();
         root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => {
             observer.observe(img);
+        });
+    }
+
+    /* ============================================
+       HELPERS
+       ============================================ */
+    function getServiceDisplayName(order) {
+        const name = String(order?.service_name || '').trim();
+        if (name) return name;
+        const svc = String(order?.service || '').trim();
+        if (svc) return svc;
+        return 'Layanan OTP';
+    }
+    function getServiceInitial(order) {
+        const name = getServiceDisplayName(order);
+        return String(name).trim().charAt(0).toUpperCase() || '?';
+    }
+    function renderServiceIcon(order) {
+        const code = String(order?.service || '').trim();
+        const name = getServiceDisplayName(order);
+        const initial = getServiceInitial(order);
+        const url = getAppIconUrl(code, order?.icon_code);
+        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
+                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
+    }
+
+    function getCountryName(order) {
+        const names = {
+            id:'Indonesia', ru:'Rusia', us:'Amerika Serikat', my:'Malaysia', vn:'Vietnam',
+            ph:'Filipina', th:'Thailand', sg:'Singapura', in:'India', cn:'Tiongkok',
+            jp:'Jepang', kr:'Korea Selatan', uk:'Britania Raya', gb:'Britania Raya',
+            de:'Jerman', fr:'Prancis', br:'Brasil', ng:'Nigeria', pk:'Pakistan',
+            bd:'Bangladesh', tr:'Turki', es:'Spanyol', it:'Italia', nl:'Belanda',
+            au:'Australia', ca:'Kanada', mx:'Meksiko', ar:'Argentina', za:'Afrika Selatan',
+            sa:'Arab Saudi', ae:'Uni Emirat Arab', pl:'Polandia', ua:'Ukraina',
+            ro:'Rumania', kh:'Kamboja', la:'Laos', mm:'Myanmar', tw:'Taiwan',
+            hk:'Hong Kong', nz:'Selandia Baru', ch:'Swiss', se:'Swedia', no:'Norwegia',
+            fi:'Finlandia', be:'Belgia', pt:'Portugal', eg:'Mesir', ke:'Kenya', gh:'Ghana',
+        };
+        const code = String(order?.country || order?.country_name || '').trim().toLowerCase();
+        const supplied = String(order?.country_name || '').trim();
+        if (supplied && supplied.toLowerCase() !== code) return supplied;
+        if (names[code]) return names[code];
+        if (/^[a-z]{2}$/i.test(code)) {
+            try {
+                const localized = new Intl.DisplayNames(['id'], { type: 'region' }).of(code.toUpperCase());
+                return localized && localized.toLowerCase() !== code ? localized : 'Negara tidak diketahui';
+            } catch (_) { return 'Negara tidak diketahui'; }
+        }
+        return supplied || 'Negara tidak diketahui';
+    }
+
+    function getOtpId(order) {
+        const id = String(order?.otp_id || '').trim();
+        if (id) return id;
+        const seed = [order?.order_id, order?.created_at, order?.service, order?.phone_number].join('|');
+        let hash = 2166136261;
+        for (let i = 0; i < seed.length; i++) hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
+        return `OTP${(hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0')}`;
+    }
+
+    function copyToClipboard(text, btnEl) {
+        navigator.clipboard.writeText(text).then(() => {
+            if (btnEl) {
+                const orig = btnEl.innerHTML;
+                btnEl.innerHTML = ICONS.check;
+                setTimeout(() => btnEl.innerHTML = orig, 1200);
+            }
+        }).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
         });
     }
 
@@ -1913,9 +1892,16 @@
         filter: 'sukses',
     };
 
+    const activeState = {
+        page: 1,
+        limit: 2,
+        totalPages: 1,
+        allOrders: [],
+        countdownIntervals: {},
+    };
+
     let servicesCache = [];
     let autoSyncInterval = null;
-    let countdownIntervals = {};
 
     /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
@@ -1931,13 +1917,52 @@
         return 'nokos_active_orders';
     }
 
+    /* ============================================
+       Ambil pending + sukses 5 menit terakhir
+       ============================================ */
+    async function fetchActiveOrders() {
+        const [pendingRes, successRes] = await Promise.all([
+            fetch('/api/nokos/orders?status=pending&limit=50', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+            fetch('/api/nokos/orders?status=success&limit=20', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }),
+        ]);
+        const pendingData = await safeJson(pendingRes);
+        const successData = await safeJson(successRes);
+
+        const now = Date.now();
+        const FIVE_MIN = 5 * 60 * 1000;
+
+        const pending = (pendingData.orders || []).map(o => ({ ...o, _bucket: 'pending' }));
+        const recentSuccess = (successData.orders || [])
+            .filter(o => {
+                const t = o.updated_at || o.created_at || o.confirmed_at;
+                if (!t) return false;
+                const ts = new Date(t).getTime();
+                return Number.isFinite(ts) && (now - ts) <= FIVE_MIN;
+            })
+            .map(o => ({ ...o, _bucket: 'success' }));
+
+        const merged = [...pending, ...recentSuccess];
+        merged.sort((a, b) => {
+            if (a._bucket !== b._bucket) return a._bucket === 'pending' ? -1 : 1;
+            const ta = new Date(a.updated_at || a.created_at || 0).getTime();
+            const tb = new Date(b.updated_at || b.created_at || 0).getTime();
+            return tb - ta;
+        });
+
+        return merged;
+    }
+
     /* ===== LOAD ACTIVE ORDERS ===== */
     async function loadActiveOrders(silent = false) {
-        const container = document.getElementById('activeOrders');
         const cacheKey = getActiveOrdersCacheKey();
-
         const cached = CacheManager.get(cacheKey);
+
         if (cached && cached.value) {
+            activeState.allOrders = cached.value.orders || [];
             renderActiveOrders(cached.value.orders || []);
             if (!silent) showSyncPill(true);
         } else if (!silent) {
@@ -1945,23 +1970,20 @@
         }
 
         try {
-            const res = await fetch('/api/nokos/orders?status=pending&limit=5', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await safeJson(res);
+            const merged = await fetchActiveOrders();
+            activeState.allOrders = merged;
+            CacheManager.set(cacheKey, { orders: merged });
+            renderActiveOrders(merged);
 
-            CacheManager.set(cacheKey, { orders: data.orders || [], total: data.total || 0 });
-            renderActiveOrders(data.orders || []);
-
-            const pending = (data.orders || []).filter(o => o.status === 'pending');
-            if (pending.length > 0) {
-                syncPendingOrders(pending);
-            }
+            const pendingNoOtp = merged.filter(o =>
+                o._bucket === 'pending' && o.status === 'pending' && !(o.otp_code && o.otp_code.trim())
+            );
+            if (pendingNoOtp.length > 0) syncPendingOrders(pendingNoOtp);
         } catch (err) {
             console.error('Load active orders error:', err);
             if (!cached && !silent) {
-                container.innerHTML = `
-                    <div class="empty-orders">
+                document.getElementById('activeOrders').innerHTML = `
+                    <div class="empty-orders" style="grid-column:1/-1;">
                         <div class="icon-box">
                             <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </div>
@@ -1981,12 +2003,164 @@
         pill.style.display = show ? 'inline-flex' : 'none';
     }
 
-    /* ===== RENDER ===== */
+    /* ============================================
+       BUILD HTML card pesanan aktif
+       ============================================ */
+    function buildActiveCardHtml(o) {
+        const isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
+        const isPending = o.status === 'pending' && !isSuccess;
+        const hasOtp = o.otp_code && o.otp_code.trim();
+        const otpId = getOtpId(o);
+        const apiOrderId = String(o.order_id || '').trim();
+        const hasApiOrderId = Boolean(apiOrderId);
+        const serviceDisplayName = getServiceDisplayName(o);
+        const countryName = getCountryName(o);
+        const expiresIn = Number(o.expires_in || 0);
+        const mins = Math.floor(expiresIn / 60);
+        const secs = expiresIn % 60;
+        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const hasValidCountdown = isPending && !hasOtp && expiresIn > 0;
+        const priceIdr = Number(o.price_idr ?? o.price ?? 0);
+        const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
+        const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
+        const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
+
+        return `
+            <div class="aoc-card ${cardClass}"
+                 data-order-id="${escapeHtml(apiOrderId)}"
+                 data-otp-id="${escapeHtml(otpId)}"
+                 data-bucket="${escapeHtml(o._bucket || '')}"
+                 data-status="${escapeHtml(o.status || '')}"
+                 data-sig="">
+                <div class="aoc-header">
+                    <div class="aoc-app-icon" title="${escapeHtml(serviceDisplayName)}">
+                        ${renderServiceIcon(o)}
+                    </div>
+                    <div class="aoc-title-wrap">
+                        <div class="aoc-title">
+                            ${escapeHtml(serviceDisplayName)}
+                            ${o.operator ? `<span class="badge info" style="font-size:0.58rem;">${escapeHtml(o.operator)}</span>` : ''}
+                        </div>
+                        <div class="aoc-ref"><span class="otp-id">${escapeHtml(otpId)}</span></div>
+                    </div>
+                    <span class="badge ${badgeClass}">${badgeLabel}</span>
+                </div>
+
+                ${hasOtp ? `
+                    <div class="aoc-otp">
+                        <div class="aoc-otp-icon">${ICONS.key}</div>
+                        <div class="aoc-otp-info">
+                            <div class="aoc-otp-label">Kode OTP</div>
+                            <div class="aoc-otp-value">${escapeHtml(o.otp_code)}</div>
+                        </div>
+                        <button class="aoc-otp-copy" type="button" data-copy="${escapeHtml(o.otp_code)}" title="Copy OTP">
+                            ${ICONS.copy}
+                        </button>
+                    </div>
+                ` : ''}
+
+                <div class="aoc-body">
+                    <div class="aoc-field">
+                        <span class="aoc-field-label">Nomor</span>
+                        <span class="aoc-field-value">
+                            ${escapeHtml(o.phone_number || '—')}
+                            ${o.phone_number ? `<button class="aoc-otp-copy" style="width:22px;height:22px;border-width:1.5px;" type="button" data-copy="${escapeHtml(o.phone_number)}" title="Copy nomor">${ICONS.copy}</button>` : ''}
+                        </span>
+                    </div>
+                    <div class="aoc-field">
+                        <span class="aoc-field-label">Negara</span>
+                        <span class="aoc-field-value">
+                            <span class="country-inline">
+                                ${renderFlag(o.country, 'flag-img')}
+                                ${escapeHtml(countryName)}
+                            </span>
+                        </span>
+                    </div>
+                    <div class="aoc-field">
+                        <span class="aoc-field-label">Harga</span>
+                        <span class="aoc-field-value price">${formatRupiah(priceIdr)}</span>
+                    </div>
+                    <div class="aoc-field">
+                        <span class="aoc-field-label">Dibuat</span>
+                        <span class="aoc-field-value" style="font-size:0.7rem;">${createdDate}</span>
+                    </div>
+                </div>
+
+                ${hasValidCountdown ? `
+                    <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-expires="${expiresIn}">
+                        ${ICONS.clock}
+                        <span class="countdown-text">${timeText}</span> tersisa
+                    </div>
+                ` : ''}
+
+                <div class="aoc-actions">
+                    ${isPending && hasApiOrderId ? `
+                        ${hasOtp ? `
+                            <button class="btn" type="button" data-resend="${escapeHtml(apiOrderId)}">
+                                ${ICONS.refresh} Resend
+                            </button>
+                            <button class="btn btn-primary" type="button" data-confirm="${escapeHtml(apiOrderId)}">
+                                ${ICONS.checkCircle} Konfirmasi
+                            </button>
+                        ` : `
+                            <button class="btn btn-danger" type="button" data-cancel="${escapeHtml(apiOrderId)}">
+                                ${ICONS.ban} Batalkan
+                            </button>
+                        `}
+                    ` : `
+                        <a href="/inbox" class="btn btn-primary">
+                            ${ICONS.info} Lihat Detail
+                        </a>
+                    `}
+                </div>
+            </div>
+        `;
+    }
+
+    /* ============================================
+       ATTACH handler ke card
+       ============================================ */
+    function attachActiveCardHandlers(card) {
+        card.querySelectorAll('[data-copy]').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                copyToClipboard(btn.dataset.copy, btn);
+            });
+        });
+        card.querySelectorAll('[data-resend]').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', () => resendOrder(btn.dataset.resend, btn));
+        });
+        card.querySelectorAll('[data-confirm]').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', () => confirmOrder(btn.dataset.confirm, btn));
+        });
+        card.querySelectorAll('[data-cancel]').forEach(btn => {
+            if (btn.dataset.bound) return;
+            btn.dataset.bound = '1';
+            btn.addEventListener('click', () => cancelOrder(btn.dataset.cancel, btn));
+        });
+    }
+
+    /* ============================================
+       RENDER dengan DOM diff + pagination 2/halaman
+       ============================================ */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
+        const pagEl = document.getElementById('activeOrdersPagination');
 
         if (!orders || orders.length === 0) {
+            container.className = '';
             container.innerHTML = `
                 <div class="empty-orders">
                     <div class="icon-box">
@@ -1997,6 +2171,7 @@
                 </div>
             `;
             if (countEl) countEl.style.display = 'none';
+            if (pagEl) pagEl.style.display = 'none';
             return;
         }
 
@@ -2005,120 +2180,121 @@
             countEl.style.display = 'inline-flex';
         }
 
-        container.innerHTML = `<div class="active-orders">` + orders.map(o => {
-            const hasOtp = o.otp_code && o.otp_code.trim();
-            const otpId = o.otp_id || (o.order_id ? `OTP${String(o.order_id).slice(-8)}` : '—');
-            const expiresIn = o.expires_in !== undefined ? o.expires_in : 900;
-            const mins = Math.floor(expiresIn / 60);
-            const secs = expiresIn % 60;
-            const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-            const serviceDisplayName = o.service_name || o.service || '—';
+        // Pagination
+        const total = orders.length;
+        activeState.totalPages = Math.max(1, Math.ceil(total / activeState.limit));
+        if (activeState.page > activeState.totalPages) activeState.page = activeState.totalPages;
+        const start = (activeState.page - 1) * activeState.limit;
+        const pageOrders = orders.slice(start, start + activeState.limit);
 
-            return `
-                <div class="active-order-card ${hasOtp ? 'has-otp' : ''}" data-order-id="${o.order_id}">
-                    <div class="active-order-app">
-                        <div class="app-icon-wrap">
-                            ${renderAppIcon(o.service, serviceDisplayName, o.icon_code)}
-                        </div>
-                    </div>
-                    <div class="active-order-info">
-                        <div class="active-order-title">
-                            ${renderFlag(o.country, 'flag-img')}
-                            ${escapeHtml(serviceDisplayName)}
-                        </div>
-                        <div class="active-order-meta">
-                            <span>${escapeHtml(o.phone_number || '—')}</span>
-                            <span style="opacity:0.5;">·</span>
-                            <span class="active-order-otpid">${escapeHtml(otpId)}</span>
-                        </div>
-                        ${hasOtp ? `
-                            <div class="active-order-otp">
-                                OTP: ${escapeHtml(o.otp_code)}
-                                <button type="button" class="copy-inline" data-copy="${escapeHtml(o.otp_code)}">
-                                    ${ICONS.copy}
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="active-order-countdown" data-order-id="${o.order_id}" data-expires="${expiresIn}">
-                                ${ICONS.clock}
-                                <span class="countdown-text">${timeText}</span>
-                            </div>
-                        `}
-                    </div>
-                    <div class="active-order-right">
-                        <div class="active-order-price">${formatRupiah(o.price)}</div>
-                        <span class="badge ${hasOtp ? 'success' : 'warning'} ${hasOtp ? '' : 'badge-dot'}">${hasOtp ? 'OTP Masuk' : 'Pending'}</span>
-                        ${hasOtp ? `
-                            <div class="active-order-actions">
-                                <button type="button" class="btn-mini primary" data-resend="${o.order_id}">
-                                    ${ICONS.refresh}
-                                    Resend
-                                </button>
-                                <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
-                                    ${ICONS.close}
-                                    Batal
-                                </button>
-                            </div>
-                        ` : `
-                            <div class="active-order-actions">
-                                <button type="button" class="btn-mini danger" data-cancel="${o.order_id}">
-                                    ${ICONS.close}
-                                    Batal
-                                </button>
-                            </div>
-                        `}
-                    </div>
-                </div>
+        // Container jadi grid
+        if (!container.classList.contains('active-orders')) {
+            container.className = 'active-orders';
+        }
+
+        // Map kartu lama by order_id
+        const existingCards = new Map();
+        container.querySelectorAll(':scope > .aoc-card').forEach(card => {
+            const id = card.dataset.orderId;
+            if (id) existingCards.set(id, card);
+        });
+
+        const newIds = new Set();
+        const fragment = document.createDocumentFragment();
+
+        pageOrders.forEach((o, idx) => {
+            const apiOrderId = String(o.order_id || '').trim();
+            const cardKey = apiOrderId || `idx-${idx}`;
+            newIds.add(cardKey);
+
+            const newHtml = buildActiveCardHtml(o);
+            const tmp = document.createElement('div');
+            tmp.innerHTML = newHtml.trim();
+            const newCard = tmp.firstElementChild;
+
+            const existing = existingCards.get(cardKey);
+
+            const newSig = [
+                o.status || '',
+                (o.otp_code || '').trim(),
+                (o.phone_number || '').trim(),
+                Number(o.expires_in || 0),
+                (o.service || '').trim(),
+                o._bucket || '',
+            ].join('|');
+
+            const oldSig = existing ? existing.dataset.sig || '' : null;
+
+            if (existing && oldSig === newSig) {
+                fragment.appendChild(existing);
+                return;
+            }
+
+            if (existing) {
+                existing.replaceWith(newCard);
+                existingCards.delete(cardKey);
+            }
+            newCard.dataset.sig = newSig;
+            attachActiveCardHandlers(newCard);
+            fragment.appendChild(newCard);
+        });
+
+        // Hapus kartu yang tidak ada di halaman ini
+        existingCards.forEach((card, id) => {
+            if (!newIds.has(id)) card.remove();
+        });
+
+        container.appendChild(fragment);
+
+        // Pagination UI
+        if (activeState.totalPages > 1) {
+            pagEl.style.display = 'flex';
+            pagEl.innerHTML = `
+                <button class="page-btn" type="button" data-page="${activeState.page - 1}" ${activeState.page <= 1 ? 'disabled' : ''}>Prev</button>
+                <span class="page-info">Halaman ${activeState.page} dari ${activeState.totalPages}</span>
+                <button class="page-btn" type="button" data-page="${activeState.page + 1}" ${activeState.page >= activeState.totalPages ? 'disabled' : ''}>Next</button>
             `;
-        }).join('') + `</div>`;
-
-        container.querySelectorAll('[data-copy]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(btn.dataset.copy).then(() => {
-                    const original = btn.innerHTML;
-                    btn.innerHTML = ICONS.check;
-                    setTimeout(() => btn.innerHTML = original, 1200);
+            pagEl.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = Number(btn.dataset.page);
+                    if (p >= 1 && p <= activeState.totalPages) {
+                        activeState.page = p;
+                        renderActiveOrders(activeState.allOrders);
+                    }
                 });
             });
-        });
+        } else {
+            pagEl.style.display = 'none';
+        }
 
-        container.querySelectorAll('[data-resend]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                resendOrder(btn.dataset.resend, btn);
-            });
-        });
-
-        container.querySelectorAll('[data-cancel]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                cancelOrder(btn.dataset.cancel, btn);
-            });
-        });
-
-        observeAppIcons(container);
         startCountdowns();
     }
 
     /* ===== COUNTDOWN ===== */
     function startCountdowns() {
-        Object.values(countdownIntervals).forEach(clearInterval);
-        countdownIntervals = {};
+        Object.values(activeState.countdownIntervals).forEach(clearInterval);
+        activeState.countdownIntervals = {};
 
-        document.querySelectorAll('.active-order-countdown').forEach(el => {
+        document.querySelectorAll('.aoc-countdown').forEach(el => {
             const orderId = el.dataset.orderId;
-            let remaining = parseInt(el.dataset.expires || '900', 10);
+            let remaining = parseInt(el.dataset.expires || '0', 10);
             const textEl = el.querySelector('.countdown-text');
 
-            if (countdownIntervals[orderId]) clearInterval(countdownIntervals[orderId]);
+            if (remaining <= 0) {
+                el.classList.add('expired');
+                if (textEl) textEl.textContent = 'EXPIRED';
+                return;
+            }
 
             function tick() {
                 if (remaining <= 0) {
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
-                    clearInterval(countdownIntervals[orderId]);
-                    setTimeout(() => loadActiveOrders(true), 500);
+                    clearInterval(activeState.countdownIntervals[orderId]);
+                    setTimeout(() => {
+                        CacheManager.remove(getActiveOrdersCacheKey());
+                        loadActiveOrders(true);
+                    }, 500);
                     return;
                 }
                 const m = Math.floor(remaining / 60);
@@ -2128,7 +2304,7 @@
             }
 
             tick();
-            countdownIntervals[orderId] = setInterval(tick, 1000);
+            activeState.countdownIntervals[orderId] = setInterval(tick, 1000);
         });
     }
 
@@ -2207,6 +2383,48 @@
         } catch (err) {
             await showCustomAlert({
                 title: 'Gagal Resend',
+                message: err.message,
+                type: 'danger'
+            });
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    }
+
+    /* ===== CONFIRM ===== */
+    async function confirmOrder(orderId, btn) {
+        const ok = await showCustomAlert({
+            title: 'Konfirmasi Sukses',
+            message: 'Yakin order ini sudah sukses? Setelah dikonfirmasi, order akan dianggap selesai dan tidak bisa dibatalkan.',
+            type: 'success',
+            okText: 'Ya, Konfirmasi',
+            showCancel: true
+        });
+        if (!ok) return;
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+        try {
+            const res = await fetch(`/api/nokos/order/${orderId}/confirm`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
+
+            await showCustomAlert({
+                title: 'Order Sukses',
+                message: 'Order berhasil dikonfirmasi sukses. Terima kasih!',
+                type: 'success'
+            });
+
+            CacheManager.remove(getActiveOrdersCacheKey());
+            loadActiveOrders(true);
+        } catch (err) {
+            await showCustomAlert({
+                title: 'Gagal Konfirmasi',
                 message: err.message,
                 type: 'danger'
             });
@@ -2736,7 +2954,6 @@
 
             const data = await safeJson(res);
             if (!res.ok) {
-                // Handle error berdasarkan code
                 const code = data.code || '';
                 if (code === 'INSUFFICIENT_USER_BALANCE') {
                     throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
@@ -2748,9 +2965,6 @@
             }
 
             closeSheet();
-
-            document.getElementById('successPhone').textContent = data.order.phone_number || '—';
-            document.getElementById('successOtpId').textContent = data.order.otp_id || '—';
 
             CacheManager.remove('user_profile');
             CacheManager.remove(getActiveOrdersCacheKey());
@@ -2776,17 +2990,6 @@
             btn.innerHTML = original;
         }
     }
-
-    /* ===== COPY PHONE ===== */
-    document.getElementById('copyPhone').addEventListener('click', () => {
-        const phone = document.getElementById('successPhone').textContent;
-        navigator.clipboard.writeText(phone).then(() => {
-            const btn = document.getElementById('copyPhone');
-            const original = btn.innerHTML;
-            btn.innerHTML = ICONS.check;
-            setTimeout(() => btn.innerHTML = original, 1200);
-        });
-    });
 
     /* ===== MODAL CLOSE ===== */
     document.addEventListener('click', (e) => {
@@ -2838,7 +3041,7 @@
 
     window.addEventListener('beforeunload', () => {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
-        Object.values(countdownIntervals).forEach(clearInterval);
+        Object.values(activeState.countdownIntervals).forEach(clearInterval);
     });
 </script>
 
