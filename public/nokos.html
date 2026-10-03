@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="noindex, nofollow">
     <title>Beli Nokos - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -14,25 +17,129 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: jalan paling awal -->
     <script>
+        // Safety cleanup freeze style dari page sebelumnya
         (function() {
-            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            try {
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        // Anti view-source
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
+        // Anti-FOUC theme
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // Anti-iframe (clickjacking)
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+        }
+
+        // DevTools LOCK SCREEN
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                document.documentElement.innerHTML = '<head></head><body></body>';
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            html, body { margin:0; padding:0; background:#0f172a; overflow:auto !important; position:static !important; height:auto !important; min-height:100vh !important; width:100% !important; }
+                            #devtoolsLockScreen { min-height:100vh; width:100%; background:#0f172a; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; user-select:none; -webkit-user-select:none; }
+                            #devtoolsLockScreen .lock-box { background:#1e293b; border:3px solid #475569; border-radius:20px; padding:40px 32px; max-width:440px; width:100%; text-align:center; box-shadow:8px 8px 0px rgba(0,0,0,.5); box-sizing:border-box; }
+                            #devtoolsLockScreen .lock-icon { font-size:3rem; margin-bottom:16px; line-height:1; }
+                            #devtoolsLockScreen h2 { color:#dc2626; font-size:1.5rem; font-weight:800; margin:0 0 12px; font-family:inherit; }
+                            #devtoolsLockScreen p { color:#cbd5e1; font-size:.95rem; line-height:1.6; margin:0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color:#64748b; font-size:.78rem; font-family:ui-monospace,monospace; margin-top:20px; padding-top:16px; border-top:1px dashed #334155; }
+                        </style>
+                    `;
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
+                else showLockScreen();
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
     <style>
+        /* ============================================
+           GLOBAL ANTI-SELECT + ANTI-DRAG
+           ============================================ */
         .dashboard-layout, .dashboard-layout * {
             -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
             -webkit-touch-callout: none;
+            -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none;
         }
-        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code {
+        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code, .dashboard-layout [contenteditable="true"] {
             -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
+            -webkit-touch-callout: default;
+        }
+        .dashboard-layout img, .dashboard-layout svg {
+            -webkit-user-drag: none; -khtml-user-drag: none; user-drag: none;
+        }
+        .dashboard-layout a img, .dashboard-layout a svg, .dashboard-layout button img, .dashboard-layout button svg {
+            pointer-events: auto;
         }
 
         body.sheet-open { overflow: hidden; }
 
         /* ============================================
-           HERO
+           HERO — UPGRADED: gradient animated + shine
            ============================================ */
         .nokos-hero {
             display: flex;
@@ -40,14 +147,16 @@
             gap: 16px;
             margin-bottom: 24px;
             flex-wrap: wrap;
+            position: relative;
         }
 
         .nokos-hero-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, #3b82f6, #7c3aed);
-            background-size: 200% 200%;
+            width: 64px;
+            height: 64px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
+            background-size: 300% 300%;
+            animation: gradientShift 6s ease infinite;
             border: 2.5px solid var(--border-dark);
             display: flex;
             align-items: center;
@@ -59,9 +168,18 @@
             overflow: hidden;
         }
 
+        .nokos-hero-icon::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+            animation: shine 3.5s infinite;
+        }
+
         .nokos-hero-icon .icon-svg {
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             position: relative;
             z-index: 1;
         }
@@ -69,13 +187,15 @@
         .nokos-hero-text { flex: 1; min-width: 0; }
 
         .nokos-hero-text h1 {
-            font-size: 1.8rem;
+            font-size: 1.9rem;
             font-weight: 900;
             font-family: var(--font-display);
             letter-spacing: -0.02em;
             margin-bottom: 4px;
             text-transform: uppercase;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
+            background: linear-gradient(135deg, var(--primary), var(--purple), var(--primary));
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -88,8 +208,29 @@
             line-height: 1.5;
         }
 
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
+        }
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,.4); }
+            50% { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
+        }
+        @keyframes floatY {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes borderFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+
         /* ============================================
-           SECTION TITLE
+           SECTION TITLE — UPGRADED dengan dot pulse
            ============================================ */
         .section-title {
             font-size: 0.85rem;
@@ -104,7 +245,6 @@
             gap: 8px;
             flex-wrap: wrap;
         }
-
         .section-title .icon-svg {
             width: 16px;
             height: 16px;
@@ -112,42 +252,34 @@
         }
 
         /* ============================================
-           APP ICON HELPER
+           APP ICON
            ============================================ */
         .app-icon-wrap {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             border-radius: 9px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             overflow: hidden;
             padding: 3px;
             box-shadow: var(--shadow-hard-sm);
         }
-        .app-icon-wrap img {
-            width: 100%; height: 100%;
-            object-fit: contain;
-            display: block;
-        }
+        .app-icon-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .app-icon-wrap img.app-icon-lazy:not([src]),
         .app-icon-wrap img.app-icon-lazy[src=""] {
             background: var(--bg-light);
             border-radius: 4px;
         }
         .app-icon-wrap .icon-fallback {
-            font-size: 0.7rem;
-            font-weight: 900;
+            font-size: 0.7rem; font-weight: 900;
             color: var(--text-dark);
             font-family: var(--font-mono);
             text-transform: uppercase;
         }
 
         /* ============================================
-           PESANAN AKTIF — gaya sama seperti Inbox
+           ACTIVE ORDERS — UPGRADED: hover subtle + shimmer border
            ============================================ */
         .active-orders {
             display: grid;
@@ -155,10 +287,7 @@
             gap: 12px;
             margin-bottom: 8px;
         }
-
-        @media (max-width: 720px) {
-            .active-orders { grid-template-columns: 1fr; }
-        }
+        @media (max-width: 720px) { .active-orders { grid-template-columns: 1fr; } }
 
         .aoc-card {
             background: var(--bg-card);
@@ -166,13 +295,21 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             padding: 16px;
-            /* ANIMASI HOVER DIHAPUS — cuma transition warna kalau perlu */
-            transition: box-shadow var(--transition), border-color var(--transition);
+            transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
             position: relative;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             min-width: 0;
+            animation: cardFadeIn .35s cubic-bezier(.2,.8,.2,1) both;
+        }
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .aoc-card:hover {
+            box-shadow: var(--shadow-hard);
+            transform: translateY(-2px);
         }
         .aoc-card::before {
             content: '';
@@ -184,7 +321,18 @@
         .aoc-card.is-success::before { background: var(--success); }
         .aoc-card.is-expired::before { background: #64748b; }
         .aoc-card.is-cancelled::before { background: var(--danger); }
-        /* .aoc-card:hover transform DIHAPUS */
+
+        /* Shimmer untuk card pending */
+        .aoc-card.is-pending::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            pointer-events: none;
+            background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.08) 50%, transparent 100%);
+            background-size: 200% 100%;
+            animation: borderFlow 3s linear infinite;
+        }
 
         .aoc-header {
             display: flex;
@@ -264,10 +412,22 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            position: relative;
+            overflow: hidden;
+            animation: pulseGlow 2.4s ease-in-out infinite;
         }
         [data-theme="dark"] .aoc-otp {
             background: rgba(16, 185, 129, 0.15);
             border-color: var(--success);
+        }
+        .aoc-otp::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.25) 50%, transparent 60%);
+            animation: shine 4s infinite;
+            pointer-events: none;
         }
         .aoc-otp-icon {
             width: 32px; height: 32px;
@@ -277,9 +437,10 @@
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border: 2px solid var(--border-dark);
+            position: relative; z-index: 1;
         }
         .aoc-otp-icon .icon-svg { width: 16px; height: 16px; }
-        .aoc-otp-info { flex: 1; min-width: 0; }
+        .aoc-otp-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
         .aoc-otp-label {
             font-size: 0.6rem; font-weight: 700;
             font-family: var(--font-mono);
@@ -307,12 +468,13 @@
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
             flex-shrink: 0;
-            /* TRANSFORM HOVER DIHAPUS */
-            transition: background-color var(--transition), color var(--transition);
+            transition: background-color .2s, color .2s, transform .2s;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            position: relative; z-index: 1;
         }
-        .aoc-otp-copy:hover { background: var(--success); color: white; }
+        .aoc-otp-copy:hover { background: var(--success); color: white; transform: scale(1.05); }
+        .aoc-otp-copy:active { transform: scale(.95); }
         .aoc-otp-copy .icon-svg { width: 15px; height: 15px; }
 
         .aoc-countdown {
@@ -329,11 +491,21 @@
             color: var(--warning-dark);
             margin-bottom: 10px;
             align-self: flex-start;
+            position: relative;
+            overflow: hidden;
         }
         [data-theme="dark"] .aoc-countdown {
             background: rgba(251, 191, 36, 0.15);
             color: var(--warning);
             border-color: var(--warning);
+        }
+        .aoc-countdown::after {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: currentColor;
+            animation: pulseGlow 1.5s ease-in-out infinite;
         }
         .aoc-countdown.expired {
             background: linear-gradient(135deg, #334155, #475569);
@@ -353,13 +525,10 @@
             min-width: 90px;
             font-size: 0.72rem;
             padding: 7px 10px;
-            /* MATIKAN TRANSFORM DI TOMBOL */
-            transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+            transition: background-color var(--transition), border-color var(--transition), color var(--transition), transform .15s;
         }
-        .aoc-actions .btn:hover,
-        .aoc-actions .btn:active {
-            transform: none;
-        }
+        .aoc-actions .btn:hover { transform: translateY(-1px); }
+        .aoc-actions .btn:active { transform: translateY(0); }
         .aoc-actions .btn .icon-svg { width: 13px; height: 13px; }
 
         .active-orders-pagination {
@@ -369,10 +538,6 @@
             gap: 8px;
             margin: 4px 0 24px;
             flex-wrap: wrap;
-        }
-        .active-orders-pagination .page-btn:hover,
-        .active-orders-pagination .page-btn:active {
-            transform: none;
         }
 
         /* ============================================
@@ -386,45 +551,35 @@
             border-radius: var(--radius);
             color: var(--text-gray);
             margin-bottom: 24px;
+            grid-column: 1 / -1;
         }
-
         .empty-orders .icon-box {
-            width: 64px;
-            height: 64px;
+            width: 64px; height: 64px;
             margin: 0 auto 14px;
             border-radius: 18px;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
+            animation: floatY 3s ease-in-out infinite;
         }
-
         .empty-orders .icon-box .icon-svg { width: 28px; height: 28px; }
-
         .empty-orders h3 {
-            font-size: 1rem;
-            font-weight: 800;
+            font-size: 1rem; font-weight: 800;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 4px;
         }
-
-        .empty-orders p {
-            font-size: 0.85rem;
-            margin-bottom: 0;
-        }
+        .empty-orders p { font-size: 0.85rem; margin-bottom: 0; }
 
         /* ============================================
-           CTA
+           CTA — UPGRADED: glow + gradient shift
            ============================================ */
         .cta-wrap {
             text-align: center;
             margin-bottom: 32px;
         }
-
         .btn-cta {
             display: inline-flex;
             align-items: center;
@@ -432,7 +587,9 @@
             gap: 10px;
             padding: 16px 36px;
             border-radius: 50px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: linear-gradient(135deg, var(--primary), var(--purple), var(--primary-dark), var(--primary));
+            background-size: 300% 300%;
+            animation: gradientShift 5s ease infinite;
             color: white;
             font-family: var(--font-display);
             font-weight: 800;
@@ -442,14 +599,24 @@
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: transform .2s ease, box-shadow .2s ease;
             position: relative;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
-        .btn-cta:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-hard-lg); }
+        .btn-cta::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+            animation: shine 3s infinite;
+        }
+        .btn-cta:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hard-lg), 0 0 24px rgba(124,58,237,.4);
+        }
         .btn-cta:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
         .btn-cta .icon-svg { width: 20px; height: 20px; position: relative; z-index: 1; }
         .btn-cta span { position: relative; z-index: 1; }
@@ -467,28 +634,23 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
         }
-
         .feature-item {
             display: flex;
             gap: 10px;
             align-items: flex-start;
+            transition: transform .25s ease;
         }
-
+        .feature-item:hover { transform: translateY(-2px); }
         .feature-item .feature-icon {
-            width: 32px;
-            height: 32px;
+            width: 32px; height: 32px;
             border-radius: 9px;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
-
         .feature-item .feature-icon .icon-svg { width: 16px; height: 16px; }
-
         .feature-item h4 {
             font-size: 0.88rem;
             font-weight: 800;
@@ -496,7 +658,6 @@
             margin-bottom: 4px;
             color: var(--text-dark);
         }
-
         .feature-item p {
             font-size: 0.78rem;
             color: var(--text-gray);
@@ -512,7 +673,6 @@
             border-top: 2px dashed var(--border);
             text-align: center;
         }
-
         .footer-links {
             display: flex;
             gap: 20px;
@@ -520,7 +680,6 @@
             flex-wrap: wrap;
             margin-bottom: 12px;
         }
-
         .footer-links a {
             color: var(--text-gray);
             text-decoration: none;
@@ -529,38 +688,35 @@
             transition: color var(--transition);
             -webkit-tap-highlight-color: transparent;
         }
-
         .footer-links a:hover { color: var(--primary); }
-
         .footer-copy {
             font-size: 0.75rem;
             color: var(--text-light);
             font-family: var(--font-mono);
             letter-spacing: 0.02em;
         }
-
         .footer-copy strong { color: var(--primary); font-weight: 800; }
 
         /* ============================================
-           BOTTOM SHEET
+           BOTTOM SHEET — UPGRADED
            ============================================ */
         .bottom-sheet-overlay {
             position: fixed;
             inset: 0;
             background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
             z-index: 99999;
             display: none;
             align-items: flex-end;
             justify-content: center;
             padding: 0;
         }
-
         .bottom-sheet-overlay.active {
             display: flex;
-            animation: fadeIn 0.2s var(--ease);
+            animation: fadeIn 0.22s var(--ease);
         }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .bottom-sheet {
             background: var(--bg-card);
@@ -572,27 +728,35 @@
             border-top-right-radius: 24px;
             border: 2px solid var(--border-dark);
             border-bottom: none;
-            box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.15);
+            box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.2);
             display: flex;
             flex-direction: column;
-            animation: slideUp 0.35s var(--ease-bounce);
+            animation: slideUp 0.4s cubic-bezier(.2,.9,.3,1.1);
             overflow: hidden;
+            position: relative;
         }
-
+        .bottom-sheet::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--purple), var(--primary));
+            background-size: 200% 100%;
+            animation: gradientShift 3s linear infinite;
+            z-index: 1;
+        }
         @keyframes slideUp {
-            from { transform: translateY(100%); }
-            to { transform: translateY(0); }
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
         }
 
         .sheet-handle {
-            width: 40px;
-            height: 4px;
+            width: 40px; height: 4px;
             background: var(--border);
             border-radius: 50px;
             margin: 12px auto 8px;
             flex-shrink: 0;
         }
-
         .sheet-header {
             padding: 0 20px 16px;
             display: flex;
@@ -602,9 +766,7 @@
             flex-shrink: 0;
             gap: 12px;
         }
-
         .sheet-header-left { flex: 1; min-width: 0; }
-
         .sheet-step {
             font-size: 0.72rem;
             font-weight: 700;
@@ -614,7 +776,6 @@
             letter-spacing: 0.06em;
             margin-bottom: 2px;
         }
-
         .sheet-title {
             font-size: 1.05rem;
             font-weight: 800;
@@ -622,9 +783,7 @@
             color: var(--text-dark);
             letter-spacing: -0.01em;
         }
-
         .sheet-balance { text-align: right; flex-shrink: 0; }
-
         .sheet-balance .label {
             font-size: 0.68rem;
             font-weight: 700;
@@ -633,14 +792,12 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
-
         .sheet-balance .amount {
             font-size: 0.95rem;
             font-weight: 800;
             font-family: var(--font-mono);
             color: var(--primary);
         }
-
         .sheet-body {
             flex: 1;
             overflow-y: auto;
@@ -648,11 +805,9 @@
             padding: 20px;
             -webkit-overflow-scrolling: touch;
         }
-
         .sheet-body::-webkit-scrollbar { width: 6px; }
         .sheet-body::-webkit-scrollbar-track { background: transparent; }
         .sheet-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
         .sheet-back {
             display: inline-flex;
             align-items: center;
@@ -666,29 +821,23 @@
             font-weight: 700;
             font-size: 0.78rem;
             cursor: pointer;
-            transition: background-color var(--transition), box-shadow var(--transition);
+            transition: background-color .2s, box-shadow .2s, transform .15s;
             margin-bottom: 16px;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
-        .sheet-back:hover {
-            box-shadow: var(--shadow-hard-sm);
-            background: var(--bg-white);
-        }
-        .sheet-back:active { transform: none; }
-
+        .sheet-back:hover { box-shadow: var(--shadow-hard-sm); background: var(--bg-white); }
+        .sheet-back:active { transform: scale(.97); }
         .sheet-back .icon-svg { width: 14px; height: 14px; }
 
         /* ============================================
-           SERVER LIST
+           SERVER LIST — UPGRADED hover
            ============================================ */
         .server-list {
             display: flex;
             flex-direction: column;
             gap: 12px;
         }
-
         .server-card {
             display: flex;
             align-items: center;
@@ -699,7 +848,7 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: background-color var(--transition);
+            transition: background-color .2s, transform .15s, box-shadow .2s;
             text-align: left;
             font-family: inherit;
             position: relative;
@@ -707,41 +856,45 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
+        .server-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, var(--primary), var(--purple));
+            opacity: 0;
+            transition: opacity .2s;
+        }
         .server-card:hover {
             background: var(--bg-hover);
+            transform: translateX(2px);
+            box-shadow: var(--shadow-hard);
         }
-        .server-card:active { transform: none; }
+        .server-card:hover::before { opacity: 1; }
+        .server-card:active { transform: scale(.99); }
 
         .server-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 11px;
             background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
+            transition: transform .25s ease;
         }
-
+        .server-card:hover .server-icon { transform: rotate(-6deg) scale(1.05); }
         .server-icon .icon-svg { width: 20px; height: 20px; }
 
         .server-info { flex: 1; min-width: 0; }
-
         .server-title {
             font-weight: 800;
             font-size: 0.95rem;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 2px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-
         .server-badge {
             display: inline-flex;
             align-items: center;
@@ -750,16 +903,15 @@
             font-size: 0.62rem;
             font-weight: 800;
             font-family: var(--font-mono);
-            background: var(--primary);
+            background: linear-gradient(135deg, var(--primary), var(--purple));
             color: white;
             border: 1.5px solid var(--border-dark);
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
-
         .server-desc { font-size: 0.78rem; color: var(--text-gray); }
-
-        .server-arrow { color: var(--text-light); flex-shrink: 0; }
+        .server-arrow { color: var(--text-light); flex-shrink: 0; transition: transform .25s; }
+        .server-card:hover .server-arrow { transform: translateX(4px); color: var(--primary); }
         .server-arrow .icon-svg { width: 18px; height: 18px; }
 
         /* ============================================
@@ -769,7 +921,6 @@
             position: relative;
             margin-bottom: 18px;
         }
-
         .sheet-search .icon-svg {
             position: absolute;
             left: 14px;
@@ -779,37 +930,42 @@
             width: 18px;
             height: 18px;
             pointer-events: none;
+            transition: color .2s;
         }
-
-        .sheet-search input { padding-left: 42px; }
+        .sheet-search:focus-within .icon-svg { color: var(--primary); }
+        .sheet-search input {
+            padding-left: 42px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+        .sheet-search input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
 
         .app-selected-card {
             display: flex;
             align-items: center;
             gap: 12px;
             padding: 12px 14px;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
             border-radius: var(--radius-sm);
             margin-bottom: 18px;
             box-shadow: var(--shadow-hard-sm);
+            animation: cardFadeIn .3s ease both;
         }
-
         .app-selected-card .app-icon-wrap {
             width: 36px;
             height: 36px;
             padding: 4px;
         }
-
         .app-selected-card .info { flex: 1; min-width: 0; }
-
         .app-selected-card .name {
             font-weight: 800;
             font-family: var(--font-display);
             font-size: 0.9rem;
             color: var(--text-dark);
         }
-
         .app-selected-card .sub {
             font-size: 0.72rem;
             color: var(--text-gray);
@@ -817,7 +973,7 @@
         }
 
         /* ============================================
-           APP GRID
+           APP GRID — UPGRADED hover scale
            ============================================ */
         .app-grid {
             display: grid;
@@ -825,7 +981,6 @@
             gap: 10px;
             margin-bottom: 20px;
         }
-
         .app-card {
             display: flex;
             align-items: center;
@@ -836,7 +991,7 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: background-color var(--transition), border-color var(--transition);
+            transition: background-color .2s, border-color .2s, transform .15s, box-shadow .2s;
             font-family: inherit;
             text-align: left;
             min-height: 60px;
@@ -845,13 +1000,13 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .app-card:hover {
             background: var(--bg-hover);
             border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hard);
         }
-        .app-card:active { transform: none; }
-
+        .app-card:active { transform: translateY(0) scale(.98); }
         .app-card .name {
             font-size: 0.88rem;
             font-weight: 700;
@@ -865,12 +1020,14 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            transition: color .2s;
         }
-
         .app-card:hover .name { color: var(--primary); }
+        .app-card .app-icon-wrap { transition: transform .25s ease; }
+        .app-card:hover .app-icon-wrap { transform: scale(1.08) rotate(-3deg); }
 
         /* ============================================
-           TABS
+           TABS — UPGRADED
            ============================================ */
         .sheet-tabs {
             display: flex;
@@ -881,7 +1038,6 @@
             border-radius: 50px;
             border: 2px solid var(--border-dark);
         }
-
         .sheet-tab {
             flex: 1;
             padding: 8px 14px;
@@ -893,13 +1049,12 @@
             border: none;
             background: none;
             cursor: pointer;
-            transition: background-color var(--transition), color var(--transition);
+            transition: background-color .2s, color .2s, box-shadow .2s;
             white-space: nowrap;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
         .sheet-tab:active { transform: none; }
-
         .sheet-tab.active {
             background: var(--bg-white);
             color: var(--primary);
@@ -908,14 +1063,13 @@
         }
 
         /* ============================================
-           COUNTRY LIST
+           COUNTRY LIST — UPGRADED
            ============================================ */
         .country-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-
         .country-item {
             display: flex;
             align-items: center;
@@ -926,35 +1080,29 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: background-color var(--transition);
+            transition: background-color .2s, transform .15s, box-shadow .2s;
             font-family: inherit;
             text-align: left;
             width: 100%;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
         .country-item:hover {
             background: var(--bg-hover);
+            transform: translateX(3px);
+            box-shadow: var(--shadow-hard);
         }
-        .country-item:active { transform: none; }
+        .country-item:active { transform: translateX(0) scale(.99); }
 
         .country-flag {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .25s;
         }
-
-        .country-flag .flag-img {
-            width: 32px;
-            height: 24px;
-        }
-
+        .country-item:hover .country-flag { transform: scale(1.15); }
+        .country-flag .flag-img { width: 32px; height: 24px; }
         .country-info { flex: 1; min-width: 0; }
-
         .country-name {
             font-weight: 800;
             font-size: 0.88rem;
@@ -962,25 +1110,23 @@
             color: var(--text-dark);
             margin-bottom: 2px;
         }
-
         .country-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
-
-        .country-arrow { color: var(--text-light); flex-shrink: 0; }
+        .country-arrow { color: var(--text-light); flex-shrink: 0; transition: transform .25s; }
+        .country-item:hover .country-arrow { transform: translateX(4px); color: var(--primary); }
         .country-arrow .icon-svg { width: 18px; height: 18px; }
 
         /* ============================================
-           PRICE LIST
+           PRICE LIST — UPGRADED
            ============================================ */
         .price-list {
             display: flex;
             flex-direction: column;
             gap: 10px;
         }
-
         .price-item {
             display: flex;
             align-items: center;
@@ -990,39 +1136,37 @@
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
-            transition: none;
+            transition: transform .2s ease, box-shadow .2s ease, border-color .2s;
+            position: relative;
+            overflow: hidden;
+            animation: cardFadeIn .3s ease both;
         }
-        .price-item:active { transform: none; }
+        .price-item:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hard);
+            border-color: var(--primary);
+        }
+        .price-item:active { transform: translateY(0); }
 
         .price-stock-icon {
-            width: 40px;
-            height: 40px;
+            width: 40px; height: 40px;
             border-radius: 10px;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
         }
-
         .price-stock-icon .icon-svg { width: 18px; height: 18px; }
-
         .price-info { flex: 1; min-width: 0; }
-
         .price-title {
             font-weight: 800;
             font-size: 0.88rem;
             font-family: var(--font-display);
             color: var(--text-dark);
             margin-bottom: 4px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            flex-wrap: wrap;
+            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
         }
-
         .price-stock {
             display: inline-flex;
             align-items: center;
@@ -1035,25 +1179,14 @@
             background: var(--success-light);
             color: var(--success-dark);
         }
-
-        .price-stock.low {
-            background: var(--warning-light);
-            color: var(--warning-dark);
-        }
-
-        .price-stock.out {
-            background: var(--danger-light);
-            color: var(--danger-dark);
-        }
-
+        .price-stock.low { background: var(--warning-light); color: var(--warning-dark); }
+        .price-stock.out { background: var(--danger-light); color: var(--danger-dark); }
         .price-meta {
             font-size: 0.72rem;
             color: var(--text-gray);
             font-family: var(--font-mono);
         }
-
         .price-right { text-align: right; flex-shrink: 0; }
-
         .price-amount {
             font-size: 1rem;
             font-weight: 800;
@@ -1072,7 +1205,6 @@
             gap: 8px;
             margin-bottom: 16px;
         }
-
         .operator-item {
             padding: 12px 14px;
             background: var(--bg-white);
@@ -1080,7 +1212,7 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: background-color var(--transition), color var(--transition);
+            transition: background-color .2s, color .2s, transform .15s, box-shadow .2s;
             font-family: inherit;
             font-weight: 700;
             font-size: 0.82rem;
@@ -1090,15 +1222,12 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
-        .operator-item:hover {
-            background: var(--bg-hover);
-        }
-        .operator-item:active { transform: none; }
-
+        .operator-item:hover { background: var(--bg-hover); transform: translateY(-1px); }
+        .operator-item:active { transform: translateY(0); }
         .operator-item.active {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            background: linear-gradient(135deg, var(--primary), var(--purple));
             color: white;
+            box-shadow: var(--shadow-hard);
         }
 
         /* ============================================
@@ -1113,35 +1242,24 @@
             gap: 14px;
             color: var(--text-gray);
         }
-
-        .loading-block .loading-spinner {
-            width: 36px;
-            height: 36px;
-            border-width: 3px;
-        }
+        .loading-block .loading-spinner { width: 36px; height: 36px; border-width: 3px; }
 
         .empty-block {
             text-align: center;
             padding: 40px 20px;
             color: var(--text-gray);
         }
-
         .empty-block .icon-box {
-            width: 60px;
-            height: 60px;
+            width: 60px; height: 60px;
             margin: 0 auto 14px;
             border-radius: 16px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             box-shadow: var(--shadow-hard-sm);
         }
-
         .empty-block .icon-box .icon-svg { width: 26px; height: 26px; }
-
         .empty-block h3 {
             font-size: 0.95rem;
             font-weight: 800;
@@ -1149,32 +1267,27 @@
             color: var(--text-dark);
             margin-bottom: 4px;
         }
-
-        .empty-block p {
-            font-size: 0.82rem;
-            max-width: 280px;
-            margin: 0 auto;
-        }
+        .empty-block p { font-size: 0.82rem; max-width: 280px; margin: 0 auto; }
 
         /* ============================================
-           SUCCESS MODAL
+           SUCCESS MODAL — UPGRADED
            ============================================ */
         .success-modal { text-align: center; }
-
         .success-icon {
-            width: 72px;
-            height: 72px;
+            width: 72px; height: 72px;
             border-radius: 50%;
             background: var(--success-light);
             border: 3px solid var(--border-dark);
             color: var(--success);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             margin: 0 auto 20px;
             box-shadow: var(--shadow-hard);
+            animation: successPop .5s cubic-bezier(.2,.9,.3,1.4) both;
         }
-
+        @keyframes successPop {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
         .success-icon .icon-svg { width: 36px; height: 36px; }
 
         /* ============================================
@@ -1192,13 +1305,10 @@
             justify-content: center;
             padding: 20px;
         }
-
-        .modal-overlay.active { display: flex; }
-
+        .modal-overlay.active { display: flex; animation: fadeIn .2s ease; }
         .modal-overlay .modal {
             position: relative;
-            top: auto;
-            left: auto;
+            top: auto; left: auto;
             transform: none;
             margin: 0;
         }
@@ -1207,8 +1317,7 @@
            FLAG
            ============================================ */
         .flag-img {
-            width: 32px;
-            height: 24px;
+            width: 32px; height: 24px;
             border-radius: 4px;
             border: 1.5px solid var(--border-dark);
             box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
@@ -1217,7 +1326,6 @@
             flex-shrink: 0;
             background: var(--bg-light);
         }
-
         .country-inline {
             display: inline-flex;
             align-items: center;
@@ -1247,10 +1355,8 @@
             border: 2px solid var(--primary);
             margin-left: auto;
         }
-
         .sync-pill .loading-spinner {
-            width: 10px;
-            height: 10px;
+            width: 10px; height: 10px;
             border-width: 1.5px;
             border-color: rgba(37, 99, 235, 0.2);
             border-top-color: var(--primary);
@@ -1265,17 +1371,28 @@
             .nokos-hero-icon { width: 52px; height: 52px; }
             .nokos-hero-icon .icon-svg { width: 26px; height: 26px; }
             .bottom-sheet { max-height: 90vh; }
-
             .btn-cta { padding: 14px 24px; font-size: 0.88rem; width: 100%; }
-
             .footer-links { gap: 14px; }
             .footer-links a { font-size: 0.78rem; }
         }
-
         @media (max-width: 480px) {
             .nokos-hero-text h1 { font-size: 1.2rem; }
             .features-grid { padding: 14px; gap: 12px; }
             .feature-item { gap: 8px; }
+        }
+
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body { display: none !important; visibility: hidden !important; }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
@@ -1469,7 +1586,7 @@
     </div>
 </div>
 
-<!-- MODAL SUKSES — disederhanakan -->
+<!-- MODAL SUKSES -->
 <div class="modal-overlay" id="modalSuccess">
     <div class="modal">
         <div class="success-modal">
@@ -1532,6 +1649,126 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
+    })();
+
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (k === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
+
+    (function() {
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+    })();
+
+    (function() {
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
+
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
+
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
+
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
+                }
+            }, 500);
+        }
+
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startDetection);
+        else startDetection();
+    })();
+
+    (function() {
+        try {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            if (window.location.search) history.replaceState(null, '', cleanUrl);
+        } catch (e) {}
+    })();
+
+    /* ============================================
+       RECAPTCHA HELPER
+       ============================================ */
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(timer); resolve(); }
+                else if (attempts >= 50) { clearInterval(timer); resolve(); }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
+        try {
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action }).then(resolve).catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) { return null; }
+    }
+
+    async function securePost(url, body = {}, action = 'nokos') {
+        const recaptchaToken = await getRecaptchaToken(action);
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
+        });
+    }
+
+    /* ============================================
        UTIL: escapeHtml
        ============================================ */
     function escapeHtml(value) {
@@ -1566,9 +1803,7 @@
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
     function getAppIconUrl(serviceCode, iconCode) {
         let code = String(iconCode || '').trim().toLowerCase();
-        if (!code) {
-            code = String(serviceCode || '').trim().toLowerCase();
-        }
+        if (!code) code = String(serviceCode || '').trim().toLowerCase();
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
         return `${APP_CDN_BASE}/${code}.png`;
     }
@@ -1577,12 +1812,8 @@
         const name = String(serviceName || serviceCode || '?').trim();
         const initial = String(name).charAt(0).toUpperCase() || '?';
         const url = getAppIconUrl(serviceCode, iconCode);
-        if (!url) {
-            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        }
-        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}"
-                     class="app-icon-lazy"
-                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}" class="app-icon-lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
@@ -1611,18 +1842,13 @@
                 }
                 obs.unobserve(img);
             });
-        }, {
-            rootMargin: '100px',
-            threshold: 0.01,
-        });
+        }, { rootMargin: '100px', threshold: 0.01 });
         return appIconObserver;
     }
 
     function observeAppIcons(root = document) {
         const observer = getAppIconObserver();
-        root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => {
-            observer.observe(img);
-        });
+        root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => observer.observe(img));
     }
 
     /* ============================================
@@ -1645,8 +1871,7 @@
         const initial = getServiceInitial(order);
         const url = getAppIconUrl(code, order?.icon_code);
         if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
-                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
@@ -1685,21 +1910,35 @@
         return `OTP${(hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0')}`;
     }
 
+    /* ===== COPY (safe fallback) ===== */
     function copyToClipboard(text, btnEl) {
-        navigator.clipboard.writeText(text).then(() => {
-            if (btnEl) {
-                const orig = btnEl.innerHTML;
-                btnEl.innerHTML = ICONS.check;
-                setTimeout(() => btnEl.innerHTML = orig, 1200);
-            }
-        }).catch(() => {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-        });
+        const onSuccess = () => {
+            if (!btnEl) return;
+            const orig = btnEl.innerHTML;
+            btnEl.innerHTML = ICONS.check;
+            setTimeout(() => btnEl.innerHTML = orig, 1200);
+        };
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
+        } else {
+            fallbackCopy(text, onSuccess);
+        }
+    }
+    function fallbackCopy(text, onSuccess) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        try {
+            const ok = document.execCommand('copy');
+            if (ok && typeof onSuccess === 'function') onSuccess();
+        } catch (e) { console.error('Copy fallback failed:', e); }
+        document.body.removeChild(ta);
     }
 
     /* ===== CUSTOM ALERT ===== */
@@ -1722,21 +1961,14 @@
                 cancelBtn.className = 'btn';
                 cancelBtn.type = 'button';
                 cancelBtn.textContent = cancelText;
-                cancelBtn.addEventListener('click', () => {
-                    overlay.classList.remove('active');
-                    resolve(false);
-                });
+                cancelBtn.addEventListener('click', () => { overlay.classList.remove('active'); resolve(false); });
                 actionsEl.appendChild(cancelBtn);
             }
-
             const okBtn = document.createElement('button');
             okBtn.className = 'btn btn-primary';
             okBtn.type = 'button';
             okBtn.textContent = okText;
-            okBtn.addEventListener('click', () => {
-                overlay.classList.remove('active');
-                resolve(true);
-            });
+            okBtn.addEventListener('click', () => { overlay.classList.remove('active'); resolve(true); });
             actionsEl.appendChild(okBtn);
 
             overlay.classList.add('active');
@@ -1769,7 +2001,6 @@
             sidebar.classList.add('collapsed');
             document.body.classList.add('sidebar-collapsed');
         }
-
         collapseBtn.addEventListener('click', () => {
             if (window.innerWidth <= 768) return;
             const collapsed = sidebar.classList.toggle('collapsed');
@@ -1795,7 +2026,6 @@
             const scrollY = window.scrollY;
             document.body.style.top = `-${scrollY}px`;
         }
-
         function closeSidebar() {
             if (!isOpen) return;
             isOpen = false;
@@ -1806,25 +2036,19 @@
             document.body.style.top = '';
             window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
-
         mobileToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             if (isOpen) closeSidebar(); else openSidebar();
         });
-
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-
         sidebar.querySelectorAll('.nav-item').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
             });
         });
-
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isOpen) closeSidebar();
         });
-
         window.addEventListener('pageshow', () => {
             document.body.style.top = '';
             document.body.classList.remove('sidebar-open');
@@ -1837,10 +2061,9 @@
         if (code.length !== 2) return null;
         return code.split('').map(char => (0x1F1E6 + char.charCodeAt(0) - 65).toString(16)).join('-');
     }
-
     function getFlagSources(countryCode) {
         const code = (countryCode || '').toLowerCase();
-        if (code.length !== 2) return [];
+        if (!/^[a-z]{2}$/.test(code)) return [];
         const twemoji = countryCodeToTwemoji(countryCode);
         return [
             twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
@@ -1851,16 +2074,14 @@
             `https://flagpedia.net/data/flags/w40/${code}.png`,
         ].filter(Boolean);
     }
-
     function renderFlag(countryCode, className = 'flag-img') {
         const sources = getFlagSources(countryCode);
         if (sources.length === 0) {
             return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${escapeHtml((countryCode || '??').toUpperCase())}</div>`;
         }
         const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
-        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
+        return `<img class="${className}" src="${sources[0]}" alt="${escapeHtml(countryCode)}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0">`;
     }
-
     window.handleFlagError = function(imgEl) {
         try {
             const sources = JSON.parse(imgEl.dataset.sources || '[]');
@@ -1877,9 +2098,7 @@
                 placeholder.textContent = code;
                 imgEl.replaceWith(placeholder);
             }
-        } catch (e) {
-            imgEl.style.display = 'none';
-        }
+        } catch (e) { imgEl.style.display = 'none'; }
     };
 
     /* ===== STATE ===== */
@@ -1908,8 +2127,6 @@
 
     let servicesCache = [];
     let autoSyncInterval = null;
-
-    /* Deadline absolut per order — biar refresh gak reset timer */
     const countdownDeadlines = {};
 
     /* ===== LOAD USER ===== */
@@ -1922,21 +2139,13 @@
         document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
     });
 
-    function getActiveOrdersCacheKey() {
-        return 'nokos_active_orders';
-    }
+    function getActiveOrdersCacheKey() { return 'nokos_active_orders'; }
 
-    /* ============================================
-       Ambil pending + sukses 5 menit terakhir
-       ============================================ */
+    /* ===== FETCH ACTIVE ORDERS ===== */
     async function fetchActiveOrders() {
         const [pendingRes, successRes] = await Promise.all([
-            fetch('/api/nokos/orders?status=pending&limit=50', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
-            fetch('/api/nokos/orders?status=success&limit=20', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            }),
+            fetch('/api/nokos/orders?status=pending&limit=50', { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch('/api/nokos/orders?status=success&limit=20', { headers: { 'Authorization': `Bearer ${token}` } }),
         ]);
         const pendingData = await safeJson(pendingRes);
         const successData = await safeJson(successRes);
@@ -1961,11 +2170,11 @@
             const tb = new Date(b.updated_at || b.created_at || 0).getTime();
             return tb - ta;
         });
-
         return merged;
     }
 
-    /* ===== LOAD ACTIVE ORDERS ===== */
+    /* ===== LOAD ACTIVE ===== */
+    let _loadActiveAbort = null;
     async function loadActiveOrders(silent = false) {
         const cacheKey = getActiveOrdersCacheKey();
         const cached = CacheManager.get(cacheKey);
@@ -1978,6 +2187,9 @@
             showSyncPill(true);
         }
 
+        if (_loadActiveAbort) _loadActiveAbort.abort();
+        _loadActiveAbort = new AbortController();
+
         try {
             const merged = await fetchActiveOrders();
             activeState.allOrders = merged;
@@ -1989,13 +2201,12 @@
             );
             if (pendingNoOtp.length > 0) syncPendingOrders(pendingNoOtp);
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error('Load active orders error:', err);
             if (!cached && !silent) {
                 document.getElementById('activeOrders').innerHTML = `
-                    <div class="empty-orders" style="grid-column:1/-1;">
-                        <div class="icon-box">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                        </div>
+                    <div class="empty-orders">
+                        <div class="icon-box">${ICONS.warning}</div>
                         <h3>Gagal memuat pesanan</h3>
                         <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
                     </div>
@@ -2003,6 +2214,7 @@
             }
         } finally {
             if (!silent) showSyncPill(false);
+            _loadActiveAbort = null;
         }
     }
 
@@ -2012,30 +2224,30 @@
         pill.style.display = show ? 'inline-flex' : 'none';
     }
 
-    /* ============================================
-       Hitung sisa detik dari deadline absolut
-       ============================================ */
-    function getRemainingSec(orderId, expiresIn) {
+    /* ===== COUNTDOWN DEADLINE PERSIST ===== */
+    function getCountdownDeadline(orderId, expiresIn) {
+        const key = `asyrof_cd_${orderId}`;
         const now = Date.now();
-        const existing = countdownDeadlines[orderId];
-
-        // Kalau deadline masih valid → pakai yang lama (gak reset)
-        if (existing && existing > now) {
-            return Math.max(0, Math.floor((existing - now) / 1000));
-        }
-
-        // Kalau belum ada / expired → bikin deadline baru
+        try {
+            const stored = sessionStorage.getItem(key);
+            if (stored) {
+                const deadline = parseInt(stored, 10);
+                if (Number.isFinite(deadline) && deadline > now) return deadline;
+                sessionStorage.removeItem(key);
+            }
+        } catch (e) {}
         if (expiresIn > 0) {
-            countdownDeadlines[orderId] = now + expiresIn * 1000;
-            return expiresIn;
+            const deadline = now + expiresIn * 1000;
+            try { sessionStorage.setItem(key, String(deadline)); } catch (e) {}
+            return deadline;
         }
-
         return 0;
     }
+    function clearCountdownDeadline(orderId) {
+        try { sessionStorage.removeItem(`asyrof_cd_${orderId}`); } catch (e) {}
+    }
 
-    /* ============================================
-       BUILD HTML card pesanan aktif
-       ============================================ */
+    /* ===== BUILD ACTIVE CARD ===== */
     function buildActiveCardHtml(o) {
         const isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
         const isPending = o.status === 'pending' && !isSuccess;
@@ -2057,15 +2269,15 @@
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
 
-        // Countdown pakai deadline absolut
         let countdownHtml = '';
         if (hasValidCountdown && apiOrderId) {
-            const remaining = getRemainingSec(apiOrderId, expiresIn);
+            const deadline = getCountdownDeadline(apiOrderId, expiresIn);
+            const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
             const timeText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             countdownHtml = `
-                <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-deadline="${countdownDeadlines[apiOrderId]}">
+                <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-deadline="${deadline}">
                     ${ICONS.clock}
                     <span class="countdown-text">${timeText}</span> tersisa
                 </div>
@@ -2159,9 +2371,7 @@
         `;
     }
 
-    /* ============================================
-       ATTACH handler ke card
-       ============================================ */
+    /* ===== ATTACH HANDLER ===== */
     function attachActiveCardHandlers(card) {
         card.querySelectorAll('[data-copy]').forEach(btn => {
             if (btn.dataset.bound) return;
@@ -2186,11 +2396,23 @@
             btn.dataset.bound = '1';
             btn.addEventListener('click', () => cancelOrder(btn.dataset.cancel, btn));
         });
+        card.querySelectorAll('img[data-sources]').forEach(img => {
+            if (img.dataset.bound) return;
+            img.dataset.bound = '1';
+            img.addEventListener('error', function() { window.handleFlagError(this); });
+        });
+        card.querySelectorAll('.aoc-app-icon img').forEach(img => {
+            if (img.dataset.boundImg) return;
+            img.dataset.boundImg = '1';
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const next = this.nextElementSibling;
+                if (next) next.style.display = 'inline-flex';
+            });
+        });
     }
 
-    /* ============================================
-       RENDER dengan DOM diff + pagination 2/halaman
-       ============================================ */
+    /* ===== RENDER ACTIVE ORDERS — FIXED ===== */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
@@ -2217,19 +2439,16 @@
             countEl.style.display = 'inline-flex';
         }
 
-        // Pagination
         const total = orders.length;
         activeState.totalPages = Math.max(1, Math.ceil(total / activeState.limit));
         if (activeState.page > activeState.totalPages) activeState.page = activeState.totalPages;
         const start = (activeState.page - 1) * activeState.limit;
         const pageOrders = orders.slice(start, start + activeState.limit);
 
-        // Container jadi grid
         if (!container.classList.contains('active-orders')) {
             container.className = 'active-orders';
         }
 
-        // Map kartu lama by order_id
         const existingCards = new Map();
         container.querySelectorAll(':scope > .aoc-card').forEach(card => {
             const id = card.dataset.orderId;
@@ -2241,7 +2460,8 @@
 
         pageOrders.forEach((o, idx) => {
             const apiOrderId = String(o.order_id || '').trim();
-            const cardKey = apiOrderId || `idx-${idx}`;
+            // FIX: fallback key lebih unik
+            const cardKey = apiOrderId || `fallback-${o.otp_id || o.created_at || idx}`;
             newIds.add(cardKey);
 
             const newHtml = buildActiveCardHtml(o);
@@ -2251,8 +2471,6 @@
 
             const existing = existingCards.get(cardKey);
 
-            // PENTING: expires_in TIDAK dimasukkan ke signature
-            // biar refresh gak replace card cuma karena server kirim sisa detik beda
             const newSig = [
                 o.status || '',
                 (o.otp_code || '').trim(),
@@ -2260,35 +2478,42 @@
                 (o.service || '').trim(),
                 o._bucket || '',
             ].join('|');
-
             const oldSig = existing ? existing.dataset.sig || '' : null;
 
             if (existing && oldSig === newSig) {
+                // FIX: reuse tanpa replaceWith
                 fragment.appendChild(existing);
+                existingCards.delete(cardKey);
                 return;
             }
 
             if (existing) {
-                existing.replaceWith(newCard);
+                // FIX: remove + clear interval
+                existing.remove();
+                if (activeState.countdownIntervals[cardKey]) {
+                    clearInterval(activeState.countdownIntervals[cardKey]);
+                    delete activeState.countdownIntervals[cardKey];
+                }
+                clearCountdownDeadline(cardKey);
                 existingCards.delete(cardKey);
             }
+
             newCard.dataset.sig = newSig;
             attachActiveCardHandlers(newCard);
             fragment.appendChild(newCard);
         });
 
-        // Hapus kartu yang tidak ada di halaman ini
         existingCards.forEach((card, id) => {
-            if (!newIds.has(id)) {
-                card.remove();
-                // Bersihin deadline kalau kartu hilang
-                if (countdownDeadlines[id]) delete countdownDeadlines[id];
+            card.remove();
+            if (activeState.countdownIntervals[id]) {
+                clearInterval(activeState.countdownIntervals[id]);
+                delete activeState.countdownIntervals[id];
             }
+            clearCountdownDeadline(id);
         });
 
         container.appendChild(fragment);
 
-        // Pagination UI
         if (activeState.totalPages > 1) {
             pagEl.style.display = 'flex';
             pagEl.innerHTML = `
@@ -2312,9 +2537,7 @@
         startCountdowns();
     }
 
-    /* ============================================
-       COUNTDOWN — pakai deadline absolut
-       ============================================ */
+    /* ===== COUNTDOWN ===== */
     function startCountdowns() {
         Object.values(activeState.countdownIntervals).forEach(clearInterval);
         activeState.countdownIntervals = {};
@@ -2335,10 +2558,8 @@
                 if (remaining <= 0) {
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
-                    if (activeState.countdownIntervals[orderId]) {
-                        clearInterval(activeState.countdownIntervals[orderId]);
-                    }
-                    if (countdownDeadlines[orderId]) delete countdownDeadlines[orderId];
+                    if (activeState.countdownIntervals[orderId]) clearInterval(activeState.countdownIntervals[orderId]);
+                    clearCountdownDeadline(orderId);
                     setTimeout(() => {
                         CacheManager.remove(getActiveOrdersCacheKey());
                         loadActiveOrders(true);
@@ -2355,38 +2576,34 @@
         });
     }
 
-    /* ===== SYNC PENDING ===== */
+    /* ===== SYNC PENDING — PARALLEL ===== */
     async function syncPendingOrders(orders) {
         if (!orders || orders.length === 0) return;
 
-        let hasUpdate = false;
-        for (const o of orders) {
-            if (o.otp_code && o.otp_code.trim()) continue;
-            try {
-                const res = await fetch('/api/cekotp', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ order_id: o.order_id, otp_id: o.otp_id })
-                });
-                const data = await safeJson(res);
+        const results = await Promise.allSettled(
+            orders
+                .filter(o => !(o.otp_code && o.otp_code.trim()))
+                .map(o => securePost('/api/cekotp', { order_id: o.order_id, otp_id: o.otp_id }, 'cekotp')
+                    .then(r => safeJson(r))
+                )
+        );
 
-                if (data.updated || data.otp_code || data.status !== 'pending') {
-                    hasUpdate = true;
-                    if (data.otp_code) {
-                        CacheManager.remove('user_profile');
-                        swrFetch('/api/user', 'user_profile', (user) => {
-                            if (!user) return;
-                            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-                            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-                            document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
-                        });
-                    }
+        let hasUpdate = false;
+        for (const r of results) {
+            if (r.status !== 'fulfilled') continue;
+            const data = r.value;
+            if (!data) continue;
+            if (data.updated || data.otp_code || data.status !== 'pending') {
+                hasUpdate = true;
+                if (data.otp_code) {
+                    CacheManager.remove('user_profile');
+                    swrFetch('/api/user', 'user_profile', (user) => {
+                        if (!user) return;
+                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                        document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
+                    });
                 }
-            } catch (err) {
-                console.error(`Sync order ${o.order_id} error:`, err);
             }
         }
 
@@ -2396,7 +2613,7 @@
         }
     }
 
-    /* ===== AUTO REFRESH ===== */
+    /* ===== AUTO SYNC ===== */
     function startAutoSync() {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
@@ -2412,27 +2629,16 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/resend`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/resend`, {}, 'resend');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal resend');
 
-            await showCustomAlert({
-                title: 'Resend Berhasil',
-                message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.',
-                type: 'success'
-            });
+            await showCustomAlert({ title: 'Resend Berhasil', message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
             loadActiveOrders(true);
         } catch (err) {
-            await showCustomAlert({
-                title: 'Gagal Resend',
-                message: err.message,
-                type: 'danger'
-            });
+            await showCustomAlert({ title: 'Gagal Resend', message: err.message, type: 'danger' });
             btn.disabled = false;
             btn.innerHTML = original;
         }
@@ -2454,27 +2660,16 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/confirm`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/confirm`, {}, 'confirm');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
 
-            await showCustomAlert({
-                title: 'Order Sukses',
-                message: 'Order berhasil dikonfirmasi sukses. Terima kasih!',
-                type: 'success'
-            });
+            await showCustomAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
             loadActiveOrders(true);
         } catch (err) {
-            await showCustomAlert({
-                title: 'Gagal Konfirmasi',
-                message: err.message,
-                type: 'danger'
-            });
+            await showCustomAlert({ title: 'Gagal Konfirmasi', message: err.message, type: 'danger' });
             btn.disabled = false;
             btn.innerHTML = original;
         }
@@ -2496,18 +2691,11 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/cancel`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/cancel`, {}, 'cancel');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
 
-            await showCustomAlert({
-                title: 'Dibatalkan',
-                message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.',
-                type: 'success'
-            });
+            await showCustomAlert({ title: 'Dibatalkan', message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.', type: 'success' });
 
             CacheManager.remove('user_profile');
             CacheManager.remove(getActiveOrdersCacheKey());
@@ -2520,11 +2708,7 @@
 
             loadActiveOrders(true);
         } catch (err) {
-            await showCustomAlert({
-                title: 'Gagal',
-                message: err.message,
-                type: 'danger'
-            });
+            await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
             btn.disabled = false;
             btn.innerHTML = original;
         }
@@ -2535,7 +2719,6 @@
         document.getElementById('sheetOverlay').classList.add('active');
         document.body.classList.add('sheet-open');
     }
-
     function closeSheet() {
         document.getElementById('sheetOverlay').classList.remove('active');
         document.body.classList.remove('sheet-open');
@@ -2545,18 +2728,16 @@
         openSheet();
         goToStep(1);
     });
-
     document.getElementById('sheetOverlay').addEventListener('click', (e) => {
         if (e.target.id === 'sheetOverlay') closeSheet();
     });
 
-    /* ===== STEP NAVIGATION ===== */
+    /* ===== STEP NAV ===== */
     function goToStep(step) {
         state.step = step;
         const body = document.getElementById('sheetBody');
         const stepEl = document.getElementById('sheetStep');
         const titleEl = document.getElementById('sheetTitle');
-
         body.scrollTop = 0;
 
         if (step === 1) {
@@ -2584,9 +2765,7 @@
         body.innerHTML = `<div class="loading-block"><span class="loading-spinner"></span><span>Memuat server...</span></div>`;
 
         try {
-            const res = await fetch('/api/nokos/servers', {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await fetch('/api/nokos/servers', { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await safeJson(res);
 
             if (!data.servers || data.servers.length === 0) {
@@ -2656,11 +2835,10 @@
         }
 
         try {
-            const res = await fetch(`/api/nokos/services?server=${state.server}`, {
+            const res = await fetch(`/api/nokos/services?server=${encodeURIComponent(state.server)}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
-
             servicesCache = data.services || [];
             CacheManager.set(cacheKey, { services: servicesCache });
             renderApps(servicesCache);
@@ -2740,7 +2918,6 @@
         `;
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
-
         observeAppIcons(body);
 
         const cacheKey = `countries_${state.server}_${state.service}`;
@@ -2751,14 +2928,13 @@
         }
 
         try {
-            const res = await fetch(`/api/nokos/countries?server=${state.server}&service=${state.service}`, {
+            const res = await fetch(`/api/nokos/countries?server=${encodeURIComponent(state.server)}&service=${encodeURIComponent(state.service)}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await safeJson(res);
             const countries = data.countries || [];
 
             CacheManager.set(cacheKey, { countries });
-
             renderCountries(countries);
 
             document.getElementById('countrySearch').addEventListener('input', (e) => {
@@ -2850,7 +3026,6 @@
         `;
 
         document.getElementById('backBtn').addEventListener('click', () => goToStep(3));
-
         observeAppIcons(body);
 
         if (state.requiresOperator) {
@@ -2882,7 +3057,7 @@
 
         try {
             const res = await fetch(
-                `/api/nokos/prices?server=${state.server}&service=${state.service}&country=${state.country}`,
+                `/api/nokos/prices?server=${encodeURIComponent(state.server)}&service=${encodeURIComponent(state.service)}&country=${encodeURIComponent(state.country)}`,
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await safeJson(res);
@@ -2907,11 +3082,8 @@
         }
 
         let sorted = [...providers];
-        if (state.filter === 'murah') {
-            sorted.sort((a, b) => a.price_idr - b.price_idr);
-        } else {
-            sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
-        }
+        if (state.filter === 'murah') sorted.sort((a, b) => a.price_idr - b.price_idr);
+        else sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
 
         content.innerHTML = `
             <div class="price-list">
@@ -2932,7 +3104,7 @@
                             </div>
                             <div class="price-right">
                                 <div class="price-amount">${formatRupiah(p.price_idr)}</div>
-                                <button class="btn btn-primary btn-sm" type="button" data-buy='${JSON.stringify(p).replace(/'/g, "&apos;")}' ${stock === 0 ? 'disabled' : ''}>
+                                <button class="btn btn-primary btn-sm" type="button" data-buy-idx="${i}" ${stock === 0 ? 'disabled' : ''}>
                                     <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                                     ORDER
                                 </button>
@@ -2943,10 +3115,12 @@
             </div>
         `;
 
-        content.querySelectorAll('[data-buy]').forEach(btn => {
+        // FIX: pakai index, bukan JSON di attribute
+        content.querySelectorAll('[data-buy-idx]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const priceData = JSON.parse(btn.dataset.buy.replace(/&apos;/g, "'"));
-                confirmAndPlaceOrder(priceData, btn);
+                const idx = Number(btn.dataset.buyIdx);
+                const priceData = sorted[idx];
+                if (priceData) confirmAndPlaceOrder(priceData, btn);
             });
         });
     }
@@ -2990,24 +3164,12 @@
                 body.id = priceData.id;
             }
 
-            const res = await fetch('/api/nokos/order', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify(body)
-            });
-
+            const res = await securePost('/api/nokos/order', body, 'order');
             const data = await safeJson(res);
             if (!res.ok) {
                 const code = data.code || '';
-                if (code === 'INSUFFICIENT_USER_BALANCE') {
-                    throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
-                }
-                if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') {
-                    throw new Error('Server sedang sibuk, coba lagi nanti.');
-                }
+                if (code === 'INSUFFICIENT_USER_BALANCE') throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
+                if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') throw new Error('Server sedang sibuk, coba lagi nanti.');
                 throw new Error(data.error || 'Order gagal');
             }
 
@@ -3027,12 +3189,7 @@
                 loadActiveOrders(true);
             }, 500);
         } catch (err) {
-            await showCustomAlert({
-                title: 'Order Gagal',
-                message: err.message || 'Terjadi kesalahan',
-                type: 'danger',
-                okText: 'OK'
-            });
+            await showCustomAlert({ title: 'Order Gagal', message: err.message || 'Terjadi kesalahan', type: 'danger', okText: 'OK' });
             btn.disabled = false;
             btn.innerHTML = original;
         }
@@ -3051,7 +3208,6 @@
             e.target.classList.remove('active');
         }
     });
-
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
             const activeModal = document.querySelector('.modal-overlay.active');
@@ -3064,12 +3220,8 @@
     /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
         } catch (err) {}
-
         CacheManager.clear();
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
@@ -3079,16 +3231,13 @@
     /* ===== INIT ===== */
     loadActiveOrders();
     startAutoSync();
-
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            loadActiveOrders(true);
-        }
+        if (!document.hidden) loadActiveOrders(true);
     });
-
     window.addEventListener('beforeunload', () => {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         Object.values(activeState.countdownIntervals).forEach(clearInterval);
+        if (_loadActiveAbort) _loadActiveAbort.abort();
     });
 </script>
 
