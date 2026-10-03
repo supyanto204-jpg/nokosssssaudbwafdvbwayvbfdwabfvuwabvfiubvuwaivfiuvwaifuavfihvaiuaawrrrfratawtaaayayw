@@ -6,1380 +6,177 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Daftar - AsyrofOTP</title>
-    <link rel="stylesheet" href="/css/core.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/core.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/login.css">
 
-    <!-- 🔒 SECURITY -->
+    <!-- 🔒 SECURITY (sama kayak login) -->
     <script>
-        // Safety cleanup freeze
         (function() {
-            try {
-                document.documentElement.style.overflow = '';
-                document.documentElement.style.overflowY = '';
-                document.documentElement.style.height = '';
-                document.documentElement.style.position = '';
-                document.documentElement.style.top = '';
-
-                const cleanupBody = () => {
-                    if (!document.body) return;
-                    document.body.style.overflow = '';
-                    document.body.style.overflowY = '';
-                    document.body.style.position = '';
-                    document.body.style.top = '';
-                    document.body.style.left = '';
-                    document.body.style.right = '';
-                    document.body.style.width = '';
-                    document.body.style.height = '';
-                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
-                };
-
-                if (document.body) cleanupBody();
-                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
-            } catch (e) {}
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
         })();
-
-        // Anti view-source
         (function() {
             if (window.location.protocol === 'view-source:') {
                 document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
                 throw new Error('__VIEW_SOURCE_BLOCKED__');
             }
         })();
-
-        // Anti-FOUC theme
-        (function() {
-            const saved = localStorage.getItem('asyrofotp_theme');
-            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-
-        // Anti-iframe
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
-
-        // DevTools LOCK SCREEN
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
-
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
                 document.documentElement.innerHTML = '<head></head><body></body>';
-
                 function showLockScreen() {
-                    document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
-                            </div>
-                        </div>
-                        <style>
-                            html, body {
-                                margin: 0; padding: 0;
-                                background: #0f172a;
-                                overflow: auto !important;
-                                position: static !important;
-                                height: auto !important;
-                                min-height: 100vh !important;
-                                width: 100% !important;
-                                top: auto !important;
-                                left: auto !important;
-                            }
-                            #devtoolsLockScreen {
-                                min-height: 100vh;
-                                width: 100%;
-                                background: #0f172a;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                padding: 24px;
-                                box-sizing: border-box;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                                user-select: none;
-                                -webkit-user-select: none;
-                            }
-                            #devtoolsLockScreen .lock-box {
-                                background: #1e293b;
-                                border: 3px solid #475569;
-                                border-radius: 20px;
-                                padding: 40px 32px;
-                                max-width: 440px;
-                                width: 100%;
-                                text-align: center;
-                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
-                                box-sizing: border-box;
-                            }
-                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
-                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
-                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
-                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
-                        </style>
-                    `;
-
-                    const THRESHOLD = 200;
+                    document.body.innerHTML = '<div id="devtoolsLockScreen"><div class="lock-box"><div class="lock-icon">🔒</div><h2>Akses Dibatasi</h2><p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p><p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p></div></div><style>html,body{margin:0;padding:0;background:#0f172a;overflow:auto!important;position:static!important;height:auto!important;min-height:100vh!important;width:100%!important;}#devtoolsLockScreen{min-height:100vh;width:100%;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;-webkit-user-select:none;}#devtoolsLockScreen .lock-box{background:#1e293b;border:3px solid #475569;border-radius:20px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:8px 8px 0px rgba(0,0,0,.5);box-sizing:border-box;}#devtoolsLockScreen .lock-icon{font-size:3rem;margin-bottom:16px;line-height:1;}#devtoolsLockScreen h2{color:#dc2626;font-size:1.5rem;font-weight:800;margin:0 0 12px;}#devtoolsLockScreen p{color:#cbd5e1;font-size:.95rem;line-height:1.6;margin:0 0 8px;}#devtoolsLockScreen .lock-hint{color:#64748b;font-size:.78rem;font-family:ui-monospace,monospace;margin-top:20px;padding-top:16px;border-top:1px dashed #334155;}</style>';
+                    const T = 200;
                     setInterval(() => {
-                        const wDiff = window.outerWidth - window.innerWidth;
-                        const hDiff = window.outerHeight - window.innerHeight;
-                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-
-                        if (!stillOpen) {
-                            sessionStorage.removeItem(LOCK_FLAG);
-                            try {
-                                document.body.style.cssText = '';
-                                document.documentElement.style.cssText = '';
-                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                            } catch (e) {}
-                            window.location.reload();
-                        }
-                    }, 500);
+                        const wd = window.outerWidth - window.innerWidth;
+                        const hd = window.outerHeight - window.innerHeight;
+                        if (wd <= T && hd <= T) { sessionStorage.removeItem(LOCK_FLAG); window.location.reload(); }
+                    }, 700);
                 }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
+                else showLockScreen();
                 throw new Error('__DEVTOOLS_LOCK__');
             }
         })();
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
-
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        :root {
-            --primary: #2563eb;
-            --primary-light: #eff6ff;
-            --primary-dark: #1d4ed8;
-            --text-dark: #0f172a;
-            --text-gray: #64748b;
-            --bg-light: #f8fafc;
-            --bg-card: #ffffff;
-            --border-dark: #0f172a;
-            --danger: #ef4444;
-            --success: #22c55e;
-            --shadow-color: rgba(15, 23, 42, 1);
-            color-scheme: light;
-        }
-
-        [data-theme="dark"] {
-            --primary: #3b82f6;
-            --primary-light: #1e3a8a;
-            --primary-dark: #2563eb;
-            --text-dark: #f1f5f9;
-            --text-gray: #94a3b8;
-            --bg-light: #0f172a;
-            --bg-card: #1e293b;
-            --border-dark: #334155;
-            --danger: #f87171;
-            --success: #4ade80;
-            --shadow-color: rgba(0, 0, 0, 0.6);
-            color-scheme: dark;
-        }
-
-        html {
-            scroll-behavior: smooth;
-            -webkit-text-size-adjust: 100%;
-            overscroll-behavior-y: none;
-            overflow-y: auto;
-            overflow-x: hidden;
-        }
-
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg-light);
-            color: var(--text-dark);
-            min-height: 100vh;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            position: relative;
-            overflow-y: auto;
-            overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        body, body * {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-        }
-
-        input, textarea, select, code, [contenteditable="true"] {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
-            -webkit-touch-callout: default;
-        }
-
-        img, svg {
-            -webkit-user-drag: none;
-            -khtml-user-drag: none;
-            user-drag: none;
-        }
-
-        body::before {
-            content: '';
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            width: 160vmax;
-            height: 160vmax;
-            transform: translate3d(-50%, -50%, 0);
-            background: repeating-conic-gradient(
-                from 0deg,
-                rgba(37, 99, 235, 0.06) 0deg 10deg,
-                transparent 10deg 20deg
-            );
-            -webkit-mask-image: radial-gradient(circle, black 0%, transparent 60%);
-            mask-image: radial-gradient(circle, black 0%, transparent 60%);
-            animation: spin 60s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        [data-theme="dark"] body::before {
-            background: repeating-conic-gradient(
-                from 0deg,
-                rgba(59, 130, 246, 0.08) 0deg 10deg,
-                transparent 10deg 20deg
-            );
-        }
-
-        @keyframes spin {
-            from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
-            to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
-        }
-
-        .auth-container {
-            width: 100%;
-            max-width: 420px;
-            position: relative;
-            z-index: 1;
-            margin: auto;
-        }
-
-        .auth-logo {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 32px;
-            text-decoration: none;
-            color: var(--text-dark);
-            font-weight: 900;
-            font-size: 1.5rem;
-        }
-
-        .auth-logo .logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
-            border: 2.5px solid var(--border-dark);
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 900;
-            font-size: 1.8rem;
-            box-shadow: 3px 3px 0px var(--shadow-color);
-            text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
-            transform: rotate(-3deg);
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        .auth-logo span { color: var(--primary); }
-
-        .auth-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border-dark);
-            border-radius: 16px;
-            box-shadow: 6px 6px 0px var(--shadow-color);
-            padding: 32px;
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }
-
-        .auth-card h1 {
-            font-size: 1.5rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-            letter-spacing: -0.02em;
-        }
-
-        .auth-card .subtitle {
-            color: var(--text-gray);
-            font-size: 0.9rem;
-            margin-bottom: 20px;
-        }
-
-        .steps {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-bottom: 24px;
-        }
-
-        .step-dot {
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.72rem;
-            font-weight: 800;
-            color: var(--text-gray);
-            transition: all 0.3s ease;
-            flex-shrink: 0;
-        }
-
-        .step-dot.active {
-            background: var(--primary);
-            color: white;
-            transform: scale(1.15);
-        }
-
-        .step-dot.done {
-            background: var(--success);
-            color: white;
-            border-color: var(--border-dark);
-        }
-
-        .step-line {
-            flex: 1;
-            height: 2px;
-            background: var(--border-dark);
-            opacity: 0.15;
-            border-radius: 2px;
-            transition: opacity 0.3s;
-        }
-
-        .step-line.done { opacity: 1; background: var(--success); }
-
-        .form-group {
-            margin-bottom: 0;
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
-        }
-
-        .form-group.visible {
-            max-height: 200px;
-            opacity: 1;
-            margin-bottom: 18px;
-        }
-
-        .form-label {
-            display: block;
-            font-size: 0.85rem;
-            font-weight: 700;
-            margin-bottom: 6px;
-        }
-
-        .input-wrap {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid var(--border-dark);
-            border-radius: 10px;
-            font-family: inherit;
-            font-size: 0.95rem;
-            background: var(--bg-card);
-            color: var(--text-dark);
-            transition: all 0.2s;
-            outline: none;
-        }
-
-        .form-control.with-eye { padding-right: 46px; }
-        .form-control.with-status { padding-right: 40px; }
-
-        .form-control:focus {
-            box-shadow: 3px 3px 0px var(--shadow-color);
-            transform: translate(-1px, -1px);
-        }
-
-        .form-control::placeholder { color: var(--text-gray); opacity: 0.6; }
-
-        .form-control.invalid {
-            border-color: var(--danger);
-            background: rgba(239, 68, 68, 0.1);
-        }
-
-        .form-control.valid { border-color: var(--success); }
-
-        /* Status icon di dalam input */
-        .input-status {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 22px;
-            height: 22px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .input-status.show { opacity: 1; }
-
-        .input-status .loading-spinner-sm {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(37, 99, 235, 0.2);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spinner 0.7s linear infinite;
-        }
-
-        .input-status .icon-svg {
-            width: 18px;
-            height: 18px;
-            stroke-width: 2.5;
-        }
-
-        .input-status.success .icon-svg { color: var(--success); }
-        .input-status.error .icon-svg { color: var(--danger); }
-
-        .form-hint {
-            font-size: 0.75rem;
-            color: var(--text-gray);
-            margin-top: 6px;
-            min-height: 16px;
-        }
-
-        .form-hint.error { color: var(--danger); font-weight: 600; }
-        .form-hint.success { color: var(--success); font-weight: 600; }
-
-        .eye-btn {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 34px;
-            height: 34px;
-            border-radius: 8px;
-            background: transparent;
-            border: none;
-            color: var(--text-gray);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.15s;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-
-        .eye-btn:hover {
-            background: var(--bg-light);
-            color: var(--text-dark);
-        }
-
-        .eye-btn .icon-svg { width: 18px; height: 18px; pointer-events: none; }
-
-        .terms-group {
-            max-height: 0;
-            overflow: hidden;
-            opacity: 0;
-            transition: max-height 0.4s ease, opacity 0.3s ease, margin 0.3s ease;
-        }
-
-        .terms-group.visible {
-            max-height: 300px;
-            opacity: 1;
-            margin-bottom: 18px;
-        }
-
-        .terms-box {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 14px;
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            border-radius: 10px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .terms-box:hover { background: var(--primary-light); }
-
-        .terms-box input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            margin-top: 2px;
-            accent-color: var(--primary);
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-
-        .terms-text {
-            font-size: 0.82rem;
-            color: var(--text-dark);
-            line-height: 1.5;
-            font-weight: 500;
-        }
-
-        .terms-text a {
-            color: var(--primary);
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .btn {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            padding: 14px 24px;
-            border-radius: 50px;
-            font-family: inherit;
-            font-weight: 700;
-            font-size: 0.95rem;
-            cursor: pointer;
-            border: 2px solid var(--border-dark);
-            box-shadow: 4px 4px 0px var(--shadow-color);
-            transition: all 0.2s;
-            background: var(--primary);
-            color: white;
-            margin-top: 4px;
-        }
-
-        .btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px var(--shadow-color);
-            background: var(--primary-dark);
-        }
-
-        .btn:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px var(--shadow-color);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn:focus-visible {
-            outline: 3px solid var(--primary);
-            outline-offset: 3px;
-        }
-
-        .icon-svg {
-            width: 18px;
-            height: 18px;
-            fill: none;
-            stroke: currentColor;
-            stroke-width: 2;
-            stroke-linecap: round;
-            stroke-linejoin: round;
-            pointer-events: none;
-        }
-
-        .auth-footer {
-            text-align: center;
-            margin-top: 20px;
-            font-size: 0.9rem;
-            color: var(--text-gray);
-        }
-
-        .auth-footer a {
-            color: var(--primary);
-            font-weight: 700;
-            text-decoration: none;
-        }
-
-        .alert {
-            padding: 12px 16px;
-            border-radius: 10px;
-            border: 2px solid var(--border-dark);
-            box-shadow: 3px 3px 0px var(--shadow-color);
-            margin-bottom: 20px;
-            display: none;
-            align-items: flex-start;
-            gap: 10px;
-            font-size: 0.88rem;
-            font-weight: 600;
-        }
-
-        .alert.show { display: flex; }
-        .alert.error { background: #fee2e2; color: #991b1b; }
-        .alert.success { background: #dcfce7; color: #166534; }
-
-        [data-theme="dark"] .alert.error { background: #450a0a; color: #fecaca; }
-        [data-theme="dark"] .alert.success { background: #052e16; color: #bbf7d0; }
-
-        .alert .icon-svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
-
-        .spinner {
-            width: 16px;
-            height: 16px;
-            border: 2px solid rgba(255,255,255,0.4);
-            border-top-color: white;
-            border-radius: 50%;
-            animation: spinner 0.6s linear infinite;
-        }
-
-        @keyframes spinner { to { transform: rotate(360deg); } }
-
-        .recaptcha-notice {
-            text-align: center;
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            margin-top: 16px;
-            line-height: 1.5;
-        }
-
-        .recaptcha-notice a {
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        .theme-toggle {
-            position: fixed;
-            top: 16px;
-            right: 16px;
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: var(--bg-card);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 3px 3px 0px var(--shadow-color);
-            transition: all 0.2s;
-            z-index: 100;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-
-        .theme-toggle:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 5px 5px 0px var(--shadow-color);
-        }
-
-        .theme-toggle:active {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0px var(--shadow-color);
-        }
-
-        .theme-toggle .icon-svg { width: 20px; height: 20px; }
-        .theme-toggle .moon-icon { display: none; }
-        [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
-        [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
-
-        @media print {
-            body { display: none !important; visibility: hidden !important; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-    </style>
 </head>
 <body>
 
+<!-- ===== BACKGROUND LAYERS (sama kayak login) ===== -->
+<div class="bg-stack" aria-hidden="true">
+    <div class="bg-shader" id="bgShader"></div>
+    <div class="bg-microslats" id="bgMicroslats"></div>
+    <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
+</div>
+
+<!-- Theme toggle -->
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-    <svg class="icon-svg sun-icon" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-    </svg>
-    <svg class="icon-svg moon-icon" viewBox="0 0 24 24">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
+    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 </button>
 
-<div class="auth-container">
-    <a href="/landing" class="auth-logo">
-        <div class="logo-icon">A</div>
-        <div>Asyrof<span>OTP</span></div>
-    </a>
+<!-- ===== AUTH LAYOUT ===== -->
+<div class="auth-center">
 
-    <div class="auth-card">
-        <h1>Buat Akun</h1>
-        <p class="subtitle">Daftar gratis, langsung bisa pakai.</p>
+    <!-- Logo "A" di atas card -->
+    <div class="auth-logo-block">
+        <div class="logo-icon" aria-hidden="true">A</div>
+    </div>
 
-        <div class="steps" id="steps">
-            <div class="step-dot active" data-step="1">1</div>
-            <div class="step-line" data-line="1"></div>
-            <div class="step-dot" data-step="2">2</div>
-            <div class="step-line" data-line="2"></div>
-            <div class="step-dot" data-step="3">3</div>
-            <div class="step-line" data-line="3"></div>
-            <div class="step-dot" data-step="4">4</div>
-        </div>
+    <!-- Register card with Spotlight -->
+    <div class="spotlight-card" id="registerCard">
+        <div class="spotlight-card-inner">
+            <div class="auth-card-content">
+                <h1 class="auth-title">Buat Akun</h1>
+                <p class="subtitle">Daftar gratis, langsung bisa pakai.</p>
 
-        <div class="alert" id="alert">
-            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            <span id="alert-text"></span>
-        </div>
-
-        <form id="registerForm" autocomplete="on" novalidate>
-            <div class="form-group visible" id="group-username">
-                <label class="form-label">Username</label>
-                <div class="input-wrap">
-                    <input type="text" class="form-control with-status" id="username" placeholder="username" autocomplete="username" autofocus>
-                    <div class="input-status" id="status-username"></div>
+                <!-- STEP INDICATOR -->
+                <div class="steps" id="steps">
+                    <div class="step-dot active" data-step="1">1</div>
+                    <div class="step-line" data-line="1"></div>
+                    <div class="step-dot" data-step="2">2</div>
+                    <div class="step-line" data-line="2"></div>
+                    <div class="step-dot" data-step="3">3</div>
+                    <div class="step-line" data-line="3"></div>
+                    <div class="step-dot" data-step="4">4</div>
                 </div>
-                <div class="form-hint" id="hint-username">Huruf, angka, underscore. 3-20 karakter.</div>
-            </div>
 
-            <div class="form-group" id="group-name">
-                <label class="form-label">Nama Tampilan <span style="font-weight:500;color:var(--text-gray);">(opsional)</span></label>
-                <input type="text" class="form-control" id="name" placeholder="Nama kamu" autocomplete="name">
-                <div class="form-hint" id="hint-name">Boleh dikosongin.</div>
-            </div>
+                <div class="alert" id="alert" role="alert">
+                    <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span id="alert-text"></span>
+                </div>
 
-            <div class="form-group" id="group-password">
-                <label class="form-label">Password</label>
-                <div class="input-wrap">
-                    <input type="password" class="form-control with-eye" id="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
-                    <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-                        <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
+                <form id="registerForm" autocomplete="on" novalidate>
+                    <div class="form-group visible" id="group-username">
+                        <label class="form-label" for="username">Username</label>
+                        <div class="input-wrap">
+                            <input type="text" class="form-control with-status" id="username" placeholder="username" autocomplete="username" autofocus spellcheck="false">
+                            <div class="input-status" id="status-username"></div>
+                        </div>
+                        <div class="form-hint" id="hint-username">Huruf, angka, underscore. 3-20 karakter.</div>
+                    </div>
+
+                    <div class="form-group" id="group-name">
+                        <label class="form-label" for="name">Nama Tampilan <span style="font-weight:500;color:var(--text-gray);">(opsional)</span></label>
+                        <input type="text" class="form-control" id="name" placeholder="Nama kamu" autocomplete="name" spellcheck="false">
+                        <div class="form-hint" id="hint-name">Boleh dikosongin.</div>
+                    </div>
+
+                    <div class="form-group" id="group-password">
+                        <label class="form-label" for="password">Password</label>
+                        <div class="input-wrap">
+                            <input type="password" class="form-control with-eye" id="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
+                            <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-hint" id="hint-password">Minimal 6 karakter.</div>
+                    </div>
+
+                    <div class="form-group" id="group-password2">
+                        <label class="form-label" for="password2">Konfirmasi Password</label>
+                        <div class="input-wrap">
+                            <input type="password" class="form-control with-eye" id="password2" placeholder="Ulangi password" autocomplete="new-password">
+                            <button type="button" class="eye-btn" id="togglePassword2" aria-label="Lihat password" tabindex="-1">
+                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="form-hint" id="hint-password2">Ulangi password yang sama.</div>
+                    </div>
+
+                    <div class="terms-group" id="group-terms">
+                        <label class="terms-box" for="agree">
+                            <input type="checkbox" id="agree">
+                            <span class="terms-text">
+                                Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat & Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
+                            </span>
+                        </label>
+                    </div>
+
+                    <button type="submit" class="btn btn-glare" id="submitBtn" disabled>
+                        <span class="glare-layer" aria-hidden="true"></span>
+                        <span id="btnText">Daftar</span>
+                        <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                     </button>
+                </form>
+
+                <div class="auth-footer">
+                    Sudah punya akun? <a href="/login">Login di sini</a>
                 </div>
-                <div class="form-hint" id="hint-password">Minimal 6 karakter.</div>
-            </div>
 
-            <div class="form-group" id="group-password2">
-                <label class="form-label">Konfirmasi Password</label>
-                <div class="input-wrap">
-                    <input type="password" class="form-control with-eye" id="password2" placeholder="Ulangi password" autocomplete="new-password">
-                    <button type="button" class="eye-btn" id="togglePassword2" aria-label="Lihat password" tabindex="-1">
-                        <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                            <circle cx="12" cy="12" r="3"/>
-                        </svg>
-                    </button>
+                <div class="recaptcha-notice">
+                    Dilindungi oleh reCAPTCHA.
+                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
+                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
                 </div>
-                <div class="form-hint" id="hint-password2">Ulangi password yang sama.</div>
             </div>
-
-            <div class="terms-group" id="group-terms">
-                <label class="terms-box" for="agree">
-                    <input type="checkbox" id="agree">
-                    <span class="terms-text">
-                        Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat & Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
-                    </span>
-                </label>
-            </div>
-
-            <button type="submit" class="btn" id="submitBtn" disabled>
-                <span id="btnText">Daftar</span>
-                <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            </button>
-        </form>
-
-        <div class="auth-footer">
-            Sudah punya akun? <a href="/login">Login di sini</a>
-        </div>
-
-        <div class="recaptcha-notice">
-            Dilindungi oleh reCAPTCHA.
-            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
-            <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
         </div>
     </div>
 </div>
 
-<script>
-    /* ============================================
-       SECURITY HARDENING
-       ============================================ */
-    (function() {
-        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
-        const styleSub = 'color:#64748b;font-size:12px;';
-        try {
-            console.log('%c⚠️ STOP!', style);
-            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
-        } catch (e) {}
-    })();
-
-    (function() {
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('keydown', (e) => {
-            const k = e.key;
-            if (k === 'F12') { e.preventDefault(); return false; }
-            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
-            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
-        }, true);
-    })();
-
-    (function() {
-        const LOCK_FLAG = 'asyrof_devtools_lock';
-        const THRESHOLD_WIDTH = 200;
-        const THRESHOLD_HEIGHT = 200;
-
-        function shouldSkipDetection() {
-            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
-            if (window.innerWidth < 600) return true;
-            return false;
-        }
-
-        function isDevToolsOpen() {
-            if (shouldSkipDetection()) return false;
-            const widthDiff = window.outerWidth - window.innerWidth;
-            const heightDiff = window.outerHeight - window.innerHeight;
-            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
-        }
-
-        function startDetection() {
-            setInterval(() => {
-                if (isDevToolsOpen()) {
-                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
-                    try {
-                        document.body.style.cssText = '';
-                        document.documentElement.style.cssText = '';
-                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                    } catch (e) {}
-                    document.body.innerHTML = '';
-                    window.location.reload();
-                }
-            }, 500);
-        }
-
-        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
-
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startDetection);
-        } else {
-            startDetection();
-        }
-    })();
-
-    (function() {
-        document.addEventListener('copy', (e) => {
-            const target = e.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-            e.preventDefault();
-        });
-        document.addEventListener('cut', (e) => {
-            const target = e.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-            e.preventDefault();
-        });
-    })();
-
-    /* ============================================
-       AUTO REDIRECT kalau udah login
-       ============================================ */
-    (async function checkAlreadyLoggedIn() {
-        const token = localStorage.getItem('access_token');
-        if (!token) return;
-
-        try {
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
-            const res = await fetch('/api/user', {
-                headers: { 'Authorization': `Bearer ${token}` },
-                signal: controller.signal,
-            });
-            clearTimeout(timeout);
-
-            if (res.ok) { window.location.replace('/dashboard'); return; }
-            if (res.status === 401 || res.status === 403) {
-                localStorage.removeItem('access_token');
-                localStorage.removeItem('user');
-            }
-        } catch (err) {}
-    })();
-
-    /* ============================================
-       THEME TOGGLE
-       ============================================ */
-    (function initTheme() {
-        const btn = document.getElementById('themeToggle');
-        if (!btn) return;
-        btn.addEventListener('click', () => {
-            const current = document.documentElement.getAttribute('data-theme') || 'light';
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('asyrofotp_theme', next);
-            const meta = document.querySelector('meta[name="theme-color"]');
-            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
-        });
-    })();
-
-    /* ============================================
-       REGISTER LOGIC — dengan cek username ke DB
-       ============================================ */
-    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
-
-    const form = document.getElementById('registerForm');
-    const alertEl = document.getElementById('alert');
-    const alertText = document.getElementById('alert-text');
-    const submitBtn = document.getElementById('submitBtn');
-    const btnText = document.getElementById('btnText');
-    const btnIcon = document.getElementById('btnIcon');
-
-    const usernameInput = document.getElementById('username');
-    const nameInput = document.getElementById('name');
-    const passwordInput = document.getElementById('password');
-    const password2Input = document.getElementById('password2');
-    const agreeCheckbox = document.getElementById('agree');
-
-    const hintUsername = document.getElementById('hint-username');
-    const hintPassword = document.getElementById('hint-password');
-    const hintPassword2 = document.getElementById('hint-password2');
-
-    const statusUsername = document.getElementById('status-username');
-
-    const groupName = document.getElementById('group-name');
-    const groupPassword = document.getElementById('group-password');
-    const groupPassword2 = document.getElementById('group-password2');
-    const groupTerms = document.getElementById('group-terms');
-
-    const stepDots = document.querySelectorAll('.step-dot');
-    const stepLines = document.querySelectorAll('.step-line');
-
-    // State khusus untuk cek username
-    let usernameCheckState = {
-        checking: false,
-        available: false,     // true = username belum dipakai, aman
-        lastChecked: '',
-        abortController: null,
-    };
-
-    function showAlert(message, type = 'error') {
-        alertEl.className = 'alert show ' + type;
-        alertText.textContent = message;
-    }
-    function hideAlert() { alertEl.classList.remove('show'); }
-
-    /* Toggle mata */
-    const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
-    const EYE_CLOSED = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
-
-    function setupEye(btnId, iconId, input) {
-        const btn = document.getElementById(btnId);
-        const icon = document.getElementById(iconId);
-        let visible = false;
-        btn.addEventListener('click', () => {
-            visible = !visible;
-            input.type = visible ? 'text' : 'password';
-            icon.innerHTML = visible ? EYE_CLOSED : EYE_OPEN;
-        });
-    }
-    setupEye('togglePassword', 'eyeIcon', passwordInput);
-    setupEye('togglePassword2', 'eyeIcon2', password2Input);
-
-    const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
-
-    /* ============================================
-       CEK USERNAME FORMAT (client-side)
-       ============================================ */
-    function validateUsernameFormat() {
-        const v = usernameInput.value.trim();
-        if (!v) {
-            usernameInput.classList.remove('valid', 'invalid');
-            hintUsername.className = 'form-hint';
-            hintUsername.textContent = 'Huruf, angka, underscore. 3-20 karakter.';
-            return false;
-        }
-        if (!USERNAME_RE.test(v)) {
-            usernameInput.classList.add('invalid');
-            usernameInput.classList.remove('valid');
-            hintUsername.className = 'form-hint error';
-            hintUsername.textContent = 'Username hanya boleh huruf, angka, underscore (3-20 karakter).';
-            return false;
-        }
-        return true;
-    }
-
-    /* ============================================
-       CEK USERNAME KE BACKEND (async, debounced)
-       ============================================ */
-    function setUsernameStatus(state, message) {
-        // state: 'loading' | 'success' | 'error' | 'idle'
-        statusUsername.className = 'input-status';
-
-        if (state === 'loading') {
-            statusUsername.innerHTML = '<div class="loading-spinner-sm"></div>';
-            statusUsername.classList.add('show');
-            hintUsername.className = 'form-hint';
-            hintUsername.textContent = 'Mengecek ketersediaan username...';
-            usernameInput.classList.remove('valid', 'invalid');
-        } else if (state === 'success') {
-            statusUsername.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
-            statusUsername.classList.add('show', 'success');
-            hintUsername.className = 'form-hint success';
-            hintUsername.textContent = message || '✓ Username tersedia';
-            usernameInput.classList.add('valid');
-            usernameInput.classList.remove('invalid');
-        } else if (state === 'error') {
-            statusUsername.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
-            statusUsername.classList.add('show', 'error');
-            hintUsername.className = 'form-hint error';
-            hintUsername.textContent = message || '✕ Username tidak tersedia';
-            usernameInput.classList.add('invalid');
-            usernameInput.classList.remove('valid');
-        } else {
-            statusUsername.innerHTML = '';
-            statusUsername.classList.remove('show', 'success', 'error');
-        }
-    }
-
-    async function checkUsernameToBackend(username) {
-        // Batalkan request sebelumnya
-        if (usernameCheckState.abortController) {
-            usernameCheckState.abortController.abort();
-        }
-        const controller = new AbortController();
-        usernameCheckState.abortController = controller;
-
-        usernameCheckState.checking = true;
-        usernameCheckState.available = false;
-        usernameCheckState.lastChecked = username;
-
-        setUsernameStatus('loading');
-
-        try {
-            const res = await fetch('/api/auth/check-username', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username }),
-                signal: controller.signal,
-            });
-
-            const data = await res.json();
-
-            // Cek apakah response masih relevan (username belum berubah)
-            if (usernameCheckState.lastChecked !== username) return;
-
-            usernameCheckState.checking = false;
-
-            if (!res.ok) {
-                setUsernameStatus('error', data.error || 'Gagal cek username');
-                return;
-            }
-
-            if (data.available) {
-                usernameCheckState.available = true;
-                setUsernameStatus('success', '✓ Username tersedia');
-                // Lanjut ke step berikutnya
-                revealNext();
-            } else {
-                usernameCheckState.available = false;
-                setUsernameStatus('error', '✕ Username sudah dipakai. Coba yang lain.');
-            }
-
-            checkReady();
-        } catch (err) {
-            if (err.name === 'AbortError') return;
-            if (usernameCheckState.lastChecked !== username) return;
-            usernameCheckState.checking = false;
-            setUsernameStatus('error', 'Gagal cek username. Coba lagi.');
-        }
-    }
-
-    // Debounce untuk cek backend
-    let usernameDebounceTimer = null;
-    function scheduleUsernameCheck(username) {
-        clearTimeout(usernameDebounceTimer);
-        usernameDebounceTimer = setTimeout(() => {
-            checkUsernameToBackend(username);
-        }, 500); // 500ms debounce
-    }
-
-    /* ============================================
-       VALIDASI PASSWORD
-       ============================================ */
-    function validatePassword() {
-        const v = passwordInput.value;
-        if (!v) {
-            passwordInput.classList.remove('valid', 'invalid');
-            hintPassword.className = 'form-hint';
-            hintPassword.textContent = 'Minimal 6 karakter.';
-            return false;
-        }
-        if (v.length < 6) {
-            passwordInput.classList.add('invalid');
-            passwordInput.classList.remove('valid');
-            hintPassword.className = 'form-hint error';
-            hintPassword.textContent = 'Password minimal 6 karakter.';
-            return false;
-        }
-        passwordInput.classList.add('valid');
-        passwordInput.classList.remove('invalid');
-        hintPassword.className = 'form-hint success';
-        hintPassword.textContent = '✓ Password cukup kuat';
-        return true;
-    }
-
-    function validatePassword2() {
-        const v = password2Input.value;
-        if (!v) {
-            password2Input.classList.remove('valid', 'invalid');
-            hintPassword2.className = 'form-hint';
-            hintPassword2.textContent = 'Ulangi password yang sama.';
-            return false;
-        }
-        if (v !== passwordInput.value) {
-            password2Input.classList.add('invalid');
-            password2Input.classList.remove('valid');
-            hintPassword2.className = 'form-hint error';
-            hintPassword2.textContent = 'Password tidak cocok.';
-            return false;
-        }
-        password2Input.classList.add('valid');
-        password2Input.classList.remove('invalid');
-        hintPassword2.className = 'form-hint success';
-        hintPassword2.textContent = '✓ Password cocok';
-        return true;
-    }
-
-    /* ============================================
-       REVEAL NEXT — hanya lanjut kalau username valid & tersedia
-       ============================================ */
-    function revealNext() {
-        // Step 1 → 2: username valid format + tersedia di DB
-        if (validateUsernameFormat() && usernameCheckState.available && !groupName.classList.contains('visible')) {
-            groupName.classList.add('visible');
-            updateSteps(2);
-            return;
-        }
-        // Step 2 → 3: name boleh kosong
-        if (groupName.classList.contains('visible') && !groupPassword.classList.contains('visible') && usernameCheckState.available) {
-            groupPassword.classList.add('visible');
-            updateSteps(3);
-            return;
-        }
-        // Step 3 → 4: password valid
-        if (groupPassword.classList.contains('visible') && !groupPassword2.classList.contains('visible') && validatePassword()) {
-            groupPassword2.classList.add('visible');
-            updateSteps(4);
-            return;
-        }
-        // Step 4 → 5: konfirmasi valid
-        if (groupPassword2.classList.contains('visible') && !groupTerms.classList.contains('visible') && validatePassword2()) {
-            groupTerms.classList.add('visible');
-            updateSteps(5);
-        }
-        checkReady();
-    }
-
-    function checkReady() {
-        const ok = validateUsernameFormat()
-            && usernameCheckState.available
-            && validatePassword()
-            && validatePassword2()
-            && agreeCheckbox.checked;
-        submitBtn.disabled = !ok;
-    }
-
-    function updateSteps(activeStep) {
-        stepDots.forEach(dot => {
-            const s = Number(dot.dataset.step);
-            dot.classList.toggle('active', s === activeStep);
-            dot.classList.toggle('done', s < activeStep);
-            if (s < activeStep) dot.textContent = '✓';
-            else dot.textContent = String(s);
-        });
-        stepLines.forEach(line => {
-            const l = Number(line.dataset.line);
-            line.classList.toggle('done', l < activeStep);
-        });
-    }
-
-    /* ============================================
-       EVENT: USERNAME — cek format + cek DB (debounced)
-       ============================================ */
-    usernameInput.addEventListener('input', () => {
-        const v = usernameInput.value.trim();
-
-        // Reset state setiap kali user ngetik
-        usernameCheckState.available = false;
-
-        if (!validateUsernameFormat()) {
-            setUsernameStatus('idle');
-            checkReady();
-            return;
-        }
-
-        // Format OK → cek ke backend (debounced)
-        scheduleUsernameCheck(v);
-        checkReady();
-    });
-
-    usernameInput.addEventListener('blur', () => {
-        const v = usernameInput.value.trim();
-        if (validateUsernameFormat()) {
-            // Kalau belum pernah dicek atau value berubah → cek langsung tanpa debounce
-            if (usernameCheckState.lastChecked !== v || !usernameCheckState.available) {
-                clearTimeout(usernameDebounceTimer);
-                checkUsernameToBackend(v);
-            }
-        }
-    });
-
-    /* ============================================
-       EVENT: LAINNYA
-       ============================================ */
-    nameInput.addEventListener('blur', () => { if (groupName.classList.contains('visible')) revealNext(); });
-    nameInput.addEventListener('input', () => { if (groupName.classList.contains('visible')) revealNext(); });
-
-    passwordInput.addEventListener('input', () => {
-        validatePassword();
-        if (validatePassword()) revealNext();
-        if (password2Input.value) validatePassword2();
-        checkReady();
-    });
-    passwordInput.addEventListener('blur', () => { if (validatePassword()) revealNext(); });
-
-    password2Input.addEventListener('input', () => {
-        validatePassword2();
-        if (validatePassword2()) revealNext();
-        checkReady();
-    });
-    password2Input.addEventListener('blur', () => { if (validatePassword2()) revealNext(); });
-
-    agreeCheckbox.addEventListener('change', () => {
-        checkReady();
-        if (agreeCheckbox.checked && validateUsernameFormat() && usernameCheckState.available && validatePassword() && validatePassword2()) {
-            updateSteps(5);
-        }
-    });
-
-    /* ============================================
-       RECAPTCHA HELPER
-       ============================================ */
-    function waitForRecaptcha() {
-        return new Promise((resolve) => {
-            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
-            let attempts = 0;
-            const timer = setInterval(() => {
-                attempts++;
-                if (window.grecaptcha && window.grecaptcha.execute) {
-                    clearInterval(timer);
-                    resolve();
-                } else if (attempts >= 50) {
-                    clearInterval(timer);
-                    resolve();
-                }
-            }, 100);
-        });
-    }
-
-    /* ============================================
-       SUBMIT
-       ============================================ */
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        hideAlert();
-
-        if (!validateUsernameFormat()) { showAlert('Username tidak valid', 'error'); return; }
-        if (!usernameCheckState.available) { showAlert('Username belum tersedia atau belum dicek', 'error'); return; }
-        if (!validatePassword()) { showAlert('Password minimal 6 karakter', 'error'); return; }
-        if (!validatePassword2()) { showAlert('Konfirmasi password tidak cocok', 'error'); return; }
-        if (!agreeCheckbox.checked) { showAlert('Kamu harus menyetujui Syarat & Ketentuan', 'error'); return; }
-
-        const username = usernameInput.value.trim();
-        const name = nameInput.value.trim();
-        const password = passwordInput.value;
-
-        submitBtn.disabled = true;
-        btnText.textContent = 'Memproses...';
-        btnIcon.outerHTML = '<div class="spinner" id="btnIcon"></div>';
-
-        try {
-            await waitForRecaptcha();
-
-            if (!window.grecaptcha || !window.grecaptcha.execute) {
-                throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
-            }
-
-            const recaptchaToken = await new Promise((resolve, reject) => {
-                grecaptcha.ready(() => {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'register' })
-                        .then(resolve)
-                        .catch(reject);
-                });
-                setTimeout(() => reject(new Error('Timeout verifikasi keamanan')), 10000);
-            });
-
-            const res = await fetch('/api/auth/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    username,
-                    password,
-                    name: name || undefined,
-                    recaptcha_token: recaptchaToken,
-                })
-            });
-
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Registrasi gagal');
-
-            updateSteps(6);
-            showAlert('Registrasi berhasil! Mengalihkan ke login...', 'success');
-
-            setTimeout(() => { window.location.replace('/login'); }, 1200);
-
-        } catch (err) {
-            showAlert(err.message, 'error');
-            submitBtn.disabled = false;
-            btnText.textContent = 'Daftar';
-            const oldIcon = document.getElementById('btnIcon');
-            if (oldIcon) oldIcon.outerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
-
-            // Kalau error "username sudah dipakai", reset state
-            if (err.message && err.message.toLowerCase().includes('username')) {
-                usernameCheckState.available = false;
-                setUsernameStatus('error', '✕ ' + err.message);
-            }
-        }
-    });
-
-    checkReady();
-</script>
-
-<script src="/js/cache.js"></script>
+<script src="/js/login.js" defer></script>
 
 </body>
 </html>
