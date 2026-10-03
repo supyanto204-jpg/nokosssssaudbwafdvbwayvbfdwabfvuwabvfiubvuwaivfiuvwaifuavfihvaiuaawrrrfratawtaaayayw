@@ -1,6 +1,6 @@
 /* ============================================
    LAYOUT.CSS — Layout, Sidebar, Topbar, Taskbar
-   HARDENED v3 — anti-leak, anti-select, anti-hover-jitter
+   HARDENED v4 — animasi tetap, proteksi ditambah
    ============================================ */
 
 /* ============================================
@@ -38,13 +38,14 @@
     -webkit-user-drag: none;
     -khtml-user-drag: none;
     user-drag: none;
-    pointer-events: none;
 }
 
 .dashboard-layout a img,
 .dashboard-layout a svg,
 .dashboard-layout button img,
 .dashboard-layout button svg {
+    -webkit-user-drag: none;
+    user-drag: none;
     pointer-events: auto;
 }
 
@@ -56,7 +57,6 @@
     min-height: 100vh;
     width: 100%;
     position: relative;
-    /* Performance: batasi layout & paint scope */
     contain: layout style;
 }
 
@@ -191,15 +191,15 @@
     font-size: 1.3rem;
     box-shadow: var(--shadow-hard-sm);
     flex-shrink: 0;
-    /* HAPUS: animation logoWiggle — bikin gerak-gerak
-       HAPUS: transition transform */
-    /* Cegah text kepilih di dalam logo */
+    transition: transform var(--transition);
+    animation: logoWiggle 4s ease-in-out infinite;
     user-select: none;
     -webkit-user-select: none;
-    pointer-events: none;
 }
 
-/* HAPUS: .sidebar-logo:hover .logo-icon transform — gak perlu animasi */
+.sidebar-logo:hover .logo-icon {
+    transform: rotate(3deg) scale(1.1);
+}
 
 .sidebar-logo span { color: var(--primary); }
 
@@ -215,12 +215,10 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    /* HAPUS: transition all — ganti spesifik */
-    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -228,13 +226,8 @@
 .collapse-btn:hover {
     background: var(--primary);
     color: white;
+    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
-    /* HAPUS: transform translate(-1px, -1px) */
-}
-
-.collapse-btn:active {
-    /* HAPUS: transform translate */
-    box-shadow: none;
 }
 
 .collapse-btn:focus-visible {
@@ -286,8 +279,7 @@
     color: var(--text-gray);
     font-weight: 600;
     font-size: 0.9rem;
-    /* HAPUS transition all */
-    transition: background-color var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     border: 2px solid transparent;
     position: relative;
     white-space: nowrap;
@@ -311,13 +303,11 @@
 .nav-item:hover {
     background: var(--primary-light);
     color: var(--primary);
-    /* HAPUS: transform translateX(3px) */
+    transform: translateX(3px);
 }
 
 .sidebar.collapsed .nav-item:hover {
-    /* HAPUS: transform scale(1.05) */
-    background: var(--primary-light);
-    color: var(--primary);
+    transform: scale(1.05);
 }
 
 .nav-item.active {
@@ -335,14 +325,18 @@
 .nav-item .icon-svg {
     width: 20px;
     height: 20px;
-    /* HAPUS: transition transform */
+    transition: transform var(--transition);
     flex-shrink: 0;
     pointer-events: none;
 }
 
-/* HAPUS: .nav-item:hover .icon-svg transform scale(1.15) rotate(-5deg) */
+.nav-item:hover .icon-svg {
+    transform: scale(1.15) rotate(-5deg);
+}
 
-/* HAPUS: .nav-item.active .icon-svg animation iconPulse — bikin pusing */
+.nav-item.active .icon-svg {
+    animation: iconPulse 2s ease-in-out infinite;
+}
 
 .nav-item .nav-label {
     transition: opacity 0.2s;
@@ -358,7 +352,6 @@
     display: none;
 }
 
-/* Tooltip saat collapsed */
 .sidebar.collapsed .nav-item::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -377,7 +370,6 @@
     transition: opacity 0.2s var(--ease);
     z-index: 1000;
     box-shadow: var(--shadow-hard-sm);
-    /* Tooltip gak boleh ke-select */
     user-select: none;
     -webkit-user-select: none;
 }
@@ -429,8 +421,7 @@
     border-radius: var(--radius-sm);
     background: var(--bg-light);
     border: 2px solid var(--border-dark);
-    /* HAPUS transition all */
-    transition: background-color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     overflow: hidden;
     width: 100%;
     user-select: none;
@@ -447,7 +438,6 @@
 .user-info:hover {
     background: var(--primary-light);
     box-shadow: var(--shadow-hard-sm);
-    /* HAPUS: transform */
 }
 
 .user-avatar {
@@ -511,12 +501,10 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    /* HAPUS transition all */
-    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
 }
 
 .sidebar.collapsed .logout-btn {
@@ -526,13 +514,8 @@
 .logout-btn:hover {
     background: var(--danger);
     color: white;
+    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
-    /* HAPUS: transform translate(-1px, -1px) */
-}
-
-.logout-btn:active {
-    /* HAPUS: transform translate(1px, 1px) */
-    box-shadow: none;
 }
 
 .logout-btn:focus-visible {
@@ -588,7 +571,6 @@ body.sidebar-collapsed .main-content {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-    /* Fallback kalau background-clip gak didukung */
     color: var(--text-dark);
 }
 
@@ -621,8 +603,7 @@ body.sidebar-collapsed .main-content {
     box-shadow: var(--shadow-hard-sm);
     font-weight: 700;
     font-size: 0.9rem;
-    /* HAPUS transition all */
-    transition: box-shadow var(--transition), background-color var(--transition);
+    transition: all var(--transition);
     white-space: nowrap;
     user-select: none;
     -webkit-user-select: none;
@@ -630,8 +611,8 @@ body.sidebar-collapsed .main-content {
 }
 
 .balance-pill:hover {
+    transform: translate(-2px, -2px);
     box-shadow: var(--shadow-hard);
-    /* HAPUS: transform translate(-2px, -2px) */
 }
 
 .balance-pill .label {
@@ -650,7 +631,7 @@ body.sidebar-collapsed .main-content {
     width: 16px;
     height: 16px;
     color: var(--warning);
-    /* HAPUS: animation coinSpin 3s — bikin pusing */
+    animation: coinSpin 3s ease-in-out infinite;
     pointer-events: none;
 }
 
@@ -666,12 +647,10 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    /* HAPUS transition all */
-    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
     position: relative;
     overflow: hidden;
 }
@@ -679,12 +658,8 @@ body.sidebar-collapsed .main-content {
 .theme-toggle:hover {
     background: var(--primary);
     color: white;
+    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
-    /* HAPUS: transform translate(-1px, -1px) */
-}
-
-.theme-toggle:active {
-    box-shadow: none;
 }
 
 .theme-toggle:focus-visible {
@@ -695,11 +670,13 @@ body.sidebar-collapsed .main-content {
 .theme-toggle .icon-svg {
     width: 20px;
     height: 20px;
-    /* HAPUS: transition transform — gak perlu rotate */
+    transition: transform 0.4s var(--ease-bounce);
     pointer-events: none;
 }
 
-/* HAPUS: .theme-toggle:hover .icon-svg transform rotate(180deg) scale(1.1) */
+.theme-toggle:hover .icon-svg {
+    transform: rotate(180deg) scale(1.1);
+}
 
 .theme-toggle .sun-icon { display: block; }
 .theme-toggle .moon-icon { display: none; }
@@ -716,22 +693,16 @@ body.sidebar-collapsed .main-content {
     cursor: pointer;
     box-shadow: var(--shadow-hard-sm);
     color: var(--text-dark);
-    /* HAPUS transition all */
-    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     position: relative;
     z-index: 10000;
 }
 
-.mobile-toggle:hover {
-    background: var(--primary);
-    color: white;
-}
-
 .mobile-toggle:active {
-    /* HAPUS: transform translate(1px, 1px) */
-    box-shadow: none;
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px rgba(15, 23, 42, 1);
 }
 
 .mobile-toggle:focus-visible {
@@ -745,7 +716,7 @@ body.sidebar-collapsed .main-content {
     pointer-events: none;
 }
 
-/* Icon button (refresh, dll) */
+/* Icon button */
 .icon-btn {
     width: 40px;
     height: 40px;
@@ -757,8 +728,7 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    /* HAPUS transition all */
-    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
+    transition: all var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
@@ -768,12 +738,12 @@ body.sidebar-collapsed .main-content {
 .icon-btn:hover {
     background: var(--primary);
     color: white;
+    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
-    /* HAPUS: transform translate(-1px, -1px) */
 }
 
 .icon-btn:active {
-    /* HAPUS: transform translate(1px, 1px) */
+    transform: translate(1px, 1px);
     box-shadow: none;
 }
 
@@ -836,8 +806,7 @@ body.sidebar-collapsed .main-content {
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    /* HAPUS transition all */
-    transition: color var(--transition);
+    transition: all var(--transition);
     position: relative;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -849,17 +818,21 @@ body.sidebar-collapsed .main-content {
 .taskbar-item .icon-svg {
     width: 22px;
     height: 22px;
-    /* HAPUS transition transform — gak perlu animasi */
+    transition: transform var(--transition);
     pointer-events: none;
 }
 
-/* HAPUS: .taskbar-item:active .icon-svg transform scale(0.85) */
+.taskbar-item:active .icon-svg {
+    transform: scale(0.85);
+}
 
 .taskbar-item.active {
     color: var(--primary);
 }
 
-/* HAPUS: .taskbar-item.active .icon-svg transform scale(1.1) */
+.taskbar-item.active .icon-svg {
+    transform: scale(1.1);
+}
 
 .taskbar-item.active::before {
     content: '';
@@ -890,8 +863,7 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     color: white;
-    /* HAPUS transition all */
-    transition: box-shadow var(--transition), background-color var(--transition);
+    transition: all var(--transition);
     position: relative;
 }
 
@@ -906,20 +878,15 @@ body.sidebar-collapsed .main-content {
     pointer-events: none;
 }
 
-.taskbar-item.taskbar-primary:hover .icon-wrapper {
-    box-shadow: var(--shadow-hard-lg);
-    /* HAPUS transform */
-}
-
 .taskbar-item.taskbar-primary:active .icon-wrapper {
-    /* HAPUS: transform scale(0.92) */
+    transform: scale(0.92);
     box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
 }
 
 .taskbar-item.taskbar-primary .icon-svg {
     width: 26px;
     height: 26px;
-    /* HAPUS: animation iconPulse — bikin gerak-gerak */
+    animation: iconPulse 2.5s ease-in-out infinite;
     pointer-events: none;
 }
 
@@ -937,7 +904,6 @@ body.sidebar-collapsed .main-content {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.5);
-    /* Fallback kalau backdrop-filter gak didukung */
     z-index: 9998;
     opacity: 0;
     transition: opacity var(--transition);
@@ -948,7 +914,6 @@ body.sidebar-collapsed .main-content {
     .sidebar-overlay {
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
-        background: rgba(15, 23, 42, 0.5);
     }
 }
 
@@ -956,14 +921,6 @@ body.sidebar-collapsed .main-content {
     display: block;
     opacity: 1;
     pointer-events: auto;
-}
-
-/* ============================================
-   🔒 ANTI-IFRAME (CSS hint)
-   ============================================ */
-html {
-    /* Hint ke browser — walau gak enforce, beberapa browser hormati */
-    -webkit-touch-callout: none;
 }
 
 /* ============================================
@@ -1103,7 +1060,11 @@ html {
 @media (prefers-reduced-motion: reduce) {
     .bg-pulse span,
     .taskbar-item.taskbar-primary .icon-wrapper::before,
-    .icon-btn.spinning .icon-svg {
+    .icon-btn.spinning .icon-svg,
+    .sidebar-logo .logo-icon,
+    .nav-item.active .icon-svg,
+    .balance-pill .icon-svg,
+    .taskbar-item.taskbar-primary .icon-svg {
         animation: none !important;
     }
 
@@ -1115,7 +1076,10 @@ html {
     .icon-btn,
     .theme-toggle,
     .mobile-toggle,
-    .logout-btn {
+    .logout-btn,
+    .nav-item .icon-svg,
+    .theme-toggle .icon-svg,
+    .taskbar-item .icon-svg {
         transition-duration: 0.01ms !important;
     }
 }
