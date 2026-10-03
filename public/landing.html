@@ -7,7 +7,7 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
     <meta name="robots" content="index, follow, max-image-preview:large">
-    <meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi digital.">
+    <meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya.">
     <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -21,7 +21,7 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/landing.css">
 
-    <!-- 🔒 SECURITY: jalan paling awal -->
+    <!-- 🔒 SECURITY -->
     <script>
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
@@ -48,10 +48,7 @@
                     setInterval(() => {
                         const wd = window.outerWidth - window.innerWidth;
                         const hd = window.outerHeight - window.innerHeight;
-                        if (wd <= T && hd <= T) {
-                            sessionStorage.removeItem(LOCK_FLAG);
-                            window.location.reload();
-                        }
+                        if (wd <= T && hd <= T) { sessionStorage.removeItem(LOCK_FLAG); window.location.reload(); }
                     }, 700);
                 }
                 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
@@ -63,10 +60,13 @@
 </head>
 <body>
 
-    <!-- Background stack -->
+    <!-- ===== BACKGROUND ===== -->
     <div class="bg-stack" aria-hidden="true">
-        <div class="bg-gradient-waves" id="gradientWaves"></div>
-        <div class="bg-microslats" id="microSlats"></div>
+        <div class="bg-blob bg-blob-1"></div>
+        <div class="bg-blob bg-blob-2"></div>
+        <div class="bg-blob bg-blob-3"></div>
+        <div class="bg-waves" id="bgWaves"></div>
+        <div class="bg-microslats" id="bgMicroslats"></div>
         <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
     </div>
 
@@ -130,6 +130,7 @@
                     <div class="spiral-glow"></div>
                 </div>
             </div>
+
             <div class="hero-stats">
                 <div class="hero-stat"><div class="hero-stat-value">1.700+</div><div class="hero-stat-label">Layanan</div></div>
                 <div class="hero-stat"><div class="hero-stat-value">100+</div><div class="hero-stat-label">Negara</div></div>
@@ -249,7 +250,7 @@
                 <div class="step-card reveal"><div class="step-number">1</div><h3>Pilih Layanan</h3><p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p></div>
                 <div class="step-card reveal"><div class="step-number">2</div><h3>Pilih Negara</h3><p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p></div>
                 <div class="step-card reveal"><div class="step-number">3</div><h3>Gunakan Layanan</h3><p>Masukkan dan tunggu hingga pesan text masuk.</p></div>
-                <div class="step-card reveal"><div class="step-number">4</div><h3>Terima Pesan</h3><p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p></div>
+                <div class="step-card reveal"><div class="step-number">4</div><h2>Terima Pesan</h2><p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p></div>
             </div>
         </div>
     </section>
