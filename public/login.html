@@ -2,14 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Login - AsyrofOTP</title>
-
+    <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -17,24 +17,22 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
-    <!-- reCAPTCHA v3 -->
-    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
-
-    <!-- Dark mode: set sebelum render biar gak flicker -->
     <script>
+        // Anti-FOUC: apply theme sebelum render
         (function() {
-            try {
-                const saved = localStorage.getItem('asyrofotp_theme');
-                let theme = saved;
-                if (!theme) {
-                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                document.documentElement.setAttribute('data-theme', theme);
-            } catch (e) {
-                document.documentElement.setAttribute('data-theme', 'light');
-            }
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // Anti-iframe (clickjacking protection) — jalan paling awal
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+        }
     </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -50,22 +48,22 @@
             --border-dark: #0f172a;
             --danger: #ef4444;
             --success: #22c55e;
+            --shadow-color: rgba(15, 23, 42, 1);
         }
 
         [data-theme="dark"] {
             --primary: #3b82f6;
-            --primary-light: #1e293b;
+            --primary-light: #1e3a8a;
             --primary-dark: #2563eb;
             --text-dark: #f1f5f9;
             --text-gray: #94a3b8;
             --bg-light: #0f172a;
             --bg-card: #1e293b;
-            --border-dark: #e2e8f0;
+            --border-dark: #334155;
             --danger: #f87171;
             --success: #4ade80;
+            --shadow-color: rgba(0, 0, 0, 0.6);
         }
-
-        html, body { transition: background-color 0.3s ease, color 0.3s ease; }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -78,16 +76,7 @@
             padding: 24px;
             position: relative;
             overflow: hidden;
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
-        }
-
-        input, textarea, select {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            user-select: text;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
         body::before {
@@ -123,39 +112,6 @@
             to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
         }
 
-        /* ===== Theme toggle ===== */
-        .theme-toggle-fab {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 50;
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            background: var(--bg-card);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 3px 3px 0 rgba(15, 23, 42, 1);
-            transition: all 0.2s;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .theme-toggle-fab:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: 4px 4px 0 rgba(15, 23, 42, 1);
-        }
-        .theme-toggle-fab:active {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0 rgba(15, 23, 42, 1);
-        }
-        .theme-toggle-fab .icon-svg { width: 20px; height: 20px; }
-        .theme-toggle-fab .moon-icon { display: none; }
-        [data-theme="dark"] .theme-toggle-fab .sun-icon { display: none; }
-        [data-theme="dark"] .theme-toggle-fab .moon-icon { display: block; }
-
         .auth-container {
             width: 100%;
             max-width: 420px;
@@ -187,7 +143,7 @@
             color: white;
             font-weight: 900;
             font-size: 1.8rem;
-            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            box-shadow: 3px 3px 0px var(--shadow-color);
             text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
             transform: rotate(-3deg);
         }
@@ -198,13 +154,9 @@
             background: var(--bg-card);
             border: 2px solid var(--border-dark);
             border-radius: 16px;
-            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            box-shadow: 6px 6px 0px var(--shadow-color);
             padding: 32px;
-            transition: background-color 0.3s, border-color 0.3s;
-        }
-
-        [data-theme="dark"] .auth-card {
-            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
         .auth-card h1 {
@@ -251,11 +203,11 @@
         .form-control.with-eye { padding-right: 46px; }
 
         .form-control:focus {
-            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            box-shadow: 3px 3px 0px var(--shadow-color);
             transform: translate(-1px, -1px);
         }
 
-        .form-control::placeholder { color: var(--text-gray); opacity: 0.7; }
+        .form-control::placeholder { color: var(--text-gray); opacity: 0.6; }
 
         .eye-btn {
             position: absolute;
@@ -274,6 +226,7 @@
             justify-content: center;
             transition: all 0.15s;
             -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .eye-btn:hover {
@@ -296,7 +249,7 @@
             font-size: 0.95rem;
             cursor: pointer;
             border: 2px solid var(--border-dark);
-            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+            box-shadow: 4px 4px 0px var(--shadow-color);
             transition: all 0.2s;
             background: var(--primary);
             color: white;
@@ -304,13 +257,13 @@
 
         .btn:hover {
             transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            box-shadow: 6px 6px 0px var(--shadow-color);
             background: var(--primary-dark);
         }
 
         .btn:active {
             transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            box-shadow: 2px 2px 0px var(--shadow-color);
         }
 
         .btn:disabled {
@@ -348,7 +301,7 @@
             padding: 12px 16px;
             border-radius: 10px;
             border: 2px solid var(--border-dark);
-            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            box-shadow: 3px 3px 0px var(--shadow-color);
             margin-bottom: 20px;
             display: none;
             align-items: flex-start;
@@ -361,8 +314,8 @@
         .alert.error { background: #fee2e2; color: #991b1b; }
         .alert.success { background: #dcfce7; color: #166534; }
 
-        [data-theme="dark"] .alert.error { background: #450a0a; color: #fca5a5; }
-        [data-theme="dark"] .alert.success { background: #052e16; color: #86efac; }
+        [data-theme="dark"] .alert.error { background: #450a0a; color: #fecaca; }
+        [data-theme="dark"] .alert.success { background: #052e16; color: #bbf7d0; }
 
         .alert .icon-svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
 
@@ -390,119 +343,103 @@
             text-decoration: none;
         }
 
-        .recaptcha-notice a:hover { text-decoration: underline; }
+        /* Theme toggle */
+        .theme-toggle {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 3px 3px 0px var(--shadow-color);
+            transition: all 0.2s;
+            z-index: 100;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
 
-        /* ===== Anti-devtools overlay ===== */
-        #securityOverlay {
+        .theme-toggle:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0px var(--shadow-color);
+        }
+
+        .theme-toggle:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0px var(--shadow-color);
+        }
+
+        .theme-toggle .icon-svg { width: 20px; height: 20px; }
+        .theme-toggle .moon-icon { display: none; }
+        [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
+        [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
+
+        /* DevTools blur overlay */
+        .devtools-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            z-index: 999999;
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 99998;
             display: none;
             align-items: center;
             justify-content: center;
             padding: 24px;
             text-align: center;
-            color: white;
-            animation: fadeIn 0.2s ease;
         }
 
-        #securityOverlay.active { display: flex; }
+        .devtools-overlay.show { display: flex; }
 
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .sec-box {
-            max-width: 400px;
-            padding: 32px 24px;
-            background: #1e293b;
-            border: 2px solid #ef4444;
+        .devtools-content {
+            background: var(--bg-card);
+            border: 3px solid var(--border-dark);
             border-radius: 16px;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), 8px 8px 0 rgba(239, 68, 68, 0.3);
+            padding: 32px;
+            max-width: 400px;
+            box-shadow: 6px 6px 0px var(--shadow-color);
         }
 
-        .sec-icon {
-            width: 72px;
-            height: 72px;
-            margin: 0 auto 16px;
-            border-radius: 50%;
-            background: rgba(239, 68, 68, 0.15);
-            border: 2px solid #ef4444;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #ef4444;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
-        }
-
-        .sec-icon .icon-svg { width: 36px; height: 36px; }
-
-        .sec-box h2 {
-            font-size: 1.2rem;
+        .devtools-content h2 {
+            font-size: 1.3rem;
             font-weight: 800;
-            margin-bottom: 8px;
-            color: #fca5a5;
+            margin-bottom: 12px;
+            color: var(--danger);
         }
 
-        .sec-box p {
-            font-size: 0.88rem;
-            color: #cbd5e1;
-            line-height: 1.6;
-            margin-bottom: 20px;
-        }
-
-        .sec-box .btn-close-sec {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            padding: 12px 24px;
-            border-radius: 50px;
-            background: #ef4444;
-            color: white;
-            font-family: inherit;
-            font-weight: 700;
+        .devtools-content p {
+            color: var(--text-gray);
             font-size: 0.9rem;
-            border: 2px solid #fff;
-            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .sec-box .btn-close-sec:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
 
-<!-- Security overlay (devtools detected) -->
-<div id="securityOverlay">
-    <div class="sec-box">
-        <div class="sec-icon">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        </div>
-        <h2>Akses Dibatasi</h2>
-        <p>Kami mendeteksi Developer Tools terbuka. Untuk alasan keamanan, silakan tutup Developer Tools untuk melanjutkan.</p>
-        <button class="btn-close-sec" id="secCloseBtn" type="button">
-            <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Sudah Ditutup
-        </button>
+<!-- Theme toggle -->
+<button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+    <svg class="icon-svg sun-icon" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+    </svg>
+    <svg class="icon-svg moon-icon" viewBox="0 0 24 24">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+</button>
+
+<!-- DevTools warning overlay -->
+<div class="devtools-overlay" id="devtoolsOverlay">
+    <div class="devtools-content">
+        <h2>⚠️ Akses Dibatasi</h2>
+        <p>Tolong tutup Developer Tools untuk melanjutkan. Halaman ini dilindungi demi keamanan akun kamu.</p>
     </div>
 </div>
-
-<!-- Theme toggle -->
-<button class="theme-toggle-fab" id="themeToggle" type="button" aria-label="Ganti tema">
-    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-</button>
 
 <div class="auth-container">
     <a href="/landing" class="auth-logo">
@@ -528,7 +465,7 @@
                 <label class="form-label">Password</label>
                 <div class="input-wrap">
                     <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
-                    <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password">
+                    <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
                         <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                             <circle cx="12" cy="12" r="3"/>
@@ -554,8 +491,146 @@
     </div>
 </div>
 
-<script src="/js/security.js"></script>
 <script>
+    /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+
+    // 1. Console warning
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        console.log('%c⚠️ STOP!', style);
+        console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+        console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+    })();
+
+    // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U
+    (function() {
+        // Disable right-click
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Disable keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            // F12
+            if (k === 'F12') { e.preventDefault(); return false; }
+            // Ctrl+Shift+I / J / C
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) {
+                e.preventDefault(); return false;
+            }
+            // Ctrl+U (view source)
+            if (e.ctrlKey && ['U','u'].includes(k)) {
+                e.preventDefault(); return false;
+            }
+            // Ctrl+S (save page)
+            if (e.ctrlKey && ['S','s'].includes(k)) {
+                e.preventDefault(); return false;
+            }
+            // Ctrl+P (print)
+            if (e.ctrlKey && ['P','p'].includes(k)) {
+                e.preventDefault(); return false;
+            }
+        }, true);
+    })();
+
+    // 3. Disable text selection di area sensitif
+    (function() {
+        document.body.style.webkitUserSelect = 'none';
+        document.body.style.userSelect = 'none';
+        // Tapi izinkan input
+        const allowSelect = 'input, textarea';
+        document.querySelectorAll(allowSelect).forEach(el => {
+            el.style.webkitUserSelect = 'text';
+            el.style.userSelect = 'text';
+        });
+    })();
+
+    // 4. Deteksi DevTools terbuka
+    (function() {
+        let devtoolsOpen = false;
+        const overlay = document.getElementById('devtoolsOverlay');
+        const threshold = 160;
+
+        function check() {
+            const widthDiff = window.outerWidth - window.innerWidth > threshold;
+            const heightDiff = window.outerHeight - window.innerHeight > threshold;
+            const isOpen = widthDiff || heightDiff;
+
+            if (isOpen !== devtoolsOpen) {
+                devtoolsOpen = isOpen;
+                if (isOpen) {
+                    overlay.classList.add('show');
+                } else {
+                    overlay.classList.remove('show');
+                }
+            }
+        }
+
+        setInterval(check, 1000);
+    })();
+
+    // 5. Anti-copy di field password
+    (function() {
+        const pw = document.getElementById('password');
+        if (pw) {
+            pw.addEventListener('copy', (e) => e.preventDefault());
+            pw.addEventListener('cut', (e) => e.preventDefault());
+            // Paste tetap diizinkan biar user bisa pakai password manager
+        }
+    })();
+
+    /* ============================================
+       AUTO REDIRECT — kalau udah login
+       ============================================ */
+    (async function checkAlreadyLoggedIn() {
+        const token = localStorage.getItem('access_token');
+        if (!token) return;
+
+        try {
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
+            const res = await fetch('/api/user', {
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: controller.signal,
+            });
+            clearTimeout(timeout);
+
+            if (res.ok) {
+                // Token masih valid → redirect ke dashboard
+                window.location.replace('/dashboard');
+                return;
+            }
+
+            // Token invalid → bersihin
+            if (res.status === 401 || res.status === 403) {
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('user');
+            }
+        } catch (err) {
+            // Network error / timeout → biarkan di login
+        }
+    })();
+
+    /* ============================================
+       THEME TOGGLE
+       ============================================ */
+    (function initTheme() {
+        const btn = document.getElementById('themeToggle');
+        if (!btn) return;
+        btn.addEventListener('click', () => {
+            const current = document.documentElement.getAttribute('data-theme') || 'light';
+            const next = current === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('asyrofotp_theme', next);
+            const meta = document.querySelector('meta[name="theme-color"]');
+            if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+        });
+    })();
+
+    /* ============================================
+       LOGIN LOGIC
+       ============================================ */
     const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
     const form = document.getElementById('loginForm');
@@ -568,17 +643,7 @@
     const togglePassword = document.getElementById('togglePassword');
     const eyeIcon = document.getElementById('eyeIcon');
 
-    /* ===== Theme toggle ===== */
-    document.getElementById('themeToggle').addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme') || 'light';
-        const next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        try { localStorage.setItem('asyrofotp_theme', next); } catch (e) {}
-        const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
-    });
-
-    /* ===== Toggle mata password ===== */
+    /* Toggle mata */
     const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
     const EYE_CLOSED = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
 
@@ -589,14 +654,12 @@
         eyeIcon.innerHTML = passwordVisible ? EYE_CLOSED : EYE_OPEN;
     });
 
-    /* ===== Alert ===== */
     function showAlert(message, type = 'error') {
         alertEl.className = 'alert show ' + type;
         alertText.textContent = message;
     }
     function hideAlert() { alertEl.classList.remove('show'); }
 
-    /* ===== reCAPTCHA ===== */
     function waitForRecaptcha() {
         return new Promise((resolve) => {
             if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -614,7 +677,6 @@
         });
     }
 
-    /* ===== Submit ===== */
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert();
@@ -633,6 +695,7 @@
 
         try {
             await waitForRecaptcha();
+
             if (!window.grecaptcha || !window.grecaptcha.execute) {
                 throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
             }
@@ -648,10 +711,7 @@
 
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, password, recaptcha_token: recaptchaToken })
             });
 
@@ -662,7 +722,7 @@
             localStorage.setItem('user', JSON.stringify(data.user));
 
             showAlert('Login berhasil! Mengalihkan...', 'success');
-            setTimeout(() => { window.location.href = '/dashboard'; }, 800);
+            setTimeout(() => { window.location.replace('/dashboard'); }, 800);
 
         } catch (err) {
             showAlert(err.message, 'error');
