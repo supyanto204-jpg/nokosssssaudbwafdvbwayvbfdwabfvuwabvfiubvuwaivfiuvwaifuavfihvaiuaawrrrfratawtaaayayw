@@ -6,14 +6,15 @@
     <title>Login - AsyrofOTP</title>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
-<link rel="stylesheet" href="/css/layout.css">
-<link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -42,7 +43,6 @@
             overflow: hidden;
         }
 
-        /* Sunburst */
         body::before {
             content: '';
             position: fixed;
@@ -136,6 +136,12 @@
             margin-bottom: 6px;
         }
 
+        .input-wrap {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
         .form-control {
             width: 100%;
             padding: 12px 16px;
@@ -149,12 +155,51 @@
             outline: none;
         }
 
+        .form-control.with-eye { padding-right: 46px; }
+
         .form-control:focus {
             box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
             transform: translate(-1px, -1px);
         }
 
         .form-control::placeholder { color: #94a3b8; }
+
+        .form-control.invalid {
+            border-color: var(--danger);
+            background: #fef2f2;
+        }
+
+        .form-control.valid {
+            border-color: var(--success);
+        }
+
+        /* Toggle mata */
+        .eye-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            background: transparent;
+            border: none;
+            color: var(--text-gray);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .eye-btn:hover {
+            background: var(--bg-light);
+            color: var(--text-dark);
+        }
+
+        .eye-btn .icon-svg { width: 18px; height: 18px; }
 
         .btn {
             display: inline-flex;
@@ -246,6 +291,21 @@
         }
 
         @keyframes spinner { to { transform: rotate(360deg); } }
+
+        .recaptcha-notice {
+            text-align: center;
+            font-size: 0.72rem;
+            color: var(--text-gray);
+            margin-top: 16px;
+            line-height: 1.5;
+        }
+
+        .recaptcha-notice a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .recaptcha-notice a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -265,14 +325,22 @@
             <span id="alert-text"></span>
         </div>
 
-        <form id="loginForm">
+        <form id="loginForm" autocomplete="on">
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" class="form-control" id="username" placeholder="username" required autocomplete="username">
+                <input type="text" class="form-control" id="username" placeholder="username" required autocomplete="username" autofocus>
             </div>
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-control" id="password" placeholder="••••••••" required autocomplete="current-password">
+                <div class="input-wrap">
+                    <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password">
+                        <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
             <button type="submit" class="btn" id="submitBtn">
                 <span id="btnText">Login</span>
@@ -283,48 +351,110 @@
         <div class="auth-footer">
             Belum punya akun? <a href="/daftar">Daftar sekarang</a>
         </div>
+
+        <div class="recaptcha-notice">
+            Dilindungi oleh reCAPTCHA.
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
+            <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+        </div>
     </div>
 </div>
 
 <script>
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
     const form = document.getElementById('loginForm');
     const alertEl = document.getElementById('alert');
     const alertText = document.getElementById('alert-text');
     const submitBtn = document.getElementById('submitBtn');
     const btnText = document.getElementById('btnText');
     const btnIcon = document.getElementById('btnIcon');
+    const passwordInput = document.getElementById('password');
+    const togglePassword = document.getElementById('togglePassword');
+    const eyeIcon = document.getElementById('eyeIcon');
 
+    /* ===== Toggle mata password ===== */
+    const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    const EYE_CLOSED = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+
+    let passwordVisible = false;
+    togglePassword.addEventListener('click', () => {
+        passwordVisible = !passwordVisible;
+        passwordInput.type = passwordVisible ? 'text' : 'password';
+        eyeIcon.innerHTML = passwordVisible ? EYE_CLOSED : EYE_OPEN;
+        togglePassword.setAttribute('aria-label', passwordVisible ? 'Sembunyikan password' : 'Lihat password');
+    });
+
+    /* ===== Alert helpers ===== */
     function showAlert(message, type = 'error') {
         alertEl.className = 'alert show ' + type;
         alertText.textContent = message;
+        alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     function hideAlert() {
         alertEl.classList.remove('show');
     }
 
+    /* ===== Tunggu reCAPTCHA ready ===== */
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) {
+                return resolve();
+            }
+            let attempts = 0;
+            const maxAttempts = 50; // ~5 detik
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(timer);
+                    resolve(); // resolve juga biar bisa muncul error yang jelas
+                }
+            }, 100);
+        });
+    }
+
+    /* ===== Submit ===== */
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert();
 
         const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
+        const password = passwordInput.value;
 
         if (!username || !password) {
             showAlert('Username dan password wajib diisi', 'error');
             return;
         }
 
-        // Loading state
         submitBtn.disabled = true;
         btnText.textContent = 'Memproses...';
         btnIcon.outerHTML = '<div class="spinner" id="btnIcon"></div>';
 
         try {
+            // === Ambil token reCAPTCHA ===
+            await waitForRecaptcha();
+
+            if (!window.grecaptcha || !window.grecaptcha.execute) {
+                throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
+            }
+
+            const recaptchaToken = await new Promise((resolve, reject) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action: 'login' })
+                        .then(resolve)
+                        .catch(reject);
+                });
+                setTimeout(() => reject(new Error('Timeout verifikasi keamanan')), 10000);
+            });
+
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username, password, recaptcha_token: recaptchaToken })
             });
 
             const data = await res.json();
@@ -333,7 +463,6 @@
                 throw new Error(data.error || 'Login gagal');
             }
 
-            // Simpan token
             localStorage.setItem('access_token', data.session.access_token);
             localStorage.setItem('user', JSON.stringify(data.user));
 
@@ -347,12 +476,13 @@
             showAlert(err.message, 'error');
             submitBtn.disabled = false;
             btnText.textContent = 'Login';
-            document.getElementById('btnIcon').outerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
+            const oldIcon = document.getElementById('btnIcon');
+            if (oldIcon) oldIcon.outerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
         }
     });
 </script>
 
-    <script src="/js/cache.js"></script>
+<script src="/js/cache.js"></script>
 
 </body>
 </html>
