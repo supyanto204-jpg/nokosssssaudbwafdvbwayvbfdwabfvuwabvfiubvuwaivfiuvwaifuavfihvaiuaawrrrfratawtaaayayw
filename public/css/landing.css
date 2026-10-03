@@ -93,24 +93,30 @@ img, svg { -webkit-user-drag: none; user-drag: none; }
 /* ============================================
    BACKGROUND STACK — Fixed Layer
    ============================================ */
+/* ============================================
+   BACKGROUND STACK — Fix abu-abu
+   ============================================ */
 .bg-stack {
     position: fixed;
     inset: 0;
     z-index: -1;
     overflow: hidden;
     pointer-events: none;
-    /* Single static gradient fallback */
+    /* Fallback dengan warna yang LEBIH PEKAT */
     background:
-        radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
-        radial-gradient(circle at 80% 60%, rgba(124, 58, 237, 0.12) 0%, transparent 50%);
+        radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.35) 0%, transparent 55%),
+        radial-gradient(circle at 85% 70%, rgba(167, 139, 250, 0.3) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.15) 0%, transparent 65%),
+        linear-gradient(135deg, #dbeafe 0%, #e9d5ff 50%, #fce7f3 100%);
 }
 
 [data-theme="dark"] .bg-stack {
     background:
-        radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
-        radial-gradient(circle at 80% 60%, rgba(167, 139, 250, 0.1) 0%, transparent 50%);
+        radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.25) 0%, transparent 55%),
+        radial-gradient(circle at 85% 70%, rgba(167, 139, 250, 0.22) 0%, transparent 55%),
+        radial-gradient(circle at 50% 50%, rgba(236, 72, 153, 0.12) 0%, transparent 65%),
+        linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #4c1d95 100%);
 }
-
 .bg-gradient-waves {
     position: absolute;
     inset: 0;
@@ -522,12 +528,14 @@ nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
    TEXTTYPE
    ============================================ */
 .hero-subtitle {
-    color: var(--text-gray);
+    color: var(--text-dark);
     font-size: 1.05rem;
     margin-bottom: 32px;
     max-width: 520px;
     min-height: 1.6em;
     font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    opacity: 0.75;
 }
 .text-type-cursor {
     display: inline-block;
@@ -746,11 +754,21 @@ nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
 .hero-stat-value {
     font-size: 1.8rem;
     font-weight: 900;
+    color: var(--primary);
+    letter-spacing: -0.03em;
+    /* Fallback kalau gradient text ga support */
     background: linear-gradient(135deg, var(--primary), var(--purple));
     -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
     background-clip: text;
-    letter-spacing: -0.03em;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Fallback buat browser yang ga support background-clip: text */
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+    .hero-stat-value {
+        color: var(--primary);
+        -webkit-text-fill-color: currentColor;
+    }
 }
 .hero-stat-label {
     font-size: 0.78rem;
