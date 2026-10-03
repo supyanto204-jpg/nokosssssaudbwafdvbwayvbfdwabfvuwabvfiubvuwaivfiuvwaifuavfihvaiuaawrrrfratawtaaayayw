@@ -1,5 +1,6 @@
 /* ============================================
    CORE.CSS — Reset, Variables, Animations
+   HARDENED v3 — anti-leak, anti-select, anti-drag, anti-print
    ============================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
@@ -36,8 +37,10 @@
     --danger-dark: #991b1b;
     --purple: #7c3aed;
     --purple-light: #ede9fe;
+    --purple-dark: #5b21b6;
     --orange: #ea580c;
     --orange-light: #ffedd5;
+    --orange-dark: #9a3412;
     --cyan: #06b6d4;
     --pink: #ec4899;
     --telegram: #229ED9;
@@ -76,14 +79,17 @@
     --transition-slow: 0.4s var(--ease);
 
     /* Font */
-    --font-display: 'Bricolage Grotesque', sans-serif;
-    --font-body: 'Space Grotesk', sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
+    --font-display: 'Bricolage Grotesque', 'Space Grotesk', system-ui, sans-serif;
+    --font-body: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 
     /* Layout */
     --sidebar-width: 260px;
     --sidebar-collapsed: 72px;
     --taskbar-height: 68px;
+
+    /* Theme */
+    color-scheme: light;
 }
 
 /* ============================================
@@ -107,8 +113,10 @@
     --danger-dark: #fca5a5;
     --purple: #a78bfa;
     --purple-light: rgba(167, 139, 250, 0.15);
+    --purple-dark: #7c3aed;
     --orange: #fb923c;
     --orange-light: rgba(251, 146, 60, 0.15);
+    --orange-dark: #ea580c;
 
     --text-dark: #f1f5f9;
     --text-gray: #94a3b8;
@@ -120,12 +128,14 @@
     --bg-hover: #334155;
 
     --border: #334155;
-    --border-dark: #e2e8f0;
+    --border-dark: #475569;
 
     --shadow-hard: 3px 3px 0px rgba(0, 0, 0, 0.5);
     --shadow-hard-sm: 2px 2px 0px rgba(0, 0, 0, 0.5);
     --shadow-hard-lg: 5px 5px 0px rgba(0, 0, 0, 0.5);
     --shadow-glow: 0 0 24px rgba(59, 130, 246, 0.4);
+
+    color-scheme: dark;
 }
 
 /* ============================================
@@ -135,6 +145,8 @@ html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* Cegah overscroll bounce di iOS */
+    overscroll-behavior-y: none;
 }
 
 body {
@@ -165,6 +177,106 @@ body.page-exit {
 }
 
 /* ============================================
+   🔒 ANTI-LEAK / ANTI-SELECT / ANTI-DRAG
+   ============================================ */
+
+/* Blokir text selection di seluruh body */
+body,
+body * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+/* Kecuali input, textarea, code — biar user tetap bisa ketik/copy */
+input,
+textarea,
+select,
+code,
+[contenteditable="true"],
+.dashboard-layout input,
+.dashboard-layout textarea,
+.dashboard-layout select,
+.dashboard-layout code {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}
+
+/* Blokir drag di semua elemen (kecuali input) */
+body *:not(input):not(textarea):not([draggable="true"]) {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+}
+
+/* Blokir klik-kanan di image (biar QR gak bisa save langsung) */
+img {
+    pointer-events: none;
+    -webkit-user-drag: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* Kecuali image di dalam link/dashboard (kalau butuh) */
+a img,
+.dashboard-layout img,
+button img {
+    pointer-events: auto;
+}
+
+/* Cegah double-tap zoom di mobile */
+* {
+    touch-action: manipulation;
+}
+
+/* Cegah long-press callout di iOS untuk semua elemen */
+* {
+    -webkit-touch-callout: none;
+}
+
+/* Pengecualian: input harus tetap bisa di-tap dan di-hold */
+input, textarea {
+    touch-action: auto;
+    -webkit-touch-callout: default;
+}
+
+/* ============================================
+   🚫 ANTI PRINT — cegah screenshot via Ctrl+P
+   ============================================ */
+@media print {
+    body {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    html::after {
+        content: '⚠️ Halaman ini tidak dapat dicetak / disimpan.';
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: system-ui, sans-serif;
+        font-size: 1.2rem;
+        color: #dc2626;
+        text-align: center;
+        padding: 20px;
+    }
+}
+
+/* ============================================
+   🔒 ANTI-IFRAME (extra layer)
+   ============================================ */
+html {
+    /* Frame-ancestors tidak bisa di-set via CSS, tapi ini hint */
+    -webkit-touch-callout: none;
+}
+
+/* ============================================
    TYPOGRAPHY
    ============================================ */
 h1, h2, h3, h4, h5, h6 {
@@ -190,11 +302,22 @@ h3 { font-size: 1.05rem; }
     stroke-linecap: round;
     stroke-linejoin: round;
     flex-shrink: 0;
+    /* Cegah ikon kepilih */
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
 .icon-svg.fill {
     fill: currentColor;
     stroke: none;
+}
+
+/* Icon di dalam button: kasih pointer-events auto ke parent-nya */
+button .icon-svg,
+a .icon-svg,
+.btn .icon-svg {
+    pointer-events: none;
 }
 
 /* ============================================
@@ -210,6 +333,16 @@ h3 { font-size: 1.05rem; }
     display: inline-block;
     vertical-align: middle;
     flex-shrink: 0;
+    /* Flag gak bisa di-drag */
+    pointer-events: none;
+    -webkit-user-drag: none;
+    user-select: none;
+}
+
+/* Flag di dalam link/button tetap bisa diklik */
+a .flag-img,
+button .flag-img {
+    pointer-events: auto;
 }
 
 /* ============================================
@@ -314,6 +447,14 @@ h3 { font-size: 1.05rem; }
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    /* Fallback warna kalau background-clip gak didukung */
+    color: var(--primary);
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+    .text-gradient {
+        color: transparent;
+    }
 }
 
 .text-mono { font-family: var(--font-mono); letter-spacing: -0.02em; }
@@ -321,15 +462,27 @@ h3 { font-size: 1.05rem; }
 .text-center { text-align: center; }
 .text-right { text-align: right; }
 
+/* Selection — tetap ada, tapi hanya berlaku kalau user bypass anti-select */
 ::selection {
     background: var(--primary);
     color: white;
 }
 
+::-moz-selection {
+    background: var(--primary);
+    color: white;
+}
+
+/* Focus ring untuk keyboard user (accessibility) */
 :focus-visible {
     outline: 3px solid var(--primary);
     outline-offset: 2px;
     border-radius: 4px;
+}
+
+/* Hilangkan outline default untuk mouse user */
+:focus:not(:focus-visible) {
+    outline: none;
 }
 
 /* ============================================
@@ -344,13 +497,80 @@ h3 { font-size: 1.05rem; }
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--primary); }
 
+/* Firefox scrollbar */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-dark) var(--bg-light);
+}
+
 /* ============================================
-   REDUCED MOTION
+   INPUT NUMBER — hilangkan spinner
+   ============================================ */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* ============================================
+   BUTTON & LINK — reset default
+   ============================================ */
+button {
+    font-family: inherit;
+    cursor: pointer;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+/* ============================================
+   LINK DALAM KONTEN — tetap bisa di-select
+   ============================================ */
+a[href],
+button,
+[role="button"] {
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* ============================================
+   REDUCED MOTION — hormati OS user
    ============================================ */
 @media (prefers-reduced-motion: reduce) {
+    html {
+        scroll-behavior: auto;
+    }
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ============================================
+   HIGH CONTRAST MODE (Windows)
+   ============================================ */
+@media (prefers-contrast: more) {
+    :root {
+        --border-dark: #000000;
+        --text-dark: #000000;
+        --text-gray: #333333;
+    }
+}
+
+/* ============================================
+   DARK MODE SCROLLBAR
+   ============================================ */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--bg-light);
+}
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    border-color: var(--bg-light);
 }
