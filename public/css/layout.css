@@ -1,6 +1,6 @@
 /* ============================================
    LAYOUT.CSS — Layout, Sidebar, Topbar, Taskbar
-   v5 — Sidebar STICKY (ikut scroll) + Anti-leak
+   v6 — FIX: Taskbar vs Sidebar stacking + contain
    ============================================ */
 
 /* ============================================
@@ -57,8 +57,7 @@
     min-height: 100vh;
     width: 100%;
     position: relative;
-    contain: layout style;
-    /* align-items: flex-start biar sidebar sticky jalan */
+    /* FIX: contain dihapus — bikin stacking context yang ganggu z-index global */
     align-items: flex-start;
 }
 
@@ -74,7 +73,6 @@
     pointer-events: none;
     z-index: 0;
     overflow: hidden;
-    contain: strict;
 }
 
 .bg-pulse span {
@@ -114,7 +112,7 @@
 }
 
 /* ============================================
-   SIDEBAR — STICKY (ikut scroll, nempel di atas)
+   SIDEBAR — STICKY (desktop)
    ============================================ */
 .sidebar {
     width: var(--sidebar-width);
@@ -134,7 +132,7 @@
     transition: width 0.3s var(--ease);
     overflow: hidden;
     flex-shrink: 0;
-    contain: layout style paint;
+    /* contain dihapus juga — biar z-index global */
 }
 
 .sidebar.collapsed {
@@ -539,7 +537,6 @@
    ============================================ */
 .main-content {
     flex: 1;
-    /* HAPUS margin-left — sidebar ada di flow (sticky) */
     margin-left: 0;
     padding: 24px 32px 60px;
     min-height: 100vh;
@@ -548,7 +545,7 @@
     min-width: 0;
     transition: margin-left 0.3s var(--ease);
     z-index: 1;
-    contain: layout style;
+    /* contain dihapus — biar gak bikin stacking context yang ganggu */
 }
 
 body.sidebar-collapsed .main-content {
@@ -1044,6 +1041,39 @@ body.sidebar-collapsed .main-content {
     }
 
     .balance-pill .label { display: none; }
+
+    /* ============================================
+       FIX: URUTAN Z-INDEX MOBILE
+       Taskbar HARUS di bawah sidebar & overlay
+       ============================================ */
+    .mobile-taskbar {
+        z-index: 100 !important;
+    }
+
+    .sidebar-overlay,
+    .sidebar-overlay.active {
+        z-index: 9998 !important;
+    }
+
+    .sidebar,
+    .sidebar.open,
+    .sidebar.collapsed,
+    .sidebar.collapsed.open {
+        z-index: 9999 !important;
+    }
+
+    .mobile-toggle {
+        z-index: 10000 !important;
+    }
+
+    .theme-toggle {
+        z-index: 10001 !important;
+    }
+
+    /* Topbar & navbar turun ke bawah */
+    .topbar {
+        z-index: 10 !important;
+    }
 }
 
 @media (max-width: 480px) {
