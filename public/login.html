@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
+    <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + DevTools lock (jalan paling awal) -->
     <script>
         // Anti-FOUC: apply theme sebelum render
         (function() {
@@ -25,11 +26,108 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
 
-        // Anti-iframe (clickjacking protection) — jalan paling awal
+        // Anti-iframe (clickjacking protection)
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
+
+        // 🔒 DevTools LOCK SCREEN — jalan sebelum DOM render
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                // Sembunyikan semua konten sejak awal
+                document.documentElement.innerHTML = '<head></head><body></body>';
+
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            #devtoolsLockScreen {
+                                position: fixed;
+                                inset: 0;
+                                background: #0f172a;
+                                z-index: 2147483647;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 24px;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                user-select: none;
+                                -webkit-user-select: none;
+                                overflow: hidden;
+                                margin: 0;
+                            }
+                            #devtoolsLockScreen .lock-box {
+                                background: #1e293b;
+                                border: 3px solid #475569;
+                                border-radius: 20px;
+                                padding: 40px 32px;
+                                max-width: 440px;
+                                text-align: center;
+                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                            }
+                            #devtoolsLockScreen .lock-icon {
+                                font-size: 3rem;
+                                margin-bottom: 16px;
+                                line-height: 1;
+                            }
+                            #devtoolsLockScreen h2 {
+                                color: #dc2626;
+                                font-size: 1.5rem;
+                                font-weight: 800;
+                                margin: 0 0 12px;
+                                font-family: inherit;
+                            }
+                            #devtoolsLockScreen p {
+                                color: #cbd5e1;
+                                font-size: 0.95rem;
+                                line-height: 1.6;
+                                margin: 0 0 8px;
+                            }
+                            #devtoolsLockScreen .lock-hint {
+                                color: #64748b;
+                                font-size: 0.78rem;
+                                font-family: ui-monospace, monospace;
+                                margin-top: 20px;
+                                padding-top: 16px;
+                                border-top: 1px dashed #334155;
+                            }
+                            body { margin: 0; background: #0f172a; }
+                        </style>
+                    `;
+
+                    // Polling: kalau DevTools ditutup → clear flag → reload
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showLockScreen);
+                } else {
+                    showLockScreen();
+                }
+
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
@@ -49,6 +147,7 @@
             --danger: #ef4444;
             --success: #22c55e;
             --shadow-color: rgba(15, 23, 42, 1);
+            color-scheme: light;
         }
 
         [data-theme="dark"] {
@@ -63,6 +162,7 @@
             --danger: #f87171;
             --success: #4ade80;
             --shadow-color: rgba(0, 0, 0, 0.6);
+            color-scheme: dark;
         }
 
         body {
@@ -77,6 +177,30 @@
             position: relative;
             overflow: hidden;
             transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* 🔒 ANTI-LEAK */
+        body,
+        body * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        input, textarea, select, code, [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+        }
+
+        img, svg {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            user-drag: none;
         }
 
         body::before {
@@ -146,6 +270,8 @@
             box-shadow: 3px 3px 0px var(--shadow-color);
             text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
             transform: rotate(-3deg);
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .auth-logo span { color: var(--primary); }
@@ -234,7 +360,7 @@
             color: var(--text-dark);
         }
 
-        .eye-btn .icon-svg { width: 18px; height: 18px; }
+        .eye-btn .icon-svg { width: 18px; height: 18px; pointer-events: none; }
 
         .btn {
             display: inline-flex;
@@ -272,6 +398,11 @@
             transform: none;
         }
 
+        .btn:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 3px;
+        }
+
         .icon-svg {
             width: 18px;
             height: 18px;
@@ -280,6 +411,7 @@
             stroke-width: 2;
             stroke-linecap: round;
             stroke-linejoin: round;
+            pointer-events: none;
         }
 
         .auth-footer {
@@ -380,43 +512,37 @@
         [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
         [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
 
-        /* DevTools blur overlay */
-        .devtools-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            z-index: 99998;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            text-align: center;
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body {
+                display: none !important;
+                visibility: hidden !important;
+            }
+            body::after {
+                content: '⚠️ Halaman ini tidak dapat dicetak / disimpan.';
+                display: block !important;
+                visibility: visible !important;
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: system-ui, sans-serif;
+                font-size: 1.2rem;
+                color: #dc2626;
+                text-align: center;
+                padding: 20px;
+                background: white;
+            }
         }
 
-        .devtools-overlay.show { display: flex; }
-
-        .devtools-content {
-            background: var(--bg-card);
-            border: 3px solid var(--border-dark);
-            border-radius: 16px;
-            padding: 32px;
-            max-width: 400px;
-            box-shadow: 6px 6px 0px var(--shadow-color);
-        }
-
-        .devtools-content h2 {
-            font-size: 1.3rem;
-            font-weight: 800;
-            margin-bottom: 12px;
-            color: var(--danger);
-        }
-
-        .devtools-content p {
-            color: var(--text-gray);
-            font-size: 0.9rem;
-            line-height: 1.6;
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
@@ -432,14 +558,6 @@
         <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
     </svg>
 </button>
-
-<!-- DevTools warning overlay -->
-<div class="devtools-overlay" id="devtoolsOverlay">
-    <div class="devtools-content">
-        <h2>⚠️ Akses Dibatasi</h2>
-        <p>Tolong tutup Developer Tools untuk melanjutkan. Halaman ini dilindungi demi keamanan akun kamu.</p>
-    </div>
-</div>
 
 <div class="auth-container">
     <a href="/landing" class="auth-logo">
@@ -500,84 +618,87 @@
     (function() {
         const style = 'color:#dc2626;font-size:20px;font-weight:900;';
         const styleSub = 'color:#64748b;font-size:12px;';
-        console.log('%c⚠️ STOP!', style);
-        console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
-        console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
     })();
 
-    // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U
+    // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U/S/P
     (function() {
-        // Disable right-click
         document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Disable keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             const k = e.key;
-            // F12
             if (k === 'F12') { e.preventDefault(); return false; }
-            // Ctrl+Shift+I / J / C
             if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) {
                 e.preventDefault(); return false;
             }
-            // Ctrl+U (view source)
-            if (e.ctrlKey && ['U','u'].includes(k)) {
-                e.preventDefault(); return false;
-            }
-            // Ctrl+S (save page)
-            if (e.ctrlKey && ['S','s'].includes(k)) {
-                e.preventDefault(); return false;
-            }
-            // Ctrl+P (print)
-            if (e.ctrlKey && ['P','p'].includes(k)) {
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) {
                 e.preventDefault(); return false;
             }
         }, true);
     })();
 
-    // 3. Disable text selection di area sensitif
+    // 3. Deteksi DevTools → wipe DOM + auto reload
     (function() {
-        document.body.style.webkitUserSelect = 'none';
-        document.body.style.userSelect = 'none';
-        // Tapi izinkan input
-        const allowSelect = 'input, textarea';
-        document.querySelectorAll(allowSelect).forEach(el => {
-            el.style.webkitUserSelect = 'text';
-            el.style.userSelect = 'text';
-        });
-    })();
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
 
-    // 4. Deteksi DevTools terbuka
-    (function() {
-        let devtoolsOpen = false;
-        const overlay = document.getElementById('devtoolsOverlay');
-        const threshold = 160;
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
 
-        function check() {
-            const widthDiff = window.outerWidth - window.innerWidth > threshold;
-            const heightDiff = window.outerHeight - window.innerHeight > threshold;
-            const isOpen = widthDiff || heightDiff;
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
 
-            if (isOpen !== devtoolsOpen) {
-                devtoolsOpen = isOpen;
-                if (isOpen) {
-                    overlay.classList.add('show');
-                } else {
-                    overlay.classList.remove('show');
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
                 }
-            }
+            }, 500);
         }
 
-        setInterval(check, 1000);
+        // Kalau flag lock ada → script di <head> yang handle, skip detection
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+            return;
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startDetection);
+        } else {
+            startDetection();
+        }
     })();
 
-    // 5. Anti-copy di field password
+    // 4. Anti-copy di area non-input
     (function() {
-        const pw = document.getElementById('password');
-        if (pw) {
-            pw.addEventListener('copy', (e) => e.preventDefault());
-            pw.addEventListener('cut', (e) => e.preventDefault());
-            // Paste tetap diizinkan biar user bisa pakai password manager
-        }
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                return;
+            }
+            e.preventDefault();
+        });
+
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                return;
+            }
+            e.preventDefault();
+        });
     })();
 
     /* ============================================
@@ -597,18 +718,16 @@
             clearTimeout(timeout);
 
             if (res.ok) {
-                // Token masih valid → redirect ke dashboard
                 window.location.replace('/dashboard');
                 return;
             }
 
-            // Token invalid → bersihin
             if (res.status === 401 || res.status === 403) {
                 localStorage.removeItem('access_token');
                 localStorage.removeItem('user');
             }
         } catch (err) {
-            // Network error / timeout → biarkan di login
+            // silent
         }
     })();
 
