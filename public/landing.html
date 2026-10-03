@@ -14,6 +14,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://assets.cindigital.id" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
@@ -184,138 +185,187 @@
         }
 
         /* ============================================
-           BACKGROUND INTERACTIVE — GRADIENT FOLLOWS CURSOR
+           BACKGROUND LAYER SYSTEM
            ============================================ */
-        .bg-interactive {
+        .bg-layer {
             position: fixed;
             inset: 0;
             z-index: -4;
             overflow: hidden;
             pointer-events: none;
-            background: var(--bg-light);
         }
 
-        /* Gradient orb besar yang ngikutin kursor */
+        /* ---- LAYER 1: Cursor gradient orb ---- */
         .bg-cursor-orb {
             position: absolute;
             width: 700px;
             height: 700px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.4) 0%, rgba(124, 58, 237, 0.25) 30%, transparent 65%);
-            filter: blur(80px);
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.45) 0%, rgba(124, 58, 237, 0.28) 30%, transparent 65%);
+            filter: blur(70px);
             pointer-events: none;
             transform: translate(-50%, -50%);
-            transition: opacity 0.5s ease;
             top: 30%;
             left: 50%;
             will-change: transform;
-            opacity: 0.8;
+            opacity: 0.85;
         }
         [data-theme="dark"] .bg-cursor-orb {
-            background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(167, 139, 250, 0.2) 30%, transparent 65%);
-            opacity: 0.5;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, rgba(167, 139, 250, 0.25) 30%, transparent 65%);
+            opacity: 0.55;
         }
 
-        /* Orb kedua yang lebih kecil & warna beda */
         .bg-cursor-orb-2 {
             position: absolute;
             width: 400px;
             height: 400px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, rgba(6, 182, 212, 0.2) 40%, transparent 70%);
-            filter: blur(70px);
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.35) 0%, rgba(6, 182, 212, 0.22) 40%, transparent 70%);
+            filter: blur(60px);
             pointer-events: none;
             transform: translate(-50%, -50%);
-            transition: opacity 0.5s ease;
             top: 50%;
             left: 50%;
             will-change: transform;
-            opacity: 0.6;
+            opacity: 0.7;
         }
-        [data-theme="dark"] .bg-cursor-orb-2 { opacity: 0.35; }
+        [data-theme="dark"] .bg-cursor-orb-2 { opacity: 0.4; }
 
-        /* Blobs statis yang floating */
+        /* ---- LAYER 2: Micro slats (garis vertikal halus) ---- */
+        .bg-slats {
+            position: absolute;
+            inset: 0;
+            background-image: repeating-linear-gradient(
+                90deg,
+                rgba(37, 99, 235, 0.06) 0px,
+                rgba(37, 99, 235, 0.06) 1px,
+                transparent 1px,
+                transparent 8px
+            );
+            -webkit-mask-image: radial-gradient(circle at 50% 40%, black 0%, transparent 80%);
+            mask-image: radial-gradient(circle at 50% 40%, black 0%, transparent 80%);
+            pointer-events: none;
+        }
+
+        /* Slats bergerak halus */
+        .bg-slats-anim {
+            position: absolute;
+            inset: -10% 0;
+            background-image: repeating-linear-gradient(
+                90deg,
+                rgba(124, 58, 237, 0.08) 0px,
+                rgba(124, 58, 237, 0.08) 1px,
+                transparent 1px,
+                transparent 14px
+            );
+            -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 75%);
+            mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 75%);
+            animation: slatsMove 40s linear infinite;
+            pointer-events: none;
+        }
+
+        [data-theme="dark"] .bg-slats,
+        [data-theme="dark"] .bg-slats-anim {
+            background-image: repeating-linear-gradient(
+                90deg,
+                rgba(59, 130, 246, 0.08) 0px,
+                rgba(59, 130, 246, 0.08) 1px,
+                transparent 1px,
+                transparent 12px
+            );
+        }
+
+        @keyframes slatsMove {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(14px); }
+        }
+
+        /* ---- LAYER 3: Floating blobs ---- */
         .bg-blob {
             position: absolute;
             border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.3;
-            animation: blobFloat 24s ease-in-out infinite;
+            filter: blur(90px);
+            opacity: 0.35;
+            animation: blobFloat 22s ease-in-out infinite;
             will-change: transform;
         }
         .bg-blob:nth-child(1) {
-            width: 500px; height: 500px;
+            width: 450px; height: 450px;
             background: radial-gradient(circle, #3b82f6, transparent 70%);
-            top: -10%; left: -10%;
+            top: -8%; left: -8%;
         }
         .bg-blob:nth-child(2) {
-            width: 600px; height: 600px;
+            width: 550px; height: 550px;
             background: radial-gradient(circle, #7c3aed, transparent 70%);
-            top: 30%; right: -15%;
-            animation-delay: -8s;
+            top: 30%; right: -12%;
+            animation-delay: -7s;
         }
         .bg-blob:nth-child(3) {
-            width: 450px; height: 450px;
+            width: 400px; height: 400px;
             background: radial-gradient(circle, #ec4899, transparent 70%);
-            bottom: -10%; left: 25%;
-            animation-delay: -16s;
+            bottom: -8%; left: 22%;
+            animation-delay: -14s;
         }
-        [data-theme="dark"] .bg-blob { opacity: 0.18; }
+        [data-theme="dark"] .bg-blob { opacity: 0.22; }
 
         @keyframes blobFloat {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(60px, -40px) scale(1.08); }
-            50% { transform: translate(-40px, 60px) scale(0.95); }
-            75% { transform: translate(30px, 30px) scale(1.03); }
+            25% { transform: translate(70px, -50px) scale(1.1); }
+            50% { transform: translate(-50px, 70px) scale(0.94); }
+            75% { transform: translate(40px, 40px) scale(1.06); }
         }
 
-        /* ============================================
-           BACKGROUND — GRADIENT WAVES SMOOTH + BLUR
-           ============================================ */
+        /* ---- LAYER 4: Wave yang JELAS & BERGERAK ---- */
         .bg-waves {
-            position: fixed;
-            inset: 0;
-            z-index: -3;
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 55%;
             overflow: hidden;
-            pointer-events: none;
         }
         .bg-waves svg {
             position: absolute;
-            left: -50%;
-            bottom: -5%;
-            width: 200%;
-            height: 80%;
-            filter: blur(30px);
-            opacity: 0.55;
+            left: -10%;
+            bottom: 0;
+            width: 120%;
+            height: 100%;
             will-change: transform;
         }
         .bg-waves .wave-1 {
-            animation: waveSmooth1 30s ease-in-out infinite;
+            animation: waveMove1 12s ease-in-out infinite;
+            opacity: 0.55;
         }
         .bg-waves .wave-2 {
-            animation: waveSmooth2 40s ease-in-out infinite;
+            animation: waveMove2 16s ease-in-out infinite;
+            opacity: 0.45;
+            bottom: 15px;
         }
         .bg-waves .wave-3 {
-            animation: waveSmooth3 50s ease-in-out infinite;
+            animation: waveMove3 20s ease-in-out infinite;
+            opacity: 0.35;
+            bottom: 30px;
         }
 
-        @keyframes waveSmooth1 {
-            0% { transform: translate(-5%, 0) scaleY(1); }
-            50% { transform: translate(5%, -8%) scaleY(1.08); }
-            100% { transform: translate(-5%, 0) scaleY(1); }
+        @keyframes waveMove1 {
+            0%   { transform: translateX(0) translateY(0); }
+            50%  { transform: translateX(-4%) translateY(-18px); }
+            100% { transform: translateX(0) translateY(0); }
         }
-        @keyframes waveSmooth2 {
-            0% { transform: translate(8%, 0) scaleY(1.05); }
-            50% { transform: translate(-8%, -12%) scaleY(0.95); }
-            100% { transform: translate(8%, 0) scaleY(1.05); }
+        @keyframes waveMove2 {
+            0%   { transform: translateX(-4%) translateY(0); }
+            50%  { transform: translateX(4%) translateY(-24px); }
+            100% { transform: translateX(-4%) translateY(0); }
         }
-        @keyframes waveSmooth3 {
-            0% { transform: translate(-3%, -5%) scaleY(0.98); }
-            50% { transform: translate(3%, -15%) scaleY(1.1); }
-            100% { transform: translate(-3%, -5%) scaleY(0.98); }
+        @keyframes waveMove3 {
+            0%   { transform: translateX(2%) translateY(0); }
+            50%  { transform: translateX(-2%) translateY(-32px); }
+            100% { transform: translateX(2%) translateY(0); }
         }
 
-        [data-theme="dark"] .bg-waves svg { opacity: 0.65; filter: blur(40px); }
+        [data-theme="dark"] .bg-waves .wave-1 { opacity: 0.65; }
+        [data-theme="dark"] .bg-waves .wave-2 { opacity: 0.55; }
+        [data-theme="dark"] .bg-waves .wave-3 { opacity: 0.45; }
 
         /* ===== CONTAINER ===== */
         .container {
@@ -339,8 +389,6 @@
             stroke-linejoin: round;
             flex-shrink: 0;
             pointer-events: none;
-            user-select: none;
-            -webkit-user-select: none;
         }
         .icon-svg.fill { fill: currentColor; stroke: none; }
 
@@ -391,17 +439,17 @@
            NAVBAR
            ============================================ */
         nav {
-            background: rgba(255, 255, 255, 0.7);
+            background: rgba(255, 255, 255, 0.75);
             backdrop-filter: blur(16px) saturate(180%);
             -webkit-backdrop-filter: blur(16px) saturate(180%);
             border-bottom: 2px solid var(--border-dark);
             position: sticky;
             top: 0;
             z-index: 100;
-            transition: background-color 0.3s, box-shadow 0.3s;
+            transition: box-shadow 0.3s;
         }
         nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
-        [data-theme="dark"] nav { background: rgba(30, 41, 59, 0.7); }
+        [data-theme="dark"] nav { background: rgba(30, 41, 59, 0.75); }
 
         .nav-inner {
             display: flex;
@@ -492,7 +540,7 @@
         .nav-links a:hover::after { width: 100%; }
 
         /* ============================================
-           HERO dengan SELECTION PER KATA
+           HERO
            ============================================ */
         .hero {
             padding: 100px 0 80px;
@@ -505,11 +553,6 @@
             grid-template-columns: 1fr 1fr;
             gap: 60px;
             align-items: center;
-            text-align: left;
-        }
-
-        @media (max-width: 900px) {
-            .hero-inner { grid-template-columns: 1fr; gap: 40px; text-align: center; }
         }
 
         .hero-badge {
@@ -543,14 +586,12 @@
             50% { opacity: 0.9; transform: scale(1.1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
         }
 
-        /* ==== HERO TITLE dengan SELECTION PER KATA ==== */
         .hero h1 {
             font-size: clamp(2rem, 4.5vw, 3.4rem);
             font-weight: 900;
             line-height: 1.15;
             letter-spacing: -0.04em;
             margin-bottom: 20px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .word {
@@ -570,7 +611,6 @@
             background-clip: text;
         }
 
-        /* Selection per kata */
         .word-select {
             position: absolute;
             inset: -4px -6px;
@@ -592,7 +632,6 @@
             50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
         }
 
-        /* Handles di setiap kata */
         .word-select::before,
         .word-select::after {
             content: '';
@@ -619,11 +658,6 @@
             flex-wrap: wrap;
         }
 
-        @media (max-width: 900px) {
-            .hero-buttons { justify-content: center; }
-        }
-
-        /* Button primary upgraded */
         .btn-primary, .btn-outline {
             padding: 15px 32px;
             border-radius: 50px;
@@ -700,12 +734,12 @@
         @keyframes rocketFly {
             0% { transform: translate(0, 0) rotate(0); }
             40% { transform: translate(8px, -12px) rotate(15deg); }
-            60% { transform: translate(-8px, 12px) rotate(-15deg); }
+            60% { transform: translate(-8px, -12px) rotate(-15deg); }
             100% { transform: translate(0, 0) rotate(0); }
         }
 
         /* ============================================
-           MASKOT + ORBIT ICON APLIKASI
+           MASKOT + ORBIT — pakai icon dari CDN backend
            ============================================ */
         .hero-visual {
             position: relative;
@@ -718,7 +752,6 @@
             justify-content: center;
         }
 
-        /* Orbit ring background */
         .orbit-ring {
             position: absolute;
             border: 2px dashed var(--border);
@@ -729,32 +762,37 @@
         .orbit-ring-mid { inset: 15%; }
         .orbit-ring-inner { inset: 30%; }
 
-        /* Maskot di tengah */
-        .mascot {
+        .mascot-wrap {
             position: relative;
-            width: 45%;
-            max-width: 200px;
-            z-index: 2;
-            animation: mascotFloat 3s ease-in-out infinite;
+            width: 44%;
+            max-width: 190px;
+            z-index: 3;
+            animation: mascotFloat 3.5s ease-in-out infinite;
             filter: drop-shadow(0 12px 24px rgba(37, 99, 235, 0.3));
         }
-
         @keyframes mascotFloat {
             0%, 100% { transform: translateY(0) rotate(-2deg); }
             50% { transform: translateY(-12px) rotate(2deg); }
         }
 
-        /* Orbit container — muter */
+        /* Mascot blink eyes */
+        .mascot-eye {
+            transform-origin: center;
+            animation: blink 5s ease-in-out infinite;
+        }
+        @keyframes blink {
+            0%, 90%, 100% { transform: scaleY(1); }
+            93%, 96% { transform: scaleY(0.1); }
+        }
+
         .orbit {
             position: absolute;
             inset: 0;
             animation: orbitRotate 30s linear infinite;
+            will-change: transform;
         }
         .orbit-reverse {
             animation: orbitRotate 40s linear infinite reverse;
-        }
-        .orbit-slow {
-            animation: orbitRotate 50s linear infinite;
         }
 
         @keyframes orbitRotate {
@@ -762,11 +800,11 @@
             to { transform: rotate(360deg); }
         }
 
-        /* Icon aplikasi di orbit — counter-rotate biar gak ikut miring */
+        /* Icon aplikasi dari CDN — counter rotate biar gak miring */
         .orbit-icon {
             position: absolute;
-            width: 52px;
-            height: 52px;
+            width: 54px;
+            height: 54px;
             border-radius: 14px;
             background: var(--bg-white);
             border: 2.5px solid var(--border-dark);
@@ -774,36 +812,36 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-dark);
-            font-weight: 900;
-            font-size: 1.3rem;
-            transition: transform 0.25s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.25s;
+            overflow: hidden;
+            padding: 8px;
+            transition: transform 0.25s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.25s, background-color 0.2s;
             will-change: transform;
             animation: iconCounterRotate 30s linear infinite;
         }
         .orbit-reverse .orbit-icon {
             animation: iconCounterRotate 40s linear infinite reverse;
         }
-        .orbit-slow .orbit-icon {
-            animation: iconCounterRotate 50s linear infinite;
-        }
-        .orbit-icon:nth-child(1) { transform: translate(-50%, -50%); }
-        .orbit-icon:nth-child(2) { transform: translate(-50%, -50%); }
 
         @keyframes iconCounterRotate {
             from { transform: translate(-50%, -50%) rotate(0deg); }
             to { transform: translate(-50%, -50%) rotate(-360deg); }
         }
 
+        .orbit-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            pointer-events: none;
+        }
+
         .orbit-icon:hover {
+            background: var(--primary-light);
             box-shadow: var(--shadow-hard);
             z-index: 5;
         }
-        .orbit-icon:hover {
-            filter: brightness(1.1);
-        }
 
-        /* Position icon di orbit — pakai top/left persen */
+        /* Position icon di orbit */
         .orbit-icon-1 { top: 0%; left: 50%; }
         .orbit-icon-2 { top: 25%; left: 93%; }
         .orbit-icon-3 { top: 75%; left: 93%; }
@@ -816,32 +854,19 @@
         .orbit-mid .orbit-icon-3 { top: 100%; left: 50%; }
         .orbit-mid .orbit-icon-4 { top: 50%; left: 0%; }
 
-        /* Warna masing-masing icon */
-        .orbit-icon.whatsapp { background: #e8f9ee; color: #25D366; }
-        .orbit-icon.telegram { background: #e8f4fd; color: #229ED9; }
-        .orbit-icon.instagram { background: #fce7f3; color: #E1306C; }
-        .orbit-icon.facebook { background: #e7f0fd; color: #1877F2; }
-        .orbit-icon.google { background: #fef3c7; color: #EA4335; }
-        .orbit-icon.tiktok { background: #f1f5f9; color: #000; }
-        .orbit-icon.shopee { background: #ffedd5; color: #EE4D2D; }
-        .orbit-icon.grab { background: #dcfce7; color: #00B14F; }
-        .orbit-icon.gojek { background: #dcfce7; color: #00AA13; }
-        .orbit-icon.twitter { background: #e0f2fe; color: #1DA1F2; }
+        /* Fallback kalau icon gagal load */
+        .orbit-icon .icon-fallback {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 1.1rem;
+            color: var(--primary);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
 
-        [data-theme="dark"] .orbit-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
-        [data-theme="dark"] .orbit-icon.telegram { background: rgba(34, 158, 217, 0.15); }
-        [data-theme="dark"] .orbit-icon.instagram { background: rgba(225, 48, 108, 0.15); }
-        [data-theme="dark"] .orbit-icon.facebook { background: rgba(24, 119, 242, 0.15); }
-        [data-theme="dark"] .orbit-icon.google { background: rgba(234, 67, 53, 0.15); }
-        [data-theme="dark"] .orbit-icon.tiktok { background: rgba(255, 255, 255, 0.1); color: #fff; }
-        [data-theme="dark"] .orbit-icon.shopee { background: rgba(238, 77, 45, 0.15); }
-        [data-theme="dark"] .orbit-icon.grab { background: rgba(0, 177, 79, 0.15); }
-        [data-theme="dark"] .orbit-icon.gojek { background: rgba(0, 170, 19, 0.15); }
-        [data-theme="dark"] .orbit-icon.twitter { background: rgba(29, 161, 242, 0.15); }
-
-        .orbit-icon .icon-svg { width: 26px; height: 26px; }
-
-        /* Sparkle */
         .sparkle {
             position: absolute;
             width: 6px;
@@ -849,38 +874,34 @@
             background: var(--primary);
             border-radius: 50%;
             pointer-events: none;
-            box-shadow: 0 0 8px var(--primary);
+            box-shadow: 0 0 10px var(--primary);
             animation: sparkleFloat 3s ease-in-out infinite;
         }
-        .sparkle:nth-child(1) { top: 10%; left: 15%; animation-delay: 0s; }
-        .sparkle:nth-child(2) { top: 20%; right: 18%; animation-delay: 0.5s; background: var(--purple); box-shadow: 0 0 8px var(--purple); }
-        .sparkle:nth-child(3) { bottom: 15%; left: 20%; animation-delay: 1s; background: var(--pink); box-shadow: 0 0 8px var(--pink); }
-        .sparkle:nth-child(4) { bottom: 25%; right: 15%; animation-delay: 1.5s; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+        .sparkle:nth-child(1) { top: 8%; left: 15%; animation-delay: 0s; }
+        .sparkle:nth-child(2) { top: 18%; right: 18%; animation-delay: 0.5s; background: var(--purple); box-shadow: 0 0 10px var(--purple); }
+        .sparkle:nth-child(3) { bottom: 15%; left: 20%; animation-delay: 1s; background: var(--pink); box-shadow: 0 0 10px var(--pink); }
+        .sparkle:nth-child(4) { bottom: 25%; right: 15%; animation-delay: 1.5s; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
 
         @keyframes sparkleFloat {
             0%, 100% { transform: scale(1); opacity: 0.6; }
-            50% { transform: scale(1.5); opacity: 1; }
+            50% { transform: scale(1.6); opacity: 1; }
         }
 
         /* ============================================
-           SUPPORT SECTION — REDESIGN (bisa diklik + animasi)
+           SUPPORT SECTION
            ============================================ */
-        .support-section {
-            padding: 80px 0;
-        }
+        .support-section { padding: 80px 0; }
 
         .support-header {
             text-align: center;
             margin-bottom: 48px;
         }
-
         .support-header h2 {
             font-size: clamp(1.6rem, 3vw, 2.2rem);
             font-weight: 900;
             letter-spacing: -0.03em;
             margin-bottom: 12px;
         }
-
         .support-header p {
             color: var(--text-gray);
             font-size: 1rem;
@@ -894,10 +915,6 @@
             gap: 24px;
             max-width: 800px;
             margin: 0 auto;
-        }
-
-        @media (max-width: 700px) {
-            .support-grid { grid-template-columns: 1fr; }
         }
 
         .support-card {
@@ -944,9 +961,7 @@
             transform: translate(-4px, -4px);
             box-shadow: var(--shadow-hard-lg);
         }
-        .support-card:active {
-            transform: translate(0, 0) scale(0.98);
-        }
+        .support-card:active { transform: translate(0, 0) scale(0.98); }
 
         .support-card-inner {
             position: relative;
@@ -970,20 +985,10 @@
             flex-shrink: 0;
             transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
-        .support-card:hover .support-icon {
-            transform: scale(1.1) rotate(-8deg);
-        }
-        .support-icon .icon-svg {
-            width: 32px;
-            height: 32px;
-            color: white;
-        }
+        .support-card:hover .support-icon { transform: scale(1.1) rotate(-8deg); }
+        .support-icon .icon-svg { width: 32px; height: 32px; color: white; }
 
-        .support-info {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .support-info { flex: 1; min-width: 0; }
         .support-info h3 {
             font-size: 1.2rem;
             font-weight: 800;
@@ -1014,7 +1019,6 @@
         }
         .support-card:hover .support-cta {
             background: white;
-            color: inherit;
         }
         .support-card.telegram:hover .support-cta { color: #229ED9; }
         .support-card.whatsapp:hover .support-cta { color: #25D366; }
@@ -1024,9 +1028,7 @@
             height: 12px;
             transition: transform 0.25s;
         }
-        .support-card:hover .support-cta .icon-svg {
-            transform: translate(3px, -3px);
-        }
+        .support-card:hover .support-cta .icon-svg { transform: translate(3px, -3px); }
 
         /* ============================================
            FEATURES
@@ -1043,7 +1045,6 @@
             text-align: center;
             margin-bottom: 64px;
         }
-
         .section-badge {
             display: inline-block;
             background: var(--gradient-soft);
@@ -1058,14 +1059,12 @@
             text-transform: uppercase;
             letter-spacing: 0.06em;
         }
-
         .section-header h2 {
             font-size: clamp(1.8rem, 3.5vw, 2.5rem);
             font-weight: 900;
             letter-spacing: -0.03em;
             margin-bottom: 14px;
         }
-
         .section-header p {
             color: var(--text-gray);
             font-size: 1.02rem;
@@ -1090,7 +1089,6 @@
             overflow: hidden;
             isolation: isolate;
         }
-
         .feature-card .glow {
             position: absolute;
             width: 220px;
@@ -1105,7 +1103,6 @@
             filter: blur(30px);
         }
         .feature-card:hover .glow { opacity: 1; }
-
         .feature-card:hover {
             background: var(--bg-white);
             transform: translate(-4px, -4px);
@@ -1138,7 +1135,6 @@
             position: relative;
             z-index: 1;
         }
-
         .feature-card p {
             color: var(--text-gray);
             font-size: 0.92rem;
@@ -1147,7 +1143,6 @@
             z-index: 1;
         }
 
-        /* Star rating */
         .rating-block {
             margin-top: 20px;
             padding-top: 20px;
@@ -1166,9 +1161,7 @@
             transition: color 0.3s, transform 0.3s;
         }
         .rating-star.filled { color: var(--warning); fill: var(--warning); }
-        .feature-card:hover .rating-star.filled {
-            animation: starPop 0.6s ease-out;
-        }
+        .feature-card:hover .rating-star.filled { animation: starPop 0.6s ease-out; }
         .feature-card:hover .rating-star.filled:nth-child(1) { animation-delay: 0s; }
         .feature-card:hover .rating-star.filled:nth-child(2) { animation-delay: 0.05s; }
         .feature-card:hover .rating-star.filled:nth-child(3) { animation-delay: 0.1s; }
@@ -1191,7 +1184,6 @@
            STEPS
            ============================================ */
         .steps { padding: 100px 0; }
-
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -1209,10 +1201,8 @@
                 height: 2px;
                 background: repeating-linear-gradient(
                     to right,
-                    var(--border) 0,
-                    var(--border) 8px,
-                    transparent 8px,
-                    transparent 16px
+                    var(--border) 0, var(--border) 8px,
+                    transparent 8px, transparent 16px
                 );
                 z-index: 0;
             }
@@ -1288,12 +1278,10 @@
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
         }
-
         .faq-list {
             max-width: 760px;
             margin: 0 auto;
         }
-
         .faq-item {
             border: 2px solid var(--border-dark);
             border-radius: var(--radius-sm);
@@ -1338,9 +1326,7 @@
             flex-shrink: 0;
             pointer-events: none;
         }
-        .faq-item.active .faq-question .icon-plus {
-            transform: rotate(135deg);
-        }
+        .faq-item.active .faq-question .icon-plus { transform: rotate(135deg); }
 
         .faq-answer {
             max-height: 0;
@@ -1484,14 +1470,21 @@
             .nav-links { display: none; }
             .theme-toggle { top: 16px; right: 16px; width: 42px; height: 42px; }
             .hero { padding: 60px 0 50px; }
-            .hero-visual { max-width: 360px; }
-            .orbit-icon { width: 44px; height: 44px; font-size: 1.1rem; }
-            .orbit-icon .icon-svg { width: 22px; height: 22px; }
+            .hero-inner {
+                grid-template-columns: 1fr;
+                gap: 40px;
+                text-align: center;
+            }
+            .hero p { margin-left: auto; margin-right: auto; }
+            .hero-buttons { justify-content: center; }
+            .hero-visual { max-width: 360px; order: -1; }
+            .orbit-icon { width: 44px; height: 44px; padding: 6px; }
             .features-grid { grid-template-columns: 1fr; }
             .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
             .footer-inner { flex-direction: column; text-align: center; }
             .features, .steps, .faq { padding: 70px 0; }
             .section-header { margin-bottom: 44px; }
+            .support-grid { grid-template-columns: 1fr; }
         }
 
         @media (max-width: 560px) {
@@ -1499,8 +1492,7 @@
             .hero-buttons { flex-direction: column; align-items: stretch; }
             .btn-primary, .btn-outline { width: 100%; justify-content: center; }
             .hero-visual { max-width: 300px; }
-            .orbit-icon { width: 38px; height: 38px; font-size: 0.95rem; border-width: 2px; }
-            .orbit-icon .icon-svg { width: 18px; height: 18px; }
+            .orbit-icon { width: 38px; height: 38px; padding: 5px; border-width: 2px; }
             .back-to-top { bottom: 16px; right: 16px; width: 44px; height: 44px; }
             .support-card-inner { gap: 12px; }
             .support-icon { width: 52px; height: 52px; }
@@ -1520,46 +1512,53 @@
 </head>
 <body>
 
-    <!-- ===== BACKGROUND INTERACTIVE ===== -->
-    <div class="bg-interactive" aria-hidden="true">
+    <!-- ===== BACKGROUND LAYER ===== -->
+    <div class="bg-layer" aria-hidden="true">
+        <!-- Gradient orb yang ngikutin kursor -->
         <div class="bg-cursor-orb" id="cursorOrb"></div>
         <div class="bg-cursor-orb-2" id="cursorOrb2"></div>
-        <div class="bg-blob"></div>
-        <div class="bg-blob"></div>
-        <div class="bg-blob"></div>
-    </div>
 
-    <!-- ===== GRADIENT WAVES SMOOTH ===== -->
-    <div class="bg-waves" aria-hidden="true">
-        <svg class="wave-3" viewBox="0 0 1440 600" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="waveGrad3" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.4"/>
-                    <stop offset="50%" stop-color="#ec4899" stop-opacity="0.5"/>
-                    <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.4"/>
-                </linearGradient>
-            </defs>
-            <path fill="url(#waveGrad3)" d="M0,300 C240,200 480,400 720,300 C960,200 1200,400 1440,300 L1440,600 L0,600 Z"/>
-        </svg>
-        <svg class="wave-2" viewBox="0 0 1440 600" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.45"/>
-                    <stop offset="50%" stop-color="#7c3aed" stop-opacity="0.4"/>
-                    <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.45"/>
-                </linearGradient>
-            </defs>
-            <path fill="url(#waveGrad2)" d="M0,350 C240,250 480,450 720,350 C960,250 1200,450 1440,350 L1440,600 L0,600 Z"/>
-        </svg>
-        <svg class="wave-1" viewBox="0 0 1440 600" preserveAspectRatio="none">
-            <defs>
-                <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.5"/>
-                    <stop offset="100%" stop-color="#ec4899" stop-opacity="0.5"/>
-                </linearGradient>
-            </defs>
-            <path fill="url(#waveGrad1)" d="M0,400 C240,300 480,500 720,400 C960,300 1200,500 1440,400 L1440,600 L0,600 Z"/>
-        </svg>
+        <!-- Micro slats -->
+        <div class="bg-slats"></div>
+        <div class="bg-slats-anim"></div>
+
+        <!-- Floating blobs -->
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
+
+        <!-- Waves -->
+        <div class="bg-waves">
+            <svg class="wave-3" viewBox="0 0 1440 200" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="waveGrad3" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.65"/>
+                        <stop offset="50%" stop-color="#ec4899" stop-opacity="0.7"/>
+                        <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.65"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#waveGrad3)" d="M0,100 C240,40 480,160 720,100 C960,40 1200,160 1440,100 L1440,200 L0,200 Z"/>
+            </svg>
+            <svg class="wave-2" viewBox="0 0 1440 200" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#2563eb" stop-opacity="0.7"/>
+                        <stop offset="50%" stop-color="#7c3aed" stop-opacity="0.6"/>
+                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.7"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#waveGrad2)" d="M0,120 C240,60 480,180 720,120 C960,60 1200,180 1440,120 L1440,200 L0,200 Z"/>
+            </svg>
+            <svg class="wave-1" viewBox="0 0 1440 200" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.75"/>
+                        <stop offset="100%" stop-color="#ec4899" stop-opacity="0.75"/>
+                    </linearGradient>
+                </defs>
+                <path fill="url(#waveGrad1)" d="M0,140 C240,80 480,200 720,140 C960,80 1200,200 1440,140 L1440,200 L0,200 Z"/>
+            </svg>
+        </div>
     </div>
 
     <!-- ===== THEME TOGGLE ===== -->
@@ -1593,15 +1592,13 @@
     <section class="hero" id="beranda">
         <div class="container">
             <div class="hero-inner">
-                <!-- KIRI: text -->
+                <!-- KIRI -->
                 <div class="hero-text">
                     <div class="hero-badge">
                         <span class="dot"></span>
                         Layanan Aktif 24 Jam
                     </div>
-                    <h1 id="heroTitle">
-                        <!-- kata-kata di-render via JS -->
-                    </h1>
+                    <h1 id="heroTitle"></h1>
                     <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
                     <div class="hero-buttons">
                         <a href="/dashboard" class="btn-primary">
@@ -1622,89 +1619,59 @@
                     </div>
                 </div>
 
-                <!-- KANAN: maskot + orbit -->
+                <!-- KANAN: Maskot + Orbit (icon dari CDN) -->
                 <div class="hero-visual">
                     <div class="orbit-ring orbit-ring-outer"></div>
                     <div class="orbit-ring orbit-ring-mid"></div>
                     <div class="orbit-ring orbit-ring-inner"></div>
 
-                    <!-- Orbit luar — 6 icon -->
-                    <div class="orbit" id="orbit1">
-                        <div class="orbit-icon orbit-icon-1 whatsapp" title="WhatsApp">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-2 instagram" title="Instagram">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-3 facebook" title="Facebook">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-4 google" title="Google">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-5 telegram" title="Telegram">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-6 tiktok" title="TikTok">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
-                        </div>
-                    </div>
-
-                    <!-- Orbit mid — 4 icon -->
-                    <div class="orbit orbit-reverse orbit-mid" id="orbit2">
-                        <div class="orbit-icon orbit-icon-1 shopee" title="Shopee">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12 2c-2.21 0-4 1.79-4 4H5.4c-.88 0-1.6.72-1.6 1.6v12.8C3.8 21.28 4.52 22 5.4 22h13.2c.88 0 1.6-.72 1.6-1.6V7.6c0-.88-.72-1.6-1.6-1.6H16c0-2.21-1.79-4-4-4zm0 2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-2 grab" title="Grab">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8" stroke="#fff" stroke-width="2" fill="none"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-3 gojek" title="Gojek">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>
-                        </div>
-                        <div class="orbit-icon orbit-icon-4 twitter" title="Twitter / X">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-                        </div>
-                    </div>
+                    <!-- Orbit luar — icon dari assets.cindigital.id -->
+                    <div class="orbit" id="orbit1"></div>
+                    <!-- Orbit mid -->
+                    <div class="orbit orbit-reverse" id="orbit2"></div>
 
                     <!-- Maskot -->
-                    <svg class="mascot" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-                        <defs>
-                            <linearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#3b82f6"/>
-                                <stop offset="50%" stop-color="#7c3aed"/>
-                                <stop offset="100%" stop-color="#ec4899"/>
-                            </linearGradient>
-                            <radialGradient id="mascotCheek" cx="50%" cy="50%">
-                                <stop offset="0%" stop-color="#ec4899" stop-opacity="0.6"/>
-                                <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
-                            </radialGradient>
-                        </defs>
-                        <!-- Body -->
-                        <ellipse cx="100" cy="120" rx="55" ry="52" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                        <!-- Belly -->
-                        <ellipse cx="100" cy="130" rx="35" ry="32" fill="#fff" opacity="0.9"/>
-                        <!-- Head -->
-                        <circle cx="100" cy="70" r="48" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                        <!-- Ears -->
-                        <circle cx="60" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                        <circle cx="140" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                        <!-- Eyes -->
-                        <ellipse cx="82" cy="68" rx="7" ry="9" fill="#0f172a"/>
-                        <ellipse cx="118" cy="68" rx="7" ry="9" fill="#0f172a"/>
-                        <circle cx="84" cy="65" r="2.5" fill="#fff"/>
-                        <circle cx="120" cy="65" r="2.5" fill="#fff"/>
-                        <!-- Cheeks -->
-                        <ellipse cx="70" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
-                        <ellipse cx="130" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
-                        <!-- Mouth -->
-                        <path d="M 88 88 Q 100 100 112 88" stroke="#0f172a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-                        <!-- Antenna -->
-                        <line x1="100" y1="25" x2="100" y2="10" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
-                        <circle cx="100" cy="8" r="6" fill="#22c55e" stroke="#0f172a" stroke-width="3"/>
-                        <!-- Arms -->
-                        <circle cx="45" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                        <circle cx="155" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
-                    </svg>
+                    <div class="mascot-wrap">
+                        <svg class="mascot" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                            <defs>
+                                <linearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
+                                    <stop offset="0%" stop-color="#3b82f6"/>
+                                    <stop offset="50%" stop-color="#7c3aed"/>
+                                    <stop offset="100%" stop-color="#ec4899"/>
+                                </linearGradient>
+                                <radialGradient id="mascotCheek" cx="50%" cy="50%">
+                                    <stop offset="0%" stop-color="#ec4899" stop-opacity="0.65"/>
+                                    <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+                                </radialGradient>
+                            </defs>
+                            <!-- Body -->
+                            <ellipse cx="100" cy="120" rx="55" ry="52" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                            <ellipse cx="100" cy="130" rx="35" ry="32" fill="#fff" opacity="0.9"/>
+                            <!-- Head -->
+                            <circle cx="100" cy="70" r="48" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                            <!-- Ears -->
+                            <circle cx="60" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                            <circle cx="140" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                            <!-- Eyes (blink) -->
+                            <g class="mascot-eye">
+                                <ellipse cx="82" cy="68" rx="7" ry="9" fill="#0f172a"/>
+                                <ellipse cx="118" cy="68" rx="7" ry="9" fill="#0f172a"/>
+                                <circle cx="84" cy="65" r="2.5" fill="#fff"/>
+                                <circle cx="120" cy="65" r="2.5" fill="#fff"/>
+                            </g>
+                            <!-- Cheeks -->
+                            <ellipse cx="70" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
+                            <ellipse cx="130" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
+                            <!-- Mouth -->
+                            <path d="M 88 88 Q 100 100 112 88" stroke="#0f172a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                            <!-- Antenna -->
+                            <line x1="100" y1="25" x2="100" y2="10" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                            <circle cx="100" cy="8" r="6" fill="#22c55e" stroke="#0f172a" stroke-width="3"/>
+                            <!-- Arms -->
+                            <circle cx="45" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                            <circle cx="155" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        </svg>
+                    </div>
 
                     <!-- Sparkles -->
                     <div class="sparkle"></div>
@@ -1715,30 +1682,28 @@
             </div>
 
             <!-- Hero stats -->
-            <div class="hero-stats" style="margin-top: 60px; text-align: center;">
-                <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
-                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">1.700+</div>
-                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Layanan</div>
-                    </div>
-                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">100+</div>
-                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Negara</div>
-                    </div>
-                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">5 Detik</div>
-                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Rata-rata OTP</div>
-                    </div>
-                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">24/7</div>
-                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Support</div>
-                    </div>
+            <div class="hero-stats" style="margin-top: 60px; display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; text-align: center;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">1.700+</div>
+                    <div style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Layanan</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">100+</div>
+                    <div style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Negara</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">5 Detik</div>
+                    <div style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Rata-rata OTP</div>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                    <div style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">24/7</div>
+                    <div style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Support</div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ===== SUPPORT SECTION (REDESIGN) ===== -->
+    <!-- ===== SUPPORT ===== -->
     <section class="support-section">
         <div class="container">
             <div class="support-header reveal">
@@ -1835,7 +1800,6 @@
                     <p>Tim support kami siap membantu 24/7 untuk memastikan kelancaran layanan dan kepuasan pengguna.</p>
                     <div class="rating-block">
                         <div class="rating-stars">
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
@@ -1963,7 +1927,6 @@
         </div>
     </footer>
 
-    <!-- ===== BACK TO TOP ===== -->
     <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas">
         <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
     </button>
@@ -1971,6 +1934,75 @@
     <script src="/js/cache.js"></script>
 
     <script>
+        /* ============================================
+           CONFIG — Icon CDN
+           ============================================ */
+        const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
+
+        /**
+         * Ambil URL icon berdasarkan icon_code dari backend
+         * Format: https://assets.cindigital.id/apps/{icon_code}.png
+         */
+        function getAppIconUrl(iconCode) {
+            const code = String(iconCode || '').trim().toLowerCase();
+            if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
+            return `${APP_CDN_BASE}/${code}.png`;
+        }
+
+        /**
+         * Daftar icon aplikasi untuk orbit
+         * iconCode = nama file di CDN (tanpa .png)
+         */
+        const ORBIT_OUTER_ICONS = [
+            { iconCode: 'whatsapp', name: 'WhatsApp' },
+            { iconCode: 'instagram', name: 'Instagram' },
+            { iconCode: 'facebook', name: 'Facebook' },
+            { iconCode: 'google', name: 'Google' },
+            { iconCode: 'telegram', name: 'Telegram' },
+            { iconCode: 'tiktok', name: 'TikTok' },
+        ];
+
+        const ORBIT_MID_ICONS = [
+            { iconCode: 'shopee', name: 'Shopee' },
+            { iconCode: 'grab', name: 'Grab' },
+            { iconCode: 'gojek', name: 'Gojek' },
+            { iconCode: 'twitter', name: 'Twitter / X' },
+        ];
+
+        /**
+         * Render satu icon orbit
+         * - Kalau iconCode ada → <img src="{CDN}/{iconCode}.png">
+         * - Kalau gagal load → fallback initial huruf pertama
+         */
+        function renderOrbitIcon(item, index, total) {
+            const initial = (item.name || '?').charAt(0).toUpperCase();
+            const url = getAppIconUrl(item.iconCode);
+            const posClass = `orbit-icon-${index + 1}`;
+
+            if (!url) {
+                return `
+                    <div class="orbit-icon ${posClass}" title="${escapeHtml(item.name)}">
+                        <span class="icon-fallback">${escapeHtml(initial)}</span>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="orbit-icon ${posClass}" title="${escapeHtml(item.name)}">
+                    <img src="${escapeHtml(url)}" alt="${escapeHtml(item.name)}"
+                         loading="lazy" decoding="async"
+                         onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='flex';">
+                    <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>
+                </div>
+            `;
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[ch]);
+        }
+
         /* ============================================
            SECURITY HARDENING
            ============================================ */
@@ -2071,6 +2103,23 @@
         })();
 
         /* ============================================
+           RENDER ORBIT ICONS
+           ============================================ */
+        (function initOrbitIcons() {
+            const orbit1 = document.getElementById('orbit1');
+            const orbit2 = document.getElementById('orbit2');
+            if (!orbit1 || !orbit2) return;
+
+            orbit1.innerHTML = ORBIT_OUTER_ICONS
+                .map((item, i) => renderOrbitIcon(item, i, ORBIT_OUTER_ICONS.length))
+                .join('');
+
+            orbit2.innerHTML = ORBIT_MID_ICONS
+                .map((item, i) => renderOrbitIcon(item, i, ORBIT_MID_ICONS.length))
+                .join('');
+        })();
+
+        /* ============================================
            THEME TOGGLE
            ============================================ */
         (function initTheme() {
@@ -2140,7 +2189,7 @@
         })();
 
         /* ============================================
-           PARALLAX GLOW on feature cards
+           PARALLAX GLOW
            ============================================ */
         (function initParallax() {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2210,7 +2259,6 @@
             const title = document.getElementById('heroTitle');
             if (!title) return;
 
-            // Render kata-kata
             const words = [
                 { text: 'Digital', highlight: true },
                 { text: 'Mudah,', highlight: false },
@@ -2221,7 +2269,7 @@
 
             title.innerHTML = words.map((w, i) => `
                 <span class="word ${w.highlight ? 'highlight' : ''}" data-index="${i}">
-                    ${w.text}
+                    ${escapeHtml(w.text)}
                     <span class="word-select"></span>
                 </span>
             `).join('');
@@ -2230,31 +2278,25 @@
             let activeIndex = 0;
             let lastMouseTime = 0;
             let hasMouse = false;
-            let hoveredIndex = -1;
 
-            // Desktop: hover per kata
             wordEls.forEach((el, i) => {
                 el.addEventListener('mouseenter', () => {
                     hasMouse = true;
                     lastMouseTime = performance.now();
-                    hoveredIndex = i;
                     wordEls.forEach(w => w.classList.remove('selected'));
                     el.classList.add('selected');
                 });
             });
 
-            // Touch: tap per kata
             wordEls.forEach((el, i) => {
                 el.addEventListener('touchstart', (e) => {
                     hasMouse = true;
                     lastMouseTime = performance.now();
-                    hoveredIndex = i;
                     wordEls.forEach(w => w.classList.remove('selected'));
                     el.classList.add('selected');
                 }, { passive: true });
             });
 
-            // Auto cycle: kalau idle, ganti kata tiap 1.8s
             let autoIndex = 0;
             setInterval(() => {
                 const idle = performance.now() - lastMouseTime > 2500;
@@ -2265,7 +2307,6 @@
                 }
             }, 1800);
 
-            // Init: selected kata pertama
             wordEls[0].classList.add('selected');
         })();
 
@@ -2287,7 +2328,6 @@
             let lastMouseTime = performance.now();
             let hasMouse = false;
 
-            // Update posisi target
             document.addEventListener('mousemove', (e) => {
                 hasMouse = true;
                 lastMouseTime = performance.now();
@@ -2305,16 +2345,15 @@
                 }
             }, { passive: true });
 
-            // Auto mode (mobile atau idle)
             function getAutoTarget() {
                 const t = performance.now() / 1000;
                 const w = window.innerWidth;
                 const h = window.innerHeight;
                 return {
-                    x: w/2 + Math.sin(t * 0.35) * (w * 0.28),
-                    y: h/2 + Math.cos(t * 0.42) * (h * 0.22),
-                    x2: w/2 + Math.cos(t * 0.5) * (w * 0.32),
-                    y2: h/2 + Math.sin(t * 0.6) * (h * 0.28),
+                    x: w/2 + Math.sin(t * 0.35) * (w * 0.3),
+                    y: h/2 + Math.cos(t * 0.42) * (h * 0.25),
+                    x2: w/2 + Math.cos(t * 0.5) * (w * 0.34),
+                    y2: h/2 + Math.sin(t * 0.6) * (h * 0.3),
                 };
             }
 
@@ -2322,7 +2361,7 @@
                 const idle = performance.now() - lastMouseTime > 2500;
                 let targetX, targetY, targetX2, targetY2;
 
-                if (!hasMouse || idle) {
+                if (!hasMouse || idle || isMobile) {
                     const auto = getAutoTarget();
                     targetX = auto.x;
                     targetY = auto.y;
@@ -2335,7 +2374,6 @@
                     targetY2 = mouseY;
                 }
 
-                // Smooth lerp — orb 1 lebih lambat, orb 2 lebih cepat
                 curX1 += (targetX - curX1) * 0.06;
                 curY1 += (targetY - curY1) * 0.06;
                 curX2 += (targetX2 - curX2) * 0.09;
