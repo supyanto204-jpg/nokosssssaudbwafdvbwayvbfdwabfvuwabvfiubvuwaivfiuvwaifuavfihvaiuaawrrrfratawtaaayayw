@@ -26,19 +26,16 @@
             const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
-
         (function() {
             if (window.location.protocol === 'view-source:') {
                 document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
                 throw new Error('__VIEW_SOURCE_BLOCKED__');
             }
         })();
-
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
-
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
@@ -124,7 +121,6 @@
             --success: #22c55e;
             --warning: #f59e0b;
             --danger: #dc2626;
-            --gradient-primary: linear-gradient(135deg, #2563eb, #7c3aed);
             --gradient-soft: linear-gradient(135deg, #eff6ff, #f5f3ff);
             color-scheme: light;
         }
@@ -167,7 +163,6 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* 🔒 ANTI-LEAK */
         body, body * {
             -webkit-user-select: none;
             -moz-user-select: none;
@@ -189,7 +184,93 @@
         }
 
         /* ============================================
-           BACKGROUND — GRADIENT WAVES
+           BACKGROUND INTERACTIVE — GRADIENT FOLLOWS CURSOR
+           ============================================ */
+        .bg-interactive {
+            position: fixed;
+            inset: 0;
+            z-index: -4;
+            overflow: hidden;
+            pointer-events: none;
+            background: var(--bg-light);
+        }
+
+        /* Gradient orb besar yang ngikutin kursor */
+        .bg-cursor-orb {
+            position: absolute;
+            width: 700px;
+            height: 700px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.4) 0%, rgba(124, 58, 237, 0.25) 30%, transparent 65%);
+            filter: blur(80px);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.5s ease;
+            top: 30%;
+            left: 50%;
+            will-change: transform;
+            opacity: 0.8;
+        }
+        [data-theme="dark"] .bg-cursor-orb {
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.35) 0%, rgba(167, 139, 250, 0.2) 30%, transparent 65%);
+            opacity: 0.5;
+        }
+
+        /* Orb kedua yang lebih kecil & warna beda */
+        .bg-cursor-orb-2 {
+            position: absolute;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, rgba(6, 182, 212, 0.2) 40%, transparent 70%);
+            filter: blur(70px);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.5s ease;
+            top: 50%;
+            left: 50%;
+            will-change: transform;
+            opacity: 0.6;
+        }
+        [data-theme="dark"] .bg-cursor-orb-2 { opacity: 0.35; }
+
+        /* Blobs statis yang floating */
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(100px);
+            opacity: 0.3;
+            animation: blobFloat 24s ease-in-out infinite;
+            will-change: transform;
+        }
+        .bg-blob:nth-child(1) {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #3b82f6, transparent 70%);
+            top: -10%; left: -10%;
+        }
+        .bg-blob:nth-child(2) {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, #7c3aed, transparent 70%);
+            top: 30%; right: -15%;
+            animation-delay: -8s;
+        }
+        .bg-blob:nth-child(3) {
+            width: 450px; height: 450px;
+            background: radial-gradient(circle, #ec4899, transparent 70%);
+            bottom: -10%; left: 25%;
+            animation-delay: -16s;
+        }
+        [data-theme="dark"] .bg-blob { opacity: 0.18; }
+
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(60px, -40px) scale(1.08); }
+            50% { transform: translate(-40px, 60px) scale(0.95); }
+            75% { transform: translate(30px, 30px) scale(1.03); }
+        }
+
+        /* ============================================
+           BACKGROUND — GRADIENT WAVES SMOOTH + BLUR
            ============================================ */
         .bg-waves {
             position: fixed;
@@ -200,105 +281,41 @@
         }
         .bg-waves svg {
             position: absolute;
-            left: 0;
-            bottom: 0;
+            left: -50%;
+            bottom: -5%;
             width: 200%;
-            height: 100%;
-            opacity: 0.35;
-        }
-        .bg-waves .wave-1 { animation: waveMove1 25s linear infinite; }
-        .bg-waves .wave-2 { animation: waveMove2 35s linear infinite; }
-        .bg-waves .wave-3 { animation: waveMove3 45s linear infinite; }
-
-        @keyframes waveMove1 {
-            from { transform: translateX(0); }
-            to { transform: translateX(-50%); }
-        }
-        @keyframes waveMove2 {
-            from { transform: translateX(-50%); }
-            to { transform: translateX(0); }
-        }
-        @keyframes waveMove3 {
-            from { transform: translateX(-25%); }
-            to { transform: translateX(-75%); }
-        }
-
-        [data-theme="dark"] .bg-waves svg { opacity: 0.5; }
-
-        /* ============================================
-           BACKGROUND — CURSOR GRID
-           ============================================ */
-        .cursor-grid {
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            pointer-events: none;
-            opacity: 0.6;
-        }
-        .cursor-grid svg {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-        .cursor-grid line {
-            stroke: var(--primary);
-            stroke-width: 0.5;
-            opacity: 0.08;
-            transition: opacity 0.3s;
-        }
-        .cursor-grid .cursor-cell {
-            fill: var(--primary);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-        .cursor-grid .cursor-cell.active {
-            opacity: 0.18;
-        }
-
-        /* ============================================
-           BACKGROUND — MESH GRADIENT BLOBS
-           ============================================ */
-        .bg-mesh {
-            position: fixed;
-            inset: 0;
-            z-index: -4;
-            overflow: hidden;
-            pointer-events: none;
-        }
-        .bg-mesh .blob {
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(100px);
-            opacity: 0.4;
-            animation: blobFloat 24s ease-in-out infinite;
+            height: 80%;
+            filter: blur(30px);
+            opacity: 0.55;
             will-change: transform;
         }
-        .bg-mesh .blob:nth-child(1) {
-            width: 520px; height: 520px;
-            background: radial-gradient(circle, #3b82f6, transparent 70%);
-            top: -12%; left: -10%;
+        .bg-waves .wave-1 {
+            animation: waveSmooth1 30s ease-in-out infinite;
         }
-        .bg-mesh .blob:nth-child(2) {
-            width: 640px; height: 640px;
-            background: radial-gradient(circle, #7c3aed, transparent 70%);
-            top: 25%; right: -15%;
-            animation-delay: -8s;
+        .bg-waves .wave-2 {
+            animation: waveSmooth2 40s ease-in-out infinite;
         }
-        .bg-mesh .blob:nth-child(3) {
-            width: 480px; height: 480px;
-            background: radial-gradient(circle, #ec4899, transparent 70%);
-            bottom: -10%; left: 25%;
-            animation-delay: -16s;
+        .bg-waves .wave-3 {
+            animation: waveSmooth3 50s ease-in-out infinite;
         }
 
-        [data-theme="dark"] .bg-mesh .blob { opacity: 0.22; }
-
-        @keyframes blobFloat {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(70px, -50px) scale(1.1); }
-            50% { transform: translate(-50px, 70px) scale(0.95); }
-            75% { transform: translate(40px, 40px) scale(1.05); }
+        @keyframes waveSmooth1 {
+            0% { transform: translate(-5%, 0) scaleY(1); }
+            50% { transform: translate(5%, -8%) scaleY(1.08); }
+            100% { transform: translate(-5%, 0) scaleY(1); }
         }
+        @keyframes waveSmooth2 {
+            0% { transform: translate(8%, 0) scaleY(1.05); }
+            50% { transform: translate(-8%, -12%) scaleY(0.95); }
+            100% { transform: translate(8%, 0) scaleY(1.05); }
+        }
+        @keyframes waveSmooth3 {
+            0% { transform: translate(-3%, -5%) scaleY(0.98); }
+            50% { transform: translate(3%, -15%) scaleY(1.1); }
+            100% { transform: translate(-3%, -5%) scaleY(0.98); }
+        }
+
+        [data-theme="dark"] .bg-waves svg { opacity: 0.65; filter: blur(40px); }
 
         /* ===== CONTAINER ===== */
         .container {
@@ -401,9 +418,7 @@
             font-size: 1.25rem;
             color: var(--text-dark);
             text-decoration: none;
-            transition: transform 0.2s;
         }
-        .logo:hover { transform: scale(1.02); }
 
         .logo-icon {
             width: 42px;
@@ -424,7 +439,6 @@
             line-height: 1;
             padding-bottom: 2px;
             transform: rotate(-3deg);
-            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
             position: relative;
             overflow: hidden;
         }
@@ -436,7 +450,6 @@
             background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%);
             animation: shine 4s infinite;
         }
-        .logo:hover .logo-icon { transform: rotate(6deg) scale(1.1); }
 
         @keyframes gradientShift {
             0%, 100% { background-position: 0% 50%; }
@@ -479,13 +492,24 @@
         .nav-links a:hover::after { width: 100%; }
 
         /* ============================================
-           HERO — dengan TEXT SELECTION BOX (React Bits style)
+           HERO dengan SELECTION PER KATA
            ============================================ */
         .hero {
             padding: 100px 0 80px;
-            text-align: center;
             position: relative;
             overflow: hidden;
+        }
+
+        .hero-inner {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+            text-align: left;
+        }
+
+        @media (max-width: 900px) {
+            .hero-inner { grid-template-columns: 1fr; gap: 40px; text-align: center; }
         }
 
         .hero-badge {
@@ -498,7 +522,7 @@
             border-radius: 50px;
             font-size: 0.85rem;
             font-weight: 700;
-            margin-bottom: 28px;
+            margin-bottom: 24px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
             animation: badgeFloat 4s ease-in-out infinite;
@@ -519,127 +543,84 @@
             50% { opacity: 0.9; transform: scale(1.1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
         }
 
-        /* ==== HERO TITLE dengan SELECTION BOX ==== */
-        .hero-title-wrap {
-            position: relative;
-            display: inline-block;
-            margin-bottom: 24px;
-            padding: 20px 40px;
+        /* ==== HERO TITLE dengan SELECTION PER KATA ==== */
+        .hero h1 {
+            font-size: clamp(2rem, 4.5vw, 3.4rem);
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -0.04em;
+            margin-bottom: 20px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
-        .hero h1 {
-            font-size: clamp(2rem, 6vw, 4rem);
-            font-weight: 900;
-            line-height: 1.1;
-            letter-spacing: -0.04em;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+        .word {
+            display: inline-block;
             position: relative;
-            z-index: 2;
-            background: linear-gradient(135deg, var(--text-dark) 0%, var(--text-dark) 40%, var(--primary) 60%, var(--purple) 80%, var(--pink) 100%);
+            padding: 2px 4px;
+            margin: 0 2px;
+            transition: color 0.3s;
+        }
+
+        .word.highlight {
+            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899);
             background-size: 200% 200%;
+            animation: gradientShift 4s ease infinite;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: heroGradientShift 6s ease infinite;
-        }
-        @keyframes heroGradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
         }
 
-        .hero h1 .line-2 {
-            display: block;
-        }
-
-        /* ==== SELECTION BOX — kotak dashed yang ngikutin kursor ==== */
-        .selection-box {
+        /* Selection per kata */
+        .word-select {
             position: absolute;
-            pointer-events: none;
+            inset: -4px -6px;
             border: 2px dashed var(--primary);
             background: rgba(37, 99, 235, 0.08);
             border-radius: 6px;
-            z-index: 1;
-            transition: opacity 0.4s ease;
+            pointer-events: none;
             opacity: 0;
-            will-change: transform, width, height;
+            transition: opacity 0.2s ease;
         }
 
-        .selection-box.visible {
+        .word.selected .word-select {
             opacity: 1;
+            animation: wordPulse 1.6s ease-in-out infinite;
         }
 
-        /* Corner handles */
-        .selection-box::before,
-        .selection-box::after,
-        .selection-box .corner-tl,
-        .selection-box .corner-tr,
-        .selection-box .corner-bl,
-        .selection-box .corner-br {
+        @keyframes wordPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+        }
+
+        /* Handles di setiap kata */
+        .word-select::before,
+        .word-select::after {
             content: '';
             position: absolute;
-            width: 8px;
-            height: 8px;
+            width: 6px;
+            height: 6px;
             background: var(--primary);
             border: 1.5px solid var(--bg-white);
-            border-radius: 2px;
-            z-index: 3;
+            border-radius: 1.5px;
         }
-        .selection-box .corner-tl { top: -5px; left: -5px; }
-        .selection-box .corner-tr { top: -5px; right: -5px; }
-        .selection-box .corner-bl { bottom: -5px; left: -5px; }
-        .selection-box .corner-br { bottom: -5px; right: -5px; }
-
-        /* Side handles */
-        .selection-box .side-t,
-        .selection-box .side-b,
-        .selection-box .side-l,
-        .selection-box .side-r {
-            position: absolute;
-            background: var(--primary);
-            border: 1.5px solid var(--bg-white);
-            border-radius: 2px;
-            z-index: 3;
-        }
-        .selection-box .side-t { top: -4px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; }
-        .selection-box .side-b { bottom: -4px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; }
-        .selection-box .side-l { left: -4px; top: 50%; transform: translateY(-50%); width: 6px; height: 10px; }
-        .selection-box .side-r { right: -4px; top: 50%; transform: translateY(-50%); width: 6px; height: 10px; }
-
-        /* Dimension label di atas kiri */
-        .selection-box .dim-label {
-            position: absolute;
-            top: -26px;
-            left: 0;
-            background: var(--primary);
-            color: white;
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 4px;
-            white-space: nowrap;
-            letter-spacing: 0.04em;
-        }
+        .word-select::before { top: -3px; left: -3px; }
+        .word-select::after { bottom: -3px; right: -3px; }
 
         .hero p {
             color: var(--text-gray);
-            font-size: 1.12rem;
-            max-width: 600px;
-            margin: 0 auto 40px;
-            animation: fadeUp 0.8s 0.3s cubic-bezier(.2,.8,.2,1) both;
-        }
-
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            font-size: 1.05rem;
+            margin-bottom: 32px;
+            max-width: 520px;
         }
 
         .hero-buttons {
             display: flex;
             gap: 16px;
-            justify-content: center;
             flex-wrap: wrap;
-            animation: fadeUp 0.8s 0.4s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        @media (max-width: 900px) {
+            .hero-buttons { justify-content: center; }
         }
 
         /* Button primary upgraded */
@@ -709,7 +690,6 @@
             z-index: 2;
         }
 
-        /* Roket animasi di btn-primary */
         .btn-rocket {
             display: inline-block;
             transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
@@ -725,254 +705,328 @@
         }
 
         /* ============================================
-           LOOPING TEXT MARQUEE
+           MASKOT + ORBIT ICON APLIKASI
            ============================================ */
-        .loop-text {
-            padding: 20px 0;
-            background: var(--text-dark);
-            overflow: hidden;
+        .hero-visual {
             position: relative;
-            border-top: 2px solid var(--border-dark);
-            border-bottom: 2px solid var(--border-dark);
-        }
-        [data-theme="dark"] .loop-text { background: #020617; }
-
-        .loop-text-inner {
+            width: 100%;
+            max-width: 480px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
             display: flex;
-            gap: 40px;
-            white-space: nowrap;
-            animation: loopScroll 30s linear infinite;
-            will-change: transform;
-        }
-        .loop-text-inner.paused { animation-play-state: paused; }
-
-        @keyframes loopScroll {
-            from { transform: translateX(0); }
-            to { transform: translateX(-50%); }
-        }
-
-        .loop-text-item {
-            display: inline-flex;
             align-items: center;
-            gap: 14px;
-            color: white;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-weight: 900;
-            font-size: clamp(1.2rem, 2vw, 1.6rem);
-            letter-spacing: -0.02em;
-            text-transform: uppercase;
-            padding: 0 4px;
+            justify-content: center;
         }
-        .loop-text-item .star {
-            color: var(--warning);
-            font-size: 1.2em;
-            animation: rotateStar 4s linear infinite;
-            display: inline-block;
+
+        /* Orbit ring background */
+        .orbit-ring {
+            position: absolute;
+            border: 2px dashed var(--border);
+            border-radius: 50%;
+            pointer-events: none;
         }
-        @keyframes rotateStar {
-            from { transform: rotate(0); }
+        .orbit-ring-outer { inset: 0; }
+        .orbit-ring-mid { inset: 15%; }
+        .orbit-ring-inner { inset: 30%; }
+
+        /* Maskot di tengah */
+        .mascot {
+            position: relative;
+            width: 45%;
+            max-width: 200px;
+            z-index: 2;
+            animation: mascotFloat 3s ease-in-out infinite;
+            filter: drop-shadow(0 12px 24px rgba(37, 99, 235, 0.3));
+        }
+
+        @keyframes mascotFloat {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-12px) rotate(2deg); }
+        }
+
+        /* Orbit container — muter */
+        .orbit {
+            position: absolute;
+            inset: 0;
+            animation: orbitRotate 30s linear infinite;
+        }
+        .orbit-reverse {
+            animation: orbitRotate 40s linear infinite reverse;
+        }
+        .orbit-slow {
+            animation: orbitRotate 50s linear infinite;
+        }
+
+        @keyframes orbitRotate {
+            from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-        .loop-text-item .divider {
-            color: var(--primary);
-            font-size: 1.4em;
-            opacity: 0.8;
-        }
 
-        /* ============================================
-           HERO STATS
-           ============================================ */
-        .hero-stats {
+        /* Icon aplikasi di orbit — counter-rotate biar gak ikut miring */
+        .orbit-icon {
+            position: absolute;
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: var(--bg-white);
+            border: 2.5px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
             display: flex;
-            justify-content: center;
-            gap: 40px;
-            margin-top: 60px;
-            flex-wrap: wrap;
-            animation: fadeUp 0.8s 0.5s cubic-bezier(.2,.8,.2,1) both;
-        }
-        .hero-stat {
-            display: flex;
-            flex-direction: column;
             align-items: center;
-            gap: 4px;
-        }
-        .hero-stat-value {
-            font-size: 1.8rem;
+            justify-content: center;
+            color: var(--text-dark);
             font-weight: 900;
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            letter-spacing: -0.03em;
+            font-size: 1.3rem;
+            transition: transform 0.25s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.25s;
+            will-change: transform;
+            animation: iconCounterRotate 30s linear infinite;
         }
-        .hero-stat-label {
-            font-size: 0.78rem;
-            color: var(--text-gray);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
+        .orbit-reverse .orbit-icon {
+            animation: iconCounterRotate 40s linear infinite reverse;
+        }
+        .orbit-slow .orbit-icon {
+            animation: iconCounterRotate 50s linear infinite;
+        }
+        .orbit-icon:nth-child(1) { transform: translate(-50%, -50%); }
+        .orbit-icon:nth-child(2) { transform: translate(-50%, -50%); }
+
+        @keyframes iconCounterRotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(-360deg); }
+        }
+
+        .orbit-icon:hover {
+            box-shadow: var(--shadow-hard);
+            z-index: 5;
+        }
+        .orbit-icon:hover {
+            filter: brightness(1.1);
+        }
+
+        /* Position icon di orbit — pakai top/left persen */
+        .orbit-icon-1 { top: 0%; left: 50%; }
+        .orbit-icon-2 { top: 25%; left: 93%; }
+        .orbit-icon-3 { top: 75%; left: 93%; }
+        .orbit-icon-4 { top: 100%; left: 50%; }
+        .orbit-icon-5 { top: 75%; left: 7%; }
+        .orbit-icon-6 { top: 25%; left: 7%; }
+
+        .orbit-mid .orbit-icon-1 { top: 0%; left: 50%; }
+        .orbit-mid .orbit-icon-2 { top: 50%; left: 100%; }
+        .orbit-mid .orbit-icon-3 { top: 100%; left: 50%; }
+        .orbit-mid .orbit-icon-4 { top: 50%; left: 0%; }
+
+        /* Warna masing-masing icon */
+        .orbit-icon.whatsapp { background: #e8f9ee; color: #25D366; }
+        .orbit-icon.telegram { background: #e8f4fd; color: #229ED9; }
+        .orbit-icon.instagram { background: #fce7f3; color: #E1306C; }
+        .orbit-icon.facebook { background: #e7f0fd; color: #1877F2; }
+        .orbit-icon.google { background: #fef3c7; color: #EA4335; }
+        .orbit-icon.tiktok { background: #f1f5f9; color: #000; }
+        .orbit-icon.shopee { background: #ffedd5; color: #EE4D2D; }
+        .orbit-icon.grab { background: #dcfce7; color: #00B14F; }
+        .orbit-icon.gojek { background: #dcfce7; color: #00AA13; }
+        .orbit-icon.twitter { background: #e0f2fe; color: #1DA1F2; }
+
+        [data-theme="dark"] .orbit-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
+        [data-theme="dark"] .orbit-icon.telegram { background: rgba(34, 158, 217, 0.15); }
+        [data-theme="dark"] .orbit-icon.instagram { background: rgba(225, 48, 108, 0.15); }
+        [data-theme="dark"] .orbit-icon.facebook { background: rgba(24, 119, 242, 0.15); }
+        [data-theme="dark"] .orbit-icon.google { background: rgba(234, 67, 53, 0.15); }
+        [data-theme="dark"] .orbit-icon.tiktok { background: rgba(255, 255, 255, 0.1); color: #fff; }
+        [data-theme="dark"] .orbit-icon.shopee { background: rgba(238, 77, 45, 0.15); }
+        [data-theme="dark"] .orbit-icon.grab { background: rgba(0, 177, 79, 0.15); }
+        [data-theme="dark"] .orbit-icon.gojek { background: rgba(0, 170, 19, 0.15); }
+        [data-theme="dark"] .orbit-icon.twitter { background: rgba(29, 161, 242, 0.15); }
+
+        .orbit-icon .icon-svg { width: 26px; height: 26px; }
+
+        /* Sparkle */
+        .sparkle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 0 8px var(--primary);
+            animation: sparkleFloat 3s ease-in-out infinite;
+        }
+        .sparkle:nth-child(1) { top: 10%; left: 15%; animation-delay: 0s; }
+        .sparkle:nth-child(2) { top: 20%; right: 18%; animation-delay: 0.5s; background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+        .sparkle:nth-child(3) { bottom: 15%; left: 20%; animation-delay: 1s; background: var(--pink); box-shadow: 0 0 8px var(--pink); }
+        .sparkle:nth-child(4) { bottom: 25%; right: 15%; animation-delay: 1.5s; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+
+        @keyframes sparkleFloat {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.5); opacity: 1; }
         }
 
         /* ============================================
-           CONTACT CARDS (FLIP CARD)
+           SUPPORT SECTION — REDESIGN (bisa diklik + animasi)
            ============================================ */
-        .contact-section { padding: 0 0 90px; }
+        .support-section {
+            padding: 80px 0;
+        }
 
-        .contact-grid {
+        .support-header {
+            text-align: center;
+            margin-bottom: 48px;
+        }
+
+        .support-header h2 {
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+        }
+
+        .support-header p {
+            color: var(--text-gray);
+            font-size: 1rem;
+            max-width: 460px;
+            margin: 0 auto;
+        }
+
+        .support-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 24px;
-            max-width: 760px;
+            max-width: 800px;
             margin: 0 auto;
-            perspective: 1200px;
         }
 
-        .flip-card {
-            position: relative;
-            width: 100%;
-            height: 300px;
-            transform-style: preserve-3d;
-            transition: transform 0.8s cubic-bezier(.2,.8,.2,1);
+        @media (max-width: 700px) {
+            .support-grid { grid-template-columns: 1fr; }
         }
 
-        .flip-card.flipped {
-            transform: rotateY(180deg);
-        }
-
-        .flip-card-inner {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            transform-style: preserve-3d;
-        }
-
-        .flip-card-face {
-            position: absolute;
-            inset: 0;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
+        .support-card {
+            display: block;
+            padding: 32px 28px;
             border-radius: var(--radius-lg);
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 32px 24px;
-            text-align: center;
-            overflow: hidden;
-            isolation: isolate;
-        }
-
-        .flip-card-front {
-            background: var(--bg-white);
-        }
-
-        .flip-card-back {
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            color: white;
-            transform: rotateY(180deg);
-        }
-        .flip-card.telegram-flip .flip-card-back {
-            background: linear-gradient(135deg, #229ED9, #06b6d4);
-        }
-        .flip-card.whatsapp-flip .flip-card-back {
-            background: linear-gradient(135deg, #25D366, #10b981);
-        }
-
-        .flip-card-face::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 4px;
-            z-index: 1;
-        }
-        .flip-card.telegram-flip .flip-card-front::before {
-            background: linear-gradient(90deg, #229ED9, #4fc3f7, #229ED9);
-            background-size: 200% 100%;
-            animation: gradientShift 3s linear infinite;
-        }
-        .flip-card.whatsapp-flip .flip-card-front::before {
-            background: linear-gradient(90deg, #25D366, #4ade80, #25D366);
-            background-size: 200% 100%;
-            animation: gradientShift 3s linear infinite;
-        }
-
-        .flip-icon {
-            width: 72px;
-            height: 72px;
-            border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 16px;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard-sm);
-            position: relative;
-            z-index: 1;
-        }
-        .flip-icon.telegram { background: #e8f4fd; color: var(--telegram); }
-        .flip-icon.whatsapp { background: #e8f9ee; color: var(--whatsapp); }
-        [data-theme="dark"] .flip-icon.telegram { background: rgba(34, 158, 217, 0.15); }
-        [data-theme="dark"] .flip-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
-        .flip-icon .icon-svg { width: 34px; height: 34px; }
-
-        .flip-card-face h3 {
-            font-size: 1.3rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            letter-spacing: -0.02em;
-        }
-        .flip-card-face p {
-            color: var(--text-gray);
-            font-size: 0.92rem;
-            font-family: ui-monospace, 'JetBrains Mono', monospace;
-            font-weight: 700;
-            margin-bottom: 16px;
-        }
-        .flip-card-back p {
-            color: rgba(255,255,255,0.9);
-        }
-
-        .flip-hint {
-            font-size: 0.72rem;
-            font-weight: 700;
-            color: var(--text-light);
-            font-family: 'JetBrains Mono', monospace;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            position: absolute;
-            bottom: 14px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .flip-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 11px 24px;
-            border-radius: 50px;
-            font-size: 0.88rem;
-            font-weight: 800;
-            border: 2px solid var(--border-dark);
-            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
-            background: white;
-            color: var(--text-dark);
             text-decoration: none;
-            transition: transform 0.2s, box-shadow 0.2s;
+            color: white;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            isolation: isolate;
+            cursor: pointer;
         }
-        .flip-btn:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+
+        .support-card.telegram {
+            background: linear-gradient(135deg, #229ED9, #1e88c7, #0ea5e9);
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
         }
-        .flip-btn .icon-svg { width: 15px; height: 15px; }
+        .support-card.whatsapp {
+            background: linear-gradient(135deg, #25D366, #10b981, #059669);
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
+        }
+
+        .support-card::before {
+            content: '';
+            position: absolute;
+            top: -50%; right: -50%;
+            width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.15) 0%, transparent 50%);
+            opacity: 0;
+            transition: opacity 0.4s;
+            z-index: 0;
+        }
+        .support-card:hover::before { opacity: 1; }
+
+        .support-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-hard-lg);
+        }
+        .support-card:active {
+            transform: translate(0, 0) scale(0.98);
+        }
+
+        .support-card-inner {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .support-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
+        }
+        .support-card:hover .support-icon {
+            transform: scale(1.1) rotate(-8deg);
+        }
+        .support-icon .icon-svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+        }
+
+        .support-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .support-info h3 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            letter-spacing: -0.02em;
+        }
+        .support-info p {
+            font-size: 0.88rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }
+
+        .support-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.25);
+            border: 1.5px solid rgba(255, 255, 255, 0.5);
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            transition: all 0.2s;
+        }
+        .support-card:hover .support-cta {
+            background: white;
+            color: inherit;
+        }
+        .support-card.telegram:hover .support-cta { color: #229ED9; }
+        .support-card.whatsapp:hover .support-cta { color: #25D366; }
+
+        .support-cta .icon-svg {
+            width: 12px;
+            height: 12px;
+            transition: transform 0.25s;
+        }
+        .support-card:hover .support-cta .icon-svg {
+            transform: translate(3px, -3px);
+        }
 
         /* ============================================
            FEATURES
@@ -1093,9 +1147,7 @@
             z-index: 1;
         }
 
-        /* ============================================
-           STAR RATING (fake visual)
-           ============================================ */
+        /* Star rating */
         .rating-block {
             margin-top: 20px;
             padding-top: 20px;
@@ -1106,22 +1158,14 @@
             position: relative;
             z-index: 1;
         }
-
-        .rating-stars {
-            display: flex;
-            gap: 4px;
-        }
-
+        .rating-stars { display: flex; gap: 4px; }
         .rating-star {
             width: 18px;
             height: 18px;
             color: var(--border);
             transition: color 0.3s, transform 0.3s;
         }
-        .rating-star.filled {
-            color: var(--warning);
-            fill: var(--warning);
-        }
+        .rating-star.filled { color: var(--warning); fill: var(--warning); }
         .feature-card:hover .rating-star.filled {
             animation: starPop 0.6s ease-out;
         }
@@ -1130,26 +1174,23 @@
         .feature-card:hover .rating-star.filled:nth-child(3) { animation-delay: 0.1s; }
         .feature-card:hover .rating-star.filled:nth-child(4) { animation-delay: 0.15s; }
         .feature-card:hover .rating-star.filled:nth-child(5) { animation-delay: 0.2s; }
-
         @keyframes starPop {
             0% { transform: scale(1); }
             50% { transform: scale(1.3) rotate(15deg); }
             100% { transform: scale(1); }
         }
-
         .rating-text {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.78rem;
             font-weight: 700;
             color: var(--text-gray);
-            letter-spacing: 0.02em;
         }
         .rating-text strong { color: var(--text-dark); }
 
         /* ============================================
            STEPS
            ============================================ */
-        .steps { padding: 100px 0; position: relative; }
+        .steps { padding: 100px 0; }
 
         .steps-grid {
             display: grid;
@@ -1236,82 +1277,6 @@
             color: var(--text-gray);
             font-size: 0.86rem;
             line-height: 1.6;
-        }
-
-        /* ============================================
-           CTA BANNER
-           ============================================ */
-        .cta-banner { padding: 80px 0; }
-        .cta-banner-inner {
-            background: linear-gradient(135deg, #1e3a8a, #4c1d95, #831843);
-            background-size: 200% 200%;
-            animation: gradientShift 8s ease infinite;
-            border-radius: var(--radius-lg);
-            padding: 60px 40px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard-lg);
-        }
-        .cta-banner-inner::before {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background: repeating-conic-gradient(
-                from 0deg,
-                rgba(255,255,255,0.04) 0deg 10deg,
-                transparent 10deg 20deg
-            );
-            animation: spin 40s linear infinite;
-            pointer-events: none;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .cta-banner-inner > * { position: relative; z-index: 1; }
-        .cta-banner h2 {
-            color: white;
-            font-size: clamp(1.6rem, 3vw, 2.2rem);
-            font-weight: 900;
-            margin-bottom: 12px;
-            letter-spacing: -0.03em;
-        }
-        .cta-banner p {
-            color: rgba(255, 255, 255, 0.85);
-            font-size: 1.02rem;
-            max-width: 520px;
-            margin: 0 auto 28px;
-        }
-        .btn-cta {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 15px 32px;
-            border-radius: 50px;
-            background: white;
-            color: #1e3a8a;
-            font-weight: 800;
-            font-size: 1rem;
-            text-decoration: none;
-            border: 2px solid #0f172a;
-            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
-            transition: transform 0.2s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.2s;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .btn-cta:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
-        }
-        .btn-cta:active {
-            transform: translate(1px, 1px);
-            box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
-        }
-        .btn-cta:hover .btn-rocket {
-            animation: rocketFly 0.8s ease-in-out;
         }
 
         /* ============================================
@@ -1518,32 +1483,30 @@
         @media (max-width: 900px) {
             .nav-links { display: none; }
             .theme-toggle { top: 16px; right: 16px; width: 42px; height: 42px; }
-            .hero { padding: 70px 0 60px; }
-            .hero-title-wrap { padding: 12px 20px; }
-            .hero-stats { gap: 28px; margin-top: 44px; }
-            .hero-stat-value { font-size: 1.5rem; }
-            .contact-grid { grid-template-columns: 1fr; max-width: 460px; }
-            .flip-card { height: 280px; }
+            .hero { padding: 60px 0 50px; }
+            .hero-visual { max-width: 360px; }
+            .orbit-icon { width: 44px; height: 44px; font-size: 1.1rem; }
+            .orbit-icon .icon-svg { width: 22px; height: 22px; }
             .features-grid { grid-template-columns: 1fr; }
             .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
             .footer-inner { flex-direction: column; text-align: center; }
             .features, .steps, .faq { padding: 70px 0; }
             .section-header { margin-bottom: 44px; }
-            .cta-banner-inner { padding: 44px 24px; }
         }
 
         @media (max-width: 560px) {
             .steps-grid { grid-template-columns: 1fr; gap: 28px; }
             .hero-buttons { flex-direction: column; align-items: stretch; }
             .btn-primary, .btn-outline { width: 100%; justify-content: center; }
-            .hero-stats { gap: 20px; }
-            .hero-stat-value { font-size: 1.35rem; }
-            .flip-card { height: 260px; }
+            .hero-visual { max-width: 300px; }
+            .orbit-icon { width: 38px; height: 38px; font-size: 0.95rem; border-width: 2px; }
+            .orbit-icon .icon-svg { width: 18px; height: 18px; }
             .back-to-top { bottom: 16px; right: 16px; width: 44px; height: 44px; }
-            .selection-box .dim-label { font-size: 0.62rem; }
+            .support-card-inner { gap: 12px; }
+            .support-icon { width: 52px; height: 52px; }
+            .support-icon .icon-svg { width: 26px; height: 26px; }
         }
 
-        /* ===== REDUCED MOTION ===== */
         @media (prefers-reduced-motion: reduce) {
             html { scroll-behavior: auto; }
             *, *::before, *::after {
@@ -1557,21 +1520,23 @@
 </head>
 <body>
 
-    <!-- ===== BACKGROUND: MESH BLOBS ===== -->
-    <div class="bg-mesh" aria-hidden="true">
-        <div class="blob"></div>
-        <div class="blob"></div>
-        <div class="blob"></div>
+    <!-- ===== BACKGROUND INTERACTIVE ===== -->
+    <div class="bg-interactive" aria-hidden="true">
+        <div class="bg-cursor-orb" id="cursorOrb"></div>
+        <div class="bg-cursor-orb-2" id="cursorOrb2"></div>
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
+        <div class="bg-blob"></div>
     </div>
 
-    <!-- ===== BACKGROUND: GRADIENT WAVES ===== -->
+    <!-- ===== GRADIENT WAVES SMOOTH ===== -->
     <div class="bg-waves" aria-hidden="true">
         <svg class="wave-3" viewBox="0 0 1440 600" preserveAspectRatio="none">
             <defs>
                 <linearGradient id="waveGrad3" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.15"/>
-                    <stop offset="50%" stop-color="#ec4899" stop-opacity="0.2"/>
-                    <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.15"/>
+                    <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.4"/>
+                    <stop offset="50%" stop-color="#ec4899" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.4"/>
                 </linearGradient>
             </defs>
             <path fill="url(#waveGrad3)" d="M0,300 C240,200 480,400 720,300 C960,200 1200,400 1440,300 L1440,600 L0,600 Z"/>
@@ -1579,9 +1544,9 @@
         <svg class="wave-2" viewBox="0 0 1440 600" preserveAspectRatio="none">
             <defs>
                 <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.2"/>
-                    <stop offset="50%" stop-color="#7c3aed" stop-opacity="0.15"/>
-                    <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.2"/>
+                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.45"/>
+                    <stop offset="50%" stop-color="#7c3aed" stop-opacity="0.4"/>
+                    <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.45"/>
                 </linearGradient>
             </defs>
             <path fill="url(#waveGrad2)" d="M0,350 C240,250 480,450 720,350 C960,250 1200,450 1440,350 L1440,600 L0,600 Z"/>
@@ -1589,16 +1554,13 @@
         <svg class="wave-1" viewBox="0 0 1440 600" preserveAspectRatio="none">
             <defs>
                 <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25"/>
-                    <stop offset="100%" stop-color="#ec4899" stop-opacity="0.25"/>
+                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.5"/>
+                    <stop offset="100%" stop-color="#ec4899" stop-opacity="0.5"/>
                 </linearGradient>
             </defs>
             <path fill="url(#waveGrad1)" d="M0,400 C240,300 480,500 720,400 C960,300 1200,500 1440,400 L1440,600 L0,600 Z"/>
         </svg>
     </div>
-
-    <!-- ===== BACKGROUND: CURSOR GRID ===== -->
-    <div class="cursor-grid" id="cursorGrid" aria-hidden="true"></div>
 
     <!-- ===== THEME TOGGLE ===== -->
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -1630,169 +1592,196 @@
     <!-- ===== HERO ===== -->
     <section class="hero" id="beranda">
         <div class="container">
-            <div class="hero-badge">
-                <span class="dot"></span>
-                Layanan Aktif 24 Jam
-            </div>
-
-            <!-- Text + Selection Box -->
-            <div class="hero-title-wrap" id="heroTitleWrap">
-                <div class="selection-box" id="selectionBox">
-                    <div class="dim-label" id="selectionDim">w 512 · h 84</div>
-                    <span class="corner-tl"></span>
-                    <span class="corner-tr"></span>
-                    <span class="corner-bl"></span>
-                    <span class="corner-br"></span>
-                    <span class="side-t"></span>
-                    <span class="side-b"></span>
-                    <span class="side-l"></span>
-                    <span class="side-r"></span>
+            <div class="hero-inner">
+                <!-- KIRI: text -->
+                <div class="hero-text">
+                    <div class="hero-badge">
+                        <span class="dot"></span>
+                        Layanan Aktif 24 Jam
+                    </div>
+                    <h1 id="heroTitle">
+                        <!-- kata-kata di-render via JS -->
+                    </h1>
+                    <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
+                    <div class="hero-buttons">
+                        <a href="/dashboard" class="btn-primary">
+                            <span class="btn-rocket">
+                                <svg class="icon-svg" viewBox="0 0 24 24">
+                                    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                                    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                                    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                                    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+                                </svg>
+                            </span>
+                            Mulai Sekarang
+                        </a>
+                        <a href="#cara-kerja" class="btn-outline">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                            Cara Kerja
+                        </a>
+                    </div>
                 </div>
-                <h1>
-                    Digital Mudah,
-                    <span class="line-2">Tanpa Perlu Ribet</span>
-                </h1>
-            </div>
 
-            <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
-            <div class="hero-buttons">
-                <a href="/dashboard" class="btn-primary">
-                    <span class="btn-rocket">
-                        <svg class="icon-svg" viewBox="0 0 24 24">
-                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-                            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-                        </svg>
-                    </span>
-                    Mulai Sekarang
-                </a>
-                <a href="#cara-kerja" class="btn-outline">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                    Cara Kerja
-                </a>
+                <!-- KANAN: maskot + orbit -->
+                <div class="hero-visual">
+                    <div class="orbit-ring orbit-ring-outer"></div>
+                    <div class="orbit-ring orbit-ring-mid"></div>
+                    <div class="orbit-ring orbit-ring-inner"></div>
+
+                    <!-- Orbit luar — 6 icon -->
+                    <div class="orbit" id="orbit1">
+                        <div class="orbit-icon orbit-icon-1 whatsapp" title="WhatsApp">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-2 instagram" title="Instagram">
+                            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-3 facebook" title="Facebook">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-4 google" title="Google">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-5 telegram" title="Telegram">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-6 tiktok" title="TikTok">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Orbit mid — 4 icon -->
+                    <div class="orbit orbit-reverse orbit-mid" id="orbit2">
+                        <div class="orbit-icon orbit-icon-1 shopee" title="Shopee">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M12 2c-2.21 0-4 1.79-4 4H5.4c-.88 0-1.6.72-1.6 1.6v12.8C3.8 21.28 4.52 22 5.4 22h13.2c.88 0 1.6-.72 1.6-1.6V7.6c0-.88-.72-1.6-1.6-1.6H16c0-2.21-1.79-4-4-4zm0 2c1.1 0 2 .9 2 2h-4c0-1.1.9-2 2-2z"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-2 grab" title="Grab">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 12h8" stroke="#fff" stroke-width="2" fill="none"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-3 gojek" title="Gojek">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4" fill="#fff"/></svg>
+                        </div>
+                        <div class="orbit-icon orbit-icon-4 twitter" title="Twitter / X">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </div>
+                    </div>
+
+                    <!-- Maskot -->
+                    <svg class="mascot" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="mascotGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#3b82f6"/>
+                                <stop offset="50%" stop-color="#7c3aed"/>
+                                <stop offset="100%" stop-color="#ec4899"/>
+                            </linearGradient>
+                            <radialGradient id="mascotCheek" cx="50%" cy="50%">
+                                <stop offset="0%" stop-color="#ec4899" stop-opacity="0.6"/>
+                                <stop offset="100%" stop-color="#ec4899" stop-opacity="0"/>
+                            </radialGradient>
+                        </defs>
+                        <!-- Body -->
+                        <ellipse cx="100" cy="120" rx="55" ry="52" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        <!-- Belly -->
+                        <ellipse cx="100" cy="130" rx="35" ry="32" fill="#fff" opacity="0.9"/>
+                        <!-- Head -->
+                        <circle cx="100" cy="70" r="48" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        <!-- Ears -->
+                        <circle cx="60" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        <circle cx="140" cy="35" r="15" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        <!-- Eyes -->
+                        <ellipse cx="82" cy="68" rx="7" ry="9" fill="#0f172a"/>
+                        <ellipse cx="118" cy="68" rx="7" ry="9" fill="#0f172a"/>
+                        <circle cx="84" cy="65" r="2.5" fill="#fff"/>
+                        <circle cx="120" cy="65" r="2.5" fill="#fff"/>
+                        <!-- Cheeks -->
+                        <ellipse cx="70" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
+                        <ellipse cx="130" cy="85" rx="9" ry="5" fill="url(#mascotCheek)"/>
+                        <!-- Mouth -->
+                        <path d="M 88 88 Q 100 100 112 88" stroke="#0f172a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+                        <!-- Antenna -->
+                        <line x1="100" y1="25" x2="100" y2="10" stroke="#0f172a" stroke-width="4" stroke-linecap="round"/>
+                        <circle cx="100" cy="8" r="6" fill="#22c55e" stroke="#0f172a" stroke-width="3"/>
+                        <!-- Arms -->
+                        <circle cx="45" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                        <circle cx="155" cy="125" r="14" fill="url(#mascotGrad)" stroke="#0f172a" stroke-width="4"/>
+                    </svg>
+
+                    <!-- Sparkles -->
+                    <div class="sparkle"></div>
+                    <div class="sparkle"></div>
+                    <div class="sparkle"></div>
+                    <div class="sparkle"></div>
+                </div>
             </div>
 
             <!-- Hero stats -->
-            <div class="hero-stats">
-                <div class="hero-stat">
-                    <div class="hero-stat-value">1.700+</div>
-                    <div class="hero-stat-label">Layanan</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">100+</div>
-                    <div class="hero-stat-label">Negara</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">5 Detik</div>
-                    <div class="hero-stat-label">Rata-rata OTP</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">24/7</div>
-                    <div class="hero-stat-label">Support</div>
+            <div class="hero-stats" style="margin-top: 60px; text-align: center;">
+                <div style="display: flex; justify-content: center; gap: 40px; flex-wrap: wrap;">
+                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">1.700+</div>
+                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Layanan</div>
+                    </div>
+                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">100+</div>
+                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Negara</div>
+                    </div>
+                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">5 Detik</div>
+                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Rata-rata OTP</div>
+                    </div>
+                    <div class="hero-stat" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                        <div class="hero-stat-value" style="font-size: 1.8rem; font-weight: 900; background: linear-gradient(135deg, var(--primary), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; letter-spacing: -0.03em;">24/7</div>
+                        <div class="hero-stat-label" style="font-size: 0.78rem; color: var(--text-gray); font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;">Support</div>
+                    </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ===== LOOPING TEXT MARQUEE ===== -->
-    <div class="loop-text" aria-hidden="true">
-        <div class="loop-text-inner" id="loopText">
-            <div class="loop-text-item">
-                <span class="star">★</span>
-                CEPAT
-                <span class="divider">•</span>
-                AMAN
-                <span class="divider">•</span>
-                TERPERCAYA
-                <span class="divider">•</span>
-                <span class="star">★</span>
-                OTP INSTAN
-                <span class="divider">•</span>
-                1700+ LAYANAN
-                <span class="divider">•</span>
-                100+ NEGARA
-                <span class="divider">•</span>
-            </div>
-            <div class="loop-text-item">
-                <span class="star">★</span>
-                CEPAT
-                <span class="divider">•</span>
-                AMAN
-                <span class="divider">•</span>
-                TERPERCAYA
-                <span class="divider">•</span>
-                <span class="star">★</span>
-                OTP INSTAN
-                <span class="divider">•</span>
-                1700+ LAYANAN
-                <span class="divider">•</span>
-                100+ NEGARA
-                <span class="divider">•</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- ===== FLIP CARDS (CONTACT) ===== -->
-    <section class="contact-section" style="padding-top: 80px;">
+    <!-- ===== SUPPORT SECTION (REDESIGN) ===== -->
+    <section class="support-section">
         <div class="container">
-            <div class="contact-grid">
-                <!-- Telegram Flip Card -->
-                <div class="flip-card telegram-flip reveal" data-flip>
-                    <div class="flip-card-inner">
-                        <div class="flip-card-face flip-card-front">
-                            <div class="flip-icon telegram">
-                                <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                            </div>
+            <div class="support-header reveal">
+                <h2>Butuh Bantuan?</h2>
+                <p>Tim support kami siap 24/7 di Telegram & WhatsApp</p>
+            </div>
+            <div class="support-grid">
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="support-card telegram reveal">
+                    <div class="support-card-inner">
+                        <div class="support-icon">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                        </div>
+                        <div class="support-info">
                             <h3>Telegram</h3>
                             <p>@AsyrofC</p>
-                            <span class="flip-hint">
-                                <svg class="icon-svg" viewBox="0 0 24 24" style="width:12px;height:12px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                Klik untuk chat
+                            <span class="support-cta">
+                                Chat Sekarang
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </span>
                         </div>
-                        <div class="flip-card-face flip-card-back">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24" style="width:56px;height:56px;margin-bottom:16px;"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                            <h3>Chat via Telegram</h3>
-                            <p style="color:rgba(255,255,255,0.9);">Support 24/7 di Telegram</p>
-                            <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="flip-btn">
-                                Buka Telegram
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
-                            </a>
-                        </div>
                     </div>
-                </div>
+                </a>
 
-                <!-- WhatsApp Flip Card -->
-                <div class="flip-card whatsapp-flip reveal" data-flip>
-                    <div class="flip-card-inner">
-                        <div class="flip-card-face flip-card-front">
-                            <div class="flip-icon whatsapp">
-                                <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            </div>
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card whatsapp reveal">
+                    <div class="support-card-inner">
+                        <div class="support-icon">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        </div>
+                        <div class="support-info">
                             <h3>WhatsApp</h3>
                             <p>@AsyrofC_</p>
-                            <span class="flip-hint">
-                                <svg class="icon-svg" viewBox="0 0 24 24" style="width:12px;height:12px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                Klik untuk chat
+                            <span class="support-cta">
+                                Chat Sekarang
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </span>
                         </div>
-                        <div class="flip-card-face flip-card-back">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24" style="width:56px;height:56px;margin-bottom:16px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                            <h3>Chat via WhatsApp</h3>
-                            <p style="color:rgba(255,255,255,0.9);">Support 24/7 di WhatsApp</p>
-                            <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="flip-btn">
-                                Buka WhatsApp
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
-                            </a>
-                        </div>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
     </section>
 
-    <!-- ===== FEATURES dengan STAR RATING ===== -->
+    <!-- ===== FEATURES ===== -->
     <section class="features" id="fitur">
         <div class="container">
             <div class="section-header reveal">
@@ -1851,6 +1840,7 @@
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                             <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
                         </div>
                         <div class="rating-text"><strong>5.0</strong> dari 3.219 ulasan</div>
                     </div>
@@ -1892,25 +1882,6 @@
         </div>
     </section>
 
-    <!-- ===== CTA BANNER ===== -->
-    <section class="cta-banner">
-        <div class="container">
-            <div class="cta-banner-inner reveal">
-                <h2>Siap Mulai Sekarang?</h2>
-                <p>Daftar gratis, top-up saldo, dan nikmati layanan OTP tercepat di Indonesia.</p>
-                <a href="/dashboard" class="btn-cta">
-                    <span class="btn-rocket">
-                        <svg class="icon-svg" viewBox="0 0 24 24" style="width:18px;height:18px;">
-                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                        </svg>
-                    </span>
-                    Mulai Sekarang
-                </a>
-            </div>
-        </div>
-    </section>
-
     <!-- ===== FAQ ===== -->
     <section class="faq" id="faq">
         <div class="container">
@@ -1925,55 +1896,45 @@
                         Untuk apa ini?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <div class="faq-answer">
-                        <div class="faq-answer-inner">
-                            AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP (One-Time Password) dari berbagai aplikasi dan layanan digital. Cocok untuk verifikasi akun tanpa menggunakan nomor pribadi.
-                        </div>
-                    </div>
+                    <div class="faq-answer"><div class="faq-answer-inner">
+                        AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP (One-Time Password) dari berbagai aplikasi dan layanan digital. Cocok untuk verifikasi akun tanpa menggunakan nomor pribadi.
+                    </div></div>
                 </div>
                 <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Bagaimana proses top-up dan keamanan saldo?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <div class="faq-answer">
-                        <div class="faq-answer-inner">
-                            Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi. Kami tidak menyimpan data pembayaran sensitif Anda.
-                        </div>
-                    </div>
+                    <div class="faq-answer"><div class="faq-answer-inner">
+                        Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi. Kami tidak menyimpan data pembayaran sensitif Anda.
+                    </div></div>
                 </div>
                 <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Saldo tidak bertambah meskipun pembayaran sudah berhasil?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <div class="faq-answer">
-                        <div class="faq-answer-inner">
-                            Silakan hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran Anda, dan tim kami akan segera memprosesnya.
-                        </div>
-                    </div>
+                    <div class="faq-answer"><div class="faq-answer-inner">
+                        Silakan hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran Anda, dan tim kami akan segera memprosesnya.
+                    </div></div>
                 </div>
                 <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Pesanan gagal, apakah saldo tetap terpotong?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <div class="faq-answer">
-                        <div class="faq-answer-inner">
-                            Tidak. Jika pesanan gagal atau OTP tidak diterima, saldo Anda akan dikembalikan secara otomatis (refund) sesuai dengan kebijakan kami.
-                        </div>
-                    </div>
+                    <div class="faq-answer"><div class="faq-answer-inner">
+                        Tidak. Jika pesanan gagal atau OTP tidak diterima, saldo Anda akan dikembalikan secara otomatis (refund) sesuai dengan kebijakan kami.
+                    </div></div>
                 </div>
                 <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Apakah layanan ini terpercaya?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
-                    <div class="faq-answer">
-                        <div class="faq-answer-inner">
-                            Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan. Kami mengutamakan keamanan dan kepuasan pengguna.
-                        </div>
-                    </div>
+                    <div class="faq-answer"><div class="faq-answer-inner">
+                        Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan. Kami mengutamakan keamanan dan kepuasan pengguna.
+                    </div></div>
                 </div>
             </div>
         </div>
@@ -2011,7 +1972,7 @@
 
     <script>
         /* ============================================
-           SECURITY HARDENING — Frontend
+           SECURITY HARDENING
            ============================================ */
         (function() {
             const style = 'color:#dc2626;font-size:20px;font-weight:900;';
@@ -2126,7 +2087,7 @@
         })();
 
         /* ============================================
-           NAVBAR SCROLL SHADOW
+           NAVBAR SCROLL
            ============================================ */
         (function initNavScroll() {
             const nav = document.getElementById('mainNav');
@@ -2179,7 +2140,7 @@
         })();
 
         /* ============================================
-           PARALLAX GLOW on cards
+           PARALLAX GLOW on feature cards
            ============================================ */
         (function initParallax() {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -2224,7 +2185,7 @@
         })();
 
         /* ============================================
-           SMOOTH ANCHOR SCROLL
+           SMOOTH ANCHOR
            ============================================ */
         (function initSmoothAnchor() {
             document.querySelectorAll('a[href^="#"]').forEach(link => {
@@ -2243,360 +2204,152 @@
         })();
 
         /* ============================================
-           SELECTION BOX — ngikutin kursor / random
+           SELECTION BOX PER KATA
            ============================================ */
-        (function initSelectionBox() {
-            const wrap = document.getElementById('heroTitleWrap');
-            const box = document.getElementById('selectionBox');
-            const dimLabel = document.getElementById('selectionDim');
-            if (!wrap || !box) return;
+        (function initWordSelection() {
+            const title = document.getElementById('heroTitle');
+            if (!title) return;
 
-            const titleH1 = wrap.querySelector('h1');
-            let mouseX = 0, mouseY = 0;
-            let currentX = 0, currentY = 0;
-            let currentW = 0, currentH = 0;
-            let targetX = 0, targetY = 0;
-            let targetW = 0, targetH = 0;
-            let hasMouse = false;
+            // Render kata-kata
+            const words = [
+                { text: 'Digital', highlight: true },
+                { text: 'Mudah,', highlight: false },
+                { text: 'Tanpa', highlight: false },
+                { text: 'Perlu', highlight: false },
+                { text: 'Ribet', highlight: true },
+            ];
+
+            title.innerHTML = words.map((w, i) => `
+                <span class="word ${w.highlight ? 'highlight' : ''}" data-index="${i}">
+                    ${w.text}
+                    <span class="word-select"></span>
+                </span>
+            `).join('');
+
+            const wordEls = title.querySelectorAll('.word');
+            let activeIndex = 0;
             let lastMouseTime = 0;
-            let autoTimer = null;
-            let autoPhase = 0;
-            let autoStartTime = performance.now();
+            let hasMouse = false;
+            let hoveredIndex = -1;
 
-            const isMobile = () => window.matchMedia('(max-width: 900px)').matches ||
+            // Desktop: hover per kata
+            wordEls.forEach((el, i) => {
+                el.addEventListener('mouseenter', () => {
+                    hasMouse = true;
+                    lastMouseTime = performance.now();
+                    hoveredIndex = i;
+                    wordEls.forEach(w => w.classList.remove('selected'));
+                    el.classList.add('selected');
+                });
+            });
+
+            // Touch: tap per kata
+            wordEls.forEach((el, i) => {
+                el.addEventListener('touchstart', (e) => {
+                    hasMouse = true;
+                    lastMouseTime = performance.now();
+                    hoveredIndex = i;
+                    wordEls.forEach(w => w.classList.remove('selected'));
+                    el.classList.add('selected');
+                }, { passive: true });
+            });
+
+            // Auto cycle: kalau idle, ganti kata tiap 1.8s
+            let autoIndex = 0;
+            setInterval(() => {
+                const idle = performance.now() - lastMouseTime > 2500;
+                if (!hasMouse || idle) {
+                    wordEls.forEach(w => w.classList.remove('selected'));
+                    wordEls[autoIndex].classList.add('selected');
+                    autoIndex = (autoIndex + 1) % wordEls.length;
+                }
+            }, 1800);
+
+            // Init: selected kata pertama
+            wordEls[0].classList.add('selected');
+        })();
+
+        /* ============================================
+           BACKGROUND GRADIENT NGIKUTIN KURSOR
+           ============================================ */
+        (function initCursorGradient() {
+            const orb = document.getElementById('cursorOrb');
+            const orb2 = document.getElementById('cursorOrb2');
+            if (!orb) return;
+
+            const isMobile = window.matchMedia('(max-width: 900px)').matches ||
                 (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
 
-            function getWrapRect() {
-                return wrap.getBoundingClientRect();
-            }
+            let mouseX = window.innerWidth / 2;
+            let mouseY = window.innerHeight / 3;
+            let curX1 = mouseX, curY1 = mouseY;
+            let curX2 = mouseX, curY2 = mouseY;
+            let lastMouseTime = performance.now();
+            let hasMouse = false;
 
-            function setTargetFromMouse(clientX, clientY) {
-                const rect = getWrapRect();
-                const relX = clientX - rect.left;
-                const relY = clientY - rect.top;
-
-                // Size kotak: 180-260px wide, 70-100px tall
-                const w = 200 + Math.sin(Date.now() / 800) * 40;
-                const h = 80 + Math.cos(Date.now() / 700) * 12;
-
-                // Center kotak di posisi mouse
-                targetX = relX - w / 2;
-                targetY = relY - h / 2;
-                targetW = w;
-                targetH = h;
-
-                // Clamp biar gak keluar wrap
-                targetX = Math.max(-10, Math.min(rect.width - w + 10, targetX));
-                targetY = Math.max(-10, Math.min(rect.height - h + 10, targetY));
-            }
-
-            function setTargetRandom() {
-                const rect = getWrapRect();
-                const time = performance.now() / 1000;
-
-                // Kombinasi beberapa sinyal sinus untuk gerakan organik
-                const w = 180 + Math.sin(time * 0.7) * 60;
-                const h = 70 + Math.cos(time * 0.9) * 25;
-
-                const cx = rect.width / 2;
-                const cy = rect.height / 2;
-
-                // Orbit + wobble
-                const orbitX = Math.sin(time * 0.5) * (rect.width * 0.28);
-                const orbitY = Math.cos(time * 0.65) * (rect.height * 0.32);
-                const wobbleX = Math.sin(time * 1.8) * 18;
-                const wobbleY = Math.cos(time * 2.2) * 12;
-
-                targetX = cx + orbitX + wobbleX - w / 2;
-                targetY = cy + orbitY + wobbleY - h / 2;
-                targetW = w;
-                targetH = h;
-
-                // Clamp
-                targetX = Math.max(-10, Math.min(rect.width - w + 10, targetX));
-                targetY = Math.max(-10, Math.min(rect.height - h + 10, targetY));
-            }
-
-            // Mouse events (desktop)
-            wrap.addEventListener('mousemove', (e) => {
+            // Update posisi target
+            document.addEventListener('mousemove', (e) => {
                 hasMouse = true;
                 lastMouseTime = performance.now();
                 mouseX = e.clientX;
                 mouseY = e.clientY;
-                setTargetFromMouse(mouseX, mouseY);
-                box.classList.add('visible');
-            });
-
-            wrap.addEventListener('mouseleave', () => {
-                hasMouse = false;
-            });
-
-            // Touch events (mobile)
-            wrap.addEventListener('touchstart', (e) => {
-                hasMouse = true;
-                lastMouseTime = performance.now();
-                const t = e.touches[0];
-                setTargetFromMouse(t.clientX, t.clientY);
-                box.classList.add('visible');
-            }, { passive: true });
-
-            wrap.addEventListener('touchmove', (e) => {
-                hasMouse = true;
-                lastMouseTime = performance.now();
-                const t = e.touches[0];
-                setTargetFromMouse(t.clientX, t.clientY);
-            }, { passive: true });
-
-            wrap.addEventListener('touchend', () => {
-                // Biar tetap visible sebentar, baru auto mode
-                setTimeout(() => {
-                    if (performance.now() - lastMouseTime > 2000) {
-                        hasMouse = false;
-                    }
-                }, 2000);
-            });
-
-            // Animation loop
-            function animate() {
-                const now = performance.now();
-                const idle = now - lastMouseTime > 1800;
-
-                // Kalau gak ada mouse / idle → gerak random
-                if (!hasMouse || idle) {
-                    setTargetRandom();
-                    box.classList.add('visible');
-                }
-
-                // Smooth lerp
-                const ease = hasMouse && !idle ? 0.15 : 0.08;
-                currentX += (targetX - currentX) * ease;
-                currentY += (targetY - currentY) * ease;
-                currentW += (targetW - currentW) * ease;
-                currentH += (targetH - currentH) * ease;
-
-                box.style.transform = `translate(${currentX}px, ${currentY}px)`;
-                box.style.width = currentW + 'px';
-                box.style.height = currentH + 'px';
-
-                // Update dim label
-                if (dimLabel) {
-                    dimLabel.textContent = `w ${Math.round(currentW)} · h ${Math.round(currentH)}`;
-                }
-
-                requestAnimationFrame(animate);
-            }
-
-            // Init posisi
-            const rect = getWrapRect();
-            currentX = targetX = rect.width / 2 - 100;
-            currentY = targetY = rect.height / 2 - 40;
-            currentW = targetW = 200;
-            currentH = targetH = 80;
-            box.classList.add('visible');
-
-            requestAnimationFrame(animate);
-        })();
-
-        /* ============================================
-           LOOPING TEXT — pause on hover (desktop)
-           ============================================ */
-        (function initLoopText() {
-            const loop = document.getElementById('loopText');
-            if (!loop) return;
-            const container = loop.parentElement;
-            container.addEventListener('mouseenter', () => loop.classList.add('paused'));
-            container.addEventListener('mouseleave', () => loop.classList.remove('paused'));
-            container.addEventListener('touchstart', () => loop.classList.add('paused'), { passive: true });
-            container.addEventListener('touchend', () => {
-                setTimeout(() => loop.classList.remove('paused'), 800);
-            });
-        })();
-
-        /* ============================================
-           FLIP CARD — klik / tap untuk flip
-           ============================================ */
-        (function initFlipCards() {
-            document.querySelectorAll('[data-flip]').forEach(card => {
-                card.addEventListener('click', (e) => {
-                    // Kalau yang diklik adalah link di back face, biarkan
-                    if (e.target.closest('.flip-btn')) return;
-                    card.classList.toggle('flipped');
-                });
-                // Keyboard accessibility
-                card.setAttribute('tabindex', '0');
-                card.setAttribute('role', 'button');
-                card.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        card.classList.toggle('flipped');
-                    }
-                });
-            });
-        })();
-
-        /* ============================================
-           CURSOR GRID — sel yang mengikuti kursor
-           ============================================ */
-        (function initCursorGrid() {
-            const gridContainer = document.getElementById('cursorGrid');
-            if (!gridContainer) return;
-
-            const CELL = 60; // px
-            let cells = [];
-            let cols = 0, rows = 0;
-            let mouseGridX = -1, mouseGridY = -1;
-            let autoPhase = 0;
-            let lastMouseTime = 0;
-            let hasMouse = false;
-            let rafId = null;
-
-            const svgNS = 'http://www.w3.org/2000/svg';
-
-            function buildGrid() {
-                const w = window.innerWidth;
-                const h = window.innerHeight;
-                cols = Math.ceil(w / CELL) + 1;
-                rows = Math.ceil(h / CELL) + 1;
-
-                // Clear
-                gridContainer.innerHTML = '';
-                cells = [];
-
-                const svg = document.createElementNS(svgNS, 'svg');
-                svg.setAttribute('viewBox', `0 0 ${cols * CELL} ${rows * CELL}`);
-                svg.setAttribute('preserveAspectRatio', 'none');
-                svg.style.width = (cols * CELL) + 'px';
-                svg.style.height = (rows * CELL) + 'px';
-
-                // Vertical lines
-                for (let i = 0; i <= cols; i++) {
-                    const line = document.createElementNS(svgNS, 'line');
-                    line.setAttribute('x1', i * CELL);
-                    line.setAttribute('y1', 0);
-                    line.setAttribute('x2', i * CELL);
-                    line.setAttribute('y2', rows * CELL);
-                    svg.appendChild(line);
-                }
-                // Horizontal lines
-                for (let j = 0; j <= rows; j++) {
-                    const line = document.createElementNS(svgNS, 'line');
-                    line.setAttribute('x1', 0);
-                    line.setAttribute('y1', j * CELL);
-                    line.setAttribute('x2', cols * CELL);
-                    line.setAttribute('y2', j * CELL);
-                    svg.appendChild(line);
-                }
-
-                // Cells (untuk highlight)
-                for (let i = 0; i < cols; i++) {
-                    for (let j = 0; j < rows; j++) {
-                        const rect = document.createElementNS(svgNS, 'rect');
-                        rect.setAttribute('class', 'cursor-cell');
-                        rect.setAttribute('x', i * CELL);
-                        rect.setAttribute('y', j * CELL);
-                        rect.setAttribute('width', CELL);
-                        rect.setAttribute('height', CELL);
-                        rect.setAttribute('rx', 2);
-                        svg.appendChild(rect);
-                        cells.push({ el: rect, col: i, row: j });
-                    }
-                }
-
-                gridContainer.appendChild(svg);
-            }
-
-            function setActive(col, row) {
-                cells.forEach(c => {
-                    const dx = Math.abs(c.col - col);
-                    const dy = Math.abs(c.row - row);
-                    if (dx === 0 && dy === 0) {
-                        c.el.classList.add('active');
-                        c.el.style.opacity = '0.22';
-                    } else if (dx <= 1 && dy <= 1) {
-                        c.el.classList.add('active');
-                        c.el.style.opacity = '0.08';
-                    } else {
-                        c.el.classList.remove('active');
-                        c.el.style.opacity = '0';
-                    }
-                });
-            }
-
-            function clearActive() {
-                cells.forEach(c => {
-                    c.el.classList.remove('active');
-                    c.el.style.opacity = '0';
-                });
-            }
-
-            // Mouse / touch
-            document.addEventListener('mousemove', (e) => {
-                hasMouse = true;
-                lastMouseTime = performance.now();
-                mouseGridX = Math.floor(e.clientX / CELL);
-                mouseGridY = Math.floor(e.clientY / CELL);
-                setActive(mouseGridX, mouseGridY);
             }, { passive: true });
 
             document.addEventListener('touchmove', (e) => {
                 hasMouse = true;
                 lastMouseTime = performance.now();
                 const t = e.touches[0];
-                if (!t) return;
-                mouseGridX = Math.floor(t.clientX / CELL);
-                mouseGridY = Math.floor(t.clientY / CELL);
-                setActive(mouseGridX, mouseGridY);
+                if (t) {
+                    mouseX = t.clientX;
+                    mouseY = t.clientY;
+                }
             }, { passive: true });
 
-            document.addEventListener('mouseleave', () => {
-                hasMouse = false;
-            });
-
-            // Auto mode: 3 sel bergerak random
-            function autoAnimate() {
-                const now = performance.now();
-                const idle = now - lastMouseTime > 2500;
-
-                if (!hasMouse || idle) {
-                    autoPhase += 0.008;
-                    const t = now / 1000;
-
-                    const c1x = Math.floor((Math.sin(t * 0.4) * 0.4 + 0.5) * cols);
-                    const c1y = Math.floor((Math.cos(t * 0.5) * 0.4 + 0.5) * rows);
-                    const c2x = Math.floor((Math.sin(t * 0.7 + 2) * 0.4 + 0.5) * cols);
-                    const c2y = Math.floor((Math.cos(t * 0.6 + 1) * 0.4 + 0.5) * rows);
-                    const c3x = Math.floor((Math.sin(t * 0.3 + 4) * 0.4 + 0.5) * cols);
-                    const c3y = Math.floor((Math.cos(t * 0.9 + 3) * 0.4 + 0.5) * rows);
-
-                    clearActive();
-
-                    const activeCells = new Set();
-                    [[c1x, c1y], [c2x, c2y], [c3x, c3y]].forEach(([cx, cy]) => {
-                        cells.forEach(c => {
-                            const dx = Math.abs(c.col - cx);
-                            const dy = Math.abs(c.row - cy);
-                            if (dx === 0 && dy === 0) {
-                                c.el.classList.add('active');
-                                c.el.style.opacity = '0.18';
-                            } else if (dx <= 1 && dy <= 1 && (dx + dy) === 1) {
-                                c.el.classList.add('active');
-                                c.el.style.opacity = '0.06';
-                            }
-                        });
-                    });
-                }
-
-                rafId = requestAnimationFrame(autoAnimate);
+            // Auto mode (mobile atau idle)
+            function getAutoTarget() {
+                const t = performance.now() / 1000;
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                return {
+                    x: w/2 + Math.sin(t * 0.35) * (w * 0.28),
+                    y: h/2 + Math.cos(t * 0.42) * (h * 0.22),
+                    x2: w/2 + Math.cos(t * 0.5) * (w * 0.32),
+                    y2: h/2 + Math.sin(t * 0.6) * (h * 0.28),
+                };
             }
 
-            buildGrid();
-            autoAnimate();
+            function animate() {
+                const idle = performance.now() - lastMouseTime > 2500;
+                let targetX, targetY, targetX2, targetY2;
 
-            let resizeTimer;
-            window.addEventListener('resize', () => {
-                clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(buildGrid, 250);
-            });
+                if (!hasMouse || idle) {
+                    const auto = getAutoTarget();
+                    targetX = auto.x;
+                    targetY = auto.y;
+                    targetX2 = auto.x2;
+                    targetY2 = auto.y2;
+                } else {
+                    targetX = mouseX;
+                    targetY = mouseY;
+                    targetX2 = mouseX;
+                    targetY2 = mouseY;
+                }
+
+                // Smooth lerp — orb 1 lebih lambat, orb 2 lebih cepat
+                curX1 += (targetX - curX1) * 0.06;
+                curY1 += (targetY - curY1) * 0.06;
+                curX2 += (targetX2 - curX2) * 0.09;
+                curY2 += (targetY2 - curY2) * 0.09;
+
+                orb.style.transform = `translate(${curX1 - 350}px, ${curY1 - 350}px)`;
+                if (orb2) {
+                    orb2.style.transform = `translate(${curX2 - 200}px, ${curY2 - 200}px)`;
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            animate();
         })();
     </script>
 
