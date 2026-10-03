@@ -1,17 +1,17 @@
 /* ============================================
-   LOGIN PAGE v8 — Full script
-   Tema BG: Aurora (dark) / Iridescence (light) + MicroSlats
-   Theme transition: Pixel Swap
-   Input: Fold Text label animation
-   Login: Folder check animation
+   LOGIN PAGE v8 — Dual Theme BG (Aurora/Iridescence) + MicroSlats + Cursor Grid
    ============================================ */
 (function () {
     'use strict';
 
-    const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    /* ============================================
+       DEVICE DETECTION
+       ============================================ */
+    const isMobile = window.matchMedia('(max-width: 700px)').matches;
     const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const DISABLE_HEAVY = prefersReduced || isLowEnd;
+    const saveData = navigator.connection && navigator.connection.saveData;
+    const DISABLE_HEAVY = prefersReduced || saveData || isLowEnd;
 
     /* ============================================
        SECURITY HARDENING
@@ -89,93 +89,57 @@
     })();
 
     /* ============================================
-       THEME TOGGLE with PIXEL SWAP
+       THEME TOGGLE
        ============================================ */
     (function theme() {
         const btn = document.getElementById('themeToggle');
-        const overlay = document.getElementById('pixelSwapOverlay');
-        if (!btn || !overlay) return;
-
-        let isAnimating = false;
-
-        // Build pixel grid
-        function buildPixels(themeColor) {
-            const pixelSize = 20; // banyak pixel kecil
-            const cols = Math.ceil(window.innerWidth / pixelSize);
-            const rows = Math.ceil(window.innerHeight / pixelSize);
-            const total = cols * rows;
-
-            overlay.innerHTML = '';
-            overlay.style.gridTemplateColumns = `repeat(${cols}, ${pixelSize}px)`;
-            overlay.style.gridTemplateRows = `repeat(${rows}, ${pixelSize}px)`;
-            overlay.setAttribute('data-theme-color', themeColor);
-
-            // Batasi max pixel
-            const MAX = 4000;
-            const step = total > MAX ? Math.ceil(total / MAX) : 1;
-
-            const frag = document.createDocumentFragment();
-            for (let i = 0; i < total; i += step) {
-                const p = document.createElement('div');
-                p.className = 'pixel';
-                // Delay random untuk efek chaotic
-                const delay = Math.random() * 0.4;
-                p.style.animationDelay = delay + 's';
-                frag.appendChild(p);
-            }
-            overlay.appendChild(frag);
-        }
-
+        if (!btn) return;
         btn.addEventListener('click', () => {
-            if (isAnimating) return;
-
             const cur = document.documentElement.getAttribute('data-theme') || 'light';
             const next = cur === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('asyrofotp_theme', next);
+            const m = document.querySelector('meta[name="theme-color"]');
+            if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
 
-            isAnimating = true;
-
-            // Warna overlay = warna tema TUJUAN
-            const targetColor = next === 'dark' ? 'dark' : 'light';
-            buildPixels(targetColor);
-
-            overlay.classList.add('active');
-            overlay.classList.remove('closing');
-
-            // Ganti tema pas pixel nutup penuh
-            setTimeout(() => {
-                document.documentElement.setAttribute('data-theme', next);
-                localStorage.setItem('asyrofotp_theme', next);
-                const m = document.querySelector('meta[name="theme-color"]');
-                if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
-
-                // Restart aurora/iridescence berdasarkan tema baru
-                restartBgByTheme(next);
-
-                // Fade out pixel
-                overlay.classList.add('closing');
-                setTimeout(() => {
-                    overlay.classList.remove('active', 'closing');
-                    overlay.innerHTML = '';
-                    isAnimating = false;
-                }, 700);
-            }, 700);
+            // Restart shader dengan theme baru
+            restartShader();
         });
     })();
 
     /* ============================================
-       AURORA (dark theme)
+       SHADER MANAGER — Aurora (dark) / Iridescence (light)
        ============================================ */
-    function initAurora() {
-        const container = document.getElementById('bgAurora');
+    let currentShaderCleanup = null;
+
+    function restartShader() {
+        if (currentShaderCleanup) {
+            try { currentShaderCleanup(); } catch (e) {}
+            currentShaderCleanup = null;
+        }
+        const container = document.getElementById('bgShader');
         if (!container) return;
-        if (container.dataset.inited === '1') return;
-        container.dataset.inited = '1';
+        container.innerHTML = '';
+        container.classList.remove('shader-fallback');
+
+        const theme = document.documentElement.getAttribute('data-theme') || 'light';
 
         if (DISABLE_HEAVY) {
-            container.style.background = 'linear-gradient(180deg, rgba(82,39,255,0.4) 0%, rgba(37,99,235,0.3) 50%, rgba(236,72,153,0.35) 100%)';
+            container.classList.add('shader-fallback');
             return;
         }
 
+        if (theme === 'dark') {
+            currentShaderCleanup = initAurora(container);
+        } else {
+            currentShaderCleanup = initIridescence(container);
+        }
+    }
+
+    /* ============================================
+       AURORA (untuk tema gelap)
+       ============================================ */
+    function initAurora(container) {
         const canvas = document.createElement('canvas');
         canvas.style.cssText = 'display:block;width:100%;height:100%;';
         container.appendChild(canvas);
@@ -186,8 +150,8 @@
         });
 
         if (!gl) {
-            container.style.background = 'linear-gradient(180deg, rgba(82,39,255,0.4) 0%, rgba(37,99,235,0.3) 50%, rgba(236,72,153,0.35) 100%)';
-            return;
+            container.classList.add('shader-fallback');
+            return null;
         }
 
         const VERT = `#version 300 es
@@ -274,13 +238,19 @@ void main() {
 
         const vs = compile(gl.VERTEX_SHADER, VERT);
         const fs = compile(gl.FRAGMENT_SHADER, FRAG);
-        if (!vs || !fs) return;
+        if (!vs || !fs) {
+            container.classList.add('shader-fallback');
+            return null;
+        }
 
         const prog = gl.createProgram();
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
-        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+            container.classList.add('shader-fallback');
+            return null;
+        }
         gl.useProgram(prog);
 
         const buf = gl.createBuffer();
@@ -296,6 +266,7 @@ void main() {
         const uRes = gl.getUniformLocation(prog, 'uResolution');
         const uBlend = gl.getUniformLocation(prog, 'uBlend');
 
+        // Warna biru-ungu-pink aurora (dark theme)
         const colors = [
             [0.32, 0.15, 1.0],
             [0.49, 0.39, 0.81],
@@ -306,7 +277,7 @@ void main() {
             const rect = container.getBoundingClientRect();
             const w = Math.max(1, Math.floor(rect.width));
             const h = Math.max(1, Math.floor(rect.height));
-            const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
+            const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
             canvas.width = Math.floor(w * dpr);
             canvas.height = Math.floor(h * dpr);
             gl.viewport(0, 0, canvas.width, canvas.height);
@@ -319,13 +290,16 @@ void main() {
         let raf = 0;
         let visible = true;
         let lastRender = 0;
-        const FRAME_MIN = 1000 / (isMobile ? 24 : 30);
+        const FRAME_MIN = 1000 / 30;
         const t0 = performance.now();
 
         function frame(now) {
             raf = 0;
             if (!visible || document.hidden) return;
-            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(frame); return; }
+            if (now - lastRender < FRAME_MIN) {
+                raf = requestAnimationFrame(frame);
+                return;
+            }
             lastRender = now;
 
             gl.uniform1f(uTime, (now - t0) * 0.001);
@@ -336,6 +310,7 @@ void main() {
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
+
             raf = requestAnimationFrame(frame);
         }
 
@@ -352,27 +327,26 @@ void main() {
         }, { threshold: 0 });
         io.observe(container);
 
-        document.addEventListener('visibilitychange', () => {
+        const onVis = () => {
             if (!document.hidden) schedule();
-        });
+        };
+        document.addEventListener('visibilitychange', onVis);
 
         schedule();
+
+        return function cleanup() {
+            if (raf) cancelAnimationFrame(raf);
+            ro.disconnect();
+            io.disconnect();
+            document.removeEventListener('visibilitychange', onVis);
+            try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch (e) {}
+        };
     }
 
     /* ============================================
-       IRIDESCENCE (light theme)
+       IRIDESCENCE (untuk tema terang)
        ============================================ */
-    function initIridescence() {
-        const container = document.getElementById('bgIridescence');
-        if (!container) return;
-        if (container.dataset.inited === '1') return;
-        container.dataset.inited = '1';
-
-        if (DISABLE_HEAVY) {
-            container.style.background = 'linear-gradient(135deg, rgba(191,219,254,0.5) 0%, rgba(221,214,254,0.5) 50%, rgba(251,207,232,0.5) 100%)';
-            return;
-        }
-
+    function initIridescence(container) {
         const canvas = document.createElement('canvas');
         canvas.style.cssText = 'display:block;width:100%;height:100%;';
         container.appendChild(canvas);
@@ -383,43 +357,39 @@ void main() {
         });
 
         if (!gl) {
-            container.style.background = 'linear-gradient(135deg, rgba(191,219,254,0.5) 0%, rgba(221,214,254,0.5) 50%, rgba(251,207,232,0.5) 100%)';
-            return;
+            container.classList.add('shader-fallback');
+            return null;
         }
 
         const VERT = `#version 300 es
 in vec2 position;
-in vec2 uv;
-out vec2 vUv;
-void main() {
-    vUv = uv;
-    gl_Position = vec4(position, 0.0, 1.0);
-}
+void main() { gl_Position = vec4(position, 0.0, 1.0); }
 `;
 
         const FRAG = `#version 300 es
 precision highp float;
 uniform float uTime;
 uniform vec3 uColor;
-uniform vec2 uResolution;
+uniform vec3 uResolution;
+uniform vec2 uMouse;
+uniform float uAmplitude;
+uniform float uSpeed;
 out vec4 fragColor;
-in vec2 vUv;
 
 void main() {
     float mr = min(uResolution.x, uResolution.y);
-    vec2 uv = (vUv * 2.0 - 1.0) * uResolution / mr;
+    vec2 uv = ((gl_FragCoord.xy / uResolution.xy) * 2.0 - 1.0) * uResolution.xy / mr;
+    uv += (uMouse - vec2(0.5)) * uAmplitude;
 
-    float d = -uTime * 0.5;
+    float d = -uTime * 0.5 * uSpeed;
     float a = 0.0;
     for (float i = 0.0; i < 8.0; ++i) {
         a += cos(i - d - a * uv.x);
         d += sin(uv.y * i + a);
     }
-    d += uTime * 0.5;
+    d += uTime * 0.5 * uSpeed;
     vec3 col = vec3(cos(uv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
     col = cos(col * cos(vec3(d, a, 2.5)) * 0.5 + 0.5) * uColor;
-    // Pastikan warna soft untuk light mode
-    col = mix(vec3(1.0), col, 0.35);
     fragColor = vec4(col, 1.0);
 }
 `;
@@ -434,66 +404,90 @@ void main() {
 
         const vs = compile(gl.VERTEX_SHADER, VERT);
         const fs = compile(gl.FRAGMENT_SHADER, FRAG);
-        if (!vs || !fs) return;
+        if (!vs || !fs) {
+            container.classList.add('shader-fallback');
+            return null;
+        }
 
         const prog = gl.createProgram();
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
-        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+            container.classList.add('shader-fallback');
+            return null;
+        }
         gl.useProgram(prog);
 
         const buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        // Quad dengan UV: position + uv
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-            -1, -1, 0, 0,
-             3, -1, 2, 0,
-            -1,  3, 0, 2,
-        ]), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
         const loc = gl.getAttribLocation(prog, 'position');
-        const locUv = gl.getAttribLocation(prog, 'uv');
         gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 16, 0);
-        gl.enableVertexAttribArray(locUv);
-        gl.vertexAttribPointer(locUv, 2, gl.FLOAT, false, 16, 8);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
         const uTime = gl.getUniformLocation(prog, 'uTime');
         const uColor = gl.getUniformLocation(prog, 'uColor');
         const uRes = gl.getUniformLocation(prog, 'uResolution');
+        const uMouse = gl.getUniformLocation(prog, 'uMouse');
+        const uAmp = gl.getUniformLocation(prog, 'uAmplitude');
+        const uSpeed = gl.getUniformLocation(prog, 'uSpeed');
+
+        // Warna dasar: biru-ungu (light theme, biar keliatan soft)
+        const baseColor = [0.55, 0.65, 0.95];
+
+        const targetMouse = [0.5, 0.5];
+        const currentMouse = [0.5, 0.5];
 
         function resize() {
             const rect = container.getBoundingClientRect();
             const w = Math.max(1, Math.floor(rect.width));
             const h = Math.max(1, Math.floor(rect.height));
-            const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
+            const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
             canvas.width = Math.floor(w * dpr);
             canvas.height = Math.floor(h * dpr);
             gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.uniform2f(uRes, canvas.width, canvas.height);
+            gl.uniform3f(uRes, canvas.width, canvas.height, canvas.width / canvas.height);
         }
         const ro = new ResizeObserver(resize);
         ro.observe(container);
         resize();
 
-        gl.uniform3f(uColor, 0.78, 0.85, 0.98);
+        const onPointerMove = (e) => {
+            const rect = container.getBoundingClientRect();
+            targetMouse[0] = (e.clientX - rect.left) / rect.width;
+            targetMouse[1] = 1 - (e.clientY - rect.top) / rect.height;
+        };
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
 
         let raf = 0;
         let visible = true;
         let lastRender = 0;
-        const FRAME_MIN = 1000 / (isMobile ? 24 : 30);
+        const FRAME_MIN = 1000 / 30;
         const t0 = performance.now();
 
         function frame(now) {
             raf = 0;
             if (!visible || document.hidden) return;
-            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(frame); return; }
+            if (now - lastRender < FRAME_MIN) {
+                raf = requestAnimationFrame(frame);
+                return;
+            }
             lastRender = now;
 
+            currentMouse[0] += 0.05 * (targetMouse[0] - currentMouse[0]);
+            currentMouse[1] += 0.05 * (targetMouse[1] - currentMouse[1]);
+
             gl.uniform1f(uTime, (now - t0) * 0.001);
-            gl.clearColor(1, 1, 1, 0);
+            gl.uniform3f(uColor, baseColor[0], baseColor[1], baseColor[2]);
+            gl.uniform2f(uMouse, currentMouse[0], currentMouse[1]);
+            gl.uniform1f(uAmp, 0.1);
+            gl.uniform1f(uSpeed, 1.0);
+
+            gl.clearColor(1, 1, 1, 1);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
+
             raf = requestAnimationFrame(frame);
         }
 
@@ -510,22 +504,30 @@ void main() {
         }, { threshold: 0 });
         io.observe(container);
 
-        document.addEventListener('visibilitychange', () => {
+        const onVis = () => {
             if (!document.hidden) schedule();
-        });
+        };
+        document.addEventListener('visibilitychange', onVis);
 
         schedule();
+
+        return function cleanup() {
+            if (raf) cancelAnimationFrame(raf);
+            ro.disconnect();
+            io.disconnect();
+            document.removeEventListener('visibilitychange', onVis);
+            window.removeEventListener('pointermove', onPointerMove);
+            try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch (e) {}
+        };
     }
 
     /* ============================================
-       MICRO SLATS (canvas 2D — versi ringan)
+       MICRO SLATS — Vanilla CSS animated (ringan)
        ============================================ */
-    function initMicroSlats() {
-        const container = document.getElementById('bgMicroSlats');
+    (function microSlats() {
+        const container = document.getElementById('bgMicroslats');
         if (!container) return;
-        if (DISABLE_HEAVY) return;
-        if (container.dataset.inited === '1') return;
-        container.dataset.inited = '1';
+        if (DISABLE_HEAVY || isMobile) return;
 
         const canvas = document.createElement('canvas');
         canvas.style.cssText = 'display:block;width:100%;height:100%;';
@@ -544,9 +546,9 @@ void main() {
         const FRAME_MIN = 1000 / 24;
 
         function resize() {
-            const rect = container.getBoundingClientRect();
-            w = Math.max(1, rect.width);
-            h = Math.max(1, rect.height);
+            const r = container.getBoundingClientRect();
+            w = Math.max(1, r.width);
+            h = Math.max(1, r.height);
             canvas.width = Math.floor(w);
             canvas.height = Math.floor(h);
             canvas.style.width = w + 'px';
@@ -561,18 +563,27 @@ void main() {
             offY = (h - (rows * pitchY - gap)) / 2;
         }
 
+        function getSlatColor() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return isDark ? '255,255,255' : '37,99,235';
+        }
+
         function render(now) {
             raf = 0;
             if (!visible || document.hidden) return;
-            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(render); return; }
+
+            if (now - lastRender < FRAME_MIN) {
+                raf = requestAnimationFrame(render);
+                return;
+            }
             lastRender = now;
             time += 0.016;
 
             ctx.clearRect(0, 0, w, h);
 
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
             const pitchX = slatW + gap;
             const pitchY = slatH + gap;
+            const colorRgb = getSlatColor();
 
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
@@ -585,9 +596,8 @@ void main() {
 
                     const alpha = 0.04 + level * 0.28;
                     const curH = slatH * (0.4 + level * 0.6);
-                    const color = isDark ? '59,130,246' : '37,99,235';
 
-                    ctx.fillStyle = `rgba(${color},${alpha.toFixed(3)})`;
+                    ctx.fillStyle = `rgba(${colorRgb},${alpha.toFixed(3)})`;
                     ctx.fillRect(cx - slatW / 2, cy - curH / 2, slatW, curH);
                 }
             }
@@ -602,6 +612,13 @@ void main() {
             }
         }
 
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+        }
+
         const ro = new ResizeObserver(() => { resize(); schedule(); });
         ro.observe(container);
         resize();
@@ -609,98 +626,214 @@ void main() {
         const io = new IntersectionObserver(([en]) => {
             visible = en.isIntersecting;
             if (visible) schedule();
+            else stop();
         }, { threshold: 0 });
         io.observe(container);
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) schedule();
+        const onVis = () => {
+            if (document.hidden) stop();
+            else schedule();
+        };
+        document.addEventListener('visibilitychange', onVis);
+
+        // Restart on theme change (warna beda)
+        const themeObserver = new MutationObserver(() => {
+            schedule();
         });
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
         schedule();
-    }
-
-    function restartBgByTheme(theme) {
-        // Reset & init ulang BG sesuai tema
-        const aurora = document.getElementById('bgAurora');
-        const iridescence = document.getElementById('bgIridescence');
-
-        // Aurora hanya untuk dark, tapi tetap init sekali
-        if (!aurora.dataset.inited) initAurora();
-        if (!iridescence.dataset.inited) initIridescence();
-    }
-
-    // Init awal
-    initAurora();
-    initIridescence();
-    initMicroSlats();
-
-    /* ============================================
-       FOLD LABEL — animasi unfold saat input focus
-       ============================================ */
-    (function foldLabel() {
-        const labels = document.querySelectorAll('[data-fold-label]');
-        labels.forEach(label => {
-            const text = label.getAttribute('data-fold-label');
-            const chars = text.split('').map((c, i) =>
-                `<span class="fold-char" style="transition-delay: ${i * 0.03}s;">${c === ' ' ? '&nbsp;' : c}</span>`
-            ).join('');
-            label.innerHTML = chars;
-        });
-
-        // Unfold pas halaman load
-        setTimeout(() => {
-            labels.forEach((label, idx) => {
-                setTimeout(() => label.classList.add('unfolded'), idx * 150);
-            });
-        }, 300);
-
-        // Unfold pas input focus kalau sebelumnya gak unfolded
-        document.querySelectorAll('.form-control').forEach(input => {
-            input.addEventListener('focus', () => {
-                const label = input.parentElement?.previousElementSibling;
-                if (label && label.classList.contains('fold-label')) {
-                    label.classList.add('unfolded');
-                }
-            });
-        });
     })();
 
     /* ============================================
-       BORDER GLOW
+       CURSOR GRID — kotak nyala di bawah kursor
        ============================================ */
-    (function borderGlow() {
+    (function cursorGrid() {
+        if (isMobile) return;
+        if (prefersReduced) return;
+
+        const canvas = document.getElementById('cursorGridCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d', { alpha: true });
+        if (!ctx) return;
+
+        const CELL = 70;
+        const RADIUS = 140;
+        const HOLD = 400;
+        const FADE_MS = 800;
+        const LINE = 1;
+        const MAX_OP = 0.7;
+
+        let cols = 0, rows = 0, offX = 0, offY = 0;
+        let alphas = new Float32Array(0);
+        let touched = new Float64Array(0);
+        let w = 1, h = 1;
+        let raf = 0;
+        let running = false;
+        let lastFrame = 0;
+        let visible = true;
+        let lastRender = 0;
+        const FRAME_MIN = 1000 / 30;
+
+        function getGridColor() {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            return isDark ? [147, 197, 253] : [37, 99, 235];
+        }
+
+        function rebuild() {
+            const r = canvas.getBoundingClientRect();
+            w = Math.max(1, r.width);
+            h = Math.max(1, r.height);
+            canvas.width = Math.floor(w);
+            canvas.height = Math.floor(h);
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            cols = Math.ceil(w / CELL) + 1;
+            rows = Math.ceil(h / CELL) + 1;
+            offX = (w - cols * CELL) / 2;
+            offY = (h - rows * CELL) / 2;
+            alphas = new Float32Array(cols * rows);
+            touched = new Float64Array(cols * rows);
+        }
+
+        function cellCenter(i) {
+            const cx = offX + (i % cols) * CELL + CELL / 2;
+            const cy = offY + Math.floor(i / cols) * CELL + CELL / 2;
+            return [cx, cy];
+        }
+
+        function energize(x, y) {
+            const now = performance.now();
+            const minC = Math.max(0, Math.floor((x - RADIUS - offX) / CELL));
+            const maxC = Math.min(cols - 1, Math.floor((x + RADIUS - offX) / CELL));
+            const minR = Math.max(0, Math.floor((y - RADIUS - offY) / CELL));
+            const maxR = Math.min(rows - 1, Math.floor((y + RADIUS - offY) / CELL));
+            for (let r = minR; r <= maxR; r++) {
+                for (let c = minC; c <= maxC; c++) {
+                    const i = r * cols + c;
+                    const [cx, cy] = cellCenter(i);
+                    const dist = Math.hypot(cx - x, cy - y);
+                    if (dist > RADIUS) continue;
+                    const t = 1 - dist / RADIUS;
+                    const eased = t * t * (3 - 2 * t);
+                    const level = eased * MAX_OP;
+                    if (level > alphas[i]) {
+                        alphas[i] = level;
+                        touched[i] = now;
+                    } else if (level > 0) {
+                        touched[i] = now;
+                    }
+                }
+            }
+        }
+
+        function draw(now) {
+            raf = 0;
+            if (!visible || document.hidden) { running = false; return; }
+            if (now - lastRender < FRAME_MIN) {
+                raf = requestAnimationFrame(draw);
+                return;
+            }
+            lastRender = now;
+            const dt = Math.min(now - lastFrame, 50);
+            lastFrame = now;
+            ctx.clearRect(0, 0, w, h);
+
+            let any = false;
+            const fadeStep = dt / FADE_MS;
+            const half = CELL / 2;
+            const [cr, cg, cb] = getGridColor();
+
+            for (let i = 0; i < alphas.length; i++) {
+                let a = alphas[i];
+                if (a <= 0) continue;
+                if (now - touched[i] > HOLD) {
+                    a = Math.max(0, a - fadeStep);
+                    alphas[i] = a;
+                    if (a <= 0) continue;
+                }
+                any = true;
+                const [cx, cy] = cellCenter(i);
+                const x = cx - half + 0.5;
+                const y = cy - half + 0.5;
+                const s = CELL - 1;
+
+                ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a})`;
+                ctx.lineWidth = LINE;
+                ctx.strokeRect(x, y, s, s);
+            }
+
+            if (any) raf = requestAnimationFrame(draw);
+            else running = false;
+        }
+
+        function wake() {
+            if (running) return;
+            running = true;
+            lastFrame = performance.now();
+            lastRender = 0;
+            raf = requestAnimationFrame(draw);
+        }
+
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            running = false;
+        }
+
+        const onPointerMove = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x < 0 || y < 0 || x > w || y > h) return;
+            energize(x, y);
+            wake();
+        };
+        const onPointerDown = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x < 0 || y < 0 || x > w || y > h) return;
+            energize(x, y);
+            wake();
+        };
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', onPointerDown, { passive: true });
+
+        const ro = new ResizeObserver(() => { rebuild(); wake(); });
+        ro.observe(canvas);
+        rebuild();
+
+        const io = new IntersectionObserver(([en]) => {
+            visible = en.isIntersecting;
+            if (visible) wake();
+            else stop();
+        }, { threshold: 0 });
+        io.observe(canvas);
+
+        const onVis = () => {
+            if (document.hidden) stop();
+            else wake();
+        };
+        document.addEventListener('visibilitychange', onVis);
+
+        wake();
+    })();
+
+    /* ============================================
+       SPOTLIGHT CARD — spotlight ngikutin kursor
+       ============================================ */
+    (function spotlightCard() {
         if (prefersReduced) return;
         const card = document.getElementById('loginCard');
         if (!card) return;
 
         let raf = 0;
         let targetX = 0, targetY = 0;
-        let curX = 0, curY = 0;
-
-        function getEdgeProximity(el, x, y) {
-            const rect = el.getBoundingClientRect();
-            const cx = rect.width / 2;
-            const cy = rect.height / 2;
-            const dx = x - cx;
-            const dy = y - cy;
-            let kx = Infinity, ky = Infinity;
-            if (dx !== 0) kx = cx / Math.abs(dx);
-            if (dy !== 0) ky = cy / Math.abs(dy);
-            return Math.min(Math.max(1 / Math.min(kx, ky), 0), 1);
-        }
-
-        function getCursorAngle(el, x, y) {
-            const rect = el.getBoundingClientRect();
-            const cx = rect.width / 2;
-            const cy = rect.height / 2;
-            const dx = x - cx;
-            const dy = y - cy;
-            if (dx === 0 && dy === 0) return 0;
-            const rad = Math.atan2(dy, dx);
-            let deg = rad * (180 / Math.PI) + 90;
-            if (deg < 0) deg += 360;
-            return deg;
-        }
+        let curX = 50, curY = 50;
 
         const onPointerMove = (e) => {
             const rect = card.getBoundingClientRect();
@@ -711,77 +844,35 @@ void main() {
 
         function animate() {
             raf = 0;
-            curX += (targetX - curX) * 0.25;
-            curY += (targetY - curY) * 0.25;
-            const edge = getEdgeProximity(card, curX, curY);
-            const angle = getCursorAngle(card, curX, curY);
-            card.style.setProperty('--edge-proximity', (edge * 100).toFixed(2));
-            card.style.setProperty('--cursor-angle', angle.toFixed(2) + 'deg');
+            curX += (targetX - curX) * 0.3;
+            curY += (targetY - curY) * 0.3;
+
+            card.style.setProperty('--mouse-x', curX + 'px');
+            card.style.setProperty('--mouse-y', curY + 'px');
+
             if (Math.abs(targetX - curX) > 0.5 || Math.abs(targetY - curY) > 0.5) {
                 raf = requestAnimationFrame(animate);
             }
         }
 
         card.addEventListener('pointermove', onPointerMove, { passive: true });
-        card.addEventListener('pointerenter', onPointerMove, { passive: true });
-        card.addEventListener('pointerleave', () => {
-            card.style.setProperty('--edge-proximity', '0');
-        });
     })();
 
     /* ============================================
-       FOLDER CHECK ANIMATION
+       INIT SHADER
        ============================================ */
-    const folderCheck = (function () {
-        const overlay = document.getElementById('folderCheckOverlay');
-        const folder = document.getElementById('folder3d');
-        const textEl = document.getElementById('folderCheckText');
-        if (!overlay || !folder) return { play: () => Promise.resolve() };
+    restartShader();
 
-        const MESSAGES = [
-            'Membuka database...',
-            'Mencari user...',
-            'Memverifikasi kredensial...',
-            'Menyiapkan sesi...'
-        ];
-
-        function setText(text) {
-            if (textEl) textEl.textContent = text;
+    // Restart on visibility change (recovery)
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            // Cek kalau canvas masih ada
+            const container = document.getElementById('bgShader');
+            if (container && !container.querySelector('canvas') && !container.classList.contains('shader-fallback')) {
+                restartShader();
+            }
         }
-
-        function play() {
-            return new Promise((resolve) => {
-                if (prefersReduced) { resolve(); return; }
-
-                overlay.classList.add('active');
-                folder.classList.remove('open');
-                setText(MESSAGES[0]);
-
-                // Buka folder
-                setTimeout(() => folder.classList.add('open'), 200);
-
-                let idx = 1;
-                const msgTimer = setInterval(() => {
-                    if (idx < MESSAGES.length) {
-                        setText(MESSAGES[idx]);
-                        idx++;
-                    }
-                }, 700);
-
-                // Total durasi ~2.8s
-                setTimeout(() => {
-                    clearInterval(msgTimer);
-                    folder.classList.remove('open');
-                    setTimeout(() => {
-                        overlay.classList.remove('active');
-                        resolve();
-                    }, 400);
-                }, 2800);
-            });
-        }
-
-        return { play };
-    })();
+    });
 
     /* ============================================
        LOGIN LOGIC
@@ -807,6 +898,7 @@ void main() {
         if (!statusMark) return;
         statusMark.setAttribute('data-status', status);
         if (statusLabel && labelText) statusLabel.textContent = labelText;
+
         if (status === 'pending') {
             statusRow.classList.remove('visible');
             statusRow.setAttribute('aria-hidden', 'true');
@@ -877,14 +969,13 @@ void main() {
 
         setStatus('running', 'Memverifikasi kredensial...');
 
-        // Play folder check animation
-        await folderCheck.play();
-
         try {
             await waitForRecaptcha();
             if (!window.grecaptcha || !window.grecaptcha.execute) {
                 throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
             }
+
+            setStatus('running', 'Memeriksa keamanan...');
 
             const recaptchaToken = await new Promise((resolve, reject) => {
                 grecaptcha.ready(() => {
@@ -894,6 +985,8 @@ void main() {
                 });
                 setTimeout(() => reject(new Error('Timeout verifikasi keamanan')), 10000);
             });
+
+            setStatus('running', 'Menghubungi server...');
 
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
