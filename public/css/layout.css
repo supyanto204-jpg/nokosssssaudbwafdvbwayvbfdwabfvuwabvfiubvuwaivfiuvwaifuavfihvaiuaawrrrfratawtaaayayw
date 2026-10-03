@@ -1,6 +1,6 @@
 /* ============================================
    LAYOUT.CSS — Layout, Sidebar, Topbar, Taskbar
-   HARDENED v4 — animasi tetap, proteksi ditambah
+   v5 — Sidebar STICKY (ikut scroll) + Anti-leak
    ============================================ */
 
 /* ============================================
@@ -58,6 +58,8 @@
     width: 100%;
     position: relative;
     contain: layout style;
+    /* align-items: flex-start biar sidebar sticky jalan */
+    align-items: flex-start;
 }
 
 /* ============================================
@@ -112,7 +114,7 @@
 }
 
 /* ============================================
-   SIDEBAR
+   SIDEBAR — STICKY (ikut scroll, nempel di atas)
    ============================================ */
 .sidebar {
     width: var(--sidebar-width);
@@ -120,11 +122,14 @@
     border-right: 2px solid var(--border-dark);
     display: flex;
     flex-direction: column;
-    position: fixed;
+
+    /* STICKY — ikut scroll natural, nempel saat kena top */
+    position: sticky;
     top: 0;
-    left: 0;
+    align-self: flex-start;
     height: 100vh;
-    height: 100dvh;
+    max-height: 100vh;
+
     z-index: 100;
     transition: width 0.3s var(--ease);
     overflow: hidden;
@@ -534,7 +539,8 @@
    ============================================ */
 .main-content {
     flex: 1;
-    margin-left: var(--sidebar-width);
+    /* HAPUS margin-left — sidebar ada di flow (sticky) */
+    margin-left: 0;
     padding: 24px 32px 60px;
     min-height: 100vh;
     position: relative;
@@ -546,7 +552,7 @@
 }
 
 body.sidebar-collapsed .main-content {
-    margin-left: var(--sidebar-collapsed);
+    margin-left: 0;
 }
 
 /* ============================================
@@ -897,7 +903,7 @@ body.sidebar-collapsed .main-content {
 }
 
 /* ============================================
-   SIDEBAR OVERLAY
+   SIDEBAR OVERLAY (mobile)
    ============================================ */
 .sidebar-overlay {
     display: none;
@@ -931,6 +937,7 @@ body.sidebar-collapsed .main-content {
 }
 
 @media (max-width: 768px) {
+    /* Di mobile, sidebar balik ke fixed (slide dari kiri) */
     .sidebar {
         position: fixed !important;
         top: 0 !important;
@@ -943,6 +950,7 @@ body.sidebar-collapsed .main-content {
         z-index: 9999 !important;
         box-shadow: 4px 0 24px rgba(15, 23, 42, 0.15);
         transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        align-self: auto !important;
     }
 
     .sidebar.open {
