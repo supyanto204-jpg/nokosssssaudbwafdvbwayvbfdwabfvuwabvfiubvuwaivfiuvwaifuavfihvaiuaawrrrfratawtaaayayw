@@ -6,7 +6,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Login - AsyrofOTP</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
@@ -18,7 +17,7 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/login.css">
 
-    <!-- 🔒 SECURITY + Fake DevTools error screen -->
+    <!-- 🔒 SECURITY + Fake DevTools lock -->
     <script>
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
@@ -30,13 +29,26 @@
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
+
+        // ===== DevTools lock: FIX — cuma trigger 1x, gak loop =====
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                // Sudah di-lock, jangan detect lagi. Cuma tampilkan halaman kosong.
+                document.documentElement.innerHTML = '<head></head><body></body>';
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;color:#94a3b8;font-family:system-ui,sans-serif;padding:24px;text-align:center;"><div><h1 style="color:#dc2626;font-size:1.5rem;font-weight:800;margin:0 0 8px;">Akses Dibatasi</h1><p style="font-size:0.9rem;">Tutup Developer Tools, lalu refresh halaman.</p></div></div>';
+                });
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
 
-<!-- ===== AURORA BG (WebGL) ===== -->
+<!-- ===== AURORA BG ===== -->
 <div class="aurora-bg" id="auroraBg" aria-hidden="true"></div>
 
 <!-- ===== Theme toggle ===== -->
@@ -50,166 +62,156 @@
     </svg>
 </button>
 
-<!-- ===== LAYOUT: LOGO KIRI + CARD KANAN ===== -->
-<div class="auth-layout">
+<!-- ===== TOP-LEFT BRAND (logo + stroke text) ===== -->
+<div class="top-brand">
+    <!-- Sticker logo -->
+    <div class="sticker-wrapper" id="stickerWrapper">
+        <!-- SVG filters -->
+        <svg width="0" height="0" aria-hidden="true">
+            <defs>
+                <filter id="pointLight">
+                    <feGaussianBlur stdDeviation="1" result="blur" />
+                    <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.1" lightingColor="white">
+                        <fePointLight id="pointLightRef" x="100" y="100" z="300" />
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="SourceGraphic" result="lit" />
+                    <feComposite in="lit" in2="SourceAlpha" operator="in" />
+                </filter>
+                <filter id="pointLightFlipped">
+                    <feGaussianBlur stdDeviation="10" result="blur" />
+                    <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.7" lightingColor="white">
+                        <fePointLight id="pointLightFlippedRef" x="100" y="100" z="300" />
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="SourceGraphic" result="lit" />
+                    <feComposite in="lit" in2="SourceAlpha" operator="in" />
+                </filter>
+                <filter id="dropShadow">
+                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodColor="black" floodOpacity="0.35" />
+                </filter>
+                <filter id="expandAndFill">
+                    <feOffset dx="0" dy="0" in="SourceAlpha" result="shape" />
+                    <feFlood floodColor="rgb(200,200,200)" result="flood" />
+                    <feComposite operator="in" in="flood" in2="shape" />
+                </filter>
+            </defs>
+        </svg>
 
-    <!-- LOGO SECTION (kiri) -->
-    <div class="auth-logo-section">
-        <!-- Sticker logo -->
-        <div class="sticker-wrapper" id="stickerWrapper">
-            <!-- SVG filters -->
-            <svg width="0" height="0" aria-hidden="true">
-                <defs>
-                    <filter id="pointLight">
-                        <feGaussianBlur stdDeviation="1" result="blur" />
-                        <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.1" lightingColor="white">
-                            <fePointLight id="pointLightRef" x="100" y="100" z="300" />
-                        </feSpecularLighting>
-                        <feComposite in="spec" in2="SourceGraphic" result="lit" />
-                        <feComposite in="lit" in2="SourceAlpha" operator="in" />
-                    </filter>
-                    <filter id="pointLightFlipped">
-                        <feGaussianBlur stdDeviation="10" result="blur" />
-                        <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.7" lightingColor="white">
-                            <fePointLight id="pointLightFlippedRef" x="100" y="100" z="300" />
-                        </feSpecularLighting>
-                        <feComposite in="spec" in2="SourceGraphic" result="lit" />
-                        <feComposite in="lit" in2="SourceAlpha" operator="in" />
-                    </filter>
-                    <filter id="dropShadow">
-                        <feDropShadow dx="2" dy="4" stdDeviation="3" floodColor="black" floodOpacity="0.35" />
-                    </filter>
-                    <filter id="expandAndFill">
-                        <feOffset dx="0" dy="0" in="SourceAlpha" result="shape" />
-                        <feFlood floodColor="rgb(200,200,200)" result="flood" />
-                        <feComposite operator="in" in="flood" in2="shape" />
-                    </filter>
-                </defs>
-            </svg>
-
-            <!-- Div (bukan <a>) biar gak bisa diklik -->
-            <div class="sticker-link" id="stickerLink" aria-hidden="true">
-                <div class="sticker-container" id="stickerContainer">
-                    <div class="sticker-main">
-                        <div class="sticker-lighting">
-                            <img
-                                src="/icon-180.png"
-                                alt=""
-                                class="sticker-image"
-                                draggable="false"
-                                onerror="this.src='/icon.svg'; this.onerror=null;"
-                            >
-                        </div>
+        <!-- Div (bukan <a>) — gak bisa diklik -->
+        <div class="sticker-link" id="stickerLink" aria-hidden="true">
+            <div class="sticker-container" id="stickerContainer">
+                <div class="sticker-main">
+                    <div class="sticker-lighting">
+                        <img src="/icon-180.png" alt="" class="sticker-image" draggable="false"
+                            onerror="this.src='/icon.svg'; this.onerror=null;">
                     </div>
-                    <div class="flap">
-                        <div class="flap-lighting">
-                            <img
-                                src="/icon-180.png"
-                                alt=""
-                                class="flap-image"
-                                draggable="false"
-                                onerror="this.src='/icon.svg'; this.onerror=null;"
-                            >
-                        </div>
+                </div>
+                <div class="flap">
+                    <div class="flap-lighting">
+                        <img src="/icon-180.png" alt="" class="flap-image" draggable="false"
+                            onerror="this.src='/icon.svg'; this.onerror=null;">
                     </div>
                 </div>
             </div>
         </div>
-
-        <!-- StrokeText: "AsyrofOTP" -->
-        <div class="logo-stroke-wrap" id="logoStrokeWrap">
-            <svg class="stroke-text__svg" id="logoStrokeSvg" viewBox="0 0 600 140" preserveAspectRatio="xMidYMid meet" aria-label="AsyrofOTP">
-                <text
-                    id="logoStrokeText"
-                    class="stroke-text__stroke"
-                    x="300"
-                    y="100"
-                    text-anchor="middle"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                    stroke-linejoin="round"
-                    stroke-linecap="round"
-                    style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 96px; font-weight: 900; letter-spacing: -4px;"
-                >AsyrofOTP</text>
-                <text
-                    id="logoFillText"
-                    class="stroke-text__fill"
-                    x="300"
-                    y="100"
-                    text-anchor="middle"
-                    fill="currentColor"
-                    stroke="none"
-                    style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 96px; font-weight: 900; letter-spacing: -4px;"
-                >AsyrofOTP</text>
-            </svg>
-        </div>
     </div>
 
-    <!-- LOGIN CARD (kanan / bawah) -->
-    <div class="auth-card-section">
-        <div class="border-glow-card" id="loginCard">
-            <span class="edge-light"></span>
-            <div class="border-glow-inner">
-                <div class="auth-card-content">
-                    <h1>Masuk</h1>
-                    <p class="subtitle">Selamat datang kembali! Silakan login.</p>
+    <!-- StrokeText: "AsyrofOTP" -->
+    <div class="brand-stroke-wrap" id="brandStrokeWrap">
+        <svg class="stroke-text__svg" viewBox="0 0 260 60" preserveAspectRatio="xMinYMid meet" aria-label="AsyrofOTP">
+            <text
+                id="brandStrokeText"
+                class="stroke-text__stroke"
+                x="0"
+                y="42"
+                text-anchor="start"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 30px; font-weight: 900; letter-spacing: -1px;"
+            >AsyrofOTP</text>
+            <text
+                id="brandFillText"
+                class="stroke-text__fill"
+                x="0"
+                y="42"
+                text-anchor="start"
+                fill="currentColor"
+                stroke="none"
+                style="font-family: 'Plus Jakarta Sans', sans-serif; font-size: 30px; font-weight: 900; letter-spacing: -1px;"
+            >AsyrofOTP</text>
+        </svg>
+    </div>
+</div>
 
-                    <!-- ALERT — cuma satu, dipakai buat error & success -->
-                    <div class="alert" id="alert" role="alert">
-                        <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                        <span id="alert-text"></span>
+<!-- ===== CENTER: LOGIN CARD ===== -->
+<div class="auth-center">
+    <div class="border-glow-card" id="loginCard">
+        <span class="edge-light"></span>
+        <div class="border-glow-inner">
+            <div class="auth-card-content">
+                <!-- Badge -->
+                <div class="auth-badge">
+                    <span class="dot"></span>
+                    OTP SERVICE INDONESIA & DUNIA
+                </div>
+
+                <h1 class="auth-title">
+                    Selamat <span class="accent">Datang</span>
+                </h1>
+                <p class="subtitle">Masuk ke akun buat mulai beli nomor OTP. Instan & aman.</p>
+
+                <!-- ALERT — cuma 1 -->
+                <div class="alert" id="alert" role="alert">
+                    <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <span id="alert-text"></span>
+                </div>
+
+                <form id="loginForm" autocomplete="on" novalidate>
+                    <div class="form-group">
+                        <label class="form-label" for="username">USERNAME</label>
+                        <input type="text" class="form-control" id="username" placeholder="Username" required autocomplete="username" autofocus spellcheck="false">
                     </div>
-
-                    <form id="loginForm" autocomplete="on" novalidate>
-                        <div class="form-group">
-                            <label class="form-label" for="username">Username</label>
-                            <input type="text" class="form-control" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false">
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label" for="password">Password</label>
-                            <div class="input-wrap">
-                                <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
-                                <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-                                    <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                        <circle cx="12" cy="12" r="3"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- STATUS MARK — CUMA SATU -->
-                        <div class="status-row" id="statusRow" aria-hidden="true">
-                            <span class="status-mark" id="statusMark" data-status="pending">
-                                <svg class="status-mark__glyph" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                                    <circle class="status-mark__track" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-                                    <circle class="status-mark__ring" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-                                    <path class="status-mark__check" d="M7.5 12.25 10.5 15.25 16.75 8.75" pathLength="1"/>
-                                    <path class="status-mark__cross" d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" pathLength="1"/>
+                    <div class="form-group">
+                        <label class="form-label" for="password">PASSWORD</label>
+                        <div class="input-wrap">
+                            <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
+                            <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                                    <circle cx="12" cy="12" r="3"/>
                                 </svg>
-                                <span class="status-mark__label">
-                                    <span id="statusLabel">Menunggu</span>
-                                    <span class="status-mark__strike" aria-hidden="true"></span>
-                                </span>
-                            </span>
+                            </button>
                         </div>
-
-                        <button type="submit" class="btn" id="submitBtn">
-                            <span id="btnText">Login</span>
-                            <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </button>
-                    </form>
-
-                    <div class="auth-footer">
-                        Belum punya akun? <a href="/daftar">Daftar sekarang</a>
                     </div>
 
-                    <div class="recaptcha-notice">
-                        Dilindungi oleh reCAPTCHA.
-                        <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
-                        <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+                    <!-- STATUS MARK — 1 -->
+                    <div class="status-row" id="statusRow" aria-hidden="true">
+                        <span class="status-mark" id="statusMark" data-status="pending">
+                            <svg class="status-mark__glyph" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                                <circle class="status-mark__track" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
+                                <circle class="status-mark__ring" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
+                                <path class="status-mark__check" d="M7.5 12.25 10.5 15.25 16.75 8.75" pathLength="1"/>
+                                <path class="status-mark__cross" d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" pathLength="1"/>
+                            </svg>
+                            <span class="status-mark__label">
+                                <span id="statusLabel">Menunggu</span>
+                                <span class="status-mark__strike" aria-hidden="true"></span>
+                            </span>
+                        </span>
                     </div>
+
+                    <!-- BUTTON dengan GlareHover -->
+                    <button type="submit" class="btn btn-glare" id="submitBtn">
+                        <span class="glare-layer" aria-hidden="true"></span>
+                        <span id="btnText">Masuk Sekarang</span>
+                        <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                    </button>
+                </form>
+
+                <div class="auth-footer">
+                    Belum punya akun? <a href="/daftar">Daftar di sini</a>
                 </div>
             </div>
         </div>
