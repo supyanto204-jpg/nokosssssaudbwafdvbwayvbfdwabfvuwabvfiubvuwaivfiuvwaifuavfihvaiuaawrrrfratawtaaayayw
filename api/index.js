@@ -633,7 +633,7 @@ async function notifyOtpSuccess(order) {
  * Notif deposit sukses. Identifier pakai reference_id.
  * Guard: skip kalau deposit.notified_at udah ada isinya.
  */
-async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user) {
+async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
 
@@ -650,7 +650,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user) 
         `<u>• Method:</u> <b>${escapeHtmlNotif(deposit.method || '-')}</b>\n` +
         `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
         `<u>• Total Bayar:</u> <b>${toRupiahNotif(totalBayar)}</b>\n` +
-        `<u>• Fee:</u> <b>${toRupiahNotif(fee)}</b>\n` +
+        `<u>• Fee:</u> <b>${toRupiahNotif(unique_id)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
     try {
