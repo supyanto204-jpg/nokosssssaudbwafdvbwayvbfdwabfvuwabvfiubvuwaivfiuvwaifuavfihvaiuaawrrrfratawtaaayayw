@@ -1,5 +1,5 @@
 /* ============================================
-   LANDING PAGE — OPTIMIZED
+   LANDING PAGE — OPTIMIZED + BFCACHE FIX
    ============================================ */
 (function () {
     'use strict';
@@ -34,11 +34,9 @@
             'Kode verifikasi instan',
             'Support 24/7 siap bantu',
         ],
-        REDUCED_MOTION: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-        IS_MOBILE: window.matchMedia('(max-width: 900px)').matches,
+        DISABLE_HEAVY,
+        IS_MOBILE: isMobile,
     };
-
-
     /* ============================================
        UTILS
        ============================================ */
@@ -67,6 +65,24 @@
     function smoothstep(min, max, v) {
         const x = clamp((v - min) / (max - min || 1), 0, 1);
         return x * x * (3 - 2 * x);
+    }
+
+    /* ============================================
+       REGISTRY — semua module daftar di sini
+       biar bisa di-restart waktu balik dari bfcache
+       ============================================ */
+    const modules = [];
+    function registerModule(setup) {
+        const m = { cleanup: null, restart: null, instance: null };
+        try {
+            m.instance = setup((cleanup, restart) => {
+                m.cleanup = cleanup;
+                m.restart = restart;
+            });
+        } catch (e) {
+            console.warn('Module setup error:', e);
+        }
+        modules.push(m);
     }
 
     /* ============================================
@@ -182,7 +198,7 @@
     })();
 
     /* ============================================
-       SCROLL REVEAL (IntersectionObserver)
+       SCROLL REVEAL
        ============================================ */
     (function reveal() {
         const els = $$('.reveal');
@@ -233,9 +249,9 @@
     })();
 
     /* ============================================
-       TECHTEXT — Word Selection
+       TECHTEXT
        ============================================ */
-    (function techTitle() {
+    registerModule(function (bind) {
         const title = $('#techTitle');
         if (!title) return;
         const words = [
@@ -258,39 +274,61 @@
         let lastMouseTime = 0;
         let autoIndex = 0;
         let userOverride = false;
+        let intervalId = null;
+        const handlers = [];
 
         wordEls.forEach(el => {
-            el.addEventListener('mouseenter', () => {
+            const h1 = () => {
                 lastMouseTime = performance.now();
                 userOverride = true;
                 wordEls.forEach(w => w.classList.remove('selected'));
                 el.classList.add('selected');
-            });
-            el.addEventListener('touchstart', () => {
+            };
+            const h2 = () => {
                 lastMouseTime = performance.now();
                 userOverride = true;
                 wordEls.forEach(w => w.classList.remove('selected'));
                 el.classList.add('selected');
-            }, { passive: true });
+            };
+            el.addEventListener('mouseenter', h1);
+            el.addEventListener('touchstart', h2, { passive: true });
+            handlers.push({ el, h1, h2 });
         });
 
         wordEls[0].classList.add('selected');
 
-        setInterval(() => {
-            const idle = performance.now() - lastMouseTime > 2500;
-            if (!userOverride || idle || CONFIG.IS_MOBILE) {
-                userOverride = false;
-                wordEls.forEach(w => w.classList.remove('selected'));
-                wordEls[autoIndex].classList.add('selected');
-                autoIndex = (autoIndex + 1) % wordEls.length;
+        function startInterval() {
+            if (intervalId) clearInterval(intervalId);
+            intervalId = setInterval(() => {
+                const idle = performance.now() - lastMouseTime > 2500;
+                if (!userOverride || idle || CONFIG.IS_MOBILE) {
+                    userOverride = false;
+                    wordEls.forEach(w => w.classList.remove('selected'));
+                    wordEls[autoIndex].classList.add('selected');
+                    autoIndex = (autoIndex + 1) % wordEls.length;
+                }
+            }, 2000);
+        }
+        startInterval();
+
+        bind(
+            function cleanup() {
+                if (intervalId) clearInterval(intervalId);
+                handlers.forEach(({ el, h1, h2 }) => {
+                    el.removeEventListener('mouseenter', h1);
+                    el.removeEventListener('touchstart', h2);
+                });
+            },
+            function restart() {
+                startInterval();
             }
-        }, 2000);
-    })();
+        );
+    });
 
     /* ============================================
        TEXTTYPE
        ============================================ */
-    (function textType() {
+    registerModule(function (bind) {
         const el = $('#textType');
         const cursor = $('#textTypeCursor');
         if (!el) return;
@@ -333,8 +371,9 @@
             timer = setTimeout(tick, 400);
         }
 
+        let io = null;
         if ('IntersectionObserver' in window) {
-            const io = new IntersectionObserver((entries) => {
+            io = new IntersectionObserver((entries) => {
                 entries.forEach(en => {
                     if (en.isIntersecting) { start(); io.disconnect(); }
                 });
@@ -342,16 +381,32 @@
             io.observe(el);
         } else start();
 
-        document.addEventListener('visibilitychange', () => {
+        const onVis = () => {
             if (document.hidden) clearTimeout(timer);
             else if (started) { clearTimeout(timer); tick(); }
-        });
-    })();
+        };
+        document.addEventListener('visibilitychange', onVis);
+
+        bind(
+            function cleanup() {
+                clearTimeout(timer);
+                if (io) io.disconnect();
+                document.removeEventListener('visibilitychange', onVis);
+            },
+            function restart() {
+                started = false;
+                idx = 0;
+                charIdx = 0;
+                deleting = false;
+                start();
+            }
+        );
+    });
 
     /* ============================================
        INFINITE SPIRAL
        ============================================ */
-    (function spiral() {
+    registerModule(function (bind) {
         const stage = $('#spiralStage');
         if (!stage) return;
 
@@ -381,7 +436,6 @@
         let hovered = false;
         let dragging = false;
         let lastPY = 0;
-        let dragMoved = false;
 
         function buildCards(list) {
             stage.innerHTML = '';
@@ -438,7 +492,6 @@
             raf = 0;
             if (!visible || document.hidden) return;
 
-            // FPS cap
             if (time - lastRender < FRAME_MIN) {
                 raf = requestAnimationFrame(render);
                 return;
@@ -492,6 +545,13 @@
             }
         }
 
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+        }
+
         async function fetchIcons() {
             try {
                 const token = localStorage.getItem('access_token');
@@ -509,62 +569,76 @@
             }
         }
 
+        const ro = new ResizeObserver(() => resize());
+        ro.observe(stage);
+
+        const io = new IntersectionObserver(([en]) => {
+            visible = en.isIntersecting;
+            if (visible) schedule();
+            else stop();
+        }, { threshold: 0.05 });
+        io.observe(stage);
+
+        stage.addEventListener('mouseenter', () => { hovered = true; });
+        stage.addEventListener('mouseleave', () => { hovered = false; });
+
+        stage.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            dragging = true;
+            lastPY = e.clientY;
+            targetProgress = progress;
+            try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+        });
+        stage.addEventListener('pointermove', (e) => {
+            if (!dragging) return;
+            const dy = e.clientY - lastPY;
+            lastPY = e.clientY;
+            targetProgress -= dy / Math.max(CFG.V_SPACE, 1);
+        });
+        const stopDrag = (e) => {
+            dragging = false;
+            try { stage.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        };
+        stage.addEventListener('pointerup', stopDrag);
+        stage.addEventListener('pointercancel', stopDrag);
+
+        const onVis = () => {
+            if (document.hidden) stop();
+            else if (visible) schedule();
+        };
+        document.addEventListener('visibilitychange', onVis);
+
         (async function init() {
             items = await fetchIcons();
             buildCards(items);
             resize();
             schedule();
-
-            const ro = new ResizeObserver(() => resize());
-            ro.observe(stage);
-
-            const io = new IntersectionObserver(([en]) => {
-                visible = en.isIntersecting;
-                if (visible) schedule();
-            }, { threshold: 0.05 });
-            io.observe(stage);
-
-            stage.addEventListener('mouseenter', () => { hovered = true; });
-            stage.addEventListener('mouseleave', () => { hovered = false; });
-
-            stage.addEventListener('pointerdown', (e) => {
-                if (e.button !== 0) return;
-                dragging = true;
-                dragMoved = false;
-                lastPY = e.clientY;
-                targetProgress = progress;
-                try { stage.setPointerCapture(e.pointerId); } catch (_) {}
-            });
-            stage.addEventListener('pointermove', (e) => {
-                if (!dragging) return;
-                const dy = e.clientY - lastPY;
-                lastPY = e.clientY;
-                if (Math.abs(dy) > 0.5) dragMoved = true;
-                targetProgress -= dy / Math.max(CFG.V_SPACE, 1);
-            });
-            const stopDrag = (e) => {
-                dragging = false;
-                try { stage.releasePointerCapture?.(e.pointerId); } catch (_) {}
-            };
-            stage.addEventListener('pointerup', stopDrag);
-            stage.addEventListener('pointercancel', stopDrag);
-
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && visible) schedule();
-            });
         })();
-    })();
+
+        bind(
+            function cleanup() {
+                stop();
+                ro.disconnect();
+                io.disconnect();
+                document.removeEventListener('visibilitychange', onVis);
+            },
+            function restart() {
+                resize();
+                schedule();
+            }
+        );
+    });
 
     /* ============================================
-       GRADIENT WAVES — WebGL (optimized)
+       GRADIENT WAVES — WebGL dengan context lost handling
        ============================================ */
-    (function gradientWaves() {
+    registerModule(function (bind) {
         const container = $('#gradientWaves');
         if (!container) return;
 
-        // Skip WebGL kalau low-end / reduced-motion → pakai CSS fallback
+        // Fallback kalau reduced motion / low-end
         if (CONFIG.DISABLE_HEAVY) {
-            container.style.background = 'linear-gradient(180deg, rgba(124,58,237,0.35) 0%, rgba(37,99,235,0.3) 40%, rgba(236,72,153,0.35) 100%)';
+            container.classList.add('context-lost');
             return;
         }
 
@@ -572,26 +646,27 @@
         canvas.style.cssText = 'display:block;width:100%;height:100%;';
         container.appendChild(canvas);
 
-        const gl = canvas.getContext('webgl2', {
-            alpha: true,
-            premultipliedAlpha: true,
-            antialias: false,
-            depth: false,
-            powerPreference: 'low-power',
-            failIfMajorPerformanceCaveat: false,
-        });
-
-        if (!gl) {
-            container.style.background = 'linear-gradient(180deg, rgba(124,58,237,0.35) 0%, rgba(37,99,235,0.3) 40%, rgba(236,72,153,0.35) 100%)';
-            return;
-        }
+        let gl = null;
+        let prog = null;
+        let uRes = null;
+        let uTime = null;
+        let uMouse = null;
+        let raf = 0;
+        let visible = true;
+        let lastTime = 0;
+        let lastRender = 0;
+        const FPS_CAP = 30;
+        const FRAME_MIN = 1000 / FPS_CAP;
+        let t0 = performance.now();
+        let targetMouse = [0.5, 0.5];
+        let currentMouse = [0.5, 0.5];
+        let contextLost = false;
 
         const VERT = `#version 300 es
 in vec2 position;
 void main() { gl_Position = vec4(position, 0.0, 1.0); }
 `;
 
-        // Raymarch steps dikurangi drastis + skip mouse parallax kalau mobile
         const FRAG = `#version 300 es
 precision highp float;
 uniform vec2 iResolution;
@@ -682,68 +757,81 @@ void main() {
             return sh;
         }
 
-        const vs = compile(gl.VERTEX_SHADER, VERT);
-        const fs = compile(gl.FRAGMENT_SHADER, FRAG);
-        if (!vs || !fs) return;
+        function initGL() {
+            try {
+                gl = canvas.getContext('webgl2', {
+                    alpha: true,
+                    premultipliedAlpha: true,
+                    antialias: false,
+                    depth: false,
+                    powerPreference: 'low-power',
+                    failIfMajorPerformanceCaveat: false,
+                });
+                if (!gl) return false;
 
-        const prog = gl.createProgram();
-        gl.attachShader(prog, vs);
-        gl.attachShader(prog, fs);
-        gl.linkProgram(prog);
-        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
-        gl.useProgram(prog);
+                const vs = compile(gl.VERTEX_SHADER, VERT);
+                const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+                if (!vs || !fs) return false;
 
-        const buf = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-        const loc = gl.getAttribLocation(prog, 'position');
-        gl.enableVertexAttribArray(loc);
-        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+                prog = gl.createProgram();
+                gl.attachShader(prog, vs);
+                gl.attachShader(prog, fs);
+                gl.linkProgram(prog);
+                if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
+                gl.useProgram(prog);
 
-        const uRes = gl.getUniformLocation(prog, 'iResolution');
-        const uTime = gl.getUniformLocation(prog, 'iTime');
-        const uMouse = gl.getUniformLocation(prog, 'uMouse');
+                const buf = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+                const loc = gl.getAttribLocation(prog, 'position');
+                gl.enableVertexAttribArray(loc);
+                gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-        // Resolusi rendah biar ringan (0.7x DPR, max 1x)
-        const SCALE = CONFIG.IS_MOBILE ? 0.5 : 0.7;
-        let w = 1, h = 1;
-        const targetMouse = [0.5, 0.5];
-        const currentMouse = [0.5, 0.5];
+                uRes = gl.getUniformLocation(prog, 'iResolution');
+                uTime = gl.getUniformLocation(prog, 'iTime');
+                uMouse = gl.getUniformLocation(prog, 'uMouse');
+
+                // Context lost handler
+                canvas.addEventListener('webglcontextlost', (e) => {
+                    e.preventDefault();
+                    contextLost = true;
+                    container.classList.add('context-lost');
+                    stop();
+                }, false);
+
+                canvas.addEventListener('webglcontextrestored', () => {
+                    contextLost = false;
+                    container.classList.remove('context-lost');
+                    if (initGL()) {
+                        resize();
+                        schedule();
+                    }
+                }, false);
+
+                t0 = performance.now();
+                return true;
+            } catch (e) {
+                console.warn('WebGL init error:', e);
+                return false;
+            }
+        }
 
         function resize() {
+            if (!gl || contextLost) return;
             const r = container.getBoundingClientRect();
-            w = Math.max(1, Math.floor(r.width));
-            h = Math.max(1, Math.floor(r.height));
+            const w = Math.max(1, Math.floor(r.width));
+            const h = Math.max(1, Math.floor(r.height));
+            const SCALE = CONFIG.IS_MOBILE ? 0.5 : 0.7;
             const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * SCALE;
             canvas.width = Math.floor(w * dpr);
             canvas.height = Math.floor(h * dpr);
             gl.viewport(0, 0, canvas.width, canvas.height);
             gl.uniform2f(uRes, canvas.width, canvas.height);
         }
-        const ro = new ResizeObserver(resize);
-        ro.observe(container);
-        resize();
-
-        // Mouse parallax only kalau bukan mobile
-        if (!CONFIG.IS_MOBILE) {
-            window.addEventListener('pointermove', (e) => {
-                const r = container.getBoundingClientRect();
-                targetMouse[0] = (e.clientX - r.left) / r.width;
-                targetMouse[1] = 1 - (e.clientY - r.top) / r.height;
-            }, { passive: true });
-        }
-
-        let raf = 0;
-        let visible = true;
-        let lastTime = 0;
-        let lastRender = 0;
-        const FPS_CAP = 30;
-        const FRAME_MIN = 1000 / FPS_CAP;
-        const t0 = performance.now();
 
         function frame(now) {
             raf = 0;
-            if (!visible || document.hidden) return;
+            if (!visible || document.hidden || contextLost || !gl) return;
 
             if (now - lastRender < FRAME_MIN) {
                 raf = requestAnimationFrame(frame);
@@ -765,37 +853,88 @@ void main() {
         }
 
         function schedule() {
-            if (!raf && visible && !document.hidden) {
+            if (!raf && visible && !document.hidden && !contextLost && gl) {
                 lastTime = performance.now();
                 lastRender = 0;
                 raf = requestAnimationFrame(frame);
             }
         }
 
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+        }
+
+        // Init
+        if (!initGL()) {
+            container.classList.add('context-lost');
+            return;
+        }
+        resize();
+
+        const ro = new ResizeObserver(resize);
+        ro.observe(container);
+
+        if (!CONFIG.IS_MOBILE) {
+            window.addEventListener('pointermove', (e) => {
+                const r = container.getBoundingClientRect();
+                targetMouse[0] = (e.clientX - r.left) / r.width;
+                targetMouse[1] = 1 - (e.clientY - r.top) / r.height;
+            }, { passive: true });
+        }
+
         const io = new IntersectionObserver(([en]) => {
             visible = en.isIntersecting;
             if (visible) schedule();
+            else stop();
         }, { threshold: 0 });
         io.observe(container);
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) schedule();
-        });
+        const onVis = () => {
+            if (document.hidden) stop();
+            else schedule();
+        };
+        document.addEventListener('visibilitychange', onVis);
 
         schedule();
 
-        window.addEventListener('beforeunload', () => {
-            if (raf) cancelAnimationFrame(raf);
-            ro.disconnect();
-            io.disconnect();
-            gl.getExtension('WEBGL_lose_context')?.loseContext();
-        });
-    })();
+        bind(
+            function cleanup() {
+                stop();
+                ro.disconnect();
+                io.disconnect();
+                document.removeEventListener('visibilitychange', onVis);
+                try {
+                    const ext = gl.getExtension('WEBGL_lose_context');
+                    if (ext) ext.loseContext();
+                } catch (e) {}
+                gl = null;
+            },
+            function restart() {
+                // Re-init kalau context lost (bfcache)
+                if (!gl || contextLost) {
+                    if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+                    container.innerHTML = '';
+                    container.appendChild(canvas);
+                    if (initGL()) {
+                        resize();
+                        schedule();
+                    } else {
+                        container.classList.add('context-lost');
+                    }
+                } else {
+                    schedule();
+                }
+            }
+        );
+    });
 
     /* ============================================
-       MICRO SLATS — Canvas 2D (super lightweight)
+       MICRO SLATS
        ============================================ */
-    (function microSlats() {
+    registerModule(function (bind) {
         const container = $('#microSlats');
         if (!container) return;
         if (CONFIG.DISABLE_HEAVY) return;
@@ -806,7 +945,6 @@ void main() {
         const ctx = canvas.getContext('2d', { alpha: true });
         if (!ctx) return;
 
-        const dpr = 1; // paksa 1x biar ringan
         let w = 1, h = 1;
         let cols = 1, rows = 1;
         let offX = 0, offY = 0;
@@ -815,7 +953,7 @@ void main() {
         let time = 0;
         let visible = true;
         let lastRender = 0;
-        const FRAME_MIN = 1000 / 24; // 24fps cukup buat slats
+        const FRAME_MIN = 1000 / 24;
 
         function resize() {
             const r = container.getBoundingClientRect();
@@ -878,6 +1016,13 @@ void main() {
             }
         }
 
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+        }
+
         const ro = new ResizeObserver(() => { resize(); schedule(); });
         ro.observe(container);
         resize();
@@ -885,21 +1030,37 @@ void main() {
         const io = new IntersectionObserver(([en]) => {
             visible = en.isIntersecting;
             if (visible) schedule();
+            else stop();
         }, { threshold: 0 });
         io.observe(container);
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) schedule();
-        });
+        const onVis = () => {
+            if (document.hidden) stop();
+            else schedule();
+        };
+        document.addEventListener('visibilitychange', onVis);
 
         schedule();
-    })();
+
+        bind(
+            function cleanup() {
+                stop();
+                ro.disconnect();
+                io.disconnect();
+                document.removeEventListener('visibilitychange', onVis);
+            },
+            function restart() {
+                resize();
+                schedule();
+            }
+        );
+    });
 
     /* ============================================
-       CURSOR GRID — Canvas 2D (optional, skip mobile)
+       CURSOR GRID
        ============================================ */
-    (function cursorGrid() {
-        if (CONFIG.IS_MOBILE) return; // skip total di mobile
+    registerModule(function (bind) {
+        if (CONFIG.IS_MOBILE) return;
         const canvas = $('#cursorGridCanvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d', { alpha: true });
@@ -1020,23 +1181,32 @@ void main() {
             raf = requestAnimationFrame(draw);
         }
 
-        window.addEventListener('pointermove', (e) => {
-            const r = canvas.getBoundingClientRect();
-            const x = e.clientX - r.left;
-            const y = e.clientY - r.top;
-            if (x < 0 || y < 0 || x > w || y > h) return;
-            energize(x, y);
-            wake();
-        }, { passive: true });
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            running = false;
+        }
 
-        window.addEventListener('pointerdown', (e) => {
+        const onPointerMove = (e) => {
             const r = canvas.getBoundingClientRect();
             const x = e.clientX - r.left;
             const y = e.clientY - r.top;
             if (x < 0 || y < 0 || x > w || y > h) return;
             energize(x, y);
             wake();
-        }, { passive: true });
+        };
+        const onPointerDown = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x < 0 || y < 0 || x > w || y > h) return;
+            energize(x, y);
+            wake();
+        };
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', onPointerDown, { passive: true });
 
         const ro = new ResizeObserver(() => { rebuild(); wake(); });
         ro.observe(canvas);
@@ -1045,14 +1215,63 @@ void main() {
         const io = new IntersectionObserver(([en]) => {
             visible = en.isIntersecting;
             if (visible) wake();
+            else stop();
         }, { threshold: 0 });
         io.observe(canvas);
 
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) wake();
-        });
+        const onVis = () => {
+            if (document.hidden) stop();
+            else wake();
+        };
+        document.addEventListener('visibilitychange', onVis);
 
         wake();
-    })();
+
+        bind(
+            function cleanup() {
+                stop();
+                ro.disconnect();
+                io.disconnect();
+                document.removeEventListener('visibilitychange', onVis);
+                window.removeEventListener('pointermove', onPointerMove);
+                window.removeEventListener('pointerdown', onPointerDown);
+            },
+            function restart() {
+                rebuild();
+                wake();
+            }
+        );
+    });
+
+    /* ============================================
+       BFCACHE HANDLER — FIX ABU-ABU
+       ============================================ */
+    window.addEventListener('pageshow', function (event) {
+        // Restart semua module — terutama setelah balik dari halaman lain
+        // (event.persisted = true artinya diambil dari bfcache)
+        if (event.persisted) {
+            requestAnimationFrame(() => {
+                modules.forEach((m) => {
+                    try { if (m.restart) m.restart(); } catch (e) {}
+                });
+            });
+        }
+    });
+
+    window.addEventListener('pagehide', function () {
+        // Cleanup rapi sebelum keluar
+        modules.forEach((m) => {
+            try { if (m.cleanup) m.cleanup(); } catch (e) {}
+        });
+    });
+
+    // Restart juga kalau tab balik visible
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            modules.forEach((m) => {
+                try { if (m.restart) m.restart(); } catch (e) {}
+            });
+        }
+    });
 
 })();
