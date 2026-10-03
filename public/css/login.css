@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE v5 — Biru + Logo di atas
+   LOGIN PAGE v6 — Biru + Logo atas + Sticker drag
    ============================================ */
 
 :root {
@@ -85,8 +85,8 @@ img, svg {
 .aurora-bg.aurora-fallback {
     background:
         radial-gradient(circle at 20% 20%, rgba(82, 39, 255, 0.35) 0%, transparent 50%),
-        radial-gradient(circle at 80% 30%, rgba(124, 255, 103, 0.25) 0%, transparent 50%),
-        radial-gradient(circle at 50% 80%, rgba(255, 148, 180, 0.3) 0%, transparent 50%);
+        radial-gradient(circle at 80% 30%, rgba(59, 130, 246, 0.25) 0%, transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(139, 92, 246, 0.3) 0%, transparent 50%);
     animation: auroraFallbackDrift 12s ease-in-out infinite;
 }
 @keyframes auroraFallbackDrift {
@@ -96,7 +96,7 @@ img, svg {
 }
 
 /* ============================================
-   AUTH CENTER — logo di atas, card di bawah
+   AUTH CENTER
    ============================================ */
 .auth-center {
     min-height: 100vh;
@@ -119,12 +119,11 @@ img, svg {
     align-items: center;
     width: 100%;
     max-width: 440px;
-    height: 100px;
+    height: 110px;
     position: relative;
     z-index: 2;
-    /* biar sticker bisa "keluar" dari kotak tanpa ke-crop */
     overflow: visible;
-    margin-bottom: -10px;
+    margin-bottom: -20px;
     pointer-events: none;
 }
 
@@ -137,7 +136,6 @@ img, svg {
     height: 100px;
     touch-action: none;
     pointer-events: auto;
-    /* NO drop animation — cuma static rotate */
 }
 
 .sticker-link {
@@ -161,10 +159,9 @@ img, svg {
     --sticker-end: calc(100% + var(--sticker-p));
     --sticker-width: 80px;
     --peel-direction: 0deg;
-    /* Static tilt — biar "nekuk dikit" */
     transform: rotate(-8deg);
     transform-origin: center;
-    filter: drop-shadow(0 6px 12px rgba(37, 99, 235, 0.25));
+    will-change: transform;
 }
 
 .sticker-container * {
@@ -214,7 +211,8 @@ img, svg {
     background: linear-gradient(135deg, #3b82f6, #7c3aed);
     border-radius: 20px;
     padding: 6px;
-    box-shadow: 3px 3px 0px var(--shadow-color);
+    box-shadow: 4px 4px 0px var(--shadow-color);
+    border: 2.5px solid var(--border-dark);
 }
 
 .flap {
@@ -263,6 +261,7 @@ img, svg {
     background: #cbd5e1;
     border-radius: 20px;
     padding: 6px;
+    border: 2.5px solid var(--border-dark);
 }
 
 /* ============================================
@@ -750,14 +749,14 @@ img, svg {
         gap: 8px;
     }
     .auth-logo-block {
-        height: 90px;
-        margin-bottom: -5px;
+        height: 100px;
+        margin-bottom: -15px;
     }
     .sticker-wrapper {
-        width: 84px;
-        height: 84px;
+        width: 88px;
+        height: 88px;
     }
-    .sticker-container { --sticker-width: 70px; }
+    .sticker-container { --sticker-width: 72px; }
 
     .auth-card-content { padding: 26px 22px; }
     .auth-title { font-size: 1.3rem; }
@@ -767,10 +766,10 @@ img, svg {
 @media (max-width: 400px) {
     .auth-card-content { padding: 22px 18px; }
     .sticker-wrapper {
-        width: 72px;
-        height: 72px;
+        width: 76px;
+        height: 76px;
     }
-    .sticker-container { --sticker-width: 60px; }
+    .sticker-container { --sticker-width: 62px; }
 }
 
 /* ============================================
