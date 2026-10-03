@@ -1220,7 +1220,6 @@ footer {
    ============================================ */
 @media (max-width: 560px) {
     .container { padding: 0 16px; }
-
     .steps-grid { grid-template-columns: 1fr; gap: 28px; }
     .hero-buttons { flex-direction: column; align-items: stretch; width: 100%; }
     .btn-primary, .btn-outline { width: 100%; justify-content: center; }
@@ -1230,7 +1229,6 @@ footer {
     .support-icon { width: 52px; height: 52px; }
     .support-icon .icon-svg { width: 26px; height: 26px; }
     .spiral-item { width: 52px; height: 52px; padding: 8px; border-radius: 14px; }
-
     .features, .steps, .faq, .support-section { padding: 50px 0; }
     .hero { padding: 40px 0 30px; }
     .tech-title { font-size: clamp(1.6rem, 7vw, 2.2rem); }
@@ -1238,18 +1236,14 @@ footer {
     .hero-stats { gap: 20px; margin-top: 40px; }
     .hero-stat-value { font-size: 1.4rem; }
     .hero-stat-label { font-size: 0.7rem; }
-
     .feature-card { padding: 24px 20px; }
     .section-header h2 { font-size: 1.5rem; }
-
-    /* Disable heavy layers total on mobile */
     .bg-microslats { display: none; }
     .bg-cursor-grid { display: none; }
     .bg-blob { filter: blur(70px); opacity: 0.9; }
     .bg-waves svg { opacity: 0.6; }
-
-    /* Simplify spiral */
     .spiral-glow { filter: blur(30px); }
+    .orbit-ring { display: none !important; }
 }
 
 @media (max-width: 400px) {
