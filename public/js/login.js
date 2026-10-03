@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE v5 — Biru + Logo di atas + Sticker drag
+   LOGIN PAGE v6 — Full script
    ============================================ */
 (function () {
     'use strict';
@@ -10,12 +10,13 @@
     const DISABLE_HEAVY = prefersReduced || isLowEnd;
 
     /* ============================================
-       SECURITY
+       SECURITY HARDENING
        ============================================ */
     (function security() {
         try {
             console.log('%c⚠️ STOP!', 'color:#dc2626;font-size:20px;font-weight:900;');
             console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', 'color:#64748b;font-size:12px;');
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', 'color:#64748b;font-size:12px;');
         } catch (e) {}
 
         document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -42,28 +43,27 @@
             if (window.location.search) history.replaceState(null, '', cleanUrl);
         } catch (e) {}
 
-        // FIX: DevTools detection cuma trigger 1x, gak loop reload
+        // DevTools detection → set flag & reload (lock screen akan muncul)
         (function () {
             const FLAG = 'asyrof_devtools_lock';
             if (sessionStorage.getItem(FLAG) === '1') return;
             if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return;
             if (window.innerWidth < 600) return;
 
-            let triggered = false;
             setInterval(() => {
-                if (triggered) return;
                 const wd = window.outerWidth - window.innerWidth;
                 const hd = window.outerHeight - window.innerHeight;
                 if (wd > 200 || hd > 200) {
-                    triggered = true;
                     try { sessionStorage.setItem(FLAG, '1'); } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
                 }
             }, 800);
         })();
     })();
 
     /* ============================================
-       AUTO REDIRECT
+       AUTO REDIRECT — kalau udah login
        ============================================ */
     (async function checkAlreadyLoggedIn() {
         const token = localStorage.getItem('access_token');
@@ -101,7 +101,7 @@
     })();
 
     /* ============================================
-       AURORA BG — biru-ungu (brand)
+       AURORA BG — biru-ungu
        ============================================ */
     (function aurora() {
         const container = document.getElementById('auroraBg');
@@ -232,11 +232,11 @@ void main() {
         const uRes = gl.getUniformLocation(prog, 'uResolution');
         const uBlend = gl.getUniformLocation(prog, 'uBlend');
 
-        // Warna biru-ungu (brand AsyrofOTP)
+        // Warna biru-ungu (brand)
         const colors = [
-            [0.32, 0.15, 1.0],   // #5227FF
-            [0.49, 0.39, 0.81],  // #7D63CF
-            [0.95, 0.4, 0.7]     // #F266B2
+            [0.32, 0.15, 1.0],
+            [0.49, 0.39, 0.81],
+            [0.95, 0.4, 0.7]
         ];
 
         let w = 1, h = 1;
@@ -303,7 +303,7 @@ void main() {
     })();
 
     /* ============================================
-       STICKER — drag ke mana aja, spring balik
+       STICKER — drag ke mana aja, spring balik ke -8deg
        ============================================ */
     (function sticker() {
         const wrapper = document.getElementById('stickerWrapper');
@@ -311,14 +311,15 @@ void main() {
         const stickerContainer = document.getElementById('stickerContainer');
         if (!wrapper || !link || !stickerContainer) return;
 
+        const DEFAULT_ROTATION = -8;
         let dragging = false;
         let startX = 0, startY = 0;
         let currentX = 0, currentY = 0;
         let velocityX = 0, velocityY = 0;
-        let rotation = -8; // rotate default
+        let rotation = DEFAULT_ROTATION;
         let raf = 0;
 
-        // Biar bisa ditarik jauh
+        // Bisa ditarik jauh
         const MAX_DRIFT_X = 300;
         const MAX_DRIFT_Y = 300;
 
@@ -341,14 +342,14 @@ void main() {
                 currentY += velocityY;
 
                 // Balik ke rotation default (-8)
-                rotation += (-8 - rotation) * 0.1;
+                rotation += (DEFAULT_ROTATION - rotation) * 0.1;
                 rotation += velocityX * 0.5;
                 rotation *= 0.85;
 
                 if (Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1 &&
                     Math.abs(velocityX) < 0.1 && Math.abs(velocityY) < 0.1 &&
-                    Math.abs(rotation - (-8)) < 0.1) {
-                    currentX = 0; currentY = 0; rotation = -8;
+                    Math.abs(rotation - DEFAULT_ROTATION) < 0.1) {
+                    currentX = 0; currentY = 0; rotation = DEFAULT_ROTATION;
                     velocityX = 0; velocityY = 0;
                     applyTransform();
                     return;
@@ -374,12 +375,10 @@ void main() {
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
 
-            // Clamp biar masih keliatan
             currentX = Math.max(-MAX_DRIFT_X, Math.min(MAX_DRIFT_X, dx));
             currentY = Math.max(-MAX_DRIFT_Y, Math.min(MAX_DRIFT_Y, dy));
 
-            // Rotation ngikutin gerakan X
-            rotation = -8 + (dx * 0.15);
+            rotation = DEFAULT_ROTATION + (dx * 0.15);
             applyTransform();
         }
 
