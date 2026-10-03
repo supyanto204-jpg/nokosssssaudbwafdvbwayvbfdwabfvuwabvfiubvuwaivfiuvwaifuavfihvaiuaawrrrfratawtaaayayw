@@ -15,31 +15,25 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/landing.css">
     <link rel="stylesheet" href="/css/login.css">
 
     <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + DevTools lock -->
     <script>
-        // Anti-FOUC theme
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
             const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
 
-        // Anti-iframe (clickjacking)
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
 
-        // DevTools LOCK SCREEN — simpel
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
-
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
                 document.documentElement.innerHTML = '<head></head><body></body>';
-
                 function showLockScreen() {
                     document.body.innerHTML = `
                         <div id="devtoolsLockScreen">
@@ -52,8 +46,7 @@
                         </div>
                         <style>
                             html, body {
-                                margin: 0;
-                                padding: 0;
+                                margin: 0; padding: 0;
                                 background: #0f172a;
                                 overflow: auto !important;
                                 position: static !important;
@@ -85,54 +78,24 @@
                                 box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
                                 box-sizing: border-box;
                             }
-                            #devtoolsLockScreen .lock-icon {
-                                font-size: 3rem;
-                                margin-bottom: 16px;
-                                line-height: 1;
-                            }
-                            #devtoolsLockScreen h2 {
-                                color: #dc2626;
-                                font-size: 1.5rem;
-                                font-weight: 800;
-                                margin: 0 0 12px;
-                                font-family: inherit;
-                            }
-                            #devtoolsLockScreen p {
-                                color: #cbd5e1;
-                                font-size: 0.95rem;
-                                line-height: 1.6;
-                                margin: 0 0 8px;
-                            }
-                            #devtoolsLockScreen .lock-hint {
-                                color: #64748b;
-                                font-size: 0.78rem;
-                                font-family: ui-monospace, monospace;
-                                margin-top: 20px;
-                                padding-top: 16px;
-                                border-top: 1px dashed #334155;
-                            }
+                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
+                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
+                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
                         </style>
                     `;
-
                     const THRESHOLD = 200;
                     setInterval(() => {
                         const wDiff = window.outerWidth - window.innerWidth;
                         const hDiff = window.outerHeight - window.innerHeight;
-                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-
-                        if (!stillOpen) {
+                        if (wDiff <= THRESHOLD && hDiff <= THRESHOLD) {
                             sessionStorage.removeItem(LOCK_FLAG);
                             window.location.reload();
                         }
                     }, 500);
                 }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
+                else showLockScreen();
                 throw new Error('__DEVTOOLS_LOCK__');
             }
         })();
@@ -142,11 +105,33 @@
 </head>
 <body>
 
-<!-- ===== AURORA BG ===== -->
-<div class="aurora-bg" id="auroraBg" aria-hidden="true"></div>
+<!-- ===== BG STACK (Aurora dark / Iridescence light) ===== -->
+<div class="bg-stack" id="bgStack" aria-hidden="true">
+    <div class="bg-aurora" id="bgAurora"></div>
+    <div class="bg-iridescence" id="bgIridescence"></div>
+    <div class="bg-microslats" id="bgMicroSlats"></div>
+</div>
 
-<!-- ===== CURSOR GRID ===== -->
-<canvas class="cursor-grid-bg" id="cursorGridCanvas" aria-hidden="true"></canvas>
+<!-- ===== PIXEL SWAP OVERLAY (theme transition) ===== -->
+<div class="pixel-swap-overlay" id="pixelSwapOverlay" aria-hidden="true"></div>
+
+<!-- ===== FOLDER CHECK OVERLAY (login animation) ===== -->
+<div class="folder-check-overlay" id="folderCheckOverlay" aria-hidden="true">
+    <div class="folder-check-content">
+        <div class="folder-3d" id="folder3d">
+            <div class="folder__back">
+                <div class="paper paper-1"></div>
+                <div class="paper paper-2"></div>
+                <div class="paper paper-3"></div>
+                <div class="folder__front"></div>
+                <div class="folder__front right"></div>
+            </div>
+        </div>
+        <div class="folder-check-text">
+            <span id="folderCheckText">Memeriksa database...</span>
+        </div>
+    </div>
+</div>
 
 <!-- ===== Theme toggle ===== -->
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -159,57 +144,16 @@
     </svg>
 </button>
 
-<!-- ===== LAYOUT ===== -->
+<!-- ===== AUTH LAYOUT ===== -->
 <div class="auth-center">
 
-    <!-- Logo sticker di atas card -->
+    <!-- Logo icon (bukan sticker) -->
     <div class="auth-logo-block">
-        <div class="sticker-wrapper" id="stickerWrapper">
-            <svg width="0" height="0" aria-hidden="true">
-                <defs>
-                    <filter id="pointLight">
-                        <feGaussianBlur stdDeviation="1" result="blur" />
-                        <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.1" lightingColor="white">
-                            <fePointLight id="pointLightRef" x="100" y="100" z="300" />
-                        </feSpecularLighting>
-                        <feComposite in="spec" in2="SourceGraphic" result="lit" />
-                        <feComposite in="lit" in2="SourceAlpha" operator="in" />
-                    </filter>
-                    <filter id="pointLightFlipped">
-                        <feGaussianBlur stdDeviation="10" result="blur" />
-                        <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.7" lightingColor="white">
-                            <fePointLight id="pointLightFlippedRef" x="100" y="100" z="300" />
-                        </feSpecularLighting>
-                        <feComposite in="spec" in2="SourceGraphic" result="lit" />
-                        <feComposite in="lit" in2="SourceAlpha" operator="in" />
-                    </filter>
-                    <filter id="dropShadow">
-                        <feDropShadow dx="2" dy="4" stdDeviation="3" floodColor="black" floodOpacity="0.35" />
-                    </filter>
-                    <filter id="expandAndFill">
-                        <feOffset dx="0" dy="0" in="SourceAlpha" result="shape" />
-                        <feFlood floodColor="rgb(200,200,200)" result="flood" />
-                        <feComposite operator="in" in="flood" in2="shape" />
-                    </filter>
-                </defs>
+        <div class="auth-logo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <polyline points="9 12 11 14 15 10"/>
             </svg>
-
-            <div class="sticker-link" id="stickerLink" aria-hidden="true">
-                <div class="sticker-container" id="stickerContainer">
-                    <div class="sticker-main">
-                        <div class="sticker-lighting">
-                            <img src="/icon-180.png" alt="" class="sticker-image" draggable="false"
-                                onerror="this.src='/icon.svg'; this.onerror=null;">
-                        </div>
-                    </div>
-                    <div class="flap">
-                        <div class="flap-lighting">
-                            <img src="/icon-180.png" alt="" class="flap-image" draggable="false"
-                                onerror="this.src='/icon.svg'; this.onerror=null;">
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -218,7 +162,7 @@
         <span class="edge-light"></span>
         <div class="border-glow-inner">
             <div class="auth-card-content">
-                <h1 class="auth-title">Masuk</h1>
+                <h1 class="auth-title" id="authTitle">Masuk</h1>
                 <p class="subtitle">Selamat datang kembali! Silakan login.</p>
 
                 <div class="alert" id="alert" role="alert">
@@ -228,11 +172,11 @@
 
                 <form id="loginForm" autocomplete="on" novalidate>
                     <div class="form-group">
-                        <label class="form-label" for="username">Username</label>
+                        <label class="form-label fold-label" data-fold-label="Username" for="username"></label>
                         <input type="text" class="form-control" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false">
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="password">Password</label>
+                        <label class="form-label fold-label" data-fold-label="Password" for="password"></label>
                         <div class="input-wrap">
                             <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
                             <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
