@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE v6 — Biru + Logo atas + Sticker drag
+   LOGIN PAGE v7 — Cursor Grid + Aurora + Sticker
    ============================================ */
 
 :root {
@@ -96,6 +96,19 @@ img, svg {
 }
 
 /* ============================================
+   CURSOR GRID BG
+   ============================================ */
+.cursor-grid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.9;
+}
+
+/* ============================================
    AUTH CENTER
    ============================================ */
 .auth-center {
@@ -106,7 +119,7 @@ img, svg {
     justify-content: center;
     padding: 60px 24px 40px;
     position: relative;
-    z-index: 1;
+    z-index: 2;
     gap: 12px;
 }
 
@@ -121,7 +134,7 @@ img, svg {
     max-width: 440px;
     height: 110px;
     position: relative;
-    z-index: 2;
+    z-index: 3;
     overflow: visible;
     margin-bottom: -20px;
     pointer-events: none;
@@ -485,7 +498,6 @@ img, svg {
 .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 .btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 
-/* Glare */
 .btn-glare .glare-layer {
     position: absolute;
     inset: 0;
@@ -761,6 +773,9 @@ img, svg {
     .auth-card-content { padding: 26px 22px; }
     .auth-title { font-size: 1.3rem; }
     .border-glow-card { --glow-padding: 20px; border-radius: 16px; }
+
+    /* Mobile: matikan cursor grid biar ringan */
+    .cursor-grid-bg { display: none; }
 }
 
 @media (max-width: 400px) {
@@ -782,5 +797,6 @@ img, svg {
         transition-duration: 0.01ms !important;
     }
     .aurora-bg { opacity: 0.4; }
+    .cursor-grid-bg { display: none; }
     .status-mark[data-status='running'] .status-mark__ring { animation-duration: 2.5s; }
 }
