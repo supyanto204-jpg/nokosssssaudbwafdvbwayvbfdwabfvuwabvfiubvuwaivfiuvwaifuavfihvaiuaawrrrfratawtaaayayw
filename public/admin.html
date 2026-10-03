@@ -28,9 +28,7 @@
             -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
         }
 
-        /* ============================================
-           SECURITY GATE — FULL SCREEN LOADING
-           ============================================ */
+        /* SECURITY GATE */
         #securityGate {
             position: fixed;
             inset: 0;
@@ -72,17 +70,10 @@
         }
         .gate-text.frozen { color: #dc2626; }
 
-        /* Hide semua konten sampai gate dibuka */
-        #appRoot {
-            display: none;
-        }
-        #appRoot.ready {
-            display: block;
-        }
+        #appRoot { display: none; }
+        #appRoot.ready { display: block; }
 
-        /* ============================================
-           ADMIN HERO
-           ============================================ */
+        /* ADMIN HERO */
         .admin-hero {
             display: flex;
             align-items: center;
@@ -138,9 +129,7 @@
         }
         .admin-badge .icon-svg { width: 11px; height: 11px; }
 
-        /* ============================================
-           STATS
-           ============================================ */
+        /* STATS */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -195,9 +184,7 @@
             word-break: break-all;
         }
 
-        /* ============================================
-           TABS
-           ============================================ */
+        /* TABS */
         .admin-tabs {
             display: flex;
             gap: 6px;
@@ -238,9 +225,7 @@
             border: 2px solid var(--border-dark);
         }
 
-        /* ============================================
-           TOOLBAR
-           ============================================ */
+        /* TOOLBAR */
         .admin-toolbar {
             display: flex;
             gap: 10px;
@@ -275,9 +260,7 @@
             box-shadow: var(--shadow-hard-sm);
         }
 
-        /* ============================================
-           ADMIN CARD
-           ============================================ */
+        /* ADMIN CARD */
         .admin-card {
             background: var(--bg-card);
             border: 2px solid var(--border-dark);
@@ -374,9 +357,7 @@
             padding: 8px 12px;
         }
 
-        /* ============================================
-           EMPTY
-           ============================================ */
+        /* EMPTY */
         .empty-block {
             text-align: center;
             padding: 48px 20px;
@@ -405,9 +386,7 @@
         }
         .empty-block p { font-size: 0.82rem; }
 
-        /* ============================================
-           MODAL EXTRA
-           ============================================ */
+        /* MODAL EXTRA */
         .modal-tall { max-height: 90vh; overflow-y: auto; }
 
         .detail-grid {
@@ -472,9 +451,7 @@
         }
         .log-item .log-text { color: var(--text-dark); word-break: break-all; }
 
-        /* ============================================
-           PAGINATION
-           ============================================ */
+        /* PAGINATION */
         .pagination {
             display: flex;
             align-items: center;
@@ -509,9 +486,7 @@
             padding: 0 8px;
         }
 
-        /* ============================================
-           FOOTER
-           ============================================ */
+        /* FOOTER */
         .site-footer {
             display: flex;
             justify-content: space-between;
@@ -529,8 +504,161 @@
         .site-footer a:hover { color: var(--primary); text-decoration: underline; }
 
         /* ============================================
-           RESPONSIVE
+           LIVE MONITOR
            ============================================ */
+        .monitor-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .monitor-stat {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 10px 12px;
+            box-shadow: var(--shadow-hard-sm);
+        }
+        .monitor-stat .lbl {
+            font-size: 0.6rem;
+            font-family: var(--font-mono);
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-gray);
+            margin-bottom: 2px;
+        }
+        .monitor-stat .val {
+            font-family: var(--font-mono);
+            font-size: 1.3rem;
+            font-weight: 900;
+            color: var(--text-dark);
+        }
+        .monitor-stat.green .val { color: var(--success); }
+        .monitor-stat.blue .val { color: var(--primary); }
+        .monitor-stat.yellow .val { color: var(--warning); }
+        .monitor-stat.red .val { color: var(--danger); }
+
+        .monitor-event {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            box-shadow: var(--shadow-hard-sm);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.15s;
+        }
+        .monitor-event::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0;
+            width: 4px; height: 100%;
+        }
+        .monitor-event.otp::before { background: var(--success); }
+        .monitor-event.deposit::before { background: var(--primary); }
+        .monitor-event.fail::before { background: var(--danger); }
+        .monitor-event.pending::before { background: var(--warning); }
+
+        .monitor-event-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            flex-wrap: wrap;
+        }
+        .monitor-event-time {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-light);
+            font-weight: 700;
+        }
+        .monitor-event-body {
+            font-size: 0.72rem;
+            font-family: var(--font-mono);
+            line-height: 1.5;
+        }
+        .monitor-event-body .key { color: var(--text-light); font-weight: 700; }
+        .monitor-event-body .val { color: var(--text-dark); font-weight: 700; word-break: break-all; }
+        .monitor-event-body .val.primary { color: var(--primary); }
+        .monitor-event-body .val.success { color: var(--success); }
+        .monitor-event-body .val.danger { color: var(--danger); }
+
+        .monitor-event-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+        .monitor-event-actions .btn {
+            padding: 5px 10px;
+            font-size: 0.68rem;
+            min-width: auto;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 12px;
+        }
+        .tool-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: var(--shadow-hard-sm);
+        }
+        .tool-card h4 {
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            color: var(--text-dark);
+        }
+        .tool-card p {
+            font-size: 0.75rem;
+            color: var(--text-gray);
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+        .tool-card .btn {
+            width: 100%;
+            font-size: 0.78rem;
+            padding: 8px 12px;
+        }
+        .tool-result {
+            margin-top: 8px;
+            padding: 8px 10px;
+            background: var(--bg-light);
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            max-height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: var(--text-dark);
+        }
+        .tool-result.success { border-color: var(--success); background: rgba(16,185,129,0.05); }
+        .tool-result.error { border-color: var(--danger); background: rgba(220,38,38,0.05); }
+
+        .live-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            margin-right: 4px;
+            animation: pulseDot 1.5s ease-in-out infinite;
+        }
+        .live-dot.off { background: var(--text-light); animation: none; }
+        @keyframes pulseDot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.85); }
+        }
+
+        /* RESPONSIVE */
         @media (max-width: 1024px) {
             .stats-grid { grid-template-columns: repeat(2, 1fr); }
         }
@@ -551,17 +679,11 @@
 </head>
 <body>
 
-<!-- ============================================
-     SECURITY GATE — FULL SCREEN
-     ============================================ -->
 <div id="securityGate">
     <div class="gate-spinner" id="gateSpinner"></div>
     <div class="gate-text" id="gateText">Memverifikasi akses...</div>
 </div>
 
-<!-- ============================================
-     APP ROOT — hidden sampai gate selesai
-     ============================================ -->
 <div id="appRoot">
 
     <div class="bg-pulse" aria-hidden="true">
@@ -667,7 +789,7 @@
                 </div>
                 <div class="admin-hero-text">
                     <h1>Admin Panel</h1>
-                    <p>Kelola user, ubah saldo, ubah status order/deposit.</p>
+                    <p>Kelola user, ubah saldo, ubah status order/deposit, monitor webhook.</p>
                     <div class="admin-badge">
                         <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/></svg>
                         Admin Access
@@ -712,6 +834,8 @@
                 <button class="admin-tab active" type="button" data-tab="users">Users</button>
                 <button class="admin-tab" type="button" data-tab="orders">Orders</button>
                 <button class="admin-tab" type="button" data-tab="deposits">Deposits</button>
+                <button class="admin-tab" type="button" data-tab="monitor">🔴 Live Monitor</button>
+                <button class="admin-tab" type="button" data-tab="tools">🧪 Tools</button>
                 <button class="admin-tab" type="button" data-tab="audit">Audit Log</button>
             </div>
 
@@ -721,6 +845,31 @@
                     <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                     <input type="text" id="adminSearch" placeholder="Cari user / order / deposit...">
                 </div>
+            </div>
+
+            <!-- MONITOR TOOLBAR -->
+            <div class="admin-toolbar" id="monitorToolbar" style="display:none;">
+                <select class="form-control" id="monitorHours" style="max-width:160px;padding:10px 14px;border-radius:50px;font-family:var(--font-mono);font-size:0.85rem;border:2px solid var(--border-dark);background:var(--bg-white);color:var(--text-dark);">
+                    <option value="1">1 jam terakhir</option>
+                    <option value="3">3 jam terakhir</option>
+                    <option value="6" selected>6 jam terakhir</option>
+                    <option value="12">12 jam terakhir</option>
+                    <option value="24">24 jam terakhir</option>
+                    <option value="72">3 hari terakhir</option>
+                    <option value="168">7 hari terakhir</option>
+                </select>
+                <select class="form-control" id="monitorType" style="max-width:180px;padding:10px 14px;border-radius:50px;font-family:var(--font-mono);font-size:0.85rem;border:2px solid var(--border-dark);background:var(--bg-white);color:var(--text-dark);">
+                    <option value="all">Semua (OTP + Deposit)</option>
+                    <option value="otp">Cuma OTP</option>
+                    <option value="deposit">Cuma Deposit</option>
+                </select>
+                <select class="form-control" id="monitorFilter" style="max-width:200px;padding:10px 14px;border-radius:50px;font-family:var(--font-mono);font-size:0.85rem;border:2px solid var(--border-dark);background:var(--bg-white);color:var(--text-dark);">
+                    <option value="">Semua status notif</option>
+                    <option value="unnotified">Belum dikirim notif</option>
+                    <option value="notified">Sudah dikirim notif</option>
+                </select>
+                <button class="btn btn-primary" type="button" id="monitorRefresh">🔄 Refresh</button>
+                <button class="btn" type="button" id="monitorAutoToggle">▶️ Auto Refresh: OFF</button>
             </div>
 
             <!-- CONTENT -->
@@ -794,12 +943,11 @@
     </div>
 
 </div>
-<!-- /#appRoot -->
 
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       ADMIN SCRIPT — SECURITY FIRST
+       ADMIN SCRIPT
        ============================================ */
     const token = localStorage.getItem('access_token');
 
@@ -818,6 +966,8 @@
         ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
         key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
         wallet: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></svg>`,
+        send: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`,
+        bell: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`,
     };
 
     /* ===== GATE CONTROL ===== */
@@ -875,7 +1025,7 @@
     }
 
     /* ============================================
-       SECURITY CHECK — JANGAN LOAD APAPUN SEBELUM INI SELESAI
+       SECURITY CHECK
        ============================================ */
     (async function securityCheck() {
         if (!token) {
@@ -885,7 +1035,6 @@
         }
 
         try {
-            // Timeout 8 detik untuk fetch
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
@@ -925,7 +1074,6 @@
                 return;
             }
 
-            // Cek banned
             if (user.status === 'banned') {
                 gateFreeze('Akun diblokir.');
                 await showCustomAlert({
@@ -937,7 +1085,6 @@
                 return;
             }
 
-            // Cek admin
             const isAdmin =
                 user.role === 'admin' ||
                 String(user.username).toLowerCase() === 'asyrofc' ||
@@ -955,15 +1102,12 @@
                 return;
             }
 
-            // Set user info + buka gate
             document.getElementById('userName').textContent = user.name || user.username;
             document.getElementById('userBalance').textContent = formatRupiah(user.balance);
             document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
             document.getElementById('balancePill').textContent = formatRupiah(user.balance);
 
             gateOpen();
-
-            // Baru load data admin setelah gate dibuka
             initAdminFeatures();
 
         } catch (err) {
@@ -980,7 +1124,7 @@
     })();
 
     /* ============================================
-       ADMIN FEATURES — diinit SETELAH gate dibuka
+       ADMIN FEATURES INIT
        ============================================ */
     function initAdminFeatures() {
         // Theme toggle
@@ -1079,7 +1223,7 @@
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
             } catch (err) {}
-            CacheManager.clear();
+            if (typeof CacheManager !== 'undefined' && CacheManager.clear) CacheManager.clear();
             localStorage.removeItem('access_token');
             localStorage.removeItem('user');
             window.location.href = '/landing';
@@ -1088,6 +1232,22 @@
         // Load data
         loadStats();
         loadCurrentTab();
+
+        // Monitor controls
+        const monitorRefresh = document.getElementById('monitorRefresh');
+        if (monitorRefresh) monitorRefresh.addEventListener('click', loadMonitor);
+
+        const monitorAutoToggle = document.getElementById('monitorAutoToggle');
+        if (monitorAutoToggle) monitorAutoToggle.addEventListener('click', toggleMonitorAuto);
+
+        const monitorHours = document.getElementById('monitorHours');
+        if (monitorHours) monitorHours.addEventListener('change', loadMonitor);
+
+        const monitorType = document.getElementById('monitorType');
+        if (monitorType) monitorType.addEventListener('change', loadMonitor);
+
+        const monitorFilter = document.getElementById('monitorFilter');
+        if (monitorFilter) monitorFilter.addEventListener('change', loadMonitor);
     }
 
     /* ============================================
@@ -1125,9 +1285,14 @@
        LOAD TAB
        ============================================ */
     function loadCurrentTab() {
+        const monitorToolbar = document.getElementById('monitorToolbar');
+        if (monitorToolbar) monitorToolbar.style.display = adminState.tab === 'monitor' ? 'flex' : 'none';
+
         if (adminState.tab === 'users') loadUsers();
         else if (adminState.tab === 'orders') loadOrders();
         else if (adminState.tab === 'deposits') loadDeposits();
+        else if (adminState.tab === 'monitor') loadMonitor();
+        else if (adminState.tab === 'tools') loadTools();
         else if (adminState.tab === 'audit') loadAuditLog();
     }
 
@@ -1414,7 +1579,6 @@
                 btn.classList.add('btn-primary');
             });
         });
-        // Default pilih add
         modal.querySelector('[data-mode="add"]').classList.add('btn-primary');
 
         modal.querySelectorAll('[data-modal-close]').forEach(btn => {
@@ -1673,6 +1837,13 @@
                 hour: '2-digit', minute: '2-digit'
             });
 
+            const canSendNotif = ['received', 'success', 'confirmed'].includes(o.status) && o.otp_code && o.otp_id;
+            const notifBtn = canSendNotif
+                ? (o.notified_at
+                    ? `<button class="btn btn-danger" type="button" data-notif-resend="order" data-notif-id="${escapeHtml(o.otp_id)}"><span style="display:inline-flex;width:14px;height:14px;vertical-align:middle;margin-right:2px;">${ICONS.refresh}</span> Resend</button>`
+                    : `<button class="btn btn-success" type="button" data-notif-send="order" data-notif-id="${escapeHtml(o.otp_id)}"><span style="display:inline-flex;width:14px;height:14px;vertical-align:middle;margin-right:2px;">${ICONS.send}</span> Kirim Notif</button>`)
+                : '';
+
             return `
                 <div class="admin-card ${cls}">
                     <div class="admin-card-header">
@@ -1700,6 +1871,10 @@
                             <span class="admin-field-value success">${escapeHtml(o.otp_code || '—')}</span>
                         </div>
                         <div class="admin-field full">
+                            <span class="admin-field-label">Notif Status</span>
+                            <span class="admin-field-value ${o.notified_at ? 'success' : 'danger'}">${o.notified_at ? '✅ Terkirim' : '❌ Belum dikirim'}</span>
+                        </div>
+                        <div class="admin-field full">
                             <span class="admin-field-label">Dibuat</span>
                             <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
                         </div>
@@ -1708,6 +1883,7 @@
                         <button class="btn btn-primary" type="button" data-change-order="${escapeHtml(o.order_id)}" data-status="${escapeHtml(o.status)}">
                             ${ICONS.edit} Ubah Status
                         </button>
+                        ${notifBtn}
                     </div>
                 </div>
             `;
@@ -1721,6 +1897,12 @@
 
         document.querySelectorAll('[data-change-order]').forEach(btn => {
             btn.addEventListener('click', () => showChangeStatusModal('order', btn.dataset.changeOrder, btn.dataset.status));
+        });
+        document.querySelectorAll('[data-notif-send]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifSend, btn.dataset.notifId, false));
+        });
+        document.querySelectorAll('[data-notif-resend]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifResend, btn.dataset.notifId, true));
         });
     }
 
@@ -1771,6 +1953,13 @@
                 hour: '2-digit', minute: '2-digit'
             });
 
+            const canSendNotif = d.status === 'success';
+            const notifBtn = canSendNotif
+                ? (d.notified_at
+                    ? `<button class="btn btn-danger" type="button" data-notif-resend="deposit" data-notif-id="${escapeHtml(d.reference_id)}"><span style="display:inline-flex;width:14px;height:14px;vertical-align:middle;margin-right:2px;">${ICONS.refresh}</span> Resend</button>`
+                    : `<button class="btn btn-success" type="button" data-notif-send="deposit" data-notif-id="${escapeHtml(d.reference_id)}"><span style="display:inline-flex;width:14px;height:14px;vertical-align:middle;margin-right:2px;">${ICONS.send}</span> Kirim Notif</button>`)
+                : '';
+
             return `
                 <div class="admin-card ${cls}">
                     <div class="admin-card-header">
@@ -1798,6 +1987,10 @@
                             <span class="admin-field-value warning">${formatRupiah(d.fee || 0)}</span>
                         </div>
                         <div class="admin-field full">
+                            <span class="admin-field-label">Notif Status</span>
+                            <span class="admin-field-value ${d.notified_at ? 'success' : 'danger'}">${d.notified_at ? '✅ Terkirim' : '❌ Belum dikirim'}</span>
+                        </div>
+                        <div class="admin-field full">
                             <span class="admin-field-label">Dibuat</span>
                             <span class="admin-field-value" style="font-size:0.75rem;">${createdDate}</span>
                         </div>
@@ -1806,6 +1999,7 @@
                         <button class="btn btn-primary" type="button" data-change-deposit="${escapeHtml(d.reference_id)}" data-status="${escapeHtml(d.status)}">
                             ${ICONS.edit} Ubah Status
                         </button>
+                        ${notifBtn}
                     </div>
                 </div>
             `;
@@ -1820,10 +2014,16 @@
         document.querySelectorAll('[data-change-deposit]').forEach(btn => {
             btn.addEventListener('click', () => showChangeStatusModal('deposit', btn.dataset.changeDeposit, btn.dataset.status));
         });
+        document.querySelectorAll('[data-notif-send]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifSend, btn.dataset.notifId, false));
+        });
+        document.querySelectorAll('[data-notif-resend]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifResend, btn.dataset.notifId, true));
+        });
     }
 
     /* ============================================
-       CHANGE STATUS MODAL (order / deposit)
+       CHANGE STATUS MODAL
        ============================================ */
     async function showChangeStatusModal(type, id, currentStatus) {
         const overlay = document.getElementById('modalDetail');
@@ -2034,6 +2234,13 @@
         adminState.page = 1;
         adminState.search = '';
         document.getElementById('adminSearch').value = '';
+
+        // Sembunyikan search untuk tab monitor & tools
+        const toolbar = document.querySelector('.admin-toolbar:not(#monitorToolbar)');
+        if (toolbar) {
+            toolbar.style.display = (adminState.tab === 'monitor' || adminState.tab === 'tools') ? 'none' : 'flex';
+        }
+
         loadCurrentTab();
     });
 
@@ -2063,6 +2270,406 @@
             document.getElementById('modalDetail').classList.remove('active');
         }
     });
+
+    /* ============================================
+       LIVE MONITOR
+       ============================================ */
+    let monitorAutoInterval = null;
+    let monitorAutoOn = false;
+
+    async function loadMonitor() {
+        const container = document.getElementById('adminContent');
+        const hours = document.getElementById('monitorHours')?.value || 6;
+        const type = document.getElementById('monitorType')?.value || 'all';
+        const filter = document.getElementById('monitorFilter')?.value || '';
+
+        container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.clock}</div><h3>Memuat webhook events...</h3></div>`;
+
+        try {
+            const q = new URLSearchParams({ hours, type, limit: 150 });
+            if (filter === 'notified') q.set('only_notified', '1');
+            if (filter === 'unnotified') q.set('only_unnotified', '1');
+
+            const res = await fetch(`/api/admin/webhook-monitor?${q.toString()}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal memuat monitor');
+
+            renderMonitor(data);
+        } catch (err) {
+            container.innerHTML = `<div class="empty-block"><div class="icon-box">${ICONS.warning}</div><h3>Gagal memuat</h3><p>${escapeHtml(err.message)}</p></div>`;
+        }
+    }
+
+    function renderMonitor(data) {
+        const container = document.getElementById('adminContent');
+
+        const otpEvents = data.events.filter(e => e.entity_type === 'order' && ['received', 'success', 'confirmed'].includes(e.new_status));
+        const depositEvents = data.events.filter(e => e.entity_type === 'deposit' && e.new_status === 'success');
+        const failEvents = data.events.filter(e => ['failed', 'cancelled', 'expired', 'refunded'].includes(e.new_status));
+        const unnotifiedOtp = otpEvents.filter(e => !e.order?.notified_at).length;
+        const unnotifiedDeposit = depositEvents.filter(e => !e.deposit?.notified_at).length;
+
+        const hourlyBuckets = {};
+        (data.hourly_stats || []).forEach(s => {
+            const h = new Date(s.hour).toLocaleString('id-ID', {
+                timeZone: 'Asia/Jakarta',
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+            });
+            if (!hourlyBuckets[h]) hourlyBuckets[h] = { otp: 0, deposit: 0 };
+            if (s.entity_type === 'order') hourlyBuckets[h].otp += s.count;
+            else hourlyBuckets[h].deposit += s.count;
+        });
+
+        const statsHtml = `
+            <div class="monitor-stats">
+                <div class="monitor-stat green">
+                    <div class="lbl">OTP Masuk</div>
+                    <div class="val">${otpEvents.length}</div>
+                </div>
+                <div class="monitor-stat blue">
+                    <div class="lbl">Deposit Sukses</div>
+                    <div class="val">${depositEvents.length}</div>
+                </div>
+                <div class="monitor-stat red">
+                    <div class="lbl">Failed/Expired</div>
+                    <div class="val">${failEvents.length}</div>
+                </div>
+                <div class="monitor-stat yellow">
+                    <div class="lbl">Belum Di-notif</div>
+                    <div class="val">${unnotifiedOtp + unnotifiedDeposit}</div>
+                </div>
+            </div>
+        `;
+
+        let histHtml = '';
+        const histKeys = Object.keys(hourlyBuckets).slice(0, 12);
+        if (histKeys.length > 0) {
+            histHtml = `<div style="background:var(--bg-card);border:2px solid var(--border-dark);border-radius:12px;padding:12px;margin-bottom:14px;box-shadow:var(--shadow-hard-sm);">
+                <div style="font-family:var(--font-mono);font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-gray);margin-bottom:8px;">📊 Histogram per Jam</div>
+                <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;">`;
+
+            const maxCount = Math.max(...histKeys.map(h => hourlyBuckets[h].otp + hourlyBuckets[h].deposit), 1);
+            histKeys.reverse().forEach(h => {
+                const b = hourlyBuckets[h];
+                const total = b.otp + b.deposit;
+                histHtml += `
+                    <div style="flex-shrink:0;text-align:center;min-width:64px;">
+                        <div style="height:60px;display:flex;align-items:flex-end;justify-content:center;gap:2px;">
+                            ${b.otp > 0 ? `<div style="width:14px;height:${Math.max(4, b.otp / maxCount * 60)}px;background:var(--success);border-radius:3px 3px 0 0;"></div>` : ''}
+                            ${b.deposit > 0 ? `<div style="width:14px;height:${Math.max(4, b.deposit / maxCount * 60)}px;background:var(--primary);border-radius:3px 3px 0 0;"></div>` : ''}
+                        </div>
+                        <div style="font-size:0.55rem;font-family:var(--font-mono);color:var(--text-light);margin-top:4px;white-space:nowrap;">${h.split(', ')[1] || h}</div>
+                        <div style="font-size:0.6rem;font-family:var(--font-mono);font-weight:800;color:var(--text-dark);">${total}</div>
+                    </div>
+                `;
+            });
+
+            histHtml += `</div>
+                <div style="display:flex;gap:12px;margin-top:6px;font-size:0.65rem;font-family:var(--font-mono);color:var(--text-gray);">
+                    <span><span style="display:inline-block;width:10px;height:10px;background:var(--success);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>OTP</span>
+                    <span><span style="display:inline-block;width:10px;height:10px;background:var(--primary);border-radius:2px;margin-right:4px;vertical-align:middle;"></span>Deposit</span>
+                </div>
+            </div>`;
+        }
+
+        if (!data.events || data.events.length === 0) {
+            container.innerHTML = statsHtml + histHtml + `<div class="empty-block"><div class="icon-box">${ICONS.shield}</div><h3>Tidak ada event</h3><p>Belum ada webhook dalam ${data.hours} jam terakhir.</p></div>`;
+            bindMonitorActions();
+            return;
+        }
+
+        const eventsHtml = data.events.map(e => {
+            const time = new Date(e.created_at).toLocaleString('id-ID', {
+                timeZone: 'Asia/Jakarta',
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+
+            const isOtp = e.entity_type === 'order';
+            const isSuccess = ['received', 'success', 'confirmed'].includes(e.new_status);
+            const isFail = ['failed', 'cancelled', 'expired', 'refunded'].includes(e.new_status);
+            const cls = isOtp && isSuccess ? 'otp' : (!isOtp && isSuccess ? 'deposit' : (isFail ? 'fail' : 'pending'));
+
+            const alreadyNotified = isOtp ? !!e.order?.notified_at : !!e.deposit?.notified_at;
+
+            let bodyHtml = '';
+            if (isOtp && e.order) {
+                bodyHtml = `
+                    <div><span class="key">OTP ID:</span> <span class="val primary">${escapeHtml(e.order.otp_id || '—')}</span></div>
+                    <div><span class="key">Service:</span> <span class="val">${escapeHtml(e.order.service_name || '—')}</span></div>
+                    <div><span class="key">Phone:</span> <span class="val">${escapeHtml(e.order.phone || '—')}</span></div>
+                    <div><span class="key">OTP:</span> <span class="val success">${escapeHtml(e.order.otp_code || '—')}</span></div>
+                    <div><span class="key">User:</span> <span class="val">@${escapeHtml(e.user?.username || '—')}</span></div>
+                    <div><span class="key">Status:</span> <span class="val ${isSuccess ? 'success' : (isFail ? 'danger' : '')}">${escapeHtml(e.old_status || '—')} → ${escapeHtml(e.new_status)}</span></div>
+                    <div><span class="key">Reason:</span> <span class="val">${escapeHtml(e.reason || '—')}</span></div>
+                    <div><span class="key">Notif:</span> <span class="val ${alreadyNotified ? 'success' : 'danger'}">${alreadyNotified ? '✅ Terkirim' : '❌ Belum'}</span></div>
+                `;
+            } else if (e.deposit) {
+                bodyHtml = `
+                    <div><span class="key">Ref:</span> <span class="val primary">${escapeHtml(e.deposit.reference_id || '—')}</span></div>
+                    <div><span class="key">Method:</span> <span class="val">${escapeHtml(e.deposit.method || '—')}</span></div>
+                    <div><span class="key">Amount:</span> <span class="val success">${formatRupiah(e.deposit.amount)}</span></div>
+                    <div><span class="key">User:</span> <span class="val">@${escapeHtml(e.user?.username || '—')}</span></div>
+                    <div><span class="key">Status:</span> <span class="val ${isSuccess ? 'success' : (isFail ? 'danger' : '')}">${escapeHtml(e.old_status || '—')} → ${escapeHtml(e.new_status)}</span></div>
+                    <div><span class="key">Reason:</span> <span class="val">${escapeHtml(e.reason || '—')}</span></div>
+                    <div><span class="key">Notif:</span> <span class="val ${alreadyNotified ? 'success' : 'danger'}">${alreadyNotified ? '✅ Terkirim' : '❌ Belum'}</span></div>
+                `;
+            } else {
+                bodyHtml = `
+                    <div><span class="key">Entity:</span> <span class="val">${escapeHtml(e.entity_type)} · ${escapeHtml(e.entity_id)}</span></div>
+                    <div><span class="key">Status:</span> <span class="val">${escapeHtml(e.old_status || '—')} → ${escapeHtml(e.new_status)}</span></div>
+                    <div><span class="key">Reason:</span> <span class="val">${escapeHtml(e.reason || '—')}</span></div>
+                `;
+            }
+
+            let actionsHtml = '';
+            if (isOtp && isSuccess && e.order?.otp_id) {
+                if (alreadyNotified) {
+                    actionsHtml = `<button class="btn btn-danger" type="button" data-notif-resend="order" data-notif-id="${escapeHtml(e.order.otp_id)}">🔁 Kirim Ulang</button>`;
+                } else {
+                    actionsHtml = `<button class="btn btn-primary" type="button" data-notif-send="order" data-notif-id="${escapeHtml(e.order.otp_id)}">📤 Kirim Notif</button>`;
+                }
+            } else if (!isOtp && isSuccess && e.deposit?.reference_id) {
+                if (alreadyNotified) {
+                    actionsHtml = `<button class="btn btn-danger" type="button" data-notif-resend="deposit" data-notif-id="${escapeHtml(e.deposit.reference_id)}">🔁 Kirim Ulang</button>`;
+                } else {
+                    actionsHtml = `<button class="btn btn-primary" type="button" data-notif-send="deposit" data-notif-id="${escapeHtml(e.deposit.reference_id)}">📤 Kirim Notif</button>`;
+                }
+            }
+
+            return `
+                <div class="monitor-event ${cls}">
+                    <div class="monitor-event-header">
+                        <span class="badge ${isOtp ? 'success' : 'info'}" style="font-size:0.6rem;">${isOtp ? 'OTP' : 'DEPOSIT'}</span>
+                        <span class="monitor-event-time">${time}</span>
+                        ${alreadyNotified ? `<span class="badge success" style="font-size:0.55rem;">SENT</span>` : `<span class="badge danger" style="font-size:0.55rem;">UNSENT</span>`}
+                    </div>
+                    <div class="monitor-event-body">${bodyHtml}</div>
+                    ${actionsHtml ? `<div class="monitor-event-actions">${actionsHtml}</div>` : ''}
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = statsHtml + histHtml + `<div style="font-family:var(--font-mono);font-size:0.7rem;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-gray);margin:14px 0 8px;">📋 Event Log (${data.events.length})</div>` + eventsHtml;
+
+        bindMonitorActions();
+    }
+
+    function bindMonitorActions() {
+        document.querySelectorAll('[data-notif-send]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifSend, btn.dataset.notifId, false));
+        });
+        document.querySelectorAll('[data-notif-resend]').forEach(btn => {
+            btn.addEventListener('click', () => sendNotifManual(btn.dataset.notifResend, btn.dataset.notifId, true));
+        });
+    }
+
+    async function sendNotifManual(type, id, force) {
+        const ok = await showCustomAlert({
+            title: force ? 'Kirim Ulang Notif' : 'Kirim Notif',
+            message: `Kirim notif ${type === 'order' ? 'OTP' : 'deposit'} untuk ${id}${force ? ' (force reset dulu)' : ''}?`,
+            type: 'warning',
+            okText: 'Ya, Kirim',
+            showCancel: true,
+        });
+        if (!ok) return;
+
+        try {
+            const endpoint = type === 'order'
+                ? `/api/admin/notif-order/${encodeURIComponent(id)}`
+                : `/api/admin/notif-deposit/${encodeURIComponent(id)}`;
+
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ force: !!force })
+            });
+            const data = await safeJson(res);
+            if (!res.ok) throw new Error(data.error || 'Gagal kirim notif');
+
+            await showCustomAlert({
+                title: 'Berhasil',
+                message: `Notif terkirim. Message ID: ${data.message_id || '—'}`,
+                type: 'success'
+            });
+
+            if (adminState.tab === 'monitor') loadMonitor();
+            else if (adminState.tab === 'orders') loadOrders();
+            else if (adminState.tab === 'deposits') loadDeposits();
+        } catch (err) {
+            await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+        }
+    }
+
+    function toggleMonitorAuto() {
+        const btn = document.getElementById('monitorAutoToggle');
+        if (!btn) return;
+        monitorAutoOn = !monitorAutoOn;
+
+        if (monitorAutoOn) {
+            btn.classList.add('btn-primary');
+            btn.innerHTML = '<span class="live-dot"></span> Auto Refresh: ON (10s)';
+            monitorAutoInterval = setInterval(() => {
+                if (adminState.tab === 'monitor') loadMonitor();
+            }, 10000);
+        } else {
+            btn.classList.remove('btn-primary');
+            btn.innerHTML = '▶️ Auto Refresh: OFF';
+            if (monitorAutoInterval) {
+                clearInterval(monitorAutoInterval);
+                monitorAutoInterval = null;
+            }
+        }
+    }
+
+    /* ============================================
+       TOOLS
+       ============================================ */
+    async function loadTools() {
+        const container = document.getElementById('adminContent');
+
+        container.innerHTML = `
+            <div class="tools-grid">
+                <div class="tool-card">
+                    <h4>📊 Stats Notif</h4>
+                    <p>Lihat berapa order/deposit yang udah dikirim notif, dan berapa yang masih pending backfill.</p>
+                    <button class="btn btn-primary" type="button" data-tool="stats-notif">Cek Stats</button>
+                    <div class="tool-result" id="toolResult-stats-notif" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>🧪 Test Notif OTP</h4>
+                    <p>Kirim pesan test ke channel OTP untuk verifikasi konfigurasi Telegram.</p>
+                    <button class="btn btn-primary" type="button" data-tool="test-otp">Kirim Test OTP</button>
+                    <div class="tool-result" id="toolResult-test-otp" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>🧪 Test Notif Deposit</h4>
+                    <p>Kirim pesan test ke channel Deposit untuk verifikasi konfigurasi Telegram.</p>
+                    <button class="btn btn-primary" type="button" data-tool="test-deposit">Kirim Test Deposit</button>
+                    <div class="tool-result" id="toolResult-test-deposit" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>🔄 Backfill Notif (Dry Run)</h4>
+                    <p>Cek berapa order/deposit lama yang belum pernah dikirim notif. TIDAK mengirim apapun.</p>
+                    <input type="number" class="form-control" id="backfillDays" value="30" min="1" max="365" placeholder="Hari" style="margin-bottom:6px;">
+                    <button class="btn btn-primary" type="button" data-tool="backfill-dry">Cek (Dry Run)</button>
+                    <div class="tool-result" id="toolResult-backfill-dry" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>🚀 Backfill Notif (Kirim)</h4>
+                    <p>Kirim notif ke SEMUA order/deposit lama yang belum dikirim. Batch 50 per klik.</p>
+                    <input type="number" class="form-control" id="backfillDaysReal" value="30" min="1" max="365" placeholder="Hari" style="margin-bottom:6px;">
+                    <button class="btn btn-danger" type="button" data-tool="backfill-real">⚠️ Kirim Sekarang</button>
+                    <div class="tool-result" id="toolResult-backfill-real" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>🔍 Cek Server Balance</h4>
+                    <p>Cek saldo server Dibanana (provider) yang lagi aktif.</p>
+                    <button class="btn btn-primary" type="button" data-tool="server-balance">Cek Balance</button>
+                    <div class="tool-result" id="toolResult-server-balance" style="display:none;"></div>
+                </div>
+
+                <div class="tool-card">
+                    <h4>✅ Health Check</h4>
+                    <p>Cek status backend, koneksi DB, dan konfigurasi env.</p>
+                    <button class="btn btn-primary" type="button" data-tool="health">Jalankan</button>
+                    <div class="tool-result" id="toolResult-health" style="display:none;"></div>
+                </div>
+            </div>
+        `;
+
+        document.querySelectorAll('[data-tool]').forEach(btn => {
+            btn.addEventListener('click', () => runTool(btn.dataset.tool, btn));
+        });
+    }
+
+    async function runTool(tool, btn) {
+        const resultEl = document.getElementById(`toolResult-${tool}`);
+        if (!resultEl) return;
+
+        resultEl.style.display = 'block';
+        resultEl.className = 'tool-result';
+        resultEl.textContent = '⏳ Loading...';
+
+        const original = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
+
+        try {
+            let url, options = {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({})
+            };
+
+            if (tool === 'stats-notif') {
+                url = '/api/admin/test-notif';
+                options.body = JSON.stringify({ type: 'stats' });
+            } else if (tool === 'test-otp') {
+                url = '/api/admin/test-notif';
+                options.body = JSON.stringify({ type: 'otp' });
+            } else if (tool === 'test-deposit') {
+                url = '/api/admin/test-notif';
+                options.body = JSON.stringify({ type: 'deposit' });
+            } else if (tool === 'backfill-dry') {
+                const days = parseInt(document.getElementById('backfillDays').value) || 30;
+                url = '/api/admin/backfill-notifs';
+                options.body = JSON.stringify({ type: 'all', days, limit: 50, dry_run: true });
+            } else if (tool === 'backfill-real') {
+                const ok = await showCustomAlert({
+                    title: '⚠️ Konfirmasi Backfill',
+                    message: 'Ini bakal KIRIM notif ke channel. Yakin?',
+                    type: 'warning',
+                    okText: 'Ya, Kirim',
+                    showCancel: true,
+                });
+                if (!ok) {
+                    btn.disabled = false;
+                    btn.innerHTML = original;
+                    resultEl.textContent = 'Dibatalkan.';
+                    return;
+                }
+                const days = parseInt(document.getElementById('backfillDaysReal').value) || 30;
+                url = '/api/admin/backfill-notifs';
+                options.body = JSON.stringify({ type: 'all', days, limit: 50, dry_run: false });
+            } else if (tool === 'server-balance') {
+                url = '/api/admin/server-balance';
+                options = { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } };
+            } else if (tool === 'health') {
+                url = '/api/health?detail=1';
+                options = { method: 'GET', headers: { 'Authorization': `Bearer ${token}` } };
+            }
+
+            const res = await fetch(url, options);
+            const data = await safeJson(res);
+
+            if (!res.ok) {
+                resultEl.classList.add('error');
+                resultEl.textContent = `❌ Error ${res.status}\n${JSON.stringify(data, null, 2)}`;
+            } else {
+                resultEl.classList.add('success');
+                resultEl.textContent = `✅ ${res.status}\n${JSON.stringify(data, null, 2)}`;
+            }
+        } catch (err) {
+            resultEl.classList.add('error');
+            resultEl.textContent = `❌ ${err.message}`;
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = original;
+        }
+    }
 
     /* ============================================
        UTIL
