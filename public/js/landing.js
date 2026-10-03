@@ -38,7 +38,7 @@
             'Support 24/7 siap bantu',
         ],
         DISABLE_HEAVY,
-        IS_MOBILE: isMobile,
+        IS_MOBILE: hide,
     };
 
     /* ============================================
