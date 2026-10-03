@@ -21,7 +21,6 @@
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/landing.css">
 
-    <!-- 🔒 SECURITY -->
     <script>
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
@@ -43,40 +42,16 @@
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
                 document.documentElement.innerHTML = '<head></head><body></body>';
                 function showLockScreen() {
-                    document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
-                            </div>
-                        </div>
-                        <style>
-                            html, body { margin:0; padding:0; background:#0f172a; overflow:auto !important; position:static !important; height:auto !important; min-height:100vh !important; width:100% !important; }
-                            #devtoolsLockScreen { min-height:100vh; width:100%; background:#0f172a; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; user-select:none; -webkit-user-select:none; }
-                            #devtoolsLockScreen .lock-box { background:#1e293b; border:3px solid #475569; border-radius:20px; padding:40px 32px; max-width:440px; width:100%; text-align:center; box-shadow:8px 8px 0px rgba(0,0,0,.5); box-sizing:border-box; }
-                            #devtoolsLockScreen .lock-icon { font-size:3rem; margin-bottom:16px; line-height:1; }
-                            #devtoolsLockScreen h2 { color:#dc2626; font-size:1.5rem; font-weight:800; margin:0 0 12px; font-family:inherit; }
-                            #devtoolsLockScreen p { color:#cbd5e1; font-size:.95rem; line-height:1.6; margin:0 0 8px; }
-                            #devtoolsLockScreen .lock-hint { color:#64748b; font-size:.78rem; font-family:ui-monospace,monospace; margin-top:20px; padding-top:16px; border-top:1px dashed #334155; }
-                        </style>
-                    `;
-                    const THRESHOLD = 200;
+                    document.body.innerHTML = '<div id="devtoolsLockScreen"><div class="lock-box"><div class="lock-icon">🔒</div><h2>Akses Dibatasi</h2><p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p><p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p></div></div><style>html,body{margin:0;padding:0;background:#0f172a;overflow:auto!important;position:static!important;height:auto!important;min-height:100vh!important;width:100%!important;}#devtoolsLockScreen{min-height:100vh;width:100%;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;-webkit-user-select:none;}#devtoolsLockScreen .lock-box{background:#1e293b;border:3px solid #475569;border-radius:20px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:8px 8px 0px rgba(0,0,0,.5);box-sizing:border-box;}#devtoolsLockScreen .lock-icon{font-size:3rem;margin-bottom:16px;line-height:1;}#devtoolsLockScreen h2{color:#dc2626;font-size:1.5rem;font-weight:800;margin:0 0 12px;}#devtoolsLockScreen p{color:#cbd5e1;font-size:.95rem;line-height:1.6;margin:0 0 8px;}#devtoolsLockScreen .lock-hint{color:#64748b;font-size:.78rem;font-family:ui-monospace,monospace;margin-top:20px;padding-top:16px;border-top:1px dashed #334155;}</style>';
+                    const T = 200;
                     setInterval(() => {
-                        const wDiff = window.outerWidth - window.innerWidth;
-                        const hDiff = window.outerHeight - window.innerHeight;
-                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-                        if (!stillOpen) {
+                        const wd = window.outerWidth - window.innerWidth;
+                        const hd = window.outerHeight - window.innerHeight;
+                        if (wd <= T && hd <= T) {
                             sessionStorage.removeItem(LOCK_FLAG);
-                            try {
-                                document.body.style.cssText = '';
-                                document.documentElement.style.cssText = '';
-                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                            } catch (e) {}
                             window.location.reload();
                         }
-                    }, 500);
+                    }, 700);
                 }
                 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
                 else showLockScreen();
@@ -87,25 +62,20 @@
 </head>
 <body>
 
-    <!-- ===== BACKGROUND LAYERS ===== -->
+    <!-- Background stack -->
     <div class="bg-stack" aria-hidden="true">
-        <!-- Layer 1: Gradient Waves (WebGL, fixed) -->
         <div class="bg-gradient-waves" id="gradientWaves"></div>
-
-        <!-- Layer 2: MicroSlats -->
         <div class="bg-microslats" id="microSlats"></div>
-
-        <!-- Layer 3: Cursor Grid -->
         <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
     </div>
 
-    <!-- ===== THEME TOGGLE ===== -->
+    <!-- Theme toggle -->
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
         <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
         <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
 
-    <!-- ===== NAVBAR ===== -->
+    <!-- Navbar -->
     <nav id="mainNav">
         <div class="container nav-inner">
             <a href="/" class="logo">
@@ -121,8 +91,8 @@
         </div>
     </nav>
 
-    <!-- ===== HERO (section 1) ===== -->
-    <section class="hero" id="beranda" data-bg-section="hero">
+    <!-- HERO -->
+    <section class="hero" id="beranda">
         <div class="container">
             <div class="hero-inner">
                 <div class="hero-text">
@@ -130,16 +100,11 @@
                         <span class="dot"></span>
                         Layanan Aktif 24 Jam
                     </div>
-
-                    <!-- TechText-style word selection -->
                     <h1 class="tech-title" id="techTitle" aria-label="Digital Mudah Tanpa Perlu Ribet"></h1>
-
-                    <!-- TextType typing effect -->
                     <p class="hero-subtitle">
                         <span id="textType"></span>
                         <span class="text-type-cursor" id="textTypeCursor">|</span>
                     </p>
-
                     <div class="hero-buttons">
                         <a href="/dashboard" class="btn-primary">
                             <span class="btn-rocket">
@@ -156,38 +121,22 @@
                         </a>
                     </div>
                 </div>
-
-                <!-- KANAN: Infinite Spiral Icon Apps -->
                 <div class="hero-visual">
                     <div class="spiral-stage" id="spiralStage" role="list" aria-label="Aplikasi populer"></div>
                     <div class="spiral-glow"></div>
                 </div>
             </div>
-
-            <!-- Hero stats -->
             <div class="hero-stats">
-                <div class="hero-stat">
-                    <div class="hero-stat-value">1.700+</div>
-                    <div class="hero-stat-label">Layanan</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">100+</div>
-                    <div class="hero-stat-label">Negara</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">5 Detik</div>
-                    <div class="hero-stat-label">Rata-rata OTP</div>
-                </div>
-                <div class="hero-stat">
-                    <div class="hero-stat-value">24/7</div>
-                    <div class="hero-stat-label">Support</div>
-                </div>
+                <div class="hero-stat"><div class="hero-stat-value">1.700+</div><div class="hero-stat-label">Layanan</div></div>
+                <div class="hero-stat"><div class="hero-stat-value">100+</div><div class="hero-stat-label">Negara</div></div>
+                <div class="hero-stat"><div class="hero-stat-value">5 Detik</div><div class="hero-stat-label">Rata-rata OTP</div></div>
+                <div class="hero-stat"><div class="hero-stat-value">24/7</div><div class="hero-stat-label">Support</div></div>
             </div>
         </div>
     </section>
 
-    <!-- ===== SUPPORT (section 2, BG warna beda) ===== -->
-    <section class="support-section bg-section" data-bg-section="support">
+    <!-- SUPPORT -->
+    <section class="support-section">
         <div class="container">
             <div class="support-header reveal">
                 <h2>Butuh Bantuan?</h2>
@@ -202,14 +151,12 @@
                         <div class="support-info">
                             <h3>Telegram</h3>
                             <p>@AsyrofC</p>
-                            <span class="support-cta">
-                                Chat Sekarang
+                            <span class="support-cta">Chat Sekarang
                                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </span>
                         </div>
                     </div>
                 </a>
-
                 <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card whatsapp reveal">
                     <div class="support-card-inner">
                         <div class="support-icon">
@@ -218,8 +165,7 @@
                         <div class="support-info">
                             <h3>WhatsApp</h3>
                             <p>@AsyrofC_</p>
-                            <span class="support-cta">
-                                Chat Sekarang
+                            <span class="support-cta">Chat Sekarang
                                 <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </span>
                         </div>
@@ -229,8 +175,8 @@
         </div>
     </section>
 
-    <!-- ===== FEATURES (section 3) ===== -->
-    <section class="features bg-section" id="fitur" data-bg-section="features">
+    <!-- FEATURES -->
+    <section class="features" id="fitur">
         <div class="container">
             <div class="section-header reveal">
                 <div class="section-badge">Fitur Unggulan</div>
@@ -239,9 +185,7 @@
             </div>
             <div class="features-grid">
                 <div class="feature-card reveal">
-                    <div class="feature-icon">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                    </div>
+                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
                     <h3>Fast Receive</h3>
                     <p>Layanan OTP kami menjamin penerimaan SMS instan tanpa delay atau gangguan jaringan.</p>
                     <div class="rating-block">
@@ -256,9 +200,7 @@
                     </div>
                 </div>
                 <div class="feature-card reveal">
-                    <div class="feature-icon">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
+                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
                     <h3>Terpercaya</h3>
                     <p>AsyrofOTP berkomitmen untuk menjaga kepercayaan pengguna dengan terus meningkatkan kualitas layanan.</p>
                     <div class="rating-block">
@@ -273,9 +215,7 @@
                     </div>
                 </div>
                 <div class="feature-card reveal">
-                    <div class="feature-icon">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    </div>
+                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
                     <h3>Dukungan Prima</h3>
                     <p>Tim support kami siap membantu 24/7 untuk memastikan kelancaran layanan dan kepuasan pengguna.</p>
                     <div class="rating-block">
@@ -293,8 +233,8 @@
         </div>
     </section>
 
-    <!-- ===== STEPS (section 4) ===== -->
-    <section class="steps bg-section" id="cara-kerja" data-bg-section="steps">
+    <!-- STEPS -->
+    <section class="steps" id="cara-kerja">
         <div class="container">
             <div class="section-header reveal">
                 <div class="section-badge">Langkah Demi Langkah</div>
@@ -302,32 +242,16 @@
                 <p>4 langkah mudah mendapatkan Jasa OTP secara instan!</p>
             </div>
             <div class="steps-grid">
-                <div class="step-card reveal">
-                    <div class="step-number">1</div>
-                    <h3>Pilih Layanan</h3>
-                    <p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p>
-                </div>
-                <div class="step-card reveal">
-                    <div class="step-number">2</div>
-                    <h3>Pilih Negara</h3>
-                    <p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p>
-                </div>
-                <div class="step-card reveal">
-                    <div class="step-number">3</div>
-                    <h3>Gunakan Layanan</h3>
-                    <p>Masukkan dan tunggu hingga pesan text masuk.</p>
-                </div>
-                <div class="step-card reveal">
-                    <div class="step-number">4</div>
-                    <h3>Terima Pesan</h3>
-                    <p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p>
-                </div>
+                <div class="step-card reveal"><div class="step-number">1</div><h3>Pilih Layanan</h3><p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p></div>
+                <div class="step-card reveal"><div class="step-number">2</div><h3>Pilih Negara</h3><p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p></div>
+                <div class="step-card reveal"><div class="step-number">3</div><h3>Gunakan Layanan</h3><p>Masukkan dan tunggu hingga pesan text masuk.</p></div>
+                <div class="step-card reveal"><div class="step-number">4</div><h3>Terima Pesan</h3><p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p></div>
             </div>
         </div>
     </section>
 
-    <!-- ===== FAQ (section 5) ===== -->
-    <section class="faq bg-section" id="faq" data-bg-section="faq">
+    <!-- FAQ -->
+    <section class="faq" id="faq">
         <div class="container">
             <div class="section-header reveal">
                 <div class="section-badge">FAQ</div>
@@ -336,62 +260,34 @@
             </div>
             <div class="faq-list">
                 <div class="faq-item reveal">
-                    <button class="faq-question" type="button">
-                        Untuk apa ini?
-                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                    <div class="faq-answer"><div class="faq-answer-inner">
-                        AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP (One-Time Password) dari berbagai aplikasi dan layanan digital.
-                    </div></div>
+                    <button class="faq-question" type="button">Untuk apa ini?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                    <div class="faq-answer"><div class="faq-answer-inner">AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP dari berbagai aplikasi dan layanan digital.</div></div>
                 </div>
                 <div class="faq-item reveal">
-                    <button class="faq-question" type="button">
-                        Bagaimana proses top-up dan keamanan saldo?
-                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                    <div class="faq-answer"><div class="faq-answer-inner">
-                        Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi.
-                    </div></div>
+                    <button class="faq-question" type="button">Bagaimana proses top-up dan keamanan saldo?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                    <div class="faq-answer"><div class="faq-answer-inner">Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi.</div></div>
                 </div>
                 <div class="faq-item reveal">
-                    <button class="faq-question" type="button">
-                        Saldo tidak bertambah meskipun pembayaran sudah berhasil?
-                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                    <div class="faq-answer"><div class="faq-answer-inner">
-                        Hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran.
-                    </div></div>
+                    <button class="faq-question" type="button">Saldo tidak bertambah meskipun pembayaran sudah berhasil?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                    <div class="faq-answer"><div class="faq-answer-inner">Hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran.</div></div>
                 </div>
                 <div class="faq-item reveal">
-                    <button class="faq-question" type="button">
-                        Pesanan gagal, apakah saldo tetap terpotong?
-                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                    <div class="faq-answer"><div class="faq-answer-inner">
-                        Tidak. Jika pesanan gagal, saldo Anda akan dikembalikan secara otomatis (refund).
-                    </div></div>
+                    <button class="faq-question" type="button">Pesanan gagal, apakah saldo tetap terpotong?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                    <div class="faq-answer"><div class="faq-answer-inner">Tidak. Jika pesanan gagal, saldo Anda akan dikembalikan secara otomatis (refund).</div></div>
                 </div>
                 <div class="faq-item reveal">
-                    <button class="faq-question" type="button">
-                        Apakah layanan ini terpercaya?
-                        <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    </button>
-                    <div class="faq-answer"><div class="faq-answer-inner">
-                        Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan.
-                    </div></div>
+                    <button class="faq-question" type="button">Apakah layanan ini terpercaya?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+                    <div class="faq-answer"><div class="faq-answer-inner">Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan.</div></div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- ===== FOOTER ===== -->
+    <!-- FOOTER -->
     <footer>
         <div class="container">
             <div class="footer-inner">
-                <div class="footer-logo">
-                    <div class="logo-icon">A</div>
-                    AsyrofOTP
-                </div>
+                <div class="footer-logo"><div class="logo-icon">A</div>AsyrofOTP</div>
                 <ul class="footer-links">
                     <li><a href="#beranda">Beranda</a></li>
                     <li><a href="#fitur">Fitur</a></li>
