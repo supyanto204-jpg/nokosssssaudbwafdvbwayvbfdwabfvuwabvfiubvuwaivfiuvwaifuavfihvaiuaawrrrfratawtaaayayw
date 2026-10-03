@@ -1224,6 +1224,7 @@ app.get('/api/health', withDB(async (req, res) => {
             hasJwtSecret: !!JWT_SECRET,
             hasCronSecret: !!CRON_SECRET,
             hasApiCdn: !!API_CDN,
+            hasRecaptcha: !!RECAPTCHA_SECRET,  // ← tambah ini
             schemaEnsured,
             poolTotal: pool.totalCount,
             poolIdle: pool.idleCount,
@@ -1235,15 +1236,116 @@ app.get('/api/health', withDB(async (req, res) => {
 }));
 
 // ============================================
+// ===== RECAPTCHA v3 — VERIFY HELPER =====
+// ============================================
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
+
+async function verifyRecaptcha(token, { minScore = 0.5, expectedAction = null } = {}) {
+    if (!token) {
+        return { success: false, error: 'Token reCAPTCHA kosong', code: 'MISSING_TOKEN' };
+    }
+    if (!RECAPTCHA_SECRET) {
+        console.error('⚠️ RECAPTCHA_SECRET_KEY belum di-set');
+        return { success: false, error: 'Verifikasi belum dikonfigurasi', code: 'NO_SECRET' };
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                secret: RECAPTCHA_SECRET,
+                response: String(token),
+            }),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+            return { success: false, error: 'Gagal menghubungi reCAPTCHA', code: 'HTTP_ERROR' };
+        }
+
+        const data = await res.json();
+
+        if (!data.success) {
+            console.warn('reCAPTCHA rejected:', data['error-codes'] || 'unknown');
+            return {
+                success: false,
+                error: 'Verifikasi keamanan gagal. Coba lagi.',
+                code: 'VERIFY_FAILED',
+                details: data['error-codes'] || [],
+            };
+        }
+
+        if (typeof data.score === 'number' && data.score < minScore) {
+            console.warn(`reCAPTCHA low score: ${data.score} (min ${minScore})`);
+            return {
+                success: false,
+                error: 'Aktivitas mencurigakan terdeteksi. Coba lagi nanti.',
+                code: 'LOW_SCORE',
+                score: data.score,
+            };
+        }
+
+        if (expectedAction && data.action !== expectedAction) {
+            return {
+                success: false,
+                error: 'Aksi tidak valid.',
+                code: 'ACTION_MISMATCH',
+                action: data.action,
+            };
+        }
+
+        return {
+            success: true,
+            score: data.score,
+            action: data.action,
+            hostname: data.hostname,
+        };
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            return { success: false, error: 'Timeout verifikasi keamanan', code: 'TIMEOUT' };
+        }
+        console.error('verifyRecaptcha error:', err.message);
+        return { success: false, error: 'Gagal verifikasi keamanan', code: 'ERROR' };
+    }
+}
+
+// ============================================
 // ===== AUTH =====
 // ============================================
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
-    const { username, password, name } = req.body;
+    const { username, password, name, recaptcha_token } = req.body;
 
-    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
-    if (!isValidUsername(username)) return res.status(400).json({ error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
-    if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
-    if (password.length > 100) return res.status(400).json({ error: 'Password maksimal 100 karakter' });
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username dan password wajib diisi' });
+    }
+
+    // ===== VERIFIKASI RECAPTCHA =====
+    const captcha = await verifyRecaptcha(recaptcha_token, {
+        minScore: 0.5,
+        expectedAction: 'register',
+    });
+    if (!captcha.success) {
+        return res.status(400).json({
+            error: captcha.error,
+            code: captcha.code,
+        });
+    }
+
+    if (!isValidUsername(username)) {
+        return res.status(400).json({ error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
+    }
+    if (password.length < 6) {
+        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+    if (password.length > 100) {
+        return res.status(400).json({ error: 'Password maksimal 100 karakter' });
+    }
 
     try {
         const hash = await bcrypt.hash(password, 8);
@@ -1260,10 +1362,24 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
         res.status(500).json({ error: 'Server error' });
     }
 }));
-
 app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) => {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
+    const { username, password, recaptcha_token } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username dan password wajib diisi' });
+    }
+
+    // ===== VERIFIKASI RECAPTCHA =====
+    const captcha = await verifyRecaptcha(recaptcha_token, {
+        minScore: 0.5,
+        expectedAction: 'login',
+    });
+    if (!captcha.success) {
+        return res.status(400).json({
+            error: captcha.error,
+            code: captcha.code,
+        });
+    }
 
     try {
         const result = await pool.query(
@@ -1289,7 +1405,6 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
         res.status(500).json({ error: 'Server error' });
     }
 }));
-
 app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
     try {
         if (req.user.jti) {
