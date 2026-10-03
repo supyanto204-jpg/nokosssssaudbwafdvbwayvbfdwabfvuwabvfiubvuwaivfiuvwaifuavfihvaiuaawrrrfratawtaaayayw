@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE v4 — Fix error loop + layout baru
+   LOGIN PAGE v5 — Biru + Logo di atas + Sticker drag
    ============================================ */
 (function () {
     'use strict';
@@ -10,7 +10,7 @@
     const DISABLE_HEAVY = prefersReduced || isLowEnd;
 
     /* ============================================
-       SECURITY HARDENING
+       SECURITY
        ============================================ */
     (function security() {
         try {
@@ -42,10 +42,9 @@
             if (window.location.search) history.replaceState(null, '', cleanUrl);
         } catch (e) {}
 
-        // ===== FIX: DevTools lock cuma trigger 1x, gak loop =====
+        // FIX: DevTools detection cuma trigger 1x, gak loop reload
         (function () {
             const FLAG = 'asyrof_devtools_lock';
-            // Kalau udah lock, skip detection total
             if (sessionStorage.getItem(FLAG) === '1') return;
             if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return;
             if (window.innerWidth < 600) return;
@@ -58,7 +57,6 @@
                 if (wd > 200 || hd > 200) {
                     triggered = true;
                     try { sessionStorage.setItem(FLAG, '1'); } catch (e) {}
-                    // Cuma 1x set flag, jangan reload
                 }
             }, 800);
         })();
@@ -98,12 +96,12 @@
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('asyrofotp_theme', next);
             const m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', next === 'dark' ? '#0a0a0a' : '#f8fafc');
+            if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
         });
     })();
 
     /* ============================================
-       AURORA BG — warna kuning-orange (brand baru)
+       AURORA BG — biru-ungu (brand)
        ============================================ */
     (function aurora() {
         const container = document.getElementById('auroraBg');
@@ -234,11 +232,11 @@ void main() {
         const uRes = gl.getUniformLocation(prog, 'uResolution');
         const uBlend = gl.getUniformLocation(prog, 'uBlend');
 
-        // Warna kuning-orange (brand baru)
+        // Warna biru-ungu (brand AsyrofOTP)
         const colors = [
-            [0.98, 0.80, 0.08],
-            [0.97, 0.45, 0.10],
-            [0.98, 0.80, 0.08]
+            [0.32, 0.15, 1.0],   // #5227FF
+            [0.49, 0.39, 0.81],  // #7D63CF
+            [0.95, 0.4, 0.7]     // #F266B2
         ];
 
         let w = 1, h = 1;
@@ -305,7 +303,7 @@ void main() {
     })();
 
     /* ============================================
-       STICKER — draggable, gak bisa diklik
+       STICKER — drag ke mana aja, spring balik
        ============================================ */
     (function sticker() {
         const wrapper = document.getElementById('stickerWrapper');
@@ -317,11 +315,12 @@ void main() {
         let startX = 0, startY = 0;
         let currentX = 0, currentY = 0;
         let velocityX = 0, velocityY = 0;
-        let rotation = 0;
+        let rotation = -8; // rotate default
         let raf = 0;
 
-        const MAX_DRIFT_X = 40;
-        const MAX_DRIFT_Y = 30;
+        // Biar bisa ditarik jauh
+        const MAX_DRIFT_X = 300;
+        const MAX_DRIFT_Y = 300;
 
         function applyTransform() {
             stickerContainer.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
@@ -330,8 +329,8 @@ void main() {
         function animate() {
             raf = 0;
             if (!dragging) {
-                const stiffness = 0.15;
-                const damping = 0.8;
+                const stiffness = 0.12;
+                const damping = 0.85;
 
                 velocityX += (0 - currentX) * stiffness;
                 velocityY += (0 - currentY) * stiffness;
@@ -340,14 +339,16 @@ void main() {
 
                 currentX += velocityX;
                 currentY += velocityY;
-                rotation += (0 - rotation) * 0.1;
-                rotation += velocityX * 0.8;
+
+                // Balik ke rotation default (-8)
+                rotation += (-8 - rotation) * 0.1;
+                rotation += velocityX * 0.5;
                 rotation *= 0.85;
 
                 if (Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1 &&
                     Math.abs(velocityX) < 0.1 && Math.abs(velocityY) < 0.1 &&
-                    Math.abs(rotation) < 0.1) {
-                    currentX = 0; currentY = 0; rotation = 0;
+                    Math.abs(rotation - (-8)) < 0.1) {
+                    currentX = 0; currentY = 0; rotation = -8;
                     velocityX = 0; velocityY = 0;
                     applyTransform();
                     return;
@@ -360,12 +361,10 @@ void main() {
         function onPointerDown(e) {
             if (e.button !== 0 && e.pointerType === 'mouse') return;
             dragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            currentX = 0; currentY = 0;
+            startX = e.clientX - currentX;
+            startY = e.clientY - currentY;
             velocityX = 0; velocityY = 0;
-            rotation = 0;
-            link.setPointerCapture?.(e.pointerId);
+            try { link.setPointerCapture(e.pointerId); } catch (_) {}
             wrapper.classList.add('dragging');
             stickerContainer.classList.add('touch-active');
         }
@@ -374,9 +373,13 @@ void main() {
             if (!dragging) return;
             const dx = e.clientX - startX;
             const dy = e.clientY - startY;
+
+            // Clamp biar masih keliatan
             currentX = Math.max(-MAX_DRIFT_X, Math.min(MAX_DRIFT_X, dx));
             currentY = Math.max(-MAX_DRIFT_Y, Math.min(MAX_DRIFT_Y, dy));
-            rotation = dx * 0.3;
+
+            // Rotation ngikutin gerakan X
+            rotation = -8 + (dx * 0.15);
             applyTransform();
         }
 
@@ -385,7 +388,7 @@ void main() {
             dragging = false;
             wrapper.classList.remove('dragging');
             stickerContainer.classList.remove('touch-active');
-            try { link.releasePointerCapture?.(e.pointerId); } catch (_) {}
+            try { link.releasePointerCapture(e.pointerId); } catch (_) {}
             if (!raf) raf = requestAnimationFrame(animate);
         }
 
@@ -393,61 +396,6 @@ void main() {
         link.addEventListener('pointermove', onPointerMove, { passive: true });
         link.addEventListener('pointerup', onPointerUp);
         link.addEventListener('pointercancel', onPointerUp);
-    })();
-
-    /* ============================================
-       STROKE TEXT
-       ============================================ */
-    (function strokeText() {
-        const wrap = document.getElementById('brandStrokeWrap');
-        const strokeEl = document.getElementById('brandStrokeText');
-        const fillEl = document.getElementById('brandFillText');
-        if (!wrap || !strokeEl || !fillEl) return;
-
-        let dashLength = 800;
-        try {
-            const length = strokeEl.getComputedTextLength ? strokeEl.getComputedTextLength() : 0;
-            dashLength = Math.max(length * 1.2, 800);
-            strokeEl.style.strokeDasharray = dashLength;
-            strokeEl.style.strokeDashoffset = dashLength;
-        } catch (e) {
-            strokeEl.style.strokeDasharray = 800;
-            strokeEl.style.strokeDashoffset = 800;
-        }
-
-        let played = false;
-        function play() {
-            if (played) return;
-            played = true;
-
-            if (prefersReduced) {
-                strokeEl.style.strokeDashoffset = 0;
-                fillEl.style.opacity = '1';
-                wrap.classList.add('animate');
-                return;
-            }
-
-            const startTime = performance.now();
-            const duration = 1500;
-
-            function tick() {
-                const elapsed = performance.now() - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-                const eased = 1 - Math.pow(1 - progress, 3);
-                strokeEl.style.strokeDashoffset = String(dashLength * (1 - eased));
-
-                if (progress < 1) {
-                    requestAnimationFrame(tick);
-                } else {
-                    fillEl.style.opacity = '1';
-                    wrap.classList.add('animate');
-                }
-            }
-            requestAnimationFrame(tick);
-        }
-
-        // Delay dikit biar barengan sama sticker drop
-        setTimeout(play, 500);
     })();
 
     /* ============================================
@@ -652,7 +600,7 @@ void main() {
             setStatus('failed', 'Gagal login');
             showAlert(err.message || 'Terjadi kesalahan', 'error');
             submitBtn.disabled = false;
-            btnText.textContent = 'Masuk Sekarang';
+            btnText.textContent = 'Login';
             const oldIcon = document.getElementById('btnIcon');
             if (oldIcon) {
                 oldIcon.outerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
