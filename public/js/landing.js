@@ -1,25 +1,22 @@
 /* ============================================
-   LANDING PAGE — MAIN SCRIPT
-   Fix: WebGL context lost auto-recover
-   Fix: Bfcache abu-abu
-   Fix: Fallback visual
+   LANDING PAGE v8 — Theme Aware + Blur Edge + Mobile
    ============================================ */
 (function () {
     'use strict';
 
     /* ============================================
-       DETECT DEVICE CAPABILITY
+       DEVICE DETECTION
        ============================================ */
-    const isMobile = window.matchMedia('(max-width: 900px)').matches;
+    const isMobile = window.matchMedia('(max-width: 560px)').matches;
+    const isTablet = window.matchMedia('(max-width: 900px)').matches;
     const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const saveData = navigator.connection && navigator.connection.saveData;
-    const slowNet = navigator.connection && /(2g|slow-2g)/.test(navigator.connection.effectiveType || '');
-    const DISABLE_HEAVY = prefersReduced || saveData || slowNet || isLowEnd;
+    const DISABLE_HEAVY = prefersReduced || saveData || isLowEnd;
 
     const CONFIG = {
         CDN_ICON: 'https://assets.cindigital.id/apps',
-        SPIRAL_COUNT: 8,
+        SPIRAL_COUNT: isMobile ? 6 : 8,
         FALLBACK_ICONS: [
             { iconCode: 'wa', name: 'WhatsApp' },
             { iconCode: 'tg', name: 'Telegram' },
@@ -29,7 +26,6 @@
             { iconCode: 'lf', name: 'TikTok' },
             { iconCode: 'ka', name: 'Shopee' },
             { iconCode: 'tw', name: 'Twitter' },
-            { iconCode: 'ds', name: 'Discord' },
         ],
         FALLBACK_TEXTTYPE: [
             'Platform OTP cepat & aman',
@@ -39,6 +35,7 @@
         ],
         DISABLE_HEAVY,
         IS_MOBILE: isMobile,
+        IS_TABLET: isTablet,
     };
 
     /* ============================================
@@ -69,6 +66,9 @@
     function smoothstep(min, max, v) {
         const x = clamp((v - min) / (max - min || 1), 0, 1);
         return x * x * (3 - 2 * x);
+    }
+    function getCurrentTheme() {
+        return document.documentElement.getAttribute('data-theme') || 'light';
     }
 
     /* ============================================
@@ -134,14 +134,14 @@
                     document.body.innerHTML = '';
                     window.location.reload();
                 }
-            }, 1000);
+            }, 800);
         })();
     })();
 
     /* ============================================
-       AUTO-REDIRECT KALAU SUDAH LOGIN
+       AUTO REDIRECT
        ============================================ */
-    (async function checkLogin() {
+    (async function checkAlreadyLoggedIn() {
         const token = localStorage.getItem('access_token');
         if (!token) return;
         try {
@@ -167,12 +167,14 @@
         const btn = $('#themeToggle');
         if (!btn) return;
         btn.addEventListener('click', () => {
-            const cur = document.documentElement.getAttribute('data-theme') || 'light';
+            const cur = getCurrentTheme();
             const next = cur === 'dark' ? 'light' : 'dark';
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('asyrofotp_theme', next);
             const m = $('meta[name="theme-color"]');
             if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+            // Trigger theme change event for dependent modules
+            window.dispatchEvent(new CustomEvent('asyrof-theme-change', { detail: { theme: next } }));
         });
     })();
 
@@ -287,15 +289,9 @@
                 wordEls.forEach(w => w.classList.remove('selected'));
                 el.classList.add('selected');
             };
-            const h2 = () => {
-                lastMouseTime = performance.now();
-                userOverride = true;
-                wordEls.forEach(w => w.classList.remove('selected'));
-                el.classList.add('selected');
-            };
             el.addEventListener('mouseenter', h1);
-            el.addEventListener('touchstart', h2, { passive: true });
-            handlers.push({ el, h1, h2 });
+            el.addEventListener('touchstart', h1, { passive: true });
+            handlers.push({ el, h1 });
         });
 
         wordEls[0].classList.add('selected');
@@ -317,14 +313,9 @@
         bind(
             function cleanup() {
                 if (intervalId) clearInterval(intervalId);
-                handlers.forEach(({ el, h1, h2 }) => {
-                    el.removeEventListener('mouseenter', h1);
-                    el.removeEventListener('touchstart', h2);
-                });
+                handlers.forEach(({ el, h1 }) => el.removeEventListener('mouseenter', h1));
             },
-            function restart() {
-                startInterval();
-            }
+            function restart() { startInterval(); }
         );
     });
 
@@ -407,21 +398,21 @@
     });
 
     /* ============================================
-       INFINITE SPIRAL
+       INFINITE SPIRAL — dengan EDGE BLUR
        ============================================ */
     registerModule(function (bind) {
         const stage = $('#spiralStage');
         if (!stage) return;
 
         const CFG = {
-            CARD_W: 64,
-            CARD_H: 64,
-            RADIUS: CONFIG.IS_MOBILE ? 110 : 150,
-            V_SPACE: CONFIG.IS_MOBILE ? 36 : 44,
-            TURN: 5,
-            SPEED: CONFIG.IS_MOBILE ? 0.35 : 0.45,
+            CARD_W: CONFIG.IS_MOBILE ? 52 : 64,
+            CARD_H: CONFIG.IS_MOBILE ? 52 : 64,
+            RADIUS: CONFIG.IS_MOBILE ? 100 : (CONFIG.IS_TABLET ? 130 : 150),
+            V_SPACE: CONFIG.IS_MOBILE ? 32 : 44,
+            TURN: CONFIG.IS_MOBILE ? 4 : 5,
+            SPEED: CONFIG.IS_MOBILE ? 0.3 : 0.45,
             PERSPECTIVE: 900,
-            FPS_CAP: CONFIG.DISABLE_HEAVY ? 30 : 60,
+            FPS_CAP: CONFIG.DISABLE_HEAVY ? 24 : (isMobile ? 30 : 60),
         };
         const FRAME_MIN = 1000 / CFG.FPS_CAP;
 
@@ -513,7 +504,7 @@
             const count = cards.length;
             const half = count / 2;
             const turnSize = CFG.TURN;
-            const fadeStart = 0.7;
+            const fadeStart = 0.6;
 
             for (let i = 0; i < count; i++) {
                 const card = cards[i];
@@ -531,9 +522,12 @@
                 const depthScale = clamp(CFG.PERSPECTIVE / Math.max(CFG.PERSPECTIVE - z, 1), 0.72, 1.45);
                 const visualScale = scale * depthScale;
                 const depth = (z / radius + 1) / 2;
+                // EDGE BLUR: item di pinggir dapat blur
+                const blurPx = CONFIG.DISABLE_HEAVY ? 0 : (6 * smoothstep(0.4, 1, edge));
 
                 card.style.transform = `translate(-50%,-50%) translate3d(${x.toFixed(1)}px,${(offset * CFG.V_SPACE).toFixed(1)}px,0) scale(${visualScale.toFixed(3)})`;
                 card.style.opacity = opacity.toFixed(2);
+                card.style.filter = blurPx > 0.01 ? `blur(${blurPx.toFixed(1)}px)` : 'none';
                 card.style.zIndex = String(Math.round(depth * 100) + i);
             }
 
@@ -558,17 +552,17 @@
         async function fetchIcons() {
             try {
                 const token = localStorage.getItem('access_token');
-                if (!token) return CONFIG.FALLBACK_ICONS;
+                if (!token) return CONFIG.FALLBACK_ICONS.slice(0, CONFIG.SPIRAL_COUNT);
                 const res = await fetch('/api/nokos/services?server=ekonomi', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                if (!res.ok) return CONFIG.FALLBACK_ICONS;
+                if (!res.ok) return CONFIG.FALLBACK_ICONS.slice(0, CONFIG.SPIRAL_COUNT);
                 const data = await res.json();
                 const services = (data.services || []).filter(s => s.icon_code).slice(0, CONFIG.SPIRAL_COUNT);
-                if (services.length < 4) return CONFIG.FALLBACK_ICONS;
+                if (services.length < 4) return CONFIG.FALLBACK_ICONS.slice(0, CONFIG.SPIRAL_COUNT);
                 return services.map(s => ({ iconCode: s.icon_code, name: s.name || s.code }));
             } catch (e) {
-                return CONFIG.FALLBACK_ICONS;
+                return CONFIG.FALLBACK_ICONS.slice(0, CONFIG.SPIRAL_COUNT);
             }
         }
 
@@ -633,381 +627,13 @@
     });
 
     /* ============================================
-       GRADIENT WAVES — WebGL dengan AUTO-RECOVER
+       MICRO SLATS — Theme aware
        ============================================ */
     registerModule(function (bind) {
-        const container = $('#gradientWaves');
-        if (!container) return;
-
-        // === FALLBACK: kalau WebGL gak bisa dipakai, pakai CSS gradient ===
-        function applyCSSFallback() {
-            container.classList.add('context-lost');
-            container.innerHTML = ''; // bersihin canvas
-        }
-
-        // Reduced motion / low-end device → langsung CSS fallback
-        if (CONFIG.DISABLE_HEAVY) {
-            applyCSSFallback();
-            return;
-        }
-
-        let canvas = null;
-        let gl = null;
-        let prog = null;
-        let uRes = null;
-        let uTime = null;
-        let uMouse = null;
-        let raf = 0;
-        let visible = true;
-        let lastTime = 0;
-        let lastRender = 0;
-        const FPS_CAP = 30;
-        const FRAME_MIN = 1000 / FPS_CAP;
-        let t0 = performance.now();
-        const targetMouse = [0.5, 0.5];
-        const currentMouse = [0.5, 0.5];
-        let contextLost = false;
-        let contextLostCount = 0;
-        const MAX_RECOVER_ATTEMPTS = 3;
-        let recoverTimer = null;
-
-        const VERT = `#version 300 es
-in vec2 position;
-void main() { gl_Position = vec4(position, 0.0, 1.0); }
-`;
-
-        const FRAG = `#version 300 es
-precision highp float;
-uniform vec2 iResolution;
-uniform float iTime;
-uniform vec2 uMouse;
-out vec4 fragColor;
-
-float hash21(vec2 p) {
-    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-    p3 += dot(p3, p3.yzx + 33.33);
-    return fract((p3.x + p3.y) * p3.z);
-}
-
-float plasma(vec3 r, vec2 freq, vec4 tc) {
-    float mx = r.x + tc.x;
-    mx += 35.0 * sin((r.y + mx) / 20.0 + tc.y);
-    float my = r.y - tc.z;
-    my += 20.0 * cos(r.x / 23.0 + tc.w);
-    return r.z - (sin(mx * freq.x) * 2.5 + sin(my * freq.y) * 2.5 + 5.5);
-}
-
-float raymarch(vec3 pos, vec3 dir, vec2 freq, vec4 tc) {
-    float dist = 0.0;
-    for (int i = 0; i < 28; i++) {
-        float dscene = plasma(pos + dist * dir, freq, tc);
-        if (abs(dscene) < 0.15) break;
-        dist += 1.1 * dscene;
-        if (abs(dist) > 5000.0) return 5000.0;
-    }
-    return dist;
-}
-
-void main() {
-    float T = iTime * 0.3;
-    vec2 freq = vec2(0.6 / 7.0, (0.6 * 0.9) / 3.0);
-    vec4 tc = vec4(T / 0.130, T / 0.810, T / 0.200, T / 0.710);
-
-    vec2 uv = (gl_FragCoord.xy / iResolution.xy) - 0.5;
-    uv.x *= iResolution.x / iResolution.y;
-    uv.y *= -1.0;
-
-    vec3 dir = vec3(0.0, 0.0, -1.0);
-    float ulen = length(uv);
-    float xrot = (3.14159 / 2.3) * ulen;
-    float c = cos(xrot), s = sin(xrot);
-    dir = mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c) * dir;
-    vec2 nuv = ulen > 1e-5 ? uv / ulen : vec2(1.0, 0.0);
-    c = nuv.x; s = nuv.y;
-    dir = mat3(c, -s, 0.0, s, c, 0.0, 0.0, 0.0, 1.0) * dir;
-    c = cos(1.11); s = sin(1.11);
-    dir = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c) * dir;
-
-    float yaw = (uMouse.x - 0.5) * 0.2;
-    float pitch = (uMouse.y - 0.5) * 0.2;
-    c = cos(yaw); s = sin(yaw);
-    dir = mat3(c, 0.0, s, 0.0, 1.0, 0.0, -s, 0.0, c) * dir;
-    c = cos(pitch); s = sin(pitch);
-    dir = mat3(1.0, 0.0, 0.0, 0.0, c, -s, 0.0, s, c) * dir;
-
-    vec3 cam = vec3(0.0, 0.0, 30.0);
-    float dist = raymarch(cam, dir, freq, tc);
-    vec3 pos = cam + dist * dir;
-
-    float t = clamp(15.0 / max(dist, 0.001), 0.0, 1.0);
-    vec3 horizon = vec3(0.32, 0.15, 1.0);
-    vec3 wave = vec3(1.0, 0.62, 0.99);
-    vec3 crest = vec3(1.0, 1.0, 1.0);
-    vec3 body = mix(wave, crest, clamp(pos.z * 0.08 + 0.5, 0.0, 1.0));
-    vec3 col = mix(horizon, body, t);
-    col = clamp(col, 0.0, 1.0);
-
-    float alpha = clamp(t, 0.0, 1.0) * 0.8;
-    float g = hash21(gl_FragCoord.xy + mod(iTime, 64.0) * 11.0);
-    alpha += (g - 0.5) * 0.04;
-    alpha = clamp(alpha, 0.0, 1.0);
-    fragColor = vec4(col * alpha, alpha);
-}
-`;
-
-        function compile(type, src) {
-            const sh = gl.createShader(type);
-            gl.shaderSource(sh, src);
-            gl.compileShader(sh);
-            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-                console.warn('Shader compile fail:', gl.getShaderInfoLog(sh));
-                return null;
-            }
-            return sh;
-        }
-
-        function createCanvas() {
-            const c = document.createElement('canvas');
-            c.style.cssText = 'display:block;width:100%;height:100%;';
-            return c;
-        }
-
-        function initGL() {
-            try {
-                gl = canvas.getContext('webgl2', {
-                    alpha: true,
-                    premultipliedAlpha: true,
-                    antialias: false,
-                    depth: false,
-                    powerPreference: 'low-power',
-                    failIfMajorPerformanceCaveat: false,
-                });
-                if (!gl || gl.isContextLost()) return false;
-
-                const vs = compile(gl.VERTEX_SHADER, VERT);
-                const fs = compile(gl.FRAGMENT_SHADER, FRAG);
-                if (!vs || !fs) return false;
-
-                prog = gl.createProgram();
-                gl.attachShader(prog, vs);
-                gl.attachShader(prog, fs);
-                gl.linkProgram(prog);
-                if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return false;
-                gl.useProgram(prog);
-
-                const buf = gl.createBuffer();
-                gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-                const loc = gl.getAttribLocation(prog, 'position');
-                gl.enableVertexAttribArray(loc);
-                gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-
-                uRes = gl.getUniformLocation(prog, 'iResolution');
-                uTime = gl.getUniformLocation(prog, 'iTime');
-                uMouse = gl.getUniformLocation(prog, 'uMouse');
-
-                // Attach context lost handler
-                canvas.addEventListener('webglcontextlost', onContextLost, false);
-                canvas.addEventListener('webglcontextrestored', onContextRestored, false);
-
-                t0 = performance.now();
-                contextLost = false;
-                return true;
-            } catch (e) {
-                console.warn('WebGL init error:', e);
-                return false;
-            }
-        }
-
-        function onContextLost(e) {
-            e.preventDefault();
-            contextLost = true;
-            stop();
-
-            // Jangan langsung apply fallback — coba recover dulu
-            contextLostCount++;
-            if (contextLostCount <= MAX_RECOVER_ATTEMPTS) {
-                if (recoverTimer) clearTimeout(recoverTimer);
-                recoverTimer = setTimeout(() => {
-                    tryRecover();
-                }, 500 * contextLostCount); // backoff
-            } else {
-                // Kasih fallback kalau udah 3x gagal
-                applyCSSFallback();
-            }
-        }
-
-        function onContextRestored() {
-            contextLost = false;
-            if (initGL()) {
-                resize();
-                schedule();
-            } else {
-                applyCSSFallback();
-            }
-        }
-
-        function tryRecover() {
-            if (!contextLost) return;
-            if (!container) return;
-
-            try {
-                // Buang canvas lama, buat baru
-                if (canvas && canvas.parentNode) {
-                    canvas.parentNode.removeChild(canvas);
-                }
-                container.innerHTML = '';
-                canvas = createCanvas();
-                container.appendChild(canvas);
-
-                // Re-init GL
-                if (initGL()) {
-                    resize();
-                    schedule();
-                    contextLost = false;
-                    contextLostCount = 0;
-                    container.classList.remove('context-lost');
-                } else {
-                    if (contextLostCount >= MAX_RECOVER_ATTEMPTS) {
-                        applyCSSFallback();
-                    }
-                }
-            } catch (e) {
-                console.warn('Recover error:', e);
-                applyCSSFallback();
-            }
-        }
-
-        function resize() {
-            if (!gl || contextLost || !canvas) return;
-            const r = container.getBoundingClientRect();
-            const w = Math.max(1, Math.floor(r.width));
-            const h = Math.max(1, Math.floor(r.height));
-            const SCALE = CONFIG.IS_MOBILE ? 0.5 : 0.7;
-            const dpr = Math.min(window.devicePixelRatio || 1, 1.5) * SCALE;
-            canvas.width = Math.floor(w * dpr);
-            canvas.height = Math.floor(h * dpr);
-            gl.viewport(0, 0, canvas.width, canvas.height);
-            gl.uniform2f(uRes, canvas.width, canvas.height);
-        }
-
-        function frame(now) {
-            raf = 0;
-            if (!visible || document.hidden || contextLost || !gl) return;
-
-            // Cek kalau context tiba-tiba lost
-            if (gl.isContextLost()) {
-                onContextLost({ preventDefault: () => {} });
-                return;
-            }
-
-            if (now - lastRender < FRAME_MIN) {
-                raf = requestAnimationFrame(frame);
-                return;
-            }
-            lastRender = now;
-
-            currentMouse[0] += 0.08 * (targetMouse[0] - currentMouse[0]);
-            currentMouse[1] += 0.08 * (targetMouse[1] - currentMouse[1]);
-
-            gl.uniform1f(uTime, (now - t0) * 0.001);
-            gl.uniform2f(uMouse, currentMouse[0], currentMouse[1]);
-
-            gl.clearColor(0, 0, 0, 0);
-            gl.clear(gl.COLOR_BUFFER_BIT);
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-            raf = requestAnimationFrame(frame);
-        }
-
-        function schedule() {
-            if (!raf && visible && !document.hidden && !contextLost && gl) {
-                lastTime = performance.now();
-                lastRender = 0;
-                raf = requestAnimationFrame(frame);
-            }
-        }
-
-        function stop() {
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = 0;
-            }
-        }
-
-        // === INIT ===
-        canvas = createCanvas();
-        container.appendChild(canvas);
-
-        if (!initGL()) {
-            applyCSSFallback();
-            return;
-        }
-        resize();
-
-        const ro = new ResizeObserver(resize);
-        ro.observe(container);
-
-        const onPointerMove = (e) => {
-            if (CONFIG.IS_MOBILE || !container) return;
-            const r = container.getBoundingClientRect();
-            targetMouse[0] = (e.clientX - r.left) / r.width;
-            targetMouse[1] = 1 - (e.clientY - r.top) / r.height;
-        };
-        if (!CONFIG.IS_MOBILE) {
-            window.addEventListener('pointermove', onPointerMove, { passive: true });
-        }
-
-        const io = new IntersectionObserver(([en]) => {
-            visible = en.isIntersecting;
-            if (visible) schedule();
-            else stop();
-        }, { threshold: 0 });
-        io.observe(container);
-
-        const onVis = () => {
-            if (document.hidden) stop();
-            else schedule();
-        };
-        document.addEventListener('visibilitychange', onVis);
-
-        schedule();
-
-        bind(
-            function cleanup() {
-                stop();
-                if (recoverTimer) clearTimeout(recoverTimer);
-                ro.disconnect();
-                io.disconnect();
-                document.removeEventListener('visibilitychange', onVis);
-                if (!CONFIG.IS_MOBILE) {
-                    window.removeEventListener('pointermove', onPointerMove);
-                }
-                // Jangan loseContext() di cleanup, biarkan browser yang handle
-                // karena kalau di-lose, bfcache restore malah bikin masalah baru
-            },
-            function restart() {
-                if (!canvas || !canvas.parentNode) return;
-
-                // Cek kalau canvas tanpa context (setelah bfcache)
-                if (!gl || contextLost || gl.isContextLost()) {
-                    contextLostCount = 0;
-                    contextLost = true;
-                    tryRecover();
-                } else {
-                    schedule();
-                }
-            }
-        );
-    });
-
-    /* ============================================
-       MICRO SLATS
-       ============================================ */
-    registerModule(function (bind) {
-        const container = $('#microSlats');
+        const container = $('#bgMicroslats');
         if (!container) return;
         if (CONFIG.DISABLE_HEAVY) return;
+        if (isMobile) return;
 
         const canvas = document.createElement('canvas');
         canvas.style.cssText = 'display:block;width:100%;height:100%;';
@@ -1023,7 +649,7 @@ void main() {
         let time = 0;
         let visible = true;
         let lastRender = 0;
-        const FRAME_MIN = 1000 / 24;
+        const FRAME_MIN = 1000 / (isTablet ? 20 : 24);
 
         function resize() {
             const r = container.getBoundingClientRect();
@@ -1043,10 +669,14 @@ void main() {
             offY = (h - (rows * pitchY - gap)) / 2;
         }
 
+        function getSlatColor() {
+            const isDark = getCurrentTheme() === 'dark';
+            return isDark ? '147,197,253' : '37,99,235';
+        }
+
         function render(now) {
             raf = 0;
             if (!visible || document.hidden) return;
-
             if (now - lastRender < FRAME_MIN) {
                 raf = requestAnimationFrame(render);
                 return;
@@ -1058,6 +688,7 @@ void main() {
 
             const pitchX = slatW + gap;
             const pitchY = slatH + gap;
+            const colorRgb = getSlatColor();
 
             for (let row = 0; row < rows; row++) {
                 for (let col = 0; col < cols; col++) {
@@ -1071,7 +702,7 @@ void main() {
                     const alpha = 0.04 + level * 0.28;
                     const curH = slatH * (0.4 + level * 0.6);
 
-                    ctx.fillStyle = `rgba(37,99,235,${alpha.toFixed(3)})`;
+                    ctx.fillStyle = `rgba(${colorRgb},${alpha.toFixed(3)})`;
                     ctx.fillRect(cx - slatW / 2, cy - curH / 2, slatW, curH);
                 }
             }
@@ -1087,10 +718,7 @@ void main() {
         }
 
         function stop() {
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = 0;
-            }
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
         }
 
         const ro = new ResizeObserver(() => { resize(); schedule(); });
@@ -1110,6 +738,9 @@ void main() {
         };
         document.addEventListener('visibilitychange', onVis);
 
+        // Theme change — warna slat ganti
+        window.addEventListener('asyrof-theme-change', () => schedule());
+
         schedule();
 
         bind(
@@ -1127,10 +758,12 @@ void main() {
     });
 
     /* ============================================
-       CURSOR GRID
+       CURSOR GRID — Theme aware
        ============================================ */
     registerModule(function (bind) {
-        if (CONFIG.IS_MOBILE) return;
+        if (isMobile) return;
+        if (prefersReduced) return;
+
         const canvas = $('#cursorGridCanvas');
         if (!canvas) return;
         const ctx = canvas.getContext('2d', { alpha: true });
@@ -1141,8 +774,7 @@ void main() {
         const HOLD = 400;
         const FADE_MS = 800;
         const LINE = 1;
-        const MAX_OP = 0.6;
-        const COLOR = [37, 99, 235];
+        const MAX_OP = 0.65;
 
         let cols = 0, rows = 0, offX = 0, offY = 0;
         let alphas = new Float32Array(0);
@@ -1154,6 +786,11 @@ void main() {
         let visible = true;
         let lastRender = 0;
         const FRAME_MIN = 1000 / 30;
+
+        function getGridColor() {
+            const isDark = getCurrentTheme() === 'dark';
+            return isDark ? [147, 197, 253] : [37, 99, 235];
+        }
 
         function rebuild() {
             const r = canvas.getBoundingClientRect();
@@ -1218,7 +855,7 @@ void main() {
             let any = false;
             const fadeStep = dt / FADE_MS;
             const half = CELL / 2;
-            const [cr, cg, cb] = COLOR;
+            const [cr, cg, cb] = getGridColor();
 
             for (let i = 0; i < alphas.length; i++) {
                 let a = alphas[i];
@@ -1252,10 +889,7 @@ void main() {
         }
 
         function stop() {
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = 0;
-            }
+            if (raf) { cancelAnimationFrame(raf); raf = 0; }
             running = false;
         }
 
@@ -1295,6 +929,9 @@ void main() {
         };
         document.addEventListener('visibilitychange', onVis);
 
+        // Theme change — warna grid ganti
+        window.addEventListener('asyrof-theme-change', () => wake());
+
         wake();
 
         bind(
@@ -1314,7 +951,7 @@ void main() {
     });
 
     /* ============================================
-       BFCACHE — Restart semua module
+       BFCACHE HANDLER
        ============================================ */
     window.addEventListener('pageshow', function (event) {
         if (event.persisted) {
