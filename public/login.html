@@ -12,13 +12,13 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
     <link rel="stylesheet" href="/css/login.css">
 
-    <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + DevTools lock -->
+    <!-- 🔒 SECURITY + Fake DevTools error screen -->
     <script>
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
@@ -31,59 +31,293 @@
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
 
+        // DevTools lock — tampilkan fake 500 error page
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
                 document.documentElement.innerHTML = '<head></head><body></body>';
-                function showLockScreen() {
+                function showFakeError() {
                     document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                        <div class="fake-error-page">
+                            <div class="fake-error-inner">
+                                <div class="fake-error-logo">
+                                    <div class="fake-logo-icon">A</div>
+                                    <div class="fake-logo-text">Asyrof<span>OTP</span></div>
+                                </div>
+                                <div class="fake-error-code">500</div>
+                                <h1 class="fake-error-title">Internal Server Error</h1>
+                                <p class="fake-error-desc">
+                                    Terjadi kesalahan pada server kami. Tim teknis telah menerima laporan otomatis
+                                    dan sedang menangani masalah ini.
+                                </p>
+                                <div class="fake-error-meta">
+                                    <div class="fake-error-meta-row">
+                                        <span class="label">Reference ID:</span>
+                                        <span class="value">ERR-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 8).toUpperCase()}</span>
+                                    </div>
+                                    <div class="fake-error-meta-row">
+                                        <span class="label">Timestamp:</span>
+                                        <span class="value">${new Date().toISOString()}</span>
+                                    </div>
+                                    <div class="fake-error-meta-row">
+                                        <span class="label">Server:</span>
+                                        <span class="value">prod-id-01</span>
+                                    </div>
+                                </div>
+                                <div class="fake-error-actions">
+                                    <button type="button" class="fake-btn fake-btn-primary" id="fakeRetryBtn">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                        Coba Lagi
+                                    </button>
+                                    <a href="/" class="fake-btn fake-btn-secondary">Kembali ke Beranda</a>
+                                </div>
+                                <div class="fake-error-hint">
+                                    Kode kesalahan: <code>ASYROF_500_INTERNAL</code>
+                                </div>
                             </div>
+                            <div class="fake-error-grid" aria-hidden="true"></div>
                         </div>
                         <style>
-                            #devtoolsLockScreen {
-                                position: fixed; inset: 0;
+                            html, body {
+                                margin: 0; padding: 0;
+                                background: #f8fafc;
+                                min-height: 100vh;
+                                font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                color: #0f172a;
+                                -webkit-font-smoothing: antialiased;
+                            }
+                            [data-theme="dark"] html, [data-theme="dark"] body {
                                 background: #0f172a;
-                                z-index: 2147483647;
-                                display: flex; align-items: center; justify-content: center;
+                                color: #f1f5f9;
+                            }
+                            .fake-error-page {
+                                min-height: 100vh;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
                                 padding: 24px;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                                user-select: none; -webkit-user-select: none;
-                                overflow: hidden; margin: 0;
+                                position: relative;
+                                overflow: hidden;
                             }
-                            #devtoolsLockScreen .lock-box {
-                                background: #1e293b;
-                                border: 3px solid #475569;
-                                border-radius: 20px;
-                                padding: 40px 32px;
-                                max-width: 440px;
+                            .fake-error-grid {
+                                position: absolute;
+                                inset: 0;
+                                background-image:
+                                    linear-gradient(rgba(37, 99, 235, 0.04) 1px, transparent 1px),
+                                    linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px);
+                                background-size: 48px 48px;
+                                -webkit-mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
+                                mask-image: radial-gradient(circle at 50% 50%, black 0%, transparent 70%);
+                                pointer-events: none;
+                                z-index: 0;
+                            }
+                            .fake-error-inner {
+                                position: relative;
+                                z-index: 1;
+                                max-width: 520px;
+                                width: 100%;
                                 text-align: center;
-                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                                background: #ffffff;
+                                border: 1px solid rgba(15, 23, 42, 0.08);
+                                border-radius: 20px;
+                                padding: 48px 40px 36px;
+                                box-shadow:
+                                    0 1px 2px rgba(15, 23, 42, 0.04),
+                                    0 8px 32px rgba(15, 23, 42, 0.08),
+                                    0 24px 64px rgba(15, 23, 42, 0.06);
                             }
-                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
-                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
-                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
-                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
-                            body { margin: 0; background: #0f172a; }
+                            [data-theme="dark"] .fake-error-inner {
+                                background: #1e293b;
+                                border-color: rgba(255, 255, 255, 0.06);
+                                box-shadow:
+                                    0 1px 2px rgba(0, 0, 0, 0.4),
+                                    0 8px 32px rgba(0, 0, 0, 0.5),
+                                    0 24px 64px rgba(0, 0, 0, 0.4);
+                            }
+                            .fake-error-logo {
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 10px;
+                                margin-bottom: 28px;
+                                font-weight: 900;
+                                font-size: 1.1rem;
+                                color: inherit;
+                            }
+                            .fake-error-logo .fake-logo-icon {
+                                width: 36px;
+                                height: 36px;
+                                border-radius: 10px;
+                                background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: white;
+                                font-weight: 900;
+                                font-size: 1.3rem;
+                                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+                            }
+                            .fake-error-logo .fake-logo-text span { color: #2563eb; }
+                            [data-theme="dark"] .fake-error-logo .fake-logo-text span { color: #3b82f6; }
+                            .fake-error-code {
+                                font-size: 6rem;
+                                font-weight: 900;
+                                line-height: 1;
+                                background: linear-gradient(135deg, #ef4444, #dc2626, #b91c1c);
+                                background-size: 200% 200%;
+                                -webkit-background-clip: text;
+                                background-clip: text;
+                                -webkit-text-fill-color: transparent;
+                                letter-spacing: -0.06em;
+                                margin-bottom: 8px;
+                                font-family: 'JetBrains Mono', monospace;
+                                animation: errorGlow 3s ease-in-out infinite;
+                            }
+                            @keyframes errorGlow {
+                                0%, 100% { background-position: 0% 50%; }
+                                50% { background-position: 100% 50%; }
+                            }
+                            .fake-error-title {
+                                font-size: 1.5rem;
+                                font-weight: 800;
+                                margin: 0 0 12px;
+                                letter-spacing: -0.02em;
+                                color: inherit;
+                            }
+                            .fake-error-desc {
+                                font-size: 0.92rem;
+                                line-height: 1.7;
+                                color: #64748b;
+                                margin: 0 0 24px;
+                            }
+                            [data-theme="dark"] .fake-error-desc { color: #94a3b8; }
+                            .fake-error-meta {
+                                text-align: left;
+                                background: #f8fafc;
+                                border: 1px solid rgba(15, 23, 42, 0.06);
+                                border-radius: 12px;
+                                padding: 14px 16px;
+                                margin-bottom: 24px;
+                                font-family: 'JetBrains Mono', monospace;
+                                font-size: 0.75rem;
+                            }
+                            [data-theme="dark"] .fake-error-meta {
+                                background: #0f172a;
+                                border-color: rgba(255, 255, 255, 0.06);
+                            }
+                            .fake-error-meta-row {
+                                display: flex;
+                                justify-content: space-between;
+                                gap: 12px;
+                                padding: 5px 0;
+                            }
+                            .fake-error-meta-row:not(:last-child) {
+                                border-bottom: 1px dashed rgba(15, 23, 42, 0.08);
+                            }
+                            [data-theme="dark"] .fake-error-meta-row:not(:last-child) {
+                                border-bottom-color: rgba(255, 255, 255, 0.06);
+                            }
+                            .fake-error-meta-row .label {
+                                color: #94a3b8;
+                                font-weight: 600;
+                                flex-shrink: 0;
+                            }
+                            .fake-error-meta-row .value {
+                                color: #0f172a;
+                                font-weight: 700;
+                                word-break: break-all;
+                                text-align: right;
+                            }
+                            [data-theme="dark"] .fake-error-meta-row .value { color: #f1f5f9; }
+                            .fake-error-actions {
+                                display: flex;
+                                gap: 10px;
+                                justify-content: center;
+                                flex-wrap: wrap;
+                                margin-bottom: 20px;
+                            }
+                            .fake-btn {
+                                display: inline-flex;
+                                align-items: center;
+                                justify-content: center;
+                                gap: 8px;
+                                padding: 11px 22px;
+                                border-radius: 10px;
+                                font-family: inherit;
+                                font-weight: 700;
+                                font-size: 0.88rem;
+                                cursor: pointer;
+                                border: none;
+                                text-decoration: none;
+                                transition: all 0.2s;
+                                -webkit-tap-highlight-color: transparent;
+                            }
+                            .fake-btn-primary {
+                                background: #2563eb;
+                                color: white;
+                                box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+                            }
+                            .fake-btn-primary:hover {
+                                background: #1d4ed8;
+                                transform: translateY(-1px);
+                                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+                            }
+                            .fake-btn-secondary {
+                                background: transparent;
+                                color: #64748b;
+                                border: 1px solid rgba(15, 23, 42, 0.1);
+                            }
+                            [data-theme="dark"] .fake-btn-secondary {
+                                color: #94a3b8;
+                                border-color: rgba(255, 255, 255, 0.1);
+                            }
+                            .fake-btn-secondary:hover {
+                                background: rgba(15, 23, 42, 0.04);
+                                color: #0f172a;
+                            }
+                            [data-theme="dark"] .fake-btn-secondary:hover {
+                                background: rgba(255, 255, 255, 0.04);
+                                color: #f1f5f9;
+                            }
+                            .fake-error-hint {
+                                font-size: 0.72rem;
+                                color: #94a3b8;
+                                font-family: 'JetBrains Mono', monospace;
+                                padding-top: 16px;
+                                border-top: 1px dashed rgba(15, 23, 42, 0.08);
+                            }
+                            [data-theme="dark"] .fake-error-hint { border-top-color: rgba(255, 255, 255, 0.06); }
+                            .fake-error-hint code {
+                                background: rgba(15, 23, 42, 0.06);
+                                padding: 2px 8px;
+                                border-radius: 4px;
+                                font-weight: 700;
+                                color: #475569;
+                            }
+                            [data-theme="dark"] .fake-error-hint code {
+                                background: rgba(255, 255, 255, 0.06);
+                                color: #cbd5e1;
+                            }
                         </style>
                     `;
+                    document.getElementById('fakeRetryBtn')?.addEventListener('click', () => {
+                        sessionStorage.removeItem('asyrof_devtools_lock');
+                        window.location.reload();
+                    });
+
+                    // Polling: kalau DevTools ditutup → reload
                     const THRESHOLD = 200;
                     setInterval(() => {
                         const wDiff = window.outerWidth - window.innerWidth;
                         const hDiff = window.outerHeight - window.innerHeight;
                         if (wDiff <= THRESHOLD && hDiff <= THRESHOLD) {
-                            sessionStorage.removeItem(LOCK_FLAG);
+                            sessionStorage.removeItem('asyrof_devtools_lock');
                             window.location.reload();
                         }
                     }, 500);
                 }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
-                else showLockScreen();
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showFakeError);
+                else showFakeError();
                 throw new Error('__DEVTOOLS_LOCK__');
             }
         })();
@@ -93,8 +327,8 @@
 </head>
 <body>
 
-<!-- ===== CURSOR GRID BG ===== -->
-<canvas class="cursor-grid-bg" id="cursorGridCanvas" aria-hidden="true"></canvas>
+<!-- ===== AURORA BG (WebGL) ===== -->
+<div class="aurora-bg" id="auroraBg" aria-hidden="true"></div>
 
 <!-- ===== Theme toggle ===== -->
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -108,10 +342,71 @@
 </button>
 
 <div class="auth-container">
-    <a href="/landing" class="auth-logo">
-        <div class="logo-icon">A</div>
-        <div>Asyrof<span>OTP</span></div>
-    </a>
+
+    <!-- ===== STICKER LOGO (draggable + peel) ===== -->
+    <div class="sticker-wrapper" id="stickerWrapper">
+        <!-- SVG filters -->
+        <svg width="0" height="0" aria-hidden="true">
+            <defs>
+                <filter id="pointLight">
+                    <feGaussianBlur stdDeviation="1" result="blur" />
+                    <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.1" lightingColor="white">
+                        <fePointLight id="pointLightRef" x="100" y="100" z="300" />
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="SourceGraphic" result="lit" />
+                    <feComposite in="lit" in2="SourceAlpha" operator="in" />
+                </filter>
+                <filter id="pointLightFlipped">
+                    <feGaussianBlur stdDeviation="10" result="blur" />
+                    <feSpecularLighting result="spec" in="blur" specularExponent="100" specularConstant="0.7" lightingColor="white">
+                        <fePointLight id="pointLightFlippedRef" x="100" y="100" z="300" />
+                    </feSpecularLighting>
+                    <feComposite in="spec" in2="SourceGraphic" result="lit" />
+                    <feComposite in="lit" in2="SourceAlpha" operator="in" />
+                </filter>
+                <filter id="dropShadow">
+                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodColor="black" floodOpacity="0.35" />
+                </filter>
+                <filter id="expandAndFill">
+                    <feOffset dx="0" dy="0" in="SourceAlpha" result="shape" />
+                    <feFlood floodColor="rgb(200,200,200)" result="flood" />
+                    <feComposite operator="in" in="flood" in2="shape" />
+                </filter>
+            </defs>
+        </svg>
+
+        <a href="/" class="sticker-link" id="stickerLink" aria-label="AsyrofOTP Home">
+            <div class="sticker-container" id="stickerContainer">
+                <div class="sticker-main">
+                    <div class="sticker-lighting">
+                        <img
+                            src="/icon-180.png"
+                            alt="AsyrofOTP"
+                            class="sticker-image"
+                            draggable="false"
+                            onerror="this.src='/icon.svg'; this.onerror=null;"
+                        >
+                    </div>
+                </div>
+                <div class="flap">
+                    <div class="flap-lighting">
+                        <img
+                            src="/icon-180.png"
+                            alt=""
+                            class="flap-image"
+                            draggable="false"
+                            onerror="this.src='/icon.svg'; this.onerror=null;"
+                        >
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Logo text (di bawah sticker) -->
+    <div class="logo-text-wrap">
+        <div class="logo-text">Asyrof<span>OTP</span></div>
+    </div>
 
     <!-- BORDER GLOW CARD -->
     <div class="border-glow-card" id="loginCard">
@@ -144,7 +439,6 @@
                         </div>
                     </div>
 
-                    <!-- STATUS MARK: indikator di atas button -->
                     <div class="status-row" id="statusRow" aria-hidden="true">
                         <span class="status-mark" id="statusMark" data-status="pending">
                             <svg class="status-mark__glyph" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
