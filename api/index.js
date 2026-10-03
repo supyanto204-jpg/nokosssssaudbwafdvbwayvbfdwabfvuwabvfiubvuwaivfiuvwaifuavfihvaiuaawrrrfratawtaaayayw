@@ -226,7 +226,6 @@ async function enrichServicesWithCode(services, server) {
 // ============================================
 const DEPOSIT_METHODS = [
     { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
-    { id: 'qris_dana', label: 'QRIS DANA Manual', desc: 'Scan QR DANA, butuh konfirmasi admin', icon: 'dana', fee: 0, uniqueCode: true },
 ];
 
 const DEPOSIT_PRESETS = {
