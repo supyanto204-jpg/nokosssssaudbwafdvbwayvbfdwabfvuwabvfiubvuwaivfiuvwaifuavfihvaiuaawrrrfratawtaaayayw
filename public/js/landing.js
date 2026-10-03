@@ -522,11 +522,12 @@
                 const depthScale = clamp(CFG.PERSPECTIVE / Math.max(CFG.PERSPECTIVE - z, 1), 0.72, 1.45);
                 const visualScale = scale * depthScale;
                 const depth = (z / radius + 1) / 2;
-                // EDGE BLUR: item di pinggir dapat blur
-                const blurPx = CONFIG.DISABLE_HEAVY ? 0 : (6 * smoothstep(0.4, 1, edge));
+                // EDGE FADE: makin ke pinggir makin blur + transparan
+const blurPx = CONFIG.DISABLE_HEAVY ? 0 : (8 * smoothstep(0.3, 1, edge));
+const edgeFade = 1 - smoothstep(0.5, 1, edge) * 0.7; // tetep dikit solid sampai edge
 
                 card.style.transform = `translate(-50%,-50%) translate3d(${x.toFixed(1)}px,${(offset * CFG.V_SPACE).toFixed(1)}px,0) scale(${visualScale.toFixed(3)})`;
-                card.style.opacity = opacity.toFixed(2);
+                card.style.opacity = (opacity * edgeFade).toFixed(2);
                 card.style.filter = blurPx > 0.01 ? `blur(${blurPx.toFixed(1)}px)` : 'none';
                 card.style.zIndex = String(Math.round(depth * 100) + i);
             }
