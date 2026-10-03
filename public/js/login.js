@@ -1,19 +1,16 @@
 /* ============================================
-   LOGIN PAGE v3 — Aurora + Sticker + StrokeText + Fake Error
+   LOGIN PAGE v4 — Fix error loop + layout baru
    ============================================ */
 (function () {
     'use strict';
 
-    /* ============================================
-       DEVICE CAPABILITY
-       ============================================ */
     const isMobile = window.matchMedia('(max-width: 900px)').matches;
     const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const DISABLE_HEAVY = prefersReduced || isLowEnd;
 
     /* ============================================
-       SECURITY HARDENING + Fake DevTools Error
+       SECURITY HARDENING
        ============================================ */
     (function security() {
         try {
@@ -45,406 +42,30 @@
             if (window.location.search) history.replaceState(null, '', cleanUrl);
         } catch (e) {}
 
-        // DevTools detection
+        // ===== FIX: DevTools lock cuma trigger 1x, gak loop =====
         (function () {
             const FLAG = 'asyrof_devtools_lock';
+            // Kalau udah lock, skip detection total
             if (sessionStorage.getItem(FLAG) === '1') return;
             if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return;
             if (window.innerWidth < 600) return;
 
+            let triggered = false;
             setInterval(() => {
+                if (triggered) return;
                 const wd = window.outerWidth - window.innerWidth;
                 const hd = window.outerHeight - window.innerHeight;
                 if (wd > 200 || hd > 200) {
+                    triggered = true;
                     try { sessionStorage.setItem(FLAG, '1'); } catch (e) {}
-                    showFake500Error();
+                    // Cuma 1x set flag, jangan reload
                 }
             }, 800);
         })();
-
-        // Fake 500 Error page — full inline biar gak bergantung pada file eksternal
-        function showFake500Error() {
-            document.documentElement.innerHTML = '<head></head><body></body>';
-
-            document.body.innerHTML = `
-                <div class="fake-error-root">
-                    <canvas class="fake-error-canvas" id="fakeErrCanvas"></canvas>
-                    <div class="fake-error-content">
-                        <div class="fake-error-code-wrap">
-                            <div class="fake-error-code">
-                                <svg viewBox="0 0 400 140" class="fake-error-svg" preserveAspectRatio="xMidYMid meet">
-                                    <text x="200" y="105" text-anchor="middle" class="fake-stroke-text" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">500</text>
-                                    <text x="200" y="105" text-anchor="middle" class="fake-fill-text" fill="currentColor" stroke="none">500</text>
-                                </svg>
-                            </div>
-                        </div>
-                        <div class="fake-error-title-wrap">
-                            <h1 class="fake-error-title" id="fakeErrTitle">Internal Server Error</h1>
-                        </div>
-                        <p class="fake-error-desc">
-                            Terjadi kesalahan pada server kami. Tim teknis telah menerima laporan otomatis
-                            dan sedang menangani masalah ini.
-                        </p>
-                        <div class="fake-error-meta">
-                            <div class="fake-error-meta-row">
-                                <span class="label">Reference ID:</span>
-                                <span class="value" id="fakeErrRef">ERR-XXXX-XXXX</span>
-                            </div>
-                            <div class="fake-error-meta-row">
-                                <span class="label">Timestamp:</span>
-                                <span class="value" id="fakeErrTime">—</span>
-                            </div>
-                            <div class="fake-error-meta-row">
-                                <span class="label">Server:</span>
-                                <span class="value">prod-id-01</span>
-                            </div>
-                        </div>
-                        <div class="fake-error-actions">
-                            <button type="button" class="fake-btn fake-btn-primary" id="fakeRetryBtn">
-                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                                Coba Lagi
-                            </button>
-                            <a href="/" class="fake-btn fake-btn-secondary">Kembali ke Beranda</a>
-                        </div>
-                        <div class="fake-error-hint">
-                            Kode kesalahan: <code>ASYROF_500_INTERNAL</code>
-                        </div>
-                    </div>
-                </div>
-                <style>${FAKE_ERROR_CSS}</style>
-            `;
-
-            // Setup isi dinamis
-            const ref = document.getElementById('fakeErrRef');
-            const time = document.getElementById('fakeErrTime');
-            if (ref) ref.textContent = 'ERR-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 8).toUpperCase();
-            if (time) time.textContent = new Date().toISOString();
-
-            // Setup retry button
-            const retryBtn = document.getElementById('fakeRetryBtn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', () => {
-                    sessionStorage.removeItem('asyrof_devtools_lock');
-                    window.location.reload();
-                });
-            }
-
-            // Animate text decrypt
-            const titleEl = document.getElementById('fakeErrTitle');
-            if (titleEl) {
-                decryptText(titleEl, 'Internal Server Error', 800);
-            }
-
-            // Stroke text animation
-            animateStrokeText();
-
-            // Aurora-ish background (CSS only)
-            startFakeBg();
-
-            // Auto reload kalau DevTools ditutup
-            const THRESHOLD = 200;
-            setInterval(() => {
-                const wDiff = window.outerWidth - window.innerWidth;
-                const hDiff = window.outerHeight - window.innerHeight;
-                if (wDiff <= THRESHOLD && hDiff <= THRESHOLD) {
-                    sessionStorage.removeItem('asyrof_devtools_lock');
-                    window.location.reload();
-                }
-            }, 500);
-        }
-
-        // CSS untuk fake error page (inline biar gak bergantung file eksternal)
-        const FAKE_ERROR_CSS = `
-            .fake-error-root {
-                min-height: 100vh;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 24px;
-                position: relative;
-                overflow: hidden;
-                background: #0f172a;
-                color: #f1f5f9;
-                font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                -webkit-font-smoothing: antialiased;
-            }
-            .fake-error-canvas {
-                position: absolute;
-                inset: 0;
-                width: 100%;
-                height: 100%;
-                pointer-events: none;
-                opacity: 0.4;
-                z-index: 0;
-            }
-            .fake-error-content {
-                position: relative;
-                z-index: 1;
-                max-width: 520px;
-                width: 100%;
-                text-align: center;
-                background: rgba(30, 41, 59, 0.7);
-                backdrop-filter: blur(20px);
-                -webkit-backdrop-filter: blur(20px);
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                border-radius: 20px;
-                padding: 48px 40px 36px;
-                box-shadow:
-                    0 1px 2px rgba(0, 0, 0, 0.4),
-                    0 8px 32px rgba(0, 0, 0, 0.5),
-                    0 24px 64px rgba(0, 0, 0, 0.4);
-            }
-            .fake-error-code-wrap {
-                margin-bottom: 8px;
-            }
-            .fake-error-code {
-                width: 100%;
-                max-width: 320px;
-                margin: 0 auto;
-                color: #ef4444;
-            }
-            .fake-error-svg {
-                display: block;
-                width: 100%;
-                height: auto;
-            }
-            .fake-stroke-text {
-                font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace;
-                font-size: 96px;
-                font-weight: 900;
-                letter-spacing: -4px;
-                stroke-dasharray: 800;
-                stroke-dashoffset: 800;
-                animation: fakeStrokeDraw 2s ease-out forwards;
-            }
-            .fake-fill-text {
-                font-family: 'JetBrains Mono', 'Plus Jakarta Sans', monospace;
-                font-size: 96px;
-                font-weight: 900;
-                letter-spacing: -4px;
-                opacity: 0;
-                animation: fakeFillIn 1s ease-out 1.8s forwards;
-            }
-            @keyframes fakeStrokeDraw {
-                to { stroke-dashoffset: 0; }
-            }
-            @keyframes fakeFillIn {
-                to { opacity: 1; }
-            }
-            .fake-error-title-wrap {
-                margin-bottom: 12px;
-            }
-            .fake-error-title {
-                font-size: 1.5rem;
-                font-weight: 800;
-                margin: 0;
-                letter-spacing: -0.02em;
-                color: #f1f5f9;
-                min-height: 1.5em;
-            }
-            .fake-error-title .char {
-                display: inline-block;
-                transition: opacity 0.1s;
-            }
-            .fake-error-title .char.encrypted {
-                color: #ef4444;
-                opacity: 0.7;
-            }
-            .fake-error-desc {
-                font-size: 0.92rem;
-                line-height: 1.7;
-                color: #94a3b8;
-                margin: 0 0 24px;
-            }
-            .fake-error-meta {
-                text-align: left;
-                background: rgba(15, 23, 42, 0.6);
-                border: 1px solid rgba(255, 255, 255, 0.06);
-                border-radius: 12px;
-                padding: 14px 16px;
-                margin-bottom: 24px;
-                font-family: 'JetBrains Mono', monospace;
-                font-size: 0.75rem;
-            }
-            .fake-error-meta-row {
-                display: flex;
-                justify-content: space-between;
-                gap: 12px;
-                padding: 5px 0;
-            }
-            .fake-error-meta-row:not(:last-child) {
-                border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
-            }
-            .fake-error-meta-row .label {
-                color: #94a3b8;
-                font-weight: 600;
-                flex-shrink: 0;
-            }
-            .fake-error-meta-row .value {
-                color: #f1f5f9;
-                font-weight: 700;
-                word-break: break-all;
-                text-align: right;
-            }
-            .fake-error-actions {
-                display: flex;
-                gap: 10px;
-                justify-content: center;
-                flex-wrap: wrap;
-                margin-bottom: 20px;
-            }
-            .fake-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 8px;
-                padding: 11px 22px;
-                border-radius: 10px;
-                font-family: inherit;
-                font-weight: 700;
-                font-size: 0.88rem;
-                cursor: pointer;
-                border: none;
-                text-decoration: none;
-                transition: all 0.2s;
-            }
-            .fake-btn-primary {
-                background: #2563eb;
-                color: white;
-                box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-            }
-            .fake-btn-primary:hover {
-                background: #1d4ed8;
-                transform: translateY(-1px);
-                box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
-            }
-            .fake-btn-secondary {
-                background: transparent;
-                color: #94a3b8;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-            }
-            .fake-btn-secondary:hover {
-                background: rgba(255, 255, 255, 0.04);
-                color: #f1f5f9;
-            }
-            .fake-error-hint {
-                font-size: 0.72rem;
-                color: #94a3b8;
-                font-family: 'JetBrains Mono', monospace;
-                padding-top: 16px;
-                border-top: 1px dashed rgba(255, 255, 255, 0.06);
-            }
-            .fake-error-hint code {
-                background: rgba(255, 255, 255, 0.06);
-                padding: 2px 8px;
-                border-radius: 4px;
-                font-weight: 700;
-                color: #cbd5e1;
-            }
-        `;
-
-        // Animate stroke text (SVG dash offset)
-        function animateStrokeText() {
-            // CSS animation handle ini
-        }
-
-        // Animate decrypt text
-        function decryptText(el, finalText, duration) {
-            const chars = '!@#$%^&*()_+ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            const startTime = performance.now();
-            const totalDuration = duration || 800;
-
-            function tick() {
-                const elapsed = performance.now() - startTime;
-                const progress = Math.min(elapsed / totalDuration, 1);
-                const revealedCount = Math.floor(progress * finalText.length);
-
-                let output = '';
-                for (let i = 0; i < finalText.length; i++) {
-                    if (i < revealedCount) {
-                        output += finalText[i];
-                    } else if (finalText[i] === ' ') {
-                        output += ' ';
-                    } else {
-                        output += chars[Math.floor(Math.random() * chars.length)];
-                    }
-                }
-
-                el.innerHTML = output
-                    .split('')
-                    .map((c, i) => `<span class="char${i >= revealedCount ? ' encrypted' : ''}">${c === ' ' ? '&nbsp;' : c}</span>`)
-                    .join('');
-
-                if (progress < 1) {
-                    requestAnimationFrame(tick);
-                } else {
-                    el.innerHTML = finalText;
-                }
-            }
-            tick();
-        }
-
-        // Fake aurora-ish background dengan particles
-        function startFakeBg() {
-            const canvas = document.getElementById('fakeErrCanvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return;
-
-            let w = canvas.width = window.innerWidth;
-            let h = canvas.height = window.innerHeight;
-
-            const particles = [];
-            for (let i = 0; i < 40; i++) {
-                particles.push({
-                    x: Math.random() * w,
-                    y: Math.random() * h,
-                    r: 30 + Math.random() * 80,
-                    vx: (Math.random() - 0.5) * 0.3,
-                    vy: (Math.random() - 0.5) * 0.3,
-                    hue: 200 + Math.random() * 60
-                });
-            }
-
-            let raf = 0;
-            let last = 0;
-
-            function draw(t) {
-                raf = requestAnimationFrame(draw);
-                if (t - last < 33) return;
-                last = t;
-
-                ctx.clearRect(0, 0, w, h);
-
-                for (const p of particles) {
-                    p.x += p.vx;
-                    p.y += p.vy;
-                    if (p.x < -p.r) p.x = w + p.r;
-                    if (p.x > w + p.r) p.x = -p.r;
-                    if (p.y < -p.r) p.y = h + p.r;
-                    if (p.y > h + p.r) p.y = -p.r;
-
-                    const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
-                    grad.addColorStop(0, `hsla(${p.hue}, 70%, 50%, 0.15)`);
-                    grad.addColorStop(1, `hsla(${p.hue}, 70%, 50%, 0)`);
-                    ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-
-            raf = requestAnimationFrame(draw);
-
-            window.addEventListener('resize', () => {
-                w = canvas.width = window.innerWidth;
-                h = canvas.height = window.innerHeight;
-            });
-        }
     })();
 
     /* ============================================
-       AUTO REDIRECT — kalau udah login
+       AUTO REDIRECT
        ============================================ */
     (async function checkAlreadyLoggedIn() {
         const token = localStorage.getItem('access_token');
@@ -477,12 +98,12 @@
             document.documentElement.setAttribute('data-theme', next);
             localStorage.setItem('asyrofotp_theme', next);
             const m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+            if (m) m.setAttribute('content', next === 'dark' ? '#0a0a0a' : '#f8fafc');
         });
     })();
 
     /* ============================================
-       AURORA BG
+       AURORA BG — warna kuning-orange (brand baru)
        ============================================ */
     (function aurora() {
         const container = document.getElementById('auroraBg');
@@ -613,10 +234,11 @@ void main() {
         const uRes = gl.getUniformLocation(prog, 'uResolution');
         const uBlend = gl.getUniformLocation(prog, 'uBlend');
 
+        // Warna kuning-orange (brand baru)
         const colors = [
-            [0.32, 0.15, 1.0],
-            [0.49, 0.39, 0.81],
-            [0.95, 0.4, 0.7]
+            [0.98, 0.80, 0.08],
+            [0.97, 0.45, 0.10],
+            [0.98, 0.80, 0.08]
         ];
 
         let w = 1, h = 1;
@@ -683,7 +305,7 @@ void main() {
     })();
 
     /* ============================================
-       STICKER — draggable, NOT clickable
+       STICKER — draggable, gak bisa diklik
        ============================================ */
     (function sticker() {
         const wrapper = document.getElementById('stickerWrapper');
@@ -698,8 +320,8 @@ void main() {
         let rotation = 0;
         let raf = 0;
 
-        const MAX_DRIFT_X = 60;
-        const MAX_DRIFT_Y = 40;
+        const MAX_DRIFT_X = 40;
+        const MAX_DRIFT_Y = 30;
 
         function applyTransform() {
             stickerContainer.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
@@ -774,27 +396,26 @@ void main() {
     })();
 
     /* ============================================
-       STROKE TEXT — animasi "AsyrofOTP"
+       STROKE TEXT
        ============================================ */
     (function strokeText() {
-        const wrap = document.getElementById('logoStrokeWrap');
-        const strokeEl = document.getElementById('logoStrokeText');
-        const fillEl = document.getElementById('logoFillText');
+        const wrap = document.getElementById('brandStrokeWrap');
+        const strokeEl = document.getElementById('brandStrokeText');
+        const fillEl = document.getElementById('brandFillText');
         if (!wrap || !strokeEl || !fillEl) return;
 
-        // Ukur dulu, baru set dasharray
+        let dashLength = 800;
         try {
             const length = strokeEl.getComputedTextLength ? strokeEl.getComputedTextLength() : 0;
-            const dash = Math.max(length * 1.2, 800);
-            strokeEl.style.strokeDasharray = dash;
-            strokeEl.style.strokeDashoffset = dash;
+            dashLength = Math.max(length * 1.2, 800);
+            strokeEl.style.strokeDasharray = dashLength;
+            strokeEl.style.strokeDashoffset = dashLength;
         } catch (e) {
             strokeEl.style.strokeDasharray = 800;
             strokeEl.style.strokeDashoffset = 800;
         }
 
         let played = false;
-
         function play() {
             if (played) return;
             played = true;
@@ -802,24 +423,22 @@ void main() {
             if (prefersReduced) {
                 strokeEl.style.strokeDashoffset = 0;
                 fillEl.style.opacity = '1';
+                wrap.classList.add('animate');
                 return;
             }
 
-            // Animasi stroke draw
             const startTime = performance.now();
             const duration = 1500;
-            const initialDash = parseFloat(strokeEl.style.strokeDashoffset) || 800;
 
             function tick() {
                 const elapsed = performance.now() - startTime;
                 const progress = Math.min(elapsed / duration, 1);
                 const eased = 1 - Math.pow(1 - progress, 3);
-                strokeEl.style.strokeDashoffset = String(initialDash * (1 - eased));
+                strokeEl.style.strokeDashoffset = String(dashLength * (1 - eased));
 
                 if (progress < 1) {
                     requestAnimationFrame(tick);
                 } else {
-                    // Fill fade in
                     fillEl.style.opacity = '1';
                     wrap.classList.add('animate');
                 }
@@ -827,18 +446,8 @@ void main() {
             requestAnimationFrame(tick);
         }
 
-        // Play when in view
-        if ('IntersectionObserver' in window) {
-            const io = new IntersectionObserver(([en]) => {
-                if (en.isIntersecting) {
-                    setTimeout(play, 300);
-                    io.disconnect();
-                }
-            }, { threshold: 0.3 });
-            io.observe(wrap);
-        } else {
-            setTimeout(play, 300);
-        }
+        // Delay dikit biar barengan sama sticker drop
+        setTimeout(play, 500);
     })();
 
     /* ============================================
@@ -1043,7 +652,7 @@ void main() {
             setStatus('failed', 'Gagal login');
             showAlert(err.message || 'Terjadi kesalahan', 'error');
             submitBtn.disabled = false;
-            btnText.textContent = 'Login';
+            btnText.textContent = 'Masuk Sekarang';
             const oldIcon = document.getElementById('btnIcon');
             if (oldIcon) {
                 oldIcon.outerHTML = '<svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>';
