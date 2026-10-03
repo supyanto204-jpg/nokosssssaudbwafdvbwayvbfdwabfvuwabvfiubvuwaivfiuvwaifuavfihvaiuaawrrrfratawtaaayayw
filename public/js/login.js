@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE v6 — Full script
+   LOGIN PAGE v7 — Full script dengan Cursor Grid
    ============================================ */
 (function () {
     'use strict';
@@ -43,7 +43,7 @@
             if (window.location.search) history.replaceState(null, '', cleanUrl);
         } catch (e) {}
 
-        // DevTools detection → set flag & reload (lock screen akan muncul)
+        // DevTools detection
         (function () {
             const FLAG = 'asyrof_devtools_lock';
             if (sessionStorage.getItem(FLAG) === '1') return;
@@ -101,7 +101,7 @@
     })();
 
     /* ============================================
-       AURORA BG — biru-ungu
+       AURORA BG
        ============================================ */
     (function aurora() {
         const container = document.getElementById('auroraBg');
@@ -232,7 +232,6 @@ void main() {
         const uRes = gl.getUniformLocation(prog, 'uResolution');
         const uBlend = gl.getUniformLocation(prog, 'uBlend');
 
-        // Warna biru-ungu (brand)
         const colors = [
             [0.32, 0.15, 1.0],
             [0.49, 0.39, 0.81],
@@ -303,7 +302,189 @@ void main() {
     })();
 
     /* ============================================
-       STICKER — drag ke mana aja, spring balik ke -8deg
+       CURSOR GRID — kotak-kotak nyala di bawah kursor
+       ============================================ */
+    (function cursorGrid() {
+        // Skip total di mobile & reduced motion
+        if (isMobile) return;
+        if (prefersReduced) return;
+
+        const canvas = document.getElementById('cursorGridCanvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d', { alpha: true });
+        if (!ctx) return;
+
+        const CELL = 70;
+        const RADIUS = 140;
+        const HOLD = 400;
+        const FADE_MS = 800;
+        const LINE = 1;
+        const MAX_OP = 0.7;
+        const COLOR = [37, 99, 235]; // biru
+
+        let cols = 0, rows = 0, offX = 0, offY = 0;
+        let alphas = new Float32Array(0);
+        let touched = new Float64Array(0);
+        let w = 1, h = 1;
+        let raf = 0;
+        let running = false;
+        let lastFrame = 0;
+        let visible = true;
+        let lastRender = 0;
+        const FRAME_MIN = 1000 / 30;
+
+        function rebuild() {
+            const r = canvas.getBoundingClientRect();
+            w = Math.max(1, r.width);
+            h = Math.max(1, r.height);
+            canvas.width = Math.floor(w);
+            canvas.height = Math.floor(h);
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            cols = Math.ceil(w / CELL) + 1;
+            rows = Math.ceil(h / CELL) + 1;
+            offX = (w - cols * CELL) / 2;
+            offY = (h - rows * CELL) / 2;
+            alphas = new Float32Array(cols * rows);
+            touched = new Float64Array(cols * rows);
+        }
+
+        function cellCenter(i) {
+            const cx = offX + (i % cols) * CELL + CELL / 2;
+            const cy = offY + Math.floor(i / cols) * CELL + CELL / 2;
+            return [cx, cy];
+        }
+
+        function energize(x, y) {
+            const now = performance.now();
+            const minC = Math.max(0, Math.floor((x - RADIUS - offX) / CELL));
+            const maxC = Math.min(cols - 1, Math.floor((x + RADIUS - offX) / CELL));
+            const minR = Math.max(0, Math.floor((y - RADIUS - offY) / CELL));
+            const maxR = Math.min(rows - 1, Math.floor((y + RADIUS - offY) / CELL));
+            for (let r = minR; r <= maxR; r++) {
+                for (let c = minC; c <= maxC; c++) {
+                    const i = r * cols + c;
+                    const [cx, cy] = cellCenter(i);
+                    const dist = Math.hypot(cx - x, cy - y);
+                    if (dist > RADIUS) continue;
+                    const t = 1 - dist / RADIUS;
+                    const eased = t * t * (3 - 2 * t);
+                    const level = eased * MAX_OP;
+                    if (level > alphas[i]) {
+                        alphas[i] = level;
+                        touched[i] = now;
+                    } else if (level > 0) {
+                        touched[i] = now;
+                    }
+                }
+            }
+        }
+
+        function draw(now) {
+            raf = 0;
+            if (!visible || document.hidden) { running = false; return; }
+            if (now - lastRender < FRAME_MIN) {
+                raf = requestAnimationFrame(draw);
+                return;
+            }
+            lastRender = now;
+            const dt = Math.min(now - lastFrame, 50);
+            lastFrame = now;
+            ctx.clearRect(0, 0, w, h);
+
+            let any = false;
+            const fadeStep = dt / FADE_MS;
+            const half = CELL / 2;
+            const [cr, cg, cb] = COLOR;
+
+            for (let i = 0; i < alphas.length; i++) {
+                let a = alphas[i];
+                if (a <= 0) continue;
+                if (now - touched[i] > HOLD) {
+                    a = Math.max(0, a - fadeStep);
+                    alphas[i] = a;
+                    if (a <= 0) continue;
+                }
+                any = true;
+                const [cx, cy] = cellCenter(i);
+                const x = cx - half + 0.5;
+                const y = cy - half + 0.5;
+                const s = CELL - 1;
+
+                ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a})`;
+                ctx.lineWidth = LINE;
+                ctx.strokeRect(x, y, s, s);
+            }
+
+            if (any) raf = requestAnimationFrame(draw);
+            else running = false;
+        }
+
+        function wake() {
+            if (running) return;
+            running = true;
+            lastFrame = performance.now();
+            lastRender = 0;
+            raf = requestAnimationFrame(draw);
+        }
+
+        function stop() {
+            if (raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+            }
+            running = false;
+        }
+
+        const onPointerMove = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x < 0 || y < 0 || x > w || y > h) return;
+            energize(x, y);
+            wake();
+        };
+        const onPointerDown = (e) => {
+            const r = canvas.getBoundingClientRect();
+            const x = e.clientX - r.left;
+            const y = e.clientY - r.top;
+            if (x < 0 || y < 0 || x > w || y > h) return;
+            energize(x, y);
+            wake();
+        };
+        window.addEventListener('pointermove', onPointerMove, { passive: true });
+        window.addEventListener('pointerdown', onPointerDown, { passive: true });
+
+        const ro = new ResizeObserver(() => { rebuild(); wake(); });
+        ro.observe(canvas);
+        rebuild();
+
+        const io = new IntersectionObserver(([en]) => {
+            visible = en.isIntersecting;
+            if (visible) wake();
+            else stop();
+        }, { threshold: 0 });
+        io.observe(canvas);
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) stop();
+            else wake();
+        });
+
+        wake();
+
+        window.addEventListener('beforeunload', () => {
+            stop();
+            ro.disconnect();
+            io.disconnect();
+            window.removeEventListener('pointermove', onPointerMove);
+            window.removeEventListener('pointerdown', onPointerDown);
+        });
+    })();
+
+    /* ============================================
+       STICKER — drag ke mana aja, spring balik
        ============================================ */
     (function sticker() {
         const wrapper = document.getElementById('stickerWrapper');
@@ -319,7 +500,6 @@ void main() {
         let rotation = DEFAULT_ROTATION;
         let raf = 0;
 
-        // Bisa ditarik jauh
         const MAX_DRIFT_X = 300;
         const MAX_DRIFT_Y = 300;
 
@@ -341,7 +521,6 @@ void main() {
                 currentX += velocityX;
                 currentY += velocityY;
 
-                // Balik ke rotation default (-8)
                 rotation += (DEFAULT_ROTATION - rotation) * 0.1;
                 rotation += velocityX * 0.5;
                 rotation *= 0.85;
