@@ -121,7 +121,6 @@
             overflow: hidden;
         }
 
-        /* HILANGKAN transform hover */
         .stat-card:hover {
             box-shadow: var(--shadow-hard);
         }
@@ -323,7 +322,6 @@
             overflow: hidden;
         }
 
-        /* HILANGKAN transform hover — cuma shadow + warna */
         .quick-action:hover {
             box-shadow: var(--shadow-hard);
         }
@@ -340,7 +338,6 @@
             transition: box-shadow var(--transition);
         }
 
-        /* Icon rotate DIHAPUS */
         .quick-action:hover .icon-box {
             box-shadow: var(--shadow-hard-sm);
         }
@@ -454,7 +451,6 @@
 
         tbody tr:last-child td { border-bottom: none; }
 
-        /* Baris transaksi bisa diklik */
         .tx-row {
             cursor: pointer;
             transition: background-color var(--transition);
@@ -466,7 +462,6 @@
             background: var(--primary-light);
         }
 
-        /* App icon di kolom Layanan */
         .tx-service-cell {
             display: flex;
             align-items: center;
@@ -500,7 +495,6 @@
             text-transform: uppercase;
         }
 
-        /* Negara + flag */
         .tx-country-cell {
             display: flex;
             align-items: center;
@@ -634,7 +628,6 @@
 
 <div class="dashboard-layout">
 
-    <!-- SIDEBAR -->
     <aside class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <a href="/dashboard" class="sidebar-logo">
@@ -697,7 +690,6 @@
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-    <!-- MAIN -->
     <main class="main-content">
         <div class="topbar">
             <div class="topbar-left">
@@ -723,7 +715,6 @@
             </div>
         </div>
 
-        <!-- WELCOME HERO -->
         <div class="welcome-hero">
             <div class="welcome-hero-icon">
                 <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -734,7 +725,6 @@
             </div>
         </div>
 
-        <!-- STATS -->
         <div class="section-title">
             <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
             Statistik Pesanan
@@ -770,7 +760,6 @@
             </div>
         </div>
 
-        <!-- USER CODE -->
         <div class="user-code-card">
             <div class="user-code-header">
                 <div class="icon-box">
@@ -790,7 +779,6 @@
             </div>
         </div>
 
-        <!-- QUICK ACTIONS -->
         <div class="section-title">
             <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             Aksi Cepat
@@ -834,7 +822,6 @@
             </a>
         </div>
 
-        <!-- TRANSAKSI -->
         <div class="section-title">
             <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Transaksi Terakhir
@@ -881,7 +868,6 @@
     </main>
 </div>
 
-<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar" aria-label="Navigasi utama">
     <div class="mobile-taskbar-inner">
         <a href="/dashboard" class="taskbar-item active" data-page="dashboard">
@@ -909,7 +895,6 @@
     </div>
 </nav>
 
-<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
     <div class="custom-alert">
         <div class="custom-alert-icon info" id="customAlertIcon">
@@ -1068,11 +1053,92 @@
     })();
 
     /* ============================================
+       SERVICE NAME → ICON CODE MAPPING
+       (SAMA PERSIS kayak backend: normalizeServiceName + map dari server ekonomi)
+       ============================================ */
+
+    /**
+     * Normalisasi nama service jadi key lookup.
+     * Contoh: "WhatsApp" → "whatsapp", "X (Twitter)" → "xtwitter"
+     *
+     * SAMA PERSIS dengan fungsi normalizeServiceName() di backend.
+     */
+    function normalizeServiceName(name) {
+        return String(name || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '');
+    }
+
+    /**
+     * Map: { normalized_name: "kode_huruf" }
+     * Contoh: { "whatsapp": "wa", "telegram": "tg", "instagram": "ig" }
+     *
+     * Di-load dari /api/nokos/services?server=ekonomi
+     * (server ekonomi = sumber kebenaran code huruf)
+     */
+    let serviceCodeMap = null;
+    let serviceCodeMapPromise = null;
+
+    async function getServiceCodeMap() {
+        if (serviceCodeMap) return serviceCodeMap;
+        if (serviceCodeMapPromise) return serviceCodeMapPromise;
+
+        serviceCodeMapPromise = (async () => {
+            try {
+                const res = await fetch('/api/nokos/services?server=ekonomi', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await safeJson(res);
+                const services = data.services || [];
+
+                const map = {};
+                for (const s of services) {
+                    const code = String(s.code || '').trim();
+                    const name = String(s.name || '').trim();
+                    if (!code) continue;
+
+                    // Simpan map by name (normalized)
+                    const normName = normalizeServiceName(name);
+                    if (normName) map[normName] = code;
+
+                    // Simpan juga map by code itu sendiri
+                    const normCode = normalizeServiceName(code);
+                    if (normCode) map[normCode] = code;
+                }
+
+                serviceCodeMap = map;
+                console.log(`✅ Dashboard service code map loaded: ${Object.keys(map).length} entries`);
+                return map;
+            } catch (err) {
+                console.error('Get service code map error:', err);
+                serviceCodeMap = {};
+                return serviceCodeMap;
+            } finally {
+                serviceCodeMapPromise = null;
+            }
+        })();
+
+        return serviceCodeMapPromise;
+    }
+
+    /**
+     * Cari icon_code berdasarkan service_name (dari transaksi di dashboard).
+     * Pakai normalizeServiceName yang sama seperti backend.
+     */
+    function resolveIconCode(serviceName) {
+        if (!serviceCodeMap) return null;
+        const normName = normalizeServiceName(serviceName);
+        if (!normName) return null;
+        return serviceCodeMap[normName] || null;
+    }
+
+    /* ============================================
        APP ICON (assets.cindigital.id)
        ============================================ */
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
-    function getAppIconUrl(serviceCode) {
-        const code = String(serviceCode || '').trim().toLowerCase();
+
+    function getAppIconUrl(iconCode) {
+        const code = String(iconCode || '').trim().toLowerCase();
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
         return `${APP_CDN_BASE}/${code}.png`;
     }
@@ -1086,10 +1152,13 @@
     }
 
     function renderServiceIcon(tx) {
-        const code = String(tx?.service || '').trim();
         const name = getServiceDisplayName(tx);
         const initial = String(name).trim().charAt(0).toUpperCase() || '?';
-        const url = getAppIconUrl(code);
+
+        // Resolve icon_code dari service_name (mapping sama seperti backend)
+        const iconCode = resolveIconCode(name);
+        const url = getAppIconUrl(iconCode);
+
         if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
                      onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
@@ -1220,16 +1289,14 @@
             return;
         }
 
-        // Signature buat cek kalau data transaksi berubah
         const newSig = data.transactions.map(t => [
             t.order_id || '',
             t.status || '',
-            t.service || '',
+            t.service_name || '',
             t.country || '',
             t.price || '',
         ].join(':')).join('|');
 
-        // Kalau gak berubah, gak usah render ulang (anti kelap-kelip)
         if (newSig === lastTransactionSig) return;
         lastTransactionSig = newSig;
 
@@ -1251,7 +1318,6 @@
             return `
                 <tr class="tx-row"
                     data-order-id="${escapeHtml(orderId)}"
-                    data-service="${escapeHtml(t.service || '')}"
                     title="Klik buat lihat detail di Inbox">
                     <td>${formatTanggal(t.created_at)}</td>
                     <td>
@@ -1272,11 +1338,9 @@
             `;
         }).join('');
 
-        // Attach click handler ke tiap baris
         tbody.querySelectorAll('.tx-row').forEach(row => {
             row.addEventListener('click', () => {
                 const orderId = row.dataset.orderId;
-                // Simpan order id biar inbox bisa highlight (opsional)
                 if (orderId) {
                     try { sessionStorage.setItem('highlight_order_id', orderId); } catch (_) {}
                 }
@@ -1291,7 +1355,15 @@
         })[ch]);
     }
 
-    swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
+    /* ============================================
+       INIT — load service map DULU baru render
+       ============================================ */
+    (async function init() {
+        // Load service code map dulu (biar icon bisa langsung ke-render)
+        await getServiceCodeMap().catch(() => {});
+        // Baru fetch dashboard
+        swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
+    })();
 
     /* ============================================
        AUTO REFRESH — silent, gak kelap-kelip
@@ -1312,7 +1384,6 @@
                 renderDashboard(data);
             }
 
-            // Update saldo juga
             const userRes = await fetch('/api/user', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -1334,16 +1405,14 @@
         dashboardInterval = setInterval(silentRefreshDashboard, 10000);
     }
 
-    /* ===== REFRESH BUTTON ===== */
     document.getElementById('refreshBtn').addEventListener('click', async function() {
         const btn = this;
         btn.classList.add('spinning');
-        lastTransactionSig = ''; // force re-render
+        lastTransactionSig = '';
         await silentRefreshDashboard();
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
 
-    /* ===== COPY USER CODE ===== */
     document.getElementById('copyUserCode').addEventListener('click', () => {
         const code = document.getElementById('userCode').textContent;
         navigator.clipboard.writeText(code).then(() => {
@@ -1354,7 +1423,6 @@
         });
     });
 
-    /* ===== LOGOUT ===== */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -1369,7 +1437,6 @@
         window.location.href = '/landing';
     });
 
-    /* ===== INIT ===== */
     startAutoRefresh();
 
     document.addEventListener('visibilitychange', () => {
