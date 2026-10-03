@@ -1,5 +1,8 @@
 /* ============================================
-   LANDING PAGE — OPTIMIZED + BFCACHE FIX
+   LANDING PAGE — MAIN SCRIPT
+   Fix: WebGL context lost auto-recover
+   Fix: Bfcache abu-abu
+   Fix: Fallback visual
    ============================================ */
 (function () {
     'use strict';
@@ -37,6 +40,7 @@
         DISABLE_HEAVY,
         IS_MOBILE: isMobile,
     };
+
     /* ============================================
        UTILS
        ============================================ */
@@ -68,8 +72,7 @@
     }
 
     /* ============================================
-       REGISTRY — semua module daftar di sini
-       biar bisa di-restart waktu balik dari bfcache
+       MODULE REGISTRY
        ============================================ */
     const modules = [];
     function registerModule(setup) {
@@ -630,22 +633,25 @@
     });
 
     /* ============================================
-       GRADIENT WAVES — WebGL dengan context lost handling
+       GRADIENT WAVES — WebGL dengan AUTO-RECOVER
        ============================================ */
     registerModule(function (bind) {
         const container = $('#gradientWaves');
         if (!container) return;
 
-        // Fallback kalau reduced motion / low-end
-        if (CONFIG.DISABLE_HEAVY) {
+        // === FALLBACK: kalau WebGL gak bisa dipakai, pakai CSS gradient ===
+        function applyCSSFallback() {
             container.classList.add('context-lost');
+            container.innerHTML = ''; // bersihin canvas
+        }
+
+        // Reduced motion / low-end device → langsung CSS fallback
+        if (CONFIG.DISABLE_HEAVY) {
+            applyCSSFallback();
             return;
         }
 
-        const canvas = document.createElement('canvas');
-        canvas.style.cssText = 'display:block;width:100%;height:100%;';
-        container.appendChild(canvas);
-
+        let canvas = null;
         let gl = null;
         let prog = null;
         let uRes = null;
@@ -658,9 +664,12 @@
         const FPS_CAP = 30;
         const FRAME_MIN = 1000 / FPS_CAP;
         let t0 = performance.now();
-        let targetMouse = [0.5, 0.5];
-        let currentMouse = [0.5, 0.5];
+        const targetMouse = [0.5, 0.5];
+        const currentMouse = [0.5, 0.5];
         let contextLost = false;
+        let contextLostCount = 0;
+        const MAX_RECOVER_ATTEMPTS = 3;
+        let recoverTimer = null;
 
         const VERT = `#version 300 es
 in vec2 position;
@@ -757,6 +766,12 @@ void main() {
             return sh;
         }
 
+        function createCanvas() {
+            const c = document.createElement('canvas');
+            c.style.cssText = 'display:block;width:100%;height:100%;';
+            return c;
+        }
+
         function initGL() {
             try {
                 gl = canvas.getContext('webgl2', {
@@ -767,7 +782,7 @@ void main() {
                     powerPreference: 'low-power',
                     failIfMajorPerformanceCaveat: false,
                 });
-                if (!gl) return false;
+                if (!gl || gl.isContextLost()) return false;
 
                 const vs = compile(gl.VERTEX_SHADER, VERT);
                 const fs = compile(gl.FRAGMENT_SHADER, FRAG);
@@ -791,24 +806,12 @@ void main() {
                 uTime = gl.getUniformLocation(prog, 'iTime');
                 uMouse = gl.getUniformLocation(prog, 'uMouse');
 
-                // Context lost handler
-                canvas.addEventListener('webglcontextlost', (e) => {
-                    e.preventDefault();
-                    contextLost = true;
-                    container.classList.add('context-lost');
-                    stop();
-                }, false);
-
-                canvas.addEventListener('webglcontextrestored', () => {
-                    contextLost = false;
-                    container.classList.remove('context-lost');
-                    if (initGL()) {
-                        resize();
-                        schedule();
-                    }
-                }, false);
+                // Attach context lost handler
+                canvas.addEventListener('webglcontextlost', onContextLost, false);
+                canvas.addEventListener('webglcontextrestored', onContextRestored, false);
 
                 t0 = performance.now();
+                contextLost = false;
                 return true;
             } catch (e) {
                 console.warn('WebGL init error:', e);
@@ -816,8 +819,67 @@ void main() {
             }
         }
 
+        function onContextLost(e) {
+            e.preventDefault();
+            contextLost = true;
+            stop();
+
+            // Jangan langsung apply fallback — coba recover dulu
+            contextLostCount++;
+            if (contextLostCount <= MAX_RECOVER_ATTEMPTS) {
+                if (recoverTimer) clearTimeout(recoverTimer);
+                recoverTimer = setTimeout(() => {
+                    tryRecover();
+                }, 500 * contextLostCount); // backoff
+            } else {
+                // Kasih fallback kalau udah 3x gagal
+                applyCSSFallback();
+            }
+        }
+
+        function onContextRestored() {
+            contextLost = false;
+            if (initGL()) {
+                resize();
+                schedule();
+            } else {
+                applyCSSFallback();
+            }
+        }
+
+        function tryRecover() {
+            if (!contextLost) return;
+            if (!container) return;
+
+            try {
+                // Buang canvas lama, buat baru
+                if (canvas && canvas.parentNode) {
+                    canvas.parentNode.removeChild(canvas);
+                }
+                container.innerHTML = '';
+                canvas = createCanvas();
+                container.appendChild(canvas);
+
+                // Re-init GL
+                if (initGL()) {
+                    resize();
+                    schedule();
+                    contextLost = false;
+                    contextLostCount = 0;
+                    container.classList.remove('context-lost');
+                } else {
+                    if (contextLostCount >= MAX_RECOVER_ATTEMPTS) {
+                        applyCSSFallback();
+                    }
+                }
+            } catch (e) {
+                console.warn('Recover error:', e);
+                applyCSSFallback();
+            }
+        }
+
         function resize() {
-            if (!gl || contextLost) return;
+            if (!gl || contextLost || !canvas) return;
             const r = container.getBoundingClientRect();
             const w = Math.max(1, Math.floor(r.width));
             const h = Math.max(1, Math.floor(r.height));
@@ -832,6 +894,12 @@ void main() {
         function frame(now) {
             raf = 0;
             if (!visible || document.hidden || contextLost || !gl) return;
+
+            // Cek kalau context tiba-tiba lost
+            if (gl.isContextLost()) {
+                onContextLost({ preventDefault: () => {} });
+                return;
+            }
 
             if (now - lastRender < FRAME_MIN) {
                 raf = requestAnimationFrame(frame);
@@ -867,9 +935,12 @@ void main() {
             }
         }
 
-        // Init
+        // === INIT ===
+        canvas = createCanvas();
+        container.appendChild(canvas);
+
         if (!initGL()) {
-            container.classList.add('context-lost');
+            applyCSSFallback();
             return;
         }
         resize();
@@ -877,12 +948,14 @@ void main() {
         const ro = new ResizeObserver(resize);
         ro.observe(container);
 
+        const onPointerMove = (e) => {
+            if (CONFIG.IS_MOBILE || !container) return;
+            const r = container.getBoundingClientRect();
+            targetMouse[0] = (e.clientX - r.left) / r.width;
+            targetMouse[1] = 1 - (e.clientY - r.top) / r.height;
+        };
         if (!CONFIG.IS_MOBILE) {
-            window.addEventListener('pointermove', (e) => {
-                const r = container.getBoundingClientRect();
-                targetMouse[0] = (e.clientX - r.left) / r.width;
-                targetMouse[1] = 1 - (e.clientY - r.top) / r.height;
-            }, { passive: true });
+            window.addEventListener('pointermove', onPointerMove, { passive: true });
         }
 
         const io = new IntersectionObserver(([en]) => {
@@ -903,27 +976,24 @@ void main() {
         bind(
             function cleanup() {
                 stop();
+                if (recoverTimer) clearTimeout(recoverTimer);
                 ro.disconnect();
                 io.disconnect();
                 document.removeEventListener('visibilitychange', onVis);
-                try {
-                    const ext = gl.getExtension('WEBGL_lose_context');
-                    if (ext) ext.loseContext();
-                } catch (e) {}
-                gl = null;
+                if (!CONFIG.IS_MOBILE) {
+                    window.removeEventListener('pointermove', onPointerMove);
+                }
+                // Jangan loseContext() di cleanup, biarkan browser yang handle
+                // karena kalau di-lose, bfcache restore malah bikin masalah baru
             },
             function restart() {
-                // Re-init kalau context lost (bfcache)
-                if (!gl || contextLost) {
-                    if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-                    container.innerHTML = '';
-                    container.appendChild(canvas);
-                    if (initGL()) {
-                        resize();
-                        schedule();
-                    } else {
-                        container.classList.add('context-lost');
-                    }
+                if (!canvas || !canvas.parentNode) return;
+
+                // Cek kalau canvas tanpa context (setelah bfcache)
+                if (!gl || contextLost || gl.isContextLost()) {
+                    contextLostCount = 0;
+                    contextLost = true;
+                    tryRecover();
                 } else {
                     schedule();
                 }
@@ -1244,11 +1314,9 @@ void main() {
     });
 
     /* ============================================
-       BFCACHE HANDLER — FIX ABU-ABU
+       BFCACHE — Restart semua module
        ============================================ */
     window.addEventListener('pageshow', function (event) {
-        // Restart semua module — terutama setelah balik dari halaman lain
-        // (event.persisted = true artinya diambil dari bfcache)
         if (event.persisted) {
             requestAnimationFrame(() => {
                 modules.forEach((m) => {
@@ -1259,13 +1327,11 @@ void main() {
     });
 
     window.addEventListener('pagehide', function () {
-        // Cleanup rapi sebelum keluar
         modules.forEach((m) => {
             try { if (m.cleanup) m.cleanup(); } catch (e) {}
         });
     });
 
-    // Restart juga kalau tab balik visible
     document.addEventListener('visibilitychange', function () {
         if (!document.hidden) {
             modules.forEach((m) => {
