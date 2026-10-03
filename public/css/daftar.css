@@ -1,0 +1,298 @@
+/* ============================================
+   DAFTAR PAGE — Register-specific styles
+   Variable & base style inherit dari login.css
+   ============================================ */
+
+/* ============================================
+   STEP INDICATOR
+   ============================================ */
+.steps {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 24px;
+    padding: 0 2px;
+}
+
+.step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-light);
+    border: 2px solid var(--border-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.72rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-gray);
+    transition: all 0.3s cubic-bezier(.2,.8,.2,1.4);
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.step-dot.active {
+    background: var(--primary);
+    color: white;
+    transform: scale(1.15);
+    box-shadow: 3px 3px 0px var(--shadow-color);
+}
+
+.step-dot.done {
+    background: var(--success);
+    color: white;
+    border-color: var(--border-dark);
+}
+
+.step-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border-dark);
+    opacity: 0.15;
+    border-radius: 2px;
+    transition: opacity 0.3s, background-color 0.3s;
+}
+
+.step-line.done {
+    opacity: 1;
+    background: var(--success);
+}
+
+/* ============================================
+   FORM GROUP REVEAL (progressive)
+   ============================================ */
+.form-group {
+    margin-bottom: 0;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+        max-height 0.4s cubic-bezier(.2,.8,.2,1),
+        opacity 0.3s ease,
+        margin 0.3s ease;
+}
+
+.form-group.visible {
+    max-height: 220px;
+    opacity: 1;
+    margin-bottom: 18px;
+}
+
+/* ============================================
+   INPUT STATUS (icon di dalam input)
+   ============================================ */
+.form-control.with-status {
+    padding-right: 40px;
+}
+
+.input-status {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.input-status.show {
+    opacity: 1;
+}
+
+.input-status .loading-spinner-sm {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(37, 99, 235, 0.2);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spinner 0.7s linear infinite;
+    display: block;
+}
+
+.input-status .icon-svg {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+}
+
+.input-status.success .icon-svg {
+    color: var(--success);
+}
+
+.input-status.error .icon-svg {
+    color: var(--danger);
+}
+
+/* ============================================
+   FORM CONTROL STATE
+   ============================================ */
+.form-control.invalid {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+[data-theme="dark"] .form-control.invalid {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.form-control.valid {
+    border-color: var(--success);
+}
+
+/* ============================================
+   FORM HINT
+   ============================================ */
+.form-hint {
+    font-size: 0.75rem;
+    color: var(--text-gray);
+    margin-top: 6px;
+    min-height: 16px;
+    line-height: 1.4;
+    transition: color 0.2s ease;
+}
+
+.form-hint.error {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.form-hint.success {
+    color: var(--success);
+    font-weight: 600;
+}
+
+/* ============================================
+   TERMS BOX
+   ============================================ */
+.terms-group {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+        max-height 0.4s cubic-bezier(.2,.8,.2,1),
+        opacity 0.3s ease,
+        margin 0.3s ease;
+}
+
+.terms-group.visible {
+    max-height: 300px;
+    opacity: 1;
+    margin-bottom: 18px;
+}
+
+.terms-box {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+    background: var(--bg-light);
+    border: 2px solid var(--border-dark);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.15s;
+    box-shadow: 3px 3px 0px var(--shadow-color);
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+[data-theme="dark"] .terms-box {
+    background: rgba(15, 23, 42, 0.4);
+}
+
+.terms-box:hover {
+    background: var(--primary-light);
+}
+
+.terms-box:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--shadow-color);
+}
+
+.terms-box input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    accent-color: var(--primary);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.terms-text {
+    font-size: 0.82rem;
+    color: var(--text-dark);
+    line-height: 1.55;
+    font-weight: 500;
+}
+
+.terms-text a {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.terms-text a:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   OPTIONAL LABEL (di label form)
+   ============================================ */
+.form-label .label-optional {
+    font-weight: 500;
+    color: var(--text-gray);
+    font-size: 0.8em;
+}
+
+/* ============================================
+   RESPONSIVE — Mobile adjustments
+   ============================================ */
+@media (max-width: 700px) {
+    .steps {
+        gap: 4px;
+        margin-bottom: 20px;
+    }
+    .step-dot {
+        width: 24px;
+        height: 24px;
+        font-size: 0.68rem;
+    }
+    .step-line {
+        min-width: 8px;
+    }
+}
+
+@media (max-width: 400px) {
+    .step-dot {
+        width: 22px;
+        height: 22px;
+        font-size: 0.62rem;
+    }
+    .terms-box {
+        padding: 12px;
+        gap: 8px;
+    }
+    .terms-text {
+        font-size: 0.78rem;
+    }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .step-dot,
+    .step-line,
+    .form-group,
+    .terms-group,
+    .terms-box {
+        transition-duration: 0.01ms !important;
+    }
+}
