@@ -3,17 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="index, follow, max-image-preview:large">
+    <meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi digital.">
     <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
     <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
-<link rel="stylesheet" href="/css/layout.css">
-<link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: Anti-FOUC theme + Anti-iframe (jalan paling awal) -->
+    <script>
+        // Theme sebelum render (cegah flash)
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+
+        // Anti-iframe (clickjacking protection)
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+        }
+    </script>
+
     <style>
         /* ===== RESET & VARIABLES ===== */
         * {
@@ -33,16 +55,38 @@
             --text-gray: #64748b;
             --bg-light: #f8fafc;
             --bg-white: #ffffff;
+            --bg-card: #ffffff;
             --border: #e2e8f0;
             --border-dark: #0f172a;
             --radius: 16px;
             --radius-sm: 10px;
             --shadow-hard: 4px 4px 0px rgba(15, 23, 42, 1);
             --shadow-hard-sm: 3px 3px 0px rgba(15, 23, 42, 1);
+            --success: #22c55e;
+            color-scheme: light;
+        }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --primary-light: rgba(59, 130, 246, 0.15);
+            --primary-dark: #2563eb;
+            --primary-darker: #1e40af;
+            --text-dark: #f1f5f9;
+            --text-gray: #94a3b8;
+            --bg-light: #0f172a;
+            --bg-white: #1e293b;
+            --bg-card: #1e293b;
+            --border: #334155;
+            --border-dark: #475569;
+            --shadow-hard: 4px 4px 0px rgba(0, 0, 0, 0.5);
+            --shadow-hard-sm: 3px 3px 0px rgba(0, 0, 0, 0.5);
+            color-scheme: dark;
         }
 
         html {
             scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+            overscroll-behavior-y: none;
         }
 
         body {
@@ -50,8 +94,39 @@
             background-color: var(--bg-light);
             color: var(--text-dark);
             line-height: 1.6;
-            overflow-x: hidden;
+            overflow-x: clip;
             position: relative;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* 🔒 ANTI-LEAK: block select & drag global */
+        body,
+        body * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        /* Kecuali input */
+        input, textarea, select, code, [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+        }
+
+        /* Block drag untuk image & svg */
+        img, svg {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            user-drag: none;
+        }
+
+        a img, a svg, button img, button svg {
+            pointer-events: auto;
         }
 
         /* ===== CONTAINER ===== */
@@ -75,12 +150,55 @@
             stroke-linecap: round;
             stroke-linejoin: round;
             flex-shrink: 0;
+            pointer-events: none;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .icon-svg.fill {
             fill: currentColor;
             stroke: none;
         }
+
+        /* ===== THEME TOGGLE (fixed kanan atas) ===== */
+        .theme-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-hard-sm);
+            transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+            z-index: 200;
+            padding: 0;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .theme-toggle:hover {
+            background: var(--primary);
+            color: white;
+            box-shadow: var(--shadow-hard);
+        }
+
+        .theme-toggle:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 2px;
+        }
+
+        .theme-toggle .icon-svg { width: 20px; height: 20px; }
+        .theme-toggle .sun-icon { display: block; }
+        .theme-toggle .moon-icon { display: none; }
+        [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
+        [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
 
         /* ===== NAVBAR ===== */
         nav {
@@ -91,6 +209,16 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+
+        [data-theme="dark"] nav {
+            background: rgba(30, 41, 59, 0.85);
+        }
+
+        @supports not (backdrop-filter: blur(12px)) {
+            nav {
+                background: var(--bg-white);
+            }
         }
 
         .nav-inner {
@@ -110,7 +238,6 @@
             text-decoration: none;
         }
 
-        /* Logo huruf "A" — biru gradient, gaya Artapedia */
         .logo-icon {
             width: 40px;
             height: 40px;
@@ -130,6 +257,8 @@
             padding-bottom: 2px;
             transform: rotate(-3deg);
             transition: transform 0.2s;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .logo:hover .logo-icon {
@@ -141,14 +270,13 @@
             letter-spacing: -0.02em;
         }
 
-        .logo-text span {
-            color: var(--primary);
-        }
+        .logo-text span { color: var(--primary); }
 
         .nav-links {
             display: flex;
             gap: 32px;
             list-style: none;
+            margin-right: 60px; /* space untuk theme toggle */
         }
 
         .nav-links a {
@@ -160,9 +288,7 @@
             position: relative;
         }
 
-        .nav-links a:hover {
-            color: var(--primary);
-        }
+        .nav-links a:hover { color: var(--primary); }
 
         .nav-links a::after {
             content: '';
@@ -175,9 +301,7 @@
             transition: width 0.25s;
         }
 
-        .nav-links a:hover::after {
-            width: 100%;
-        }
+        .nav-links a:hover::after { width: 100%; }
 
         /* ===== HERO ===== */
         .hero {
@@ -187,7 +311,6 @@
             overflow: hidden;
         }
 
-        /* Sunburst tipis — pakai repeating-conic-gradient + mask radial */
         .hero::before {
             content: '';
             position: absolute;
@@ -262,6 +385,11 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            color: var(--primary);
+        }
+
+        @supports (-webkit-background-clip: text) or (background-clip: text) {
+            .hero h1 span { color: transparent; }
         }
 
         .hero p {
@@ -278,9 +406,8 @@
             flex-wrap: wrap;
         }
 
-        .btn-primary {
-            background: var(--primary);
-            color: white;
+        .btn-primary,
+        .btn-outline {
             padding: 14px 30px;
             border-radius: 50px;
             text-decoration: none;
@@ -288,15 +415,19 @@
             font-size: 1rem;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            transition: all 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
             display: inline-flex;
             align-items: center;
             gap: 10px;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .btn-primary .icon-svg {
-            width: 18px;
-            height: 18px;
+        .btn-primary {
+            background: var(--primary);
+            color: white;
         }
 
         .btn-primary:hover {
@@ -311,24 +442,9 @@
         }
 
         .btn-outline {
-            background: white;
+            background: var(--bg-white);
             color: var(--text-dark);
-            padding: 14px 30px;
-            border-radius: 50px;
-            text-decoration: none;
             font-weight: 600;
-            font-size: 1rem;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard);
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .btn-outline .icon-svg {
-            width: 18px;
-            height: 18px;
         }
 
         .btn-outline:hover {
@@ -342,10 +458,20 @@
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
 
-        /* ===== CONTACT CARDS ===== */
-        .contact-section {
-            padding: 0 0 90px;
+        .btn-primary .icon-svg,
+        .btn-outline .icon-svg {
+            width: 18px;
+            height: 18px;
         }
+
+        .btn-primary:focus-visible,
+        .btn-outline:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 3px;
+        }
+
+        /* ===== CONTACT CARDS ===== */
+        .contact-section { padding: 0 0 90px; }
 
         .contact-grid {
             display: grid;
@@ -356,19 +482,22 @@
         }
 
         .contact-card {
-            background: white;
+            background: var(--bg-white);
             border-radius: var(--radius);
             padding: 32px 28px;
             text-align: center;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            transition: all 0.25s;
+            transition: transform 0.25s, box-shadow 0.25s, background-color 0.25s;
             text-decoration: none;
             color: inherit;
             display: block;
             position: relative;
             overflow: hidden;
             isolation: isolate;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .contact-card .glow {
@@ -393,9 +522,7 @@
             background: radial-gradient(circle, rgba(37, 211, 102, 0.3) 0%, transparent 70%);
         }
 
-        .contact-card:hover .glow {
-            opacity: 1;
-        }
+        .contact-card:hover .glow { opacity: 1; }
 
         .contact-card::before {
             content: '';
@@ -408,17 +535,17 @@
             z-index: 1;
         }
 
-        .contact-card.telegram-card::before {
-            background: var(--telegram);
-        }
-
-        .contact-card.whatsapp-card::before {
-            background: var(--whatsapp);
-        }
+        .contact-card.telegram-card::before { background: var(--telegram); }
+        .contact-card.whatsapp-card::before { background: var(--whatsapp); }
 
         .contact-card:hover {
             transform: translate(-3px, -3px);
             box-shadow: 7px 7px 0px rgba(15, 23, 42, 1);
+        }
+
+        .contact-card:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: 3px;
         }
 
         .contact-icon {
@@ -435,20 +562,13 @@
             z-index: 1;
         }
 
-        .contact-icon.telegram {
-            background: #e8f4fd;
-            color: var(--telegram);
-        }
+        .contact-icon.telegram { background: #e8f4fd; color: var(--telegram); }
+        .contact-icon.whatsapp { background: #e8f9ee; color: var(--whatsapp); }
 
-        .contact-icon.whatsapp {
-            background: #e8f9ee;
-            color: var(--whatsapp);
-        }
+        [data-theme="dark"] .contact-icon.telegram { background: rgba(34, 158, 217, 0.15); }
+        [data-theme="dark"] .contact-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
 
-        .contact-icon .icon-svg {
-            width: 30px;
-            height: 30px;
-        }
+        .contact-icon .icon-svg { width: 30px; height: 30px; }
 
         .contact-card h3 {
             font-size: 1.15rem;
@@ -476,29 +596,20 @@
             border-radius: 50px;
             font-size: 0.85rem;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
             border: 2px solid var(--border-dark);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
             position: relative;
             z-index: 1;
+            pointer-events: none;
         }
 
-        .contact-btn .icon-svg {
-            width: 14px;
-            height: 14px;
-        }
+        .contact-btn .icon-svg { width: 14px; height: 14px; }
 
-        .contact-btn.telegram {
-            background: var(--telegram);
-            color: white;
-        }
+        .contact-btn.telegram { background: var(--telegram); color: white; }
+        .contact-btn.whatsapp { background: var(--whatsapp); color: white; }
 
-        .contact-btn.whatsapp {
-            background: var(--whatsapp);
-            color: white;
-        }
-
-        .contact-btn:hover {
+        .contact-card:hover .contact-btn {
             transform: translate(-1px, -1px);
             box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
         }
@@ -506,7 +617,7 @@
         /* ===== FEATURES ===== */
         .features {
             padding: 90px 0;
-            background: white;
+            background: var(--bg-white);
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
             position: relative;
@@ -560,11 +671,13 @@
             border-radius: var(--radius);
             padding: 32px 28px;
             border: 2px solid var(--border-dark);
-            transition: all 0.25s;
+            transition: transform 0.25s, box-shadow 0.25s, background-color 0.25s;
             box-shadow: var(--shadow-hard-sm);
             position: relative;
             overflow: hidden;
             isolation: isolate;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .feature-card .glow {
@@ -581,12 +694,10 @@
             filter: blur(20px);
         }
 
-        .feature-card:hover .glow {
-            opacity: 1;
-        }
+        .feature-card:hover .glow { opacity: 1; }
 
         .feature-card:hover {
-            background: white;
+            background: var(--bg-white);
             transform: translate(-3px, -3px);
             box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
         }
@@ -607,10 +718,7 @@
             z-index: 1;
         }
 
-        .feature-icon .icon-svg {
-            width: 24px;
-            height: 24px;
-        }
+        .feature-icon .icon-svg { width: 24px; height: 24px; }
 
         .feature-card h3 {
             font-size: 1.05rem;
@@ -629,10 +737,7 @@
         }
 
         /* ===== STEPS ===== */
-        .steps {
-            padding: 90px 0;
-            position: relative;
-        }
+        .steps { padding: 90px 0; position: relative; }
 
         .steps-grid {
             display: grid;
@@ -643,6 +748,8 @@
         .step-card {
             text-align: center;
             position: relative;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .step-number {
@@ -676,7 +783,7 @@
         /* ===== FAQ ===== */
         .faq {
             padding: 90px 0;
-            background: white;
+            background: var(--bg-white);
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
             position: relative;
@@ -697,8 +804,8 @@
             border-radius: var(--radius-sm);
             margin-bottom: 12px;
             overflow: hidden;
-            transition: all 0.2s;
-            background: white;
+            transition: transform 0.2s, box-shadow 0.2s;
+            background: var(--bg-white);
             box-shadow: var(--shadow-hard-sm);
         }
 
@@ -722,6 +829,13 @@
             justify-content: space-between;
             align-items: center;
             gap: 16px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .faq-question:focus-visible {
+            outline: 3px solid var(--primary);
+            outline-offset: -3px;
         }
 
         .faq-question .icon-plus {
@@ -730,6 +844,7 @@
             color: var(--primary);
             transition: transform 0.3s;
             flex-shrink: 0;
+            pointer-events: none;
         }
 
         .faq-item.active .faq-question .icon-plus {
@@ -763,6 +878,11 @@
             border-top: 2px solid var(--border-dark);
         }
 
+        [data-theme="dark"] footer {
+            background: #020617;
+            color: #94a3b8;
+        }
+
         .footer-inner {
             display: flex;
             justify-content: space-between;
@@ -778,6 +898,8 @@
             color: white;
             font-weight: 700;
             font-size: 1.1rem;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
         .footer-logo .logo-icon {
@@ -800,9 +922,7 @@
             transition: color 0.2s;
         }
 
-        .footer-links a:hover {
-            color: white;
-        }
+        .footer-links a:hover { color: white; }
 
         .footer-copy {
             text-align: center;
@@ -818,60 +938,126 @@
             font-weight: 600;
         }
 
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-            }
+        /* ===== DEVTOOLS WARNING OVERLAY ===== */
+        #devtoolsOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            z-index: 999998;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+        }
 
-            .hero h1 {
-                font-size: 2rem;
-            }
+        #devtoolsOverlay.show { display: flex; }
 
-            .hero p {
-                font-size: 1rem;
-            }
+        #devtoolsOverlay .warn-box {
+            background: var(--bg-card);
+            border: 3px solid var(--border-dark);
+            border-radius: 20px;
+            padding: 40px 32px;
+            max-width: 420px;
+            box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
+        }
 
-            .contact-grid {
-                grid-template-columns: 1fr;
-            }
+        #devtoolsOverlay h2 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+            color: #dc2626;
+        }
 
-            .features-grid {
-                grid-template-columns: 1fr;
-            }
+        #devtoolsOverlay p {
+            color: var(--text-gray);
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
 
-            .steps-grid {
-                grid-template-columns: 1fr 1fr;
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body {
+                display: none !important;
+                visibility: hidden !important;
             }
-
-            .footer-inner {
-                flex-direction: column;
+            body::after {
+                content: '⚠️ Halaman ini tidak dapat dicetak / disimpan.';
+                display: block !important;
+                visibility: visible !important;
+                position: fixed;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: system-ui, sans-serif;
+                font-size: 1.2rem;
+                color: #dc2626;
                 text-align: center;
-            }
-
-            .section-header h2 {
-                font-size: 1.7rem;
+                padding: 20px;
+                background: white;
             }
         }
 
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+
+            .theme-toggle {
+                top: 16px;
+                right: 16px;
+                width: 40px;
+                height: 40px;
+            }
+
+            .hero h1 { font-size: 2rem; }
+            .hero p { font-size: 1rem; }
+            .contact-grid { grid-template-columns: 1fr; }
+            .features-grid { grid-template-columns: 1fr; }
+            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .footer-inner { flex-direction: column; text-align: center; }
+            .section-header h2 { font-size: 1.7rem; }
+        }
+
         @media (max-width: 480px) {
-            .steps-grid {
-                grid-template-columns: 1fr;
-            }
+            .steps-grid { grid-template-columns: 1fr; }
+            .hero-buttons { flex-direction: column; align-items: center; }
+            .btn-primary, .btn-outline { width: 100%; justify-content: center; }
+        }
 
-            .hero-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-
-            .btn-primary, .btn-outline {
-                width: 100%;
-                justify-content: center;
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
             }
         }
     </style>
 </head>
 <body>
+
+    <!-- 🔒 DevTools warning overlay -->
+    <div id="devtoolsOverlay">
+        <div class="warn-box">
+            <h2>⚠️ Akses Dibatasi</h2>
+            <p>Tolong tutup Developer Tools untuk melanjutkan. Halaman ini dilindungi demi keamanan.</p>
+        </div>
+    </div>
+
+    <!-- ===== THEME TOGGLE ===== -->
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
+        <svg class="icon-svg sun-icon" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="4"/>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+        </svg>
+        <svg class="icon-svg moon-icon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
 
     <!-- ===== NAVBAR ===== -->
     <nav>
@@ -899,15 +1085,15 @@
             <h1>Digital Mudah,<br><span>Tanpa Perlu Ribet</span></h1>
             <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
             <div class="hero-buttons">
-               <a href="/dashboard" class="btn-primary">
-    <svg class="icon-svg" viewBox="0 0 24 24">
-        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-    </svg>
-    Mulai Sekarang
-</a>
+                <a href="/dashboard" class="btn-primary">
+                    <svg class="icon-svg" viewBox="0 0 24 24">
+                        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+                    </svg>
+                    Mulai Sekarang
+                </a>
                 <a href="#cara-kerja" class="btn-outline">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                     Cara Kerja
@@ -920,8 +1106,7 @@
     <section class="contact-section">
         <div class="container">
             <div class="contact-grid">
-                <!-- Telegram -->
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener" class="contact-card telegram-card">
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="contact-card telegram-card">
                     <div class="glow"></div>
                     <div class="contact-icon telegram">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
@@ -934,8 +1119,7 @@
                     </span>
                 </a>
 
-                <!-- WhatsApp -->
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener" class="contact-card whatsapp-card">
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="contact-card whatsapp-card">
                     <div class="glow"></div>
                     <div class="contact-icon whatsapp">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1031,7 +1215,7 @@
             </div>
             <div class="faq-list">
                 <div class="faq-item">
-                    <button class="faq-question">
+                    <button class="faq-question" type="button">
                         Untuk apa ini?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
@@ -1042,7 +1226,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <button class="faq-question">
+                    <button class="faq-question" type="button">
                         Bagaimana proses top-up dan keamanan saldo?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
@@ -1053,7 +1237,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <button class="faq-question">
+                    <button class="faq-question" type="button">
                         Saldo tidak bertambah meskipun pembayaran sudah berhasil?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
@@ -1064,7 +1248,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <button class="faq-question">
+                    <button class="faq-question" type="button">
                         Pesanan gagal, apakah saldo tetap terpotong?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
@@ -1075,7 +1259,7 @@
                     </div>
                 </div>
                 <div class="faq-item">
-                    <button class="faq-question">
+                    <button class="faq-question" type="button">
                         Apakah layanan ini terpercaya?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     </button>
@@ -1105,34 +1289,151 @@
                 </ul>
             </div>
             <div class="footer-copy">
-                &copy; 2025 AsyrofOTP. All rights reserved. | Support via 
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener" style="color: #229ED9;">Telegram</a> & 
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener" style="color: #25D366;">WhatsApp</a>
+                &copy; 2025 AsyrofOTP. All rights reserved. | Support via
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" style="color: #229ED9;">Telegram</a> &
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" style="color: #25D366;">WhatsApp</a>
             </div>
         </div>
     </footer>
 
-    <!-- ===== SCRIPT ===== -->
-    <script>
-        // ===== FAQ ACCORDION =====
-        document.querySelectorAll('.faq-question').forEach(button => {
-            button.addEventListener('click', () => {
-                const item = button.parentElement;
-                const isActive = item.classList.contains('active');
-                
-                document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-                
-                if (!isActive) {
-                    item.classList.add('active');
-                }
-            });
-        });
+    <script src="/js/cache.js"></script>
 
-        // ===== PARALLAX GLOW (Mouse + Gyroscope) =====
+    <script>
+        /* ============================================
+           🔒 SECURITY HARDENING — Frontend
+           ============================================ */
+
+        // 1. Console warning
         (function() {
+            const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+            const styleSub = 'color:#64748b;font-size:12px;';
+            try {
+                console.log('%c⚠️ STOP!', style);
+                console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+                console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+            } catch (e) {}
+        })();
+
+        // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U/S/P
+        (function() {
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            document.addEventListener('keydown', (e) => {
+                const k = e.key;
+                if (k === 'F12') { e.preventDefault(); return false; }
+                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) {
+                    e.preventDefault(); return false;
+                }
+                if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) {
+                    e.preventDefault(); return false;
+                }
+            }, true);
+        })();
+
+        // 3. Deteksi DevTools terbuka
+        (function() {
+            let devtoolsOpen = false;
+            const overlay = document.getElementById('devtoolsOverlay');
+            const threshold = 160;
+
+            function check() {
+                const widthDiff = window.outerWidth - window.innerWidth > threshold;
+                const heightDiff = window.outerHeight - window.innerHeight > threshold;
+                const isOpen = widthDiff || heightDiff;
+
+                if (isOpen !== devtoolsOpen) {
+                    devtoolsOpen = isOpen;
+                    if (isOpen) overlay.classList.add('show');
+                    else overlay.classList.remove('show');
+                }
+            }
+
+            setInterval(check, 1000);
+        })();
+
+        // 4. Anti-copy di area non-input
+        (function() {
+            document.addEventListener('copy', (e) => {
+                const target = e.target;
+                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                    return; // biarkan copy di input
+                }
+                e.preventDefault();
+            });
+
+            document.addEventListener('cut', (e) => {
+                const target = e.target;
+                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+                    return;
+                }
+                e.preventDefault();
+            });
+        })();
+
+        // 5. Auto-redirect kalau sudah login
+        (async function checkAlreadyLoggedIn() {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                const res = await fetch('/api/user', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    signal: controller.signal,
+                });
+                clearTimeout(timeout);
+
+                if (res.ok) {
+                    window.location.replace('/dashboard');
+                    return;
+                }
+
+                if (res.status === 401 || res.status === 403) {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('user');
+                }
+            } catch (err) {
+                // silent
+            }
+        })();
+
+        // 6. Theme toggle
+        (function initTheme() {
+            const btn = document.getElementById('themeToggle');
+            if (!btn) return;
+            btn.addEventListener('click', () => {
+                const current = document.documentElement.getAttribute('data-theme') || 'light';
+                const next = current === 'dark' ? 'light' : 'dark';
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('asyrofotp_theme', next);
+                const meta = document.querySelector('meta[name="theme-color"]');
+                if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+            });
+        })();
+
+        // 7. FAQ accordion
+        (function initFaq() {
+            document.querySelectorAll('.faq-question').forEach(button => {
+                button.addEventListener('click', () => {
+                    const item = button.parentElement;
+                    const isActive = item.classList.contains('active');
+
+                    document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+
+                    if (!isActive) item.classList.add('active');
+                });
+            });
+        })();
+
+        // 8. Parallax glow (mouse + gyro) — cuma kalau bukan reduced-motion
+        (function initParallax() {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                return;
+            }
+
             const cards = document.querySelectorAll('.contact-card, .feature-card');
-            
-            // Desktop: Mouse move
+
             cards.forEach(card => {
                 card.addEventListener('mousemove', (e) => {
                     const rect = card.getBoundingClientRect();
@@ -1145,54 +1446,47 @@
                         glow.style.opacity = '1';
                     }
                 });
-                
+
                 card.addEventListener('mouseleave', () => {
                     const glow = card.querySelector('.glow');
                     if (glow) glow.style.opacity = '0';
                 });
             });
 
-            // Mobile: Gyroscope (device orientation)
             let lastX = 0, lastY = 0;
-            
+
             function handleOrientation(event) {
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
-                
+
                 const normX = Math.max(-1, Math.min(1, gamma / 45));
                 const normY = Math.max(-1, Math.min(1, (beta - 45) / 45));
-                
+
                 lastX += (normX - lastX) * 0.1;
                 lastY += (normY - lastY) * 0.1;
-                
+
                 cards.forEach(card => {
                     const glow = card.querySelector('.glow');
                     if (!glow) return;
-                    
+
                     const rect = card.getBoundingClientRect();
                     const centerX = rect.width / 2;
                     const centerY = rect.height / 2;
-                    
+
                     const offsetX = lastX * (rect.width * 0.4);
                     const offsetY = lastY * (rect.height * 0.4);
-                    
+
                     glow.style.left = (centerX + offsetX) + 'px';
                     glow.style.top = (centerY + offsetY) + 'px';
                     glow.style.opacity = '0.8';
                 });
             }
-            
+
             if (window.DeviceOrientationEvent) {
-                if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                } else {
-                    window.addEventListener('deviceorientation', handleOrientation);
-                }
+                window.addEventListener('deviceorientation', handleOrientation);
             }
         })();
     </script>
-
-    <script src="/js/cache.js"></script>
 
 </body>
 </html>
