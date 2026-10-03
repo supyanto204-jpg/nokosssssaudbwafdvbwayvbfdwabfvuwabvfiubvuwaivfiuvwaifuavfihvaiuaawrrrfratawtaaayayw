@@ -1,5 +1,5 @@
 /* ============================================
-   LOGIN PAGE
+   LOGIN PAGE v2 — Sticker + Aurora + Fake Error
    ============================================ */
 
 :root {
@@ -68,86 +68,216 @@ img, svg {
     user-drag: none;
 }
 
-/* ===== CONIC PATTERN BG ===== */
-body::before {
-    content: '';
-    position: fixed;
-    top: 50%; left: 50%;
-    width: 160vmax;
-    height: 160vmax;
-    transform: translate3d(-50%, -50%, 0);
-    background: repeating-conic-gradient(
-        from 0deg,
-        rgba(37, 99, 235, 0.06) 0deg 10deg,
-        transparent 10deg 20deg
-    );
-    -webkit-mask-image: radial-gradient(circle, black 0%, transparent 60%);
-    mask-image: radial-gradient(circle, black 0%, transparent 60%);
-    animation: spin 60s linear infinite;
-    z-index: 0;
-    pointer-events: none;
-    will-change: transform;
-}
-[data-theme="dark"] body::before {
-    background: repeating-conic-gradient(
-        from 0deg,
-        rgba(59, 130, 246, 0.08) 0deg 10deg,
-        transparent 10deg 20deg
-    );
-}
-@keyframes spin {
-    from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
-    to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
-}
-
-/* ===== CURSOR GRID BG ===== */
-.cursor-grid-bg {
+/* ============================================
+   AURORA BG
+   ============================================ */
+.aurora-bg {
     position: fixed;
     inset: 0;
     z-index: 0;
-    width: 100%;
-    height: 100%;
     pointer-events: none;
     opacity: 0.7;
 }
 
-/* ===== CONTAINER ===== */
+[data-theme="dark"] .aurora-bg { opacity: 0.55; }
+
+.aurora-bg canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+/* Fallback kalau WebGL gagal */
+.aurora-bg.aurora-fallback {
+    background:
+        radial-gradient(circle at 20% 20%, rgba(82, 39, 255, 0.35) 0%, transparent 50%),
+        radial-gradient(circle at 80% 30%, rgba(124, 255, 103, 0.25) 0%, transparent 50%),
+        radial-gradient(circle at 50% 80%, rgba(255, 148, 180, 0.3) 0%, transparent 50%);
+    animation: auroraFallbackDrift 12s ease-in-out infinite;
+}
+
+@keyframes auroraFallbackDrift {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(2%, -2%) scale(1.05); }
+    66% { transform: translate(-2%, 2%) scale(0.95); }
+}
+
+/* ============================================
+   CONTAINER
+   ============================================ */
 .auth-container {
     width: 100%;
     max-width: 440px;
     position: relative;
     z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.auth-logo {
+/* ============================================
+   STICKER LOGO
+   ============================================ */
+.sticker-wrapper {
+    position: relative;
+    width: 100%;
+    height: 140px;
+    margin-bottom: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 12px;
-    margin-bottom: 28px;
+    touch-action: none;
+}
+
+.sticker-link {
+    display: block;
     text-decoration: none;
-    color: var(--text-dark);
+    cursor: grab;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+}
+
+.sticker-link:active { cursor: grabbing; }
+
+.sticker-container {
+    position: relative;
+    --sticker-rotate: 15deg;
+    --sticker-p: 10px;
+    --sticker-peelback-hover: 30%;
+    --sticker-peelback-active: 45%;
+    --sticker-start: calc(-1 * var(--sticker-p));
+    --sticker-end: calc(100% + var(--sticker-p));
+    --sticker-width: 90px;
+    --peel-direction: 0deg;
+    transform: rotate(var(--peel-direction));
+    transform-origin: center;
+}
+
+.sticker-container * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.sticker-main {
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-start),
+        var(--sticker-end) var(--sticker-start),
+        var(--sticker-end) var(--sticker-end),
+        var(--sticker-start) var(--sticker-end)
+    );
+    transition: clip-path 0.5s ease-out;
+    filter: url(#dropShadow);
+}
+
+.sticker-main > * {
+    transform: rotate(calc(-1 * var(--peel-direction)));
+}
+
+.sticker-lighting {
+    filter: url(#pointLight);
+}
+
+.sticker-container:hover .sticker-main,
+.sticker-container.touch-active .sticker-main {
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-peelback-hover),
+        var(--sticker-end) var(--sticker-peelback-hover),
+        var(--sticker-end) var(--sticker-end),
+        var(--sticker-start) var(--sticker-end)
+    );
+}
+
+.sticker-container:active .sticker-main {
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-peelback-active),
+        var(--sticker-end) var(--sticker-peelback-active),
+        var(--sticker-end) var(--sticker-end),
+        var(--sticker-start) var(--sticker-end)
+    );
+}
+
+.sticker-image {
+    transform: rotate(var(--sticker-rotate));
+    width: var(--sticker-width);
+    height: auto;
+    display: block;
+}
+
+.flap {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    left: 0;
+    top: calc(-100% - var(--sticker-p) - var(--sticker-p));
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-start),
+        var(--sticker-end) var(--sticker-start),
+        var(--sticker-end) var(--sticker-start),
+        var(--sticker-start) var(--sticker-start)
+    );
+    transform: scaleY(-1);
+    transition: all 0.5s ease-out;
+    pointer-events: none;
+}
+
+.flap > * {
+    transform: rotate(calc(-1 * var(--peel-direction)));
+}
+
+.sticker-container:hover .flap,
+.sticker-container.touch-active .flap {
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-start),
+        var(--sticker-end) var(--sticker-start),
+        var(--sticker-end) var(--sticker-peelback-hover),
+        var(--sticker-start) var(--sticker-peelback-hover)
+    );
+    top: calc(-100% + 2 * var(--sticker-peelback-hover) - 1px);
+}
+
+.sticker-container:active .flap {
+    clip-path: polygon(
+        var(--sticker-start) var(--sticker-start),
+        var(--sticker-end) var(--sticker-start),
+        var(--sticker-end) var(--sticker-peelback-active),
+        var(--sticker-start) var(--sticker-peelback-active)
+    );
+    top: calc(-100% + 2 * var(--sticker-peelback-active) - 1px);
+}
+
+.flap-lighting { filter: url(#pointLightFlipped); }
+
+.flap-image {
+    transform: rotate(var(--sticker-rotate));
+    width: var(--sticker-width);
+    height: auto;
+    display: block;
+    filter: url(#expandAndFill);
+}
+
+/* Sticker dragging */
+.sticker-wrapper.dragging .sticker-link {
+    cursor: grabbing;
+}
+
+/* ============================================
+   LOGO TEXT
+   ============================================ */
+.logo-text-wrap {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.logo-text {
     font-weight: 900;
     font-size: 1.5rem;
+    letter-spacing: -0.02em;
+    color: var(--text-dark);
 }
 
-.auth-logo .logo-icon {
-    width: 48px;
-    height: 48px;
-    background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
-    border: 2.5px solid var(--border-dark);
-    border-radius: 14px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 900;
-    font-size: 1.8rem;
-    box-shadow: 3px 3px 0px var(--shadow-color);
-    text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
-    transform: rotate(-3deg);
-}
-.auth-logo span { color: var(--primary); }
+.logo-text span { color: var(--primary); }
 
 /* ============================================
    BORDER GLOW CARD
@@ -167,6 +297,7 @@ body::before {
     isolation: isolate;
     transform: translate3d(0, 0, 0.01px);
     display: block;
+    width: 100%;
     border: 1.5px solid var(--border-dark);
     background: var(--bg-card);
     box-shadow: 6px 6px 0px var(--shadow-color);
@@ -193,7 +324,6 @@ body::before {
     transition: opacity 0.75s ease-in-out;
 }
 
-/* Colored mesh border */
 .border-glow-card::before {
     border: 1px solid transparent;
     background:
@@ -223,7 +353,6 @@ body::before {
     );
 }
 
-/* Colored fill near edges */
 .border-glow-card::after {
     border: 1px solid transparent;
     background:
@@ -238,27 +367,16 @@ body::before {
     -webkit-mask-image:
         linear-gradient(to bottom, black, black),
         radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
-        radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
         conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
     mask-image:
         linear-gradient(to bottom, black, black),
         radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
-        radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
-        radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
         conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
-    -webkit-mask-composite: source-over;
-    mask-composite: subtract, add, add, add, add, add;
     opacity: calc(var(--fill-opacity) * (var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
     mix-blend-mode: soft-light;
     z-index: -1;
 }
 
-/* Outer glow */
 .border-glow-card > .edge-light {
     inset: calc(var(--glow-padding) * -1);
     pointer-events: none;
@@ -297,9 +415,7 @@ body::before {
     border-radius: inherit;
 }
 
-.auth-card-content {
-    padding: 32px;
-}
+.auth-card-content { padding: 32px; }
 
 .auth-card-content h1 {
     font-size: 1.5rem;
@@ -373,10 +489,7 @@ body::before {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
 }
-.eye-btn:hover {
-    background: var(--bg-light);
-    color: var(--text-dark);
-}
+.eye-btn:hover { background: var(--bg-light); color: var(--text-dark); }
 .eye-btn .icon-svg { width: 18px; height: 18px; pointer-events: none; }
 
 /* ============================================
@@ -409,15 +522,8 @@ body::before {
     transform: translate(1px, 1px);
     box-shadow: 2px 2px 0px var(--shadow-color);
 }
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-}
-.btn:focus-visible {
-    outline: 3px solid var(--primary);
-    outline-offset: 3px;
-}
+.btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+.btn:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 
 .icon-svg {
     width: 18px;
@@ -431,7 +537,7 @@ body::before {
 }
 
 /* ============================================
-   STATUS MARK (adapted dari React Bits)
+   STATUS MARK
    ============================================ */
 .status-row {
     display: flex;
@@ -444,37 +550,23 @@ body::before {
 .status-row.visible { opacity: 1; }
 
 .status-mark {
-    --sm-color: var(--text-gray);
-    --sm-done: #22c55e;
-    --sm-error: #ef4444;
-    --sm-fill: 0.08;
-    --sm-stroke: 2;
-    --sm-draw: 240ms;
-
     position: relative;
     display: inline-flex;
     align-items: center;
     gap: 10px;
     line-height: 1;
     font-size: 0.85rem;
+    color: var(--text-gray);
 }
-
 .status-mark__glyph {
     flex: none;
     overflow: visible;
-    color: var(--sm-color);
+    color: currentColor;
     transition: color 200ms ease;
 }
-
-.status-mark[data-status='running'] .status-mark__glyph {
-    color: var(--primary);
-}
-.status-mark[data-status='done'] .status-mark__glyph {
-    color: var(--sm-done);
-}
-.status-mark[data-status='failed'] .status-mark__glyph {
-    color: var(--sm-error);
-}
+.status-mark[data-status='running'] .status-mark__glyph { color: var(--primary); }
+.status-mark[data-status='done'] .status-mark__glyph { color: #22c55e; }
+.status-mark[data-status='failed'] .status-mark__glyph { color: #ef4444; }
 
 .status-mark__track {
     fill: currentColor;
@@ -484,13 +576,9 @@ body::before {
     stroke-opacity: 0;
     transition: fill-opacity 180ms ease, stroke-opacity 200ms ease;
 }
-.status-mark[data-status='running'] .status-mark__track {
-    stroke-opacity: 0.2;
-}
+.status-mark[data-status='running'] .status-mark__track { stroke-opacity: 0.2; }
 .status-mark[data-status='done'] .status-mark__track,
-.status-mark[data-status='failed'] .status-mark__track {
-    fill-opacity: var(--sm-fill);
-}
+.status-mark[data-status='failed'] .status-mark__track { fill-opacity: 0.08; }
 
 .status-mark__ring {
     fill: none;
@@ -502,9 +590,7 @@ body::before {
 }
 .status-mark[data-status='running'] .status-mark__ring,
 .status-mark[data-status='done'] .status-mark__ring,
-.status-mark[data-status='failed'] .status-mark__ring {
-    opacity: 1;
-}
+.status-mark[data-status='failed'] .status-mark__ring { opacity: 1; }
 
 .status-mark__check,
 .status-mark__cross {
@@ -522,20 +608,20 @@ body::before {
 .status-mark[data-status='failed'] .status-mark__cross {
     stroke-dashoffset: 0;
     opacity: 1;
-    transition: stroke-dashoffset var(--sm-draw) ease-out 120ms, opacity 0ms linear 120ms;
+    transition: stroke-dashoffset 240ms ease-out 120ms, opacity 0ms linear 120ms;
 }
 
 .status-mark__label {
     position: relative;
-    color: var(--sm-color);
+    color: currentColor;
     font-size: 0.85rem;
     line-height: 1.25;
     opacity: 0.65;
     transition: opacity 200ms ease;
 }
 .status-mark[data-status='running'] .status-mark__label { opacity: 1; color: var(--primary); }
-.status-mark[data-status='done'] .status-mark__label { opacity: 0.6; }
-.status-mark[data-status='failed'] .status-mark__label { opacity: 1; }
+.status-mark[data-status='done'] .status-mark__label { opacity: 0.6; color: #22c55e; }
+.status-mark[data-status='failed'] .status-mark__label { opacity: 1; color: #ef4444; }
 
 .status-mark__strike {
     position: absolute;
@@ -554,7 +640,6 @@ body::before {
     transition: transform 280ms ease-out 60ms;
 }
 
-/* Ring animation untuk status running (indeterminate) */
 @keyframes statusRingSpin {
     from { stroke-dashoffset: 0; }
     to { stroke-dashoffset: -56.5; }
@@ -609,10 +694,7 @@ body::before {
     margin-top: 16px;
     line-height: 1.5;
 }
-.recaptcha-notice a {
-    color: var(--primary);
-    text-decoration: none;
-}
+.recaptcha-notice a { color: var(--primary); text-decoration: none; }
 
 /* ============================================
    THEME TOGGLE
@@ -641,17 +723,14 @@ body::before {
     transform: translate(-2px, -2px);
     box-shadow: 5px 5px 0px var(--shadow-color);
 }
-.theme-toggle:active {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0px var(--shadow-color);
-}
+.theme-toggle:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0px var(--shadow-color); }
 .theme-toggle .icon-svg { width: 20px; height: 20px; }
 .theme-toggle .moon-icon { display: none; }
 [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
 [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
 
 /* ============================================
-   SPINNER (fallback kalau StatusMark gak jalan)
+   SPINNER
    ============================================ */
 .spinner {
     width: 16px;
@@ -677,10 +756,11 @@ body::before {
     body { padding: 16px; }
     .auth-card-content { padding: 24px 20px; }
     .border-glow-card { --glow-padding: 20px; --border-radius: 16px; }
-    .auth-logo { font-size: 1.3rem; }
-    .auth-logo .logo-icon { width: 42px; height: 42px; font-size: 1.5rem; }
+    .logo-text { font-size: 1.3rem; }
     .auth-card-content h1 { font-size: 1.3rem; }
-    .cursor-grid-bg { opacity: 0.4; }
+    .sticker-wrapper { height: 120px; }
+    .sticker-container { --sticker-width: 70px; --sticker-rotate: 12deg; }
+    .aurora-bg { opacity: 0.5; }
 }
 
 /* ============================================
@@ -692,9 +772,6 @@ body::before {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
-    body::before { animation: none; }
-    .cursor-grid-bg { display: none; }
-    .status-mark[data-status='running'] .status-mark__ring {
-        animation-duration: 2.5s;
-    }
+    .aurora-bg { opacity: 0.4; }
+    .status-mark[data-status='running'] .status-mark__ring { animation-duration: 2.5s; }
 }
