@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="noindex, nofollow">
     <title>Dashboard - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -14,12 +17,146 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + Anti-view-source + DevTools lock (jalan paling awal) -->
     <script>
+        // Safety cleanup freeze style dari page sebelumnya
         (function() {
-            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            try {
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        // Anti view-source
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
+        // Anti-FOUC theme
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // Anti-iframe (clickjacking)
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+        }
+
+        // 🔒 DevTools LOCK SCREEN
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                document.documentElement.innerHTML = '<head></head><body></body>';
+
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            html, body {
+                                margin: 0; padding: 0;
+                                background: #0f172a;
+                                overflow: auto !important;
+                                position: static !important;
+                                height: auto !important;
+                                min-height: 100vh !important;
+                                width: 100% !important;
+                            }
+                            #devtoolsLockScreen {
+                                min-height: 100vh;
+                                width: 100%;
+                                background: #0f172a;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 24px;
+                                box-sizing: border-box;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                user-select: none;
+                                -webkit-user-select: none;
+                            }
+                            #devtoolsLockScreen .lock-box {
+                                background: #1e293b;
+                                border: 3px solid #475569;
+                                border-radius: 20px;
+                                padding: 40px 32px;
+                                max-width: 440px;
+                                width: 100%;
+                                text-align: center;
+                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                                box-sizing: border-box;
+                            }
+                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
+                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
+                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
+                        </style>
+                    `;
+
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showLockScreen);
+                } else {
+                    showLockScreen();
+                }
+
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
     <style>
         .dashboard-layout,
         .dashboard-layout * {
@@ -28,16 +165,134 @@
             -ms-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
         }
 
         .dashboard-layout input,
         .dashboard-layout textarea,
         .dashboard-layout select,
-        .dashboard-layout code {
+        .dashboard-layout code,
+        .dashboard-layout [contenteditable="true"] {
             -webkit-user-select: text;
             -moz-user-select: text;
             -ms-user-select: text;
             user-select: text;
+            -webkit-touch-callout: default;
+        }
+
+        .dashboard-layout img,
+        .dashboard-layout svg {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            user-drag: none;
+        }
+
+        .dashboard-layout a img,
+        .dashboard-layout a svg,
+        .dashboard-layout button img,
+        .dashboard-layout button svg {
+            pointer-events: auto;
+        }
+
+        /* ============================================
+           REFUND NOTIFICATION
+           ============================================ */
+        .refund-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            max-width: 380px;
+            z-index: 999999;
+            background: var(--bg-card);
+            border: 2px solid var(--success);
+            border-radius: 14px;
+            box-shadow: 6px 6px 0px var(--shadow-color, rgba(15, 23, 42, 1));
+            padding: 16px 18px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            transform: translateX(calc(100% + 40px));
+            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            pointer-events: auto;
+        }
+
+        .refund-toast.show {
+            transform: translateX(0);
+        }
+
+        .refund-toast .icon-box {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--success-light, #dcfce7);
+            color: var(--success, #22c55e);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 2px solid var(--border-dark);
+        }
+
+        .refund-toast .icon-box .icon-svg { width: 18px; height: 18px; }
+
+        .refund-toast .content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .refund-toast .content .title {
+            font-size: 0.85rem;
+            font-weight: 800;
+            font-family: var(--font-display);
+            color: var(--text-dark);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .refund-toast .content .message {
+            font-size: 0.8rem;
+            color: var(--text-gray);
+            line-height: 1.5;
+            font-family: var(--font-mono);
+        }
+
+        .refund-toast .content .message strong {
+            color: var(--success);
+            font-weight: 800;
+        }
+
+        .refund-toast .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-gray);
+            cursor: pointer;
+            padding: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .refund-toast .close-btn:hover {
+            background: var(--bg-light);
+            color: var(--text-dark);
+        }
+
+        .refund-toast .close-btn .icon-svg { width: 14px; height: 14px; }
+
+        @media (max-width: 480px) {
+            .refund-toast {
+                top: 12px;
+                right: 12px;
+                left: 12px;
+                max-width: none;
+            }
         }
 
         /* ============================================
@@ -616,6 +871,20 @@
             .quick-action { padding: 10px; }
             .qa-desc { display: none; }
         }
+
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body { display: none !important; visibility: hidden !important; }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -911,16 +1180,113 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+
+    // 1. Console warning
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
+    })();
+
+    // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U/S/P
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (k === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
+
+    // 3. Anti-copy untuk non-input
+    (function() {
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+    })();
+
+    // 4. Deteksi DevTools → wipe DOM + auto reload
+    (function() {
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
+
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
+
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
+
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
+                }
+            }, 500);
+        }
+
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startDetection);
+        } else {
+            startDetection();
+        }
+    })();
+
+    // 5. Obfuscate URL di history
+    (function() {
+        try {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            if (window.location.search) {
+                history.replaceState(null, '', cleanUrl);
+            }
+        } catch (e) {}
+    })();
+
+    /* ============================================
        DASHBOARD SCRIPT
        ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
+
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
     const ICONS = {
         check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
         close: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
         info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
         warning: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+        coin: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5a3 3 0 0 0-3-1.5c-1.66 0-3 .67-3 1.5s1.34 1.5 3 1.5 3 .67 3 1.5-1.34 1.5-3 1.5a3 3 0 0 1-3-1.5"/></svg>`,
     };
 
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
@@ -961,6 +1327,122 @@
 
             overlay.classList.add('active');
         });
+    }
+
+    /* ============================================
+       REFUND TOAST NOTIFICATION
+       ============================================ */
+    function showRefundToast(totalRefund, count) {
+        // Hapus toast lama kalau ada
+        const oldToast = document.getElementById('refundToast');
+        if (oldToast) oldToast.remove();
+
+        const toast = document.createElement('div');
+        toast.id = 'refundToast';
+        toast.className = 'refund-toast';
+        toast.innerHTML = `
+            <div class="icon-box">${ICONS.coin}</div>
+            <div class="content">
+                <div class="title">Refund Diterima</div>
+                <div class="message">
+                    ${count} pesanan di-refund. Total <strong>${formatRupiah(totalRefund)}</strong> masuk ke saldo.
+                </div>
+            </div>
+            <button class="close-btn" type="button" aria-label="Tutup">
+                ${ICONS.close}
+            </button>
+        `;
+        document.body.appendChild(toast);
+
+        // Trigger animation
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => toast.classList.add('show'));
+        });
+
+        // Auto dismiss setelah 8 detik
+        const autoDismiss = setTimeout(() => dismissToast(toast), 8000);
+
+        toast.querySelector('.close-btn').addEventListener('click', () => {
+            clearTimeout(autoDismiss);
+            dismissToast(toast);
+        });
+    }
+
+    function dismissToast(toast) {
+        if (!toast || !toast.parentNode) return;
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }
+
+    /* ============================================
+       RECAPTCHA HELPER
+       ============================================ */
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (attempts >= 50) {
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
+        try {
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action })
+                        .then(resolve)
+                        .catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* ============================================
+       FETCH DENGAN RECAPTCHA
+       ============================================ */
+    async function secureFetch(url, options = {}, action = 'dashboard') {
+        const recaptchaToken = await getRecaptchaToken(action);
+
+        const headers = {
+            ...(options.headers || {}),
+            'Authorization': `Bearer ${token}`,
+        };
+
+        const body = options.body ? { ...options.body, recaptcha_token: recaptchaToken } : undefined;
+
+        // Kalau method POST/PUT/DELETE → kirim JSON body
+        if (options.method && options.method !== 'GET') {
+            headers['Content-Type'] = 'application/json';
+        }
+
+        const finalOptions = {
+            ...options,
+            headers,
+        };
+
+        if (body) {
+            finalOptions.body = JSON.stringify(body);
+        } else if (recaptchaToken) {
+            // Untuk GET, kirim token di header (opsional)
+            headers['X-Recaptcha-Token'] = recaptchaToken;
+        }
+
+        return fetch(url, finalOptions);
     }
 
     /* ===== THEME ===== */
@@ -1054,28 +1536,13 @@
 
     /* ============================================
        SERVICE NAME → ICON CODE MAPPING
-       (SAMA PERSIS kayak backend: normalizeServiceName + map dari server ekonomi)
        ============================================ */
-
-    /**
-     * Normalisasi nama service jadi key lookup.
-     * Contoh: "WhatsApp" → "whatsapp", "X (Twitter)" → "xtwitter"
-     *
-     * SAMA PERSIS dengan fungsi normalizeServiceName() di backend.
-     */
     function normalizeServiceName(name) {
         return String(name || '')
             .toLowerCase()
             .replace(/[^a-z0-9]+/g, '');
     }
 
-    /**
-     * Map: { normalized_name: "kode_huruf" }
-     * Contoh: { "whatsapp": "wa", "telegram": "tg", "instagram": "ig" }
-     *
-     * Di-load dari /api/nokos/services?server=ekonomi
-     * (server ekonomi = sumber kebenaran code huruf)
-     */
     let serviceCodeMap = null;
     let serviceCodeMapPromise = null;
 
@@ -1097,11 +1564,9 @@
                     const name = String(s.name || '').trim();
                     if (!code) continue;
 
-                    // Simpan map by name (normalized)
                     const normName = normalizeServiceName(name);
                     if (normName) map[normName] = code;
 
-                    // Simpan juga map by code itu sendiri
                     const normCode = normalizeServiceName(code);
                     if (normCode) map[normCode] = code;
                 }
@@ -1121,10 +1586,6 @@
         return serviceCodeMapPromise;
     }
 
-    /**
-     * Cari icon_code berdasarkan service_name (dari transaksi di dashboard).
-     * Pakai normalizeServiceName yang sama seperti backend.
-     */
     function resolveIconCode(serviceName) {
         if (!serviceCodeMap) return null;
         const normName = normalizeServiceName(serviceName);
@@ -1155,7 +1616,6 @@
         const name = getServiceDisplayName(tx);
         const initial = String(name).trim().charAt(0).toUpperCase() || '?';
 
-        // Resolve icon_code dari service_name (mapping sama seperti backend)
         const iconCode = resolveIconCode(name);
         const url = getAppIconUrl(iconCode);
 
@@ -1356,12 +1816,69 @@
     }
 
     /* ============================================
-       INIT — load service map DULU baru render
+       CHECK & REFUND
+       ============================================ */
+    let lastRefundCheck = 0;
+    const REFUND_CHECK_INTERVAL = 30 * 1000; // 30 detik
+
+    async function checkRefunds(silent = false) {
+        try {
+            const res = await fetch('/api/nokos/check-refunds', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            const data = await safeJson(res);
+            if (!res.ok) return;
+
+            lastRefundCheck = Date.now();
+
+            if (data.refunded && data.refunded.length > 0) {
+                const totalRefund = data.refunded.reduce((sum, r) => sum + (r.refunded_amount || 0), 0);
+                const count = data.refunded.length;
+
+                if (!silent) {
+                    // Tampilkan toast
+                    showRefundToast(totalRefund, count);
+                }
+
+                // Update saldo di UI
+                if (data.new_balance !== null && data.new_balance !== undefined) {
+                    const newBal = Number(data.new_balance);
+                    document.getElementById('userBalance').textContent = formatRupiah(newBal);
+                    document.getElementById('balancePill').textContent = formatRupiah(newBal);
+                } else {
+                    // Refresh user dari cache kalau new_balance gak ada
+                    CacheManager.remove('user_profile');
+                    swrFetch('/api/user', 'user_profile', (user) => {
+                        if (!user) return;
+                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                    });
+                }
+
+                // Refresh data dashboard (karena ada refund → status order berubah)
+                lastTransactionSig = '';
+                silentRefreshDashboard();
+            }
+        } catch (err) {
+            console.error('Check refunds error:', err);
+        }
+    }
+
+    /* ============================================
+       INIT
        ============================================ */
     (async function init() {
-        // Load service code map dulu (biar icon bisa langsung ke-render)
+        // 1. Load service code map dulu (biar icon bisa langsung ke-render)
         await getServiceCodeMap().catch(() => {});
-        // Baru fetch dashboard
+
+        // 2. Cek refund DULU (biar kalau ada refund, langsung muncul toast + saldo update)
+        await checkRefunds(false);
+
+        // 3. Baru fetch dashboard
         swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
     })();
 
@@ -1369,6 +1886,7 @@
        AUTO REFRESH — silent, gak kelap-kelip
        ============================================ */
     let dashboardInterval = null;
+    let refundInterval = null;
     let refreshing = false;
 
     async function silentRefreshDashboard() {
@@ -1403,13 +1921,25 @@
     function startAutoRefresh() {
         if (dashboardInterval) clearInterval(dashboardInterval);
         dashboardInterval = setInterval(silentRefreshDashboard, 10000);
+
+        // Cek refund tiap 30 detik (khusus, terpisah dari dashboard refresh)
+        if (refundInterval) clearInterval(refundInterval);
+        refundInterval = setInterval(() => {
+            if (!document.hidden) checkRefunds(false);
+        }, REFUND_CHECK_INTERVAL);
     }
 
     document.getElementById('refreshBtn').addEventListener('click', async function() {
         const btn = this;
         btn.classList.add('spinning');
         lastTransactionSig = '';
-        await silentRefreshDashboard();
+
+        // Refresh refund + dashboard paralel
+        await Promise.all([
+            checkRefunds(false),
+            silentRefreshDashboard(),
+        ]);
+
         setTimeout(() => btn.classList.remove('spinning'), 500);
     });
 
@@ -1440,11 +1970,18 @@
     startAutoRefresh();
 
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) silentRefreshDashboard();
+        if (!document.hidden) {
+            silentRefreshDashboard();
+            // Kalau udah lewat 30 detik, cek refund lagi
+            if (Date.now() - lastRefundCheck > REFUND_CHECK_INTERVAL) {
+                checkRefunds(false);
+            }
+        }
     });
 
     window.addEventListener('beforeunload', () => {
         if (dashboardInterval) clearInterval(dashboardInterval);
+        if (refundInterval) clearInterval(refundInterval);
     });
 </script>
 
