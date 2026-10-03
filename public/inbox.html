@@ -100,7 +100,6 @@
         }
         .inbox-tab:hover {
             color: var(--primary);
-            transform: translateY(-1px);
         }
         .inbox-tab.active {
             background: var(--bg-white);
@@ -127,7 +126,6 @@
             color: white;
         }
 
-        /* ANIMASI DIHAPUS — biar refresh gak kelap-kelip */
         @keyframes overlayReveal { from { opacity:0; } to { opacity:1; } }
         @keyframes modalReveal { from { opacity:0; transform:translateY(18px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
         .inbox-section-tag { display:inline-flex; align-items:center; gap:8px; padding:9px 14px; margin-bottom:18px; border:1px solid var(--border); border-radius:999px; background:var(--bg-card); color:var(--text-gray); font-size:.8rem; font-weight:700; }
@@ -154,7 +152,7 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             padding: 18px;
-            transition: all var(--transition);
+            transition: box-shadow var(--transition), border-color var(--transition);
             position: relative;
             overflow: hidden;
         }
@@ -174,10 +172,7 @@
 
         [data-theme="dark"] .order-card.expired::before { background: #94a3b8; }
 
-        .order-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
-        }
+        /* HAPUS: .order-card:hover transform translate — biar gak timbul saat diklik */
 
         .order-header {
             display: flex;
@@ -325,7 +320,7 @@
             align-items: center;
             justify-content: center;
             border-radius: 4px;
-            transition: all 0.15s;
+            transition: color 0.15s, background-color 0.15s;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             flex-shrink: 0;
@@ -397,7 +392,8 @@
             color: var(--text-dark);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            transition: all var(--transition);
+            /* HAPUS transform hover */
+            transition: background-color var(--transition), color var(--transition);
             flex-shrink: 0;
             position: relative;
             z-index: 1;
@@ -407,8 +403,6 @@
         .otp-copy:hover {
             background: var(--success);
             color: white;
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
         }
         .otp-copy .icon-svg { width: 18px; height: 18px; }
 
@@ -522,6 +516,13 @@
         .order-actions .btn {
             flex: 1;
             min-width: 120px;
+            /* HAPUS animasi klik di tombol */
+            transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+        }
+        /* Override btn default hover — biar gak lompat */
+        .order-actions .btn:hover,
+        .order-actions .btn:active {
+            transform: none;
         }
 
         /* ===== EMPTY & LOADING ===== */
@@ -590,7 +591,8 @@
             font-weight: 700;
             font-size: 0.85rem;
             cursor: pointer;
-            transition: all var(--transition);
+            /* HAPUS transform hover */
+            transition: background-color var(--transition), color var(--transition);
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -601,8 +603,6 @@
         .page-btn:hover:not(:disabled) {
             background: var(--primary);
             color: white;
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
         }
         .page-btn:disabled {
             opacity: 0.4;
@@ -739,7 +739,7 @@
             color: var(--text-dark);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
             flex-shrink: 0;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
@@ -843,13 +843,12 @@
             font-size: 0.72rem;
             font-weight: 800;
             cursor: pointer;
-            transition: all 0.15s;
+            transition: background-color 0.15s;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
         .detail-otp-highlight .copy-btn:hover {
-            transform: translate(-1px, -1px);
-            box-shadow: var(--shadow-hard-sm);
+            background: var(--success-dark);
         }
         .detail-otp-highlight .copy-btn .icon-svg { width: 12px; height: 12px; }
 
@@ -1609,6 +1608,30 @@
     }
 
     /* ============================================
+       COUNTDOWN — pakai deadline absolut
+       Biar refresh gak reset timer
+       ============================================ */
+    function getCountdownDeadline(orderId, expiresIn) {
+        // Simpan deadline di memory kalau belum ada
+        if (!window.__countdownDeadlines) window.__countdownDeadlines = {};
+        const now = Date.now();
+        const existing = window.__countdownDeadlines[orderId];
+
+        if (existing && existing > now) {
+            // Deadline masih valid → pakai yang lama
+            return existing;
+        }
+
+        // Kalau expiresIn > 0, bikin deadline baru
+        if (expiresIn > 0) {
+            window.__countdownDeadlines[orderId] = now + expiresIn * 1000;
+            return window.__countdownDeadlines[orderId];
+        }
+
+        return 0;
+    }
+
+    /* ============================================
        BUILD CARD HTML
        ============================================ */
     function buildOrderCardHtml(o) {
@@ -1633,9 +1656,6 @@
         const serviceDisplayName = getServiceDisplayName(o);
         const countryName = getCountryName(o);
         const expiresIn = o.expires_in !== undefined ? o.expires_in : 0;
-        const mins = Math.floor(expiresIn / 60);
-        const secs = expiresIn % 60;
-        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         const hasValidCountdown = isPending && !isConfirmed && expiresIn > 0;
         const priceIdr = Number(o.price_idr ?? o.price ?? 0);
 
@@ -1695,6 +1715,22 @@
                </div>`
             : `${infoGridHtml}${otpBoxHtml}`;
 
+        // Countdown pakai deadline absolut (biar gak reset saat refresh)
+        let countdownHtml = '';
+        if (hasValidCountdown && !hasOtp) {
+            const deadline = getCountdownDeadline(apiOrderId, expiresIn);
+            const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+            const m = Math.floor(remaining / 60);
+            const sc = remaining % 60;
+            const timeText = `${m.toString().padStart(2, '0')}:${sc.toString().padStart(2, '0')}`;
+            countdownHtml = `
+                <div class="order-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-deadline="${deadline}">
+                    ${ICONS.clock}
+                    <span class="countdown-text">${timeText}</span> tersisa
+                </div>
+            `;
+        }
+
         return `
             <div class="order-card ${s.class}"
                  data-order-id="${escapeHtml(apiOrderId)}"
@@ -1726,12 +1762,7 @@
 
                 ${bodyBlock}
 
-                ${hasValidCountdown && !hasOtp ? `
-                    <div class="order-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-expires="${expiresIn}">
-                        ${ICONS.clock}
-                        <span class="countdown-text">${timeText}</span> tersisa
-                    </div>
-                ` : ''}
+                ${countdownHtml}
 
                 ${hasOtp && o.full_sms ? `
                     <div class="sms-box">
@@ -1886,11 +1917,12 @@
 
             const existing = existingCards.get(cardKey);
 
+            // PENTING: expires_in TIDAK dimasukkan ke signature
+            // Karena countdown pakai deadline absolut, refresh gak akan ganti card
             const newSig = [
                 o.status || '',
                 (o.otp_code || '').trim(),
                 (o.phone_number || '').trim(),
-                Number(o.expires_in || 0),
                 (o.service || '').trim(),
                 (o.refunded_at || ''),
                 Number(o.refunded_amount || 0),
@@ -1898,12 +1930,10 @@
             const oldSig = existing ? existing.dataset.sig || '' : null;
 
             if (existing && oldSig === newSig) {
-                // Tidak berubah → pakai kartu lama (TIDAK ada animasi, TIDAK ada flicker)
                 fragment.appendChild(existing);
                 return;
             }
 
-            // Ada perubahan / kartu baru → replace langsung tanpa animasi
             if (existing) {
                 existing.replaceWith(newCard);
                 existingCards.delete(cardKey);
@@ -1916,6 +1946,10 @@
         existingCards.forEach((card, id) => {
             if (!newIds.has(id)) {
                 card.remove();
+                // Bersihin deadline kalau kartu hilang
+                if (window.__countdownDeadlines && window.__countdownDeadlines[id]) {
+                    delete window.__countdownDeadlines[id];
+                }
             }
         });
 
@@ -1951,29 +1985,38 @@
         startCountdowns();
     }
 
-    /* ===== COUNTDOWN ===== */
+    /* ============================================
+       COUNTDOWN — pakai deadline absolut
+       ============================================ */
     function startCountdowns() {
+        // Clear interval lama
         Object.values(state.countdownIntervals).forEach(clearInterval);
         state.countdownIntervals = {};
 
         document.querySelectorAll('.order-countdown').forEach(el => {
             const orderId = el.dataset.orderId;
-            let remaining = parseInt(el.dataset.expires || '0', 10);
+            const deadline = parseInt(el.dataset.deadline || '0', 10);
             const textEl = el.querySelector('.countdown-text');
 
-            if (remaining <= 0) {
-                el.classList.add('expired');
+            if (!deadline) {
                 if (textEl) textEl.textContent = 'EXPIRED';
+                el.classList.add('expired');
                 return;
             }
 
-            if (state.countdownIntervals[orderId]) clearInterval(state.countdownIntervals[orderId]);
-
             function tick() {
+                const now = Date.now();
+                const remaining = Math.floor((deadline - now) / 1000);
                 if (remaining <= 0) {
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
-                    clearInterval(state.countdownIntervals[orderId]);
+                    if (state.countdownIntervals[orderId]) {
+                        clearInterval(state.countdownIntervals[orderId]);
+                    }
+                    // Bersihin deadline & refresh
+                    if (window.__countdownDeadlines && window.__countdownDeadlines[orderId]) {
+                        delete window.__countdownDeadlines[orderId];
+                    }
                     setTimeout(() => {
                         invalidateInboxCache();
                         loadOrders(true);
@@ -1983,7 +2026,6 @@
                 const m = Math.floor(remaining / 60);
                 const s = remaining % 60;
                 if (textEl) textEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                remaining--;
             }
 
             tick();
