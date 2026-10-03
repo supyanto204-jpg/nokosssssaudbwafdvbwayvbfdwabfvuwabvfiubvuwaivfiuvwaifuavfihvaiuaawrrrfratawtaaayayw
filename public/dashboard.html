@@ -10,6 +10,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://assets.cindigital.id">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
@@ -115,14 +116,14 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            transition: all var(--transition);
+            transition: box-shadow var(--transition);
             position: relative;
             overflow: hidden;
         }
 
+        /* HILANGKAN transform hover */
         .stat-card:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: var(--shadow-hard-lg);
+            box-shadow: var(--shadow-hard);
         }
 
         .stat-card::before {
@@ -267,14 +268,13 @@
             border-radius: var(--radius-sm);
             border: 2px solid var(--border-dark);
             letter-spacing: 0.05em;
-            transition: all var(--transition);
+            transition: box-shadow var(--transition);
             word-break: break-all;
             display: inline-block;
         }
 
         .user-code-display:hover {
             box-shadow: var(--shadow-glow);
-            transform: scale(1.02);
         }
 
         /* ============================================
@@ -318,14 +318,14 @@
             box-shadow: var(--shadow-hard-sm);
             text-decoration: none;
             color: var(--text-dark);
-            transition: all var(--transition);
+            transition: box-shadow var(--transition), border-color var(--transition), color var(--transition);
             position: relative;
             overflow: hidden;
         }
 
+        /* HILANGKAN transform hover — cuma shadow + warna */
         .quick-action:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: var(--shadow-hard-lg);
+            box-shadow: var(--shadow-hard);
         }
 
         .quick-action .icon-box {
@@ -337,11 +337,12 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
-            transition: all var(--transition);
+            transition: box-shadow var(--transition);
         }
 
+        /* Icon rotate DIHAPUS */
         .quick-action:hover .icon-box {
-            transform: scale(1.1) rotate(5deg);
+            box-shadow: var(--shadow-hard-sm);
         }
 
         .quick-action .icon-svg { width: 20px; height: 20px; }
@@ -448,10 +449,75 @@
             padding: 14px 16px;
             border-bottom: 1px solid var(--border);
             color: var(--text-dark);
+            vertical-align: middle;
         }
 
         tbody tr:last-child td { border-bottom: none; }
-        tbody tr:hover { background: var(--primary-light); }
+
+        /* Baris transaksi bisa diklik */
+        .tx-row {
+            cursor: pointer;
+            transition: background-color var(--transition);
+        }
+        .tx-row:hover {
+            background: var(--primary-light);
+        }
+        .tx-row:active {
+            background: var(--primary-light);
+        }
+
+        /* App icon di kolom Layanan */
+        .tx-service-cell {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+        .tx-app-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--bg-white);
+            border: 2px solid var(--border-dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            overflow: hidden;
+            padding: 3px;
+            box-shadow: 1px 1px 0 rgba(15, 23, 42, 1);
+        }
+        .tx-app-icon img {
+            width: 100%; height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+        .tx-app-icon .icon-fallback {
+            font-size: 0.7rem;
+            font-weight: 900;
+            color: var(--text-dark);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+        }
+
+        /* Negara + flag */
+        .tx-country-cell {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+        .tx-flag {
+            width: 22px;
+            height: 16px;
+            border-radius: 3px;
+            border: 1.5px solid var(--border-dark);
+            box-shadow: 1px 1px 0 rgba(15, 23, 42, 0.15);
+            object-fit: cover;
+            display: block;
+            flex-shrink: 0;
+            background: var(--bg-light);
+        }
 
         .skeleton-row {
             display: flex;
@@ -539,6 +605,9 @@
 
             th { padding: 8px 10px; font-size: 0.65rem; }
             td { padding: 10px 10px; }
+
+            .tx-app-icon { width: 28px; height: 28px; border-radius: 7px; padding: 2px; }
+            .tx-flag { width: 20px; height: 14px; }
 
             .skeleton-row { padding: 10px 12px; gap: 8px; }
 
@@ -774,7 +843,7 @@
             <div class="table-card-header">
                 <div>
                     <h3>5 Transaksi Terakhir</h3>
-                    <p>Riwayat pesanan nokos kamu</p>
+                    <p>Klik baris buat lihat detail di Inbox</p>
                 </div>
                 <a href="/inbox" class="btn btn-sm">Lihat Semua</a>
             </div>
@@ -998,6 +1067,114 @@
         });
     })();
 
+    /* ============================================
+       APP ICON (assets.cindigital.id)
+       ============================================ */
+    const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
+    function getAppIconUrl(serviceCode) {
+        const code = String(serviceCode || '').trim().toLowerCase();
+        if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
+        return `${APP_CDN_BASE}/${code}.png`;
+    }
+
+    function getServiceDisplayName(tx) {
+        const name = String(tx?.service_name || '').trim();
+        if (name) return name;
+        const svc = String(tx?.service || '').trim();
+        if (svc) return svc;
+        return 'Layanan OTP';
+    }
+
+    function renderServiceIcon(tx) {
+        const code = String(tx?.service || '').trim();
+        const name = getServiceDisplayName(tx);
+        const initial = String(name).trim().charAt(0).toUpperCase() || '?';
+        const url = getAppIconUrl(code);
+        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
+                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+                <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
+    }
+
+    /* ============================================
+       FLAG
+       ============================================ */
+    function countryCodeToTwemoji(countryCode) {
+        const code = (countryCode || '').toUpperCase();
+        if (code.length !== 2) return null;
+        return code.split('').map(char => (0x1F1E6 + char.charCodeAt(0) - 65).toString(16)).join('-');
+    }
+
+    function getFlagSources(countryCode) {
+        const code = (countryCode || '').toLowerCase();
+        if (!/^[a-z]{2}$/.test(code)) return [];
+        const twemoji = countryCodeToTwemoji(countryCode);
+        return [
+            twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
+            `https://flagcdn.com/w40/${code}.png`,
+            `https://flagcdn.com/w80/${code}.png`,
+            `https://cdn.jsdelivr.net/npm/flagpack@latest/flags/4x3/${code}.svg`,
+            `https://unpkg.com/country-flag-icons@1.5.7/3x2/${code.toUpperCase()}.svg`,
+            `https://flagpedia.net/data/flags/w40/${code}.png`,
+        ].filter(Boolean);
+    }
+
+    function renderFlag(countryCode, className = 'tx-flag') {
+        const sources = getFlagSources(countryCode);
+        if (sources.length === 0) {
+            return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.55rem;font-weight:800;">${escapeHtml((countryCode || '??').toUpperCase())}</div>`;
+        }
+        const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
+        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
+    }
+
+    window.handleFlagError = function(imgEl) {
+        try {
+            const sources = JSON.parse(imgEl.dataset.sources || '[]');
+            const currentIdx = parseInt(imgEl.dataset.sourceIdx || '0', 10);
+            const nextIdx = currentIdx + 1;
+            if (nextIdx < sources.length) {
+                imgEl.dataset.sourceIdx = nextIdx.toString();
+                imgEl.src = sources[nextIdx];
+            } else {
+                const code = (imgEl.alt || '??').toUpperCase();
+                const placeholder = document.createElement('div');
+                placeholder.className = imgEl.className;
+                placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.55rem;font-weight:800;';
+                placeholder.textContent = code;
+                imgEl.replaceWith(placeholder);
+            }
+        } catch (e) {
+            imgEl.style.display = 'none';
+        }
+    };
+
+    function getCountryName(tx) {
+        const names = {
+            id:'Indonesia', ru:'Rusia', us:'Amerika Serikat', my:'Malaysia', vn:'Vietnam',
+            ph:'Filipina', th:'Thailand', sg:'Singapura', in:'India', cn:'Tiongkok',
+            jp:'Jepang', kr:'Korea Selatan', uk:'Britania Raya', gb:'Britania Raya',
+            de:'Jerman', fr:'Prancis', br:'Brasil', ng:'Nigeria', pk:'Pakistan',
+            bd:'Bangladesh', tr:'Turki', es:'Spanyol', it:'Italia', nl:'Belanda',
+            au:'Australia', ca:'Kanada', mx:'Meksiko', ar:'Argentina', za:'Afrika Selatan',
+            sa:'Arab Saudi', ae:'Uni Emirat Arab', pl:'Polandia', ua:'Ukraina',
+            ro:'Rumania', kh:'Kamboja', la:'Laos', mm:'Myanmar', tw:'Taiwan',
+            hk:'Hong Kong', nz:'Selandia Baru', ch:'Swiss', se:'Swedia', no:'Norwegia',
+            fi:'Finlandia', be:'Belgia', pt:'Portugal', eg:'Mesir', ke:'Kenya', gh:'Ghana',
+        };
+        const code = String(tx?.country || tx?.country_name || '').trim().toLowerCase();
+        const supplied = String(tx?.country_name || '').trim();
+        if (supplied && supplied.toLowerCase() !== code) return supplied;
+        if (names[code]) return names[code];
+        if (/^[a-z]{2}$/i.test(code)) {
+            try {
+                const localized = new Intl.DisplayNames(['id'], { type: 'region' }).of(code.toUpperCase());
+                return localized && localized.toLowerCase() !== code ? localized : '—';
+            } catch (_) { return '—'; }
+        }
+        return supplied || '—';
+    }
+
     /* ===== LOAD USER (SWR) ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
@@ -1014,7 +1191,11 @@
         }
     });
 
-    /* ===== LOAD DASHBOARD (SWR) ===== */
+    /* ============================================
+       RENDER DASHBOARD
+       ============================================ */
+    let lastTransactionSig = '';
+
     function renderDashboard(data) {
         if (!data) return;
 
@@ -1035,28 +1216,73 @@
                     </td>
                 </tr>
             `;
+            lastTransactionSig = '';
             return;
         }
 
+        // Signature buat cek kalau data transaksi berubah
+        const newSig = data.transactions.map(t => [
+            t.order_id || '',
+            t.status || '',
+            t.service || '',
+            t.country || '',
+            t.price || '',
+        ].join(':')).join('|');
+
+        // Kalau gak berubah, gak usah render ulang (anti kelap-kelip)
+        if (newSig === lastTransactionSig) return;
+        lastTransactionSig = newSig;
+
         const statusMap = {
             success: { class: 'success', label: 'Berhasil' },
+            received: { class: 'success', label: 'Berhasil' },
             pending: { class: 'warning', label: 'Pending' },
             failed: { class: 'danger', label: 'Gagal' },
-            expired: { class: 'gray', label: 'Expired' }
+            cancelled: { class: 'danger', label: 'Dibatalkan' },
+            expired: { class: 'gray', label: 'Expired' },
+            refunded: { class: 'purple', label: 'Refund' },
+            confirmed: { class: 'success', label: 'Sukses' },
         };
 
         tbody.innerHTML = data.transactions.map(t => {
-            const s = statusMap[t.status] || { class: 'gray', label: t.status };
+            const s = statusMap[t.status] || { class: 'gray', label: escapeHtml(t.status || '—') };
+            const countryName = getCountryName(t);
+            const orderId = String(t.order_id || '').trim();
             return `
-                <tr>
+                <tr class="tx-row"
+                    data-order-id="${escapeHtml(orderId)}"
+                    data-service="${escapeHtml(t.service || '')}"
+                    title="Klik buat lihat detail di Inbox">
                     <td>${formatTanggal(t.created_at)}</td>
-                    <td><strong>${escapeHtml(t.service_name || '—')}</strong></td>
-                    <td>${t.country_flag ? escapeHtml(t.country_flag) : ''} ${escapeHtml(t.country || '—')}</td>
+                    <td>
+                        <div class="tx-service-cell">
+                            <div class="tx-app-icon">${renderServiceIcon(t)}</div>
+                            <strong>${escapeHtml(getServiceDisplayName(t))}</strong>
+                        </div>
+                    </td>
+                    <td>
+                        <div class="tx-country-cell">
+                            ${renderFlag(t.country, 'tx-flag')}
+                            <span>${escapeHtml(countryName)}</span>
+                        </div>
+                    </td>
                     <td>${formatRupiah(t.price)}</td>
                     <td><span class="badge ${s.class}">${s.label}</span></td>
                 </tr>
             `;
         }).join('');
+
+        // Attach click handler ke tiap baris
+        tbody.querySelectorAll('.tx-row').forEach(row => {
+            row.addEventListener('click', () => {
+                const orderId = row.dataset.orderId;
+                // Simpan order id biar inbox bisa highlight (opsional)
+                if (orderId) {
+                    try { sessionStorage.setItem('highlight_order_id', orderId); } catch (_) {}
+                }
+                window.location.href = '/inbox';
+            });
+        });
     }
 
     function escapeHtml(value) {
@@ -1067,11 +1293,15 @@
 
     swrFetch('/api/dashboard', 'dashboard_data', renderDashboard);
 
-    /* ===== REFRESH ===== */
-    document.getElementById('refreshBtn').addEventListener('click', async function() {
-        const btn = this;
-        btn.classList.add('spinning');
+    /* ============================================
+       AUTO REFRESH — silent, gak kelap-kelip
+       ============================================ */
+    let dashboardInterval = null;
+    let refreshing = false;
 
+    async function silentRefreshDashboard() {
+        if (refreshing || document.hidden) return;
+        refreshing = true;
         try {
             const res = await fetch('/api/dashboard', {
                 headers: { 'Authorization': `Bearer ${token}` }
@@ -1082,6 +1312,7 @@
                 renderDashboard(data);
             }
 
+            // Update saldo juga
             const userRes = await fetch('/api/user', {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -1092,10 +1323,24 @@
                 document.getElementById('balancePill').textContent = formatRupiah(user.balance);
             }
         } catch (err) {
-            console.error('Refresh error:', err);
+            console.error('Silent refresh error:', err);
         } finally {
-            setTimeout(() => btn.classList.remove('spinning'), 500);
+            refreshing = false;
         }
+    }
+
+    function startAutoRefresh() {
+        if (dashboardInterval) clearInterval(dashboardInterval);
+        dashboardInterval = setInterval(silentRefreshDashboard, 10000);
+    }
+
+    /* ===== REFRESH BUTTON ===== */
+    document.getElementById('refreshBtn').addEventListener('click', async function() {
+        const btn = this;
+        btn.classList.add('spinning');
+        lastTransactionSig = ''; // force re-render
+        await silentRefreshDashboard();
+        setTimeout(() => btn.classList.remove('spinning'), 500);
     });
 
     /* ===== COPY USER CODE ===== */
@@ -1122,6 +1367,17 @@
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/landing';
+    });
+
+    /* ===== INIT ===== */
+    startAutoRefresh();
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) silentRefreshDashboard();
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (dashboardInterval) clearInterval(dashboardInterval);
     });
 </script>
 
