@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="noindex, nofollow">
     <title>Deposit Saldo - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -12,17 +15,151 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
-<link rel="stylesheet" href="/css/layout.css">
-<link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
+    <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + Anti-view-source + DevTools lock (jalan paling awal) -->
     <script>
+        // Safety cleanup freeze style dari page sebelumnya
         (function() {
-            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            try {
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        // Anti view-source
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
+        // Anti-FOUC theme
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
+
+        // Anti-iframe (clickjacking)
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+        }
+
+        // 🔒 DevTools LOCK SCREEN
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                document.documentElement.innerHTML = '<head></head><body></body>';
+
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            html, body {
+                                margin: 0; padding: 0;
+                                background: #0f172a;
+                                overflow: auto !important;
+                                position: static !important;
+                                height: auto !important;
+                                min-height: 100vh !important;
+                                width: 100% !important;
+                            }
+                            #devtoolsLockScreen {
+                                min-height: 100vh;
+                                width: 100%;
+                                background: #0f172a;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 24px;
+                                box-sizing: border-box;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                user-select: none;
+                                -webkit-user-select: none;
+                            }
+                            #devtoolsLockScreen .lock-box {
+                                background: #1e293b;
+                                border: 3px solid #475569;
+                                border-radius: 20px;
+                                padding: 40px 32px;
+                                max-width: 440px;
+                                width: 100%;
+                                text-align: center;
+                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                                box-sizing: border-box;
+                            }
+                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
+                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
+                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
+                        </style>
+                    `;
+
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showLockScreen);
+                } else {
+                    showLockScreen();
+                }
+
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
     <style>
         /* ============================================
-           GLOBAL ANTI-SELECT
+           GLOBAL ANTI-SELECT + ANTI-DRAG
            ============================================ */
         .dashboard-layout,
         .dashboard-layout * {
@@ -31,16 +168,36 @@
             -ms-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
         }
 
-        /* Kecuali input & textarea biar bisa diketik */
         .dashboard-layout input,
         .dashboard-layout textarea,
-        .dashboard-layout select {
+        .dashboard-layout select,
+        .dashboard-layout code,
+        .dashboard-layout [contenteditable="true"] {
             -webkit-user-select: text;
             -moz-user-select: text;
             -ms-user-select: text;
             user-select: text;
+            -webkit-touch-callout: default;
+        }
+
+        .dashboard-layout img,
+        .dashboard-layout svg {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            user-drag: none;
+        }
+
+        .dashboard-layout a img,
+        .dashboard-layout a svg,
+        .dashboard-layout button img,
+        .dashboard-layout button svg {
+            pointer-events: auto;
         }
 
         /* ============================================
@@ -117,7 +274,7 @@
             grid-template-columns: 1.5fr 1fr;
             gap: 20px;
             margin-bottom: 32px;
-            align-items: stretch; /* FIX: biar card sama tinggi */
+            align-items: stretch;
         }
 
         .deposit-card {
@@ -133,7 +290,6 @@
             flex-direction: column;
         }
 
-        /* FIX: garis retro muter — pake conic gradient yang bener */
         .deposit-card::before {
             content: '';
             position: absolute;
@@ -528,7 +684,6 @@
 
         [data-theme="dark"] .banner-icon { color: #60a5fa; }
 
-        /* Perlu Diketahui — biar ngisi ruang */
         .side-card.info-card {
             flex: 1;
             display: flex;
@@ -941,7 +1096,6 @@
             animation: gradientMove 3s linear infinite;
         }
 
-        /* FIX: qr wrapper tanpa watermark */
         .qr-wrapper {
             position: relative;
             background: white;
@@ -1034,7 +1188,6 @@
             border-top: 2px dashed var(--border);
         }
 
-        /* FIX: tombol aksi — row sejajar */
         .payment-actions {
             display: flex;
             gap: 10px;
@@ -1410,6 +1563,20 @@
             .history-meta { font-size: 0.7rem; }
             .history-amount { font-size: 0.85rem; }
         }
+
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body { display: none !important; visibility: hidden !important; }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1696,6 +1863,133 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
+    })();
+
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (k === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
+
+    (function() {
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+    })();
+
+    (function() {
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
+
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
+
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
+
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
+                }
+            }, 500);
+        }
+
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startDetection);
+        } else {
+            startDetection();
+        }
+    })();
+
+    (function() {
+        try {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            if (window.location.search) {
+                history.replaceState(null, '', cleanUrl);
+            }
+        } catch (e) {}
+    })();
+
+    /* ============================================
+       RECAPTCHA HELPER
+       ============================================ */
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (attempts >= 50) {
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
+        try {
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action })
+                        .then(resolve)
+                        .catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* ============================================
        DEPOSIT PAGE SCRIPT
        ============================================ */
 
@@ -1732,6 +2026,22 @@
         historyLimit: 5,
         expired: false,
     };
+
+    /* ============================================
+       SECURE FETCH (dengan reCAPTCHA untuk POST)
+       ============================================ */
+    async function securePost(url, body = {}, action = 'deposit') {
+        const recaptchaToken = await getRecaptchaToken(action);
+
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
+        });
+    }
 
     /* ============================================
        CUSTOM ALERT / CONFIRM
@@ -2023,7 +2333,7 @@
     });
 
     /* ============================================
-       STEP INDICATOR — ✓ buat yang done, ● buat yang aktif
+       STEP INDICATOR
        ============================================ */
     function setStep(step, expired = false) {
         ['step1', 'step2', 'step3'].forEach(id => {
@@ -2128,16 +2438,15 @@
     }
 
     async function createQrispyDeposit() {
-        const refRes = await fetch('/api/deposit/generate-ref', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        // Generate reference ID dengan reCAPTCHA
+        const refRes = await securePost('/api/deposit/generate-ref', {}, 'deposit_ref');
         const refData = await safeJson(refRes);
         if (!refRes.ok || !refData.reference_id) {
             throw new Error('Gagal generate reference ID');
         }
         const referenceId = refData.reference_id;
 
+        // Fetch ke QRISPY (external, gak pakai auth kita)
         const qrispyRes = await fetch(`${QRISPY_BASE}/api/payment/qris/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2152,21 +2461,15 @@
             throw new Error(qrispyData.message || 'Gagal membuat QRIS');
         }
 
-        const saveRes = await fetch('/api/deposit/qrispy-save', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                reference_id: referenceId,
-                amount: Number(state.amount),
-                qris_id: qrispyData.data.qris_id,
-                qris_url: qrispyData.data.qris_image_url,
-                expired_at: qrispyData.data.expired_at,
-                expires_in_seconds: qrispyData.data.expires_in_seconds,
-            })
-        });
+        // Save ke backend dengan reCAPTCHA
+        const saveRes = await securePost('/api/deposit/qrispy-save', {
+            reference_id: referenceId,
+            amount: Number(state.amount),
+            qris_id: qrispyData.data.qris_id,
+            qris_url: qrispyData.data.qris_image_url,
+            expired_at: qrispyData.data.expired_at,
+            expires_in_seconds: qrispyData.data.expires_in_seconds,
+        }, 'deposit_save');
 
         const saveData = await safeJson(saveRes);
         if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
@@ -2176,14 +2479,9 @@
     }
 
     async function createQrisDanaDeposit() {
-        const res = await fetch('/api/deposit/qris-dana', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ amount: Number(state.amount) })
-        });
+        const res = await securePost('/api/deposit/qris-dana', {
+            amount: Number(state.amount)
+        }, 'deposit_dana');
 
         const data = await safeJson(res);
         if (!res.ok) throw new Error(data.error || 'Gagal membuat QRIS DANA');
@@ -2311,7 +2609,7 @@
     }
 
     /* ============================================
-       DOWNLOAD QR — kotak 1:1, ada watermark di file
+       DOWNLOAD QR
        ============================================ */
     async function downloadQR() {
         const qrImg = document.getElementById('qrImage');
@@ -2321,7 +2619,6 @@
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
 
-            // FIX: ukuran persis kotak 1:1
             const size = 600;
             const padding = 40;
             const topSpace = 60;
@@ -2330,18 +2627,15 @@
             canvas.width = size;
             canvas.height = size;
 
-            // Background putih full
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, size, size);
 
-            // Watermark AsyrofOTP di atas (cuma di file download)
             ctx.fillStyle = '#2563eb';
             ctx.font = 'bold 24px "Bricolage Grotesque", Arial, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText('AsyrofOTP', size / 2, topSpace / 2);
 
-            // Gambar QR — posisi persis di tengah
             const img = new Image();
             img.crossOrigin = 'anonymous';
 
@@ -2356,7 +2650,6 @@
             const qrY = topSpace;
             ctx.drawImage(img, qrX, qrY, qrSize, qrSize - (bottomSpace - topSpace) / 2);
 
-            // Reference ID di bawah
             ctx.fillStyle = '#64748b';
             ctx.font = '14px "JetBrains Mono", monospace';
             ctx.textAlign = 'center';
@@ -2413,14 +2706,11 @@
                 state.deposit.total_amount = totalBayar;
                 state.deposit.fee = fee;
 
-                fetch(`/api/deposit/${referenceId}/update-fee`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ total_amount: totalBayar, fee })
-                }).catch(() => {});
+                // Update fee ke backend dengan reCAPTCHA
+                securePost(`/api/deposit/${referenceId}/update-fee`, {
+                    total_amount: totalBayar,
+                    fee
+                }, 'deposit_fee').catch(() => {});
             } else {
                 if (feeEl) feeEl.textContent = 'Rp0';
                 state.deposit.fee = 0;
@@ -2533,10 +2823,7 @@
         setStep(3, true);
 
         if (state.deposit?.reference_id) {
-            fetch(`/api/deposit/${state.deposit.reference_id}/expire`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            }).catch(() => {});
+            securePost(`/api/deposit/${state.deposit.reference_id}/expire`, {}, 'deposit_expire').catch(() => {});
         }
 
         const panelPayment = document.getElementById('panelPayment');
@@ -2575,10 +2862,7 @@
         if (!ok) return;
 
         try {
-            await fetch(`/api/deposit/${state.deposit.reference_id}/cancel`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            await securePost(`/api/deposit/${state.deposit.reference_id}/cancel`, {}, 'deposit_cancel');
         } catch (err) {}
 
         stopPolling();
@@ -2914,14 +3198,9 @@
         if (!referenceIds || referenceIds.length === 0) return;
 
         try {
-            const res = await fetch('/api/deposit/sync-batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ reference_ids: referenceIds })
-            });
+            const res = await securePost('/api/deposit/sync-batch', {
+                reference_ids: referenceIds
+            }, 'deposit_sync');
 
             const data = await safeJson(res);
             if (!data.updated || data.updated.length === 0) return;
@@ -3129,14 +3408,10 @@
                     if (feeEl) feeEl.textContent = formatRupiah(feeCalc);
                     if (totalEl) totalEl.textContent = formatRupiah(total);
 
-                    fetch(`/api/deposit/${d.reference_id}/update-fee`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify({ total_amount: total, fee: feeCalc })
-                    }).catch(() => {});
+                    securePost(`/api/deposit/${d.reference_id}/update-fee`, {
+                        total_amount: total,
+                        fee: feeCalc
+                    }, 'deposit_fee').catch(() => {});
                 } else {
                     if (feeEl) feeEl.textContent = 'Rp0';
                 }
