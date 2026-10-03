@@ -1,5 +1,11 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v11)
+// ASYROFOTP - BACKEND API (FULL FIXED v12)
+// + Security headers (CSP, HSTS, X-Frame-Options, dll)
+// + CORS whitelist
+// + Trust proxy
+// + Log sanitization
+// + Error handler aman (no stack trace leak)
+// + No UUID leak
 // + icon_code mapping (code asli tidak tertimpa)
 // + Handle INSUFFICIENT_BALANCE dari provider
 // + Pre-check saldo user + cache harga
@@ -17,12 +23,60 @@ const app = express();
 app.disable('x-powered-by');
 app.set('etag', false);
 
-// ===== CORS =====
+// ===== TRUST PROXY (Vercel/Cloudflare) =====
+app.set('trust proxy', 1);
+
+// ===== SECURITY HEADERS =====
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=()');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('X-DNS-Prefetch-Control', 'off');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+
+    res.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com data:",
+        "img-src 'self' data: blob: https:",
+        "connect-src 'self' https://www.google.com https://dibanana.id https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com",
+        "frame-src https://www.google.com",
+        "frame-ancestors 'none'",
+        "base-uri 'self'",
+        "form-action 'self'",
+        "object-src 'none'",
+        "upgrade-insecure-requests",
+    ].join('; '));
+
+    next();
+});
+
+// ===== CORS WHITELIST =====
+const ALLOWED_ORIGINS = [
+    'https://asyrofotp.vercel.app',
+    'https://asyrofotp.com',
+    'https://www.asyrofotp.com',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'http://127.0.0.1:3000',
+];
+
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Vary', 'Origin');
+        res.header('Access-Control-Allow-Credentials', 'true');
+    }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret, x-encrypt');
+    res.header('Access-Control-Max-Age', '86400');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
 });
 
@@ -31,9 +85,33 @@ app.use(express.json({
     verify: (req, res, buf) => {
         req.rawBody = buf.toString('utf8');
     },
-    limit: '512kb'
+    limit: '256kb'
 }));
-app.use(express.urlencoded({ extended: true, limit: '512kb' }));
+app.use(express.urlencoded({ extended: true, limit: '256kb' }));
+
+// Handle JSON parse error biar gak bocorin path server
+app.use((err, req, res, next) => {
+    if (err && err.type === 'entity.parse.failed') {
+        return res.status(400).json({ error: 'Request body tidak valid' });
+    }
+    if (err && err.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'Request body terlalu besar' });
+    }
+    next(err);
+});
+
+// ===== LOG SANITIZER =====
+function safeLogBody(body) {
+    if (!body || typeof body !== 'object') return body;
+    const safe = { ...body };
+    const SENSITIVE = ['password', 'password_hash', 'current_password', 'new_password',
+        'token', 'access_token', 'recaptcha_token', 'g-recaptcha-response',
+        'secret', 'jti', 'api_key', 'apikey', 'authorization'];
+    for (const key of Object.keys(safe)) {
+        if (SENSITIVE.includes(key.toLowerCase())) safe[key] = '[REDACTED]';
+    }
+    return safe;
+}
 
 // ===== DATABASE =====
 const pool = new Pool({
@@ -96,6 +174,9 @@ const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 // ===== WEBHOOK OTP =====
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 
+// ===== RECAPTCHA =====
+const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
+
 // ===== AUTO CONFIG =====
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
@@ -134,26 +215,13 @@ setInterval(() => {
 
 // ============================================
 // ===== SERVICE NAME → ICON CODE MAPPING =====
-// ===== Server ekonomi: code = "wa", "tt", "ig" (huruf → untuk icon)
-// ===== Server khusus: code = "1", "2", "3" (angka → untuk API call)
-// ===== Kita mapping NAME → kode HURUF untuk icon, tanpa nimpa code asli
 // ============================================
-
-/**
- * Normalisasi nama service jadi key lookup.
- * Contoh: "WhatsApp" → "whatsapp", "X (Twitter)" → "xtwitter"
- */
 function normalizeServiceName(name) {
     return String(name || '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '');
 }
 
-/**
- * Ambil mapping name → icon_code HURUF dari server ekonomi.
- * Server ekonomi: kode = "wa", "tt", "ig" (huruf).
- * Cache di memory 5 menit.
- */
 async function getServiceCodeMap() {
     const cacheKey = 'service_code_map_ekonomi';
     const cached = cacheGet(cacheKey);
@@ -167,12 +235,8 @@ async function getServiceCodeMap() {
             const code = String(s.code || '').trim();
             const name = String(s.name || '').trim();
             if (!code) continue;
-
-            // Simpan map by name (normalized)
             const normName = normalizeServiceName(name);
             if (normName) map[normName] = code;
-
-            // Simpan juga map by code itu sendiri (biar bisa cari by code juga)
             const normCode = normalizeServiceName(code);
             if (normCode) map[normCode] = code;
         }
@@ -185,17 +249,9 @@ async function getServiceCodeMap() {
     }
 }
 
-/**
- * Enrich services dengan `icon_code` hasil matching dari map ekonomi.
- * - `code` tetap code asli dari provider (angka untuk server khusus, huruf untuk ekonomi)
- * - `icon_code` = kode huruf dari ekonomi (untuk load gambar icon)
- *
- * Tidak menimpa `code` asli — cuma nambah field baru `icon_code`.
- */
 async function enrichServicesWithCode(services, server) {
     if (!services || services.length === 0) return services;
 
-    // Server ekonomi = sumber kebenaran, code-nya udah huruf (wa, tt, ig)
     if (server === 'ekonomi') {
         return services.map(s => ({
             ...s,
@@ -203,19 +259,15 @@ async function enrichServicesWithCode(services, server) {
         }));
     }
 
-    // Server lain: butuh mapping dari ekonomi berdasarkan NAME
     const codeMap = await getServiceCodeMap();
 
     return services.map(s => {
-        // Cari icon_code berdasarkan name
         const normName = normalizeServiceName(s.name);
         const mappedIconCode = codeMap[normName] || null;
 
         return {
             ...s,
-            // code asli dari provider — JANGAN diubah
             code: s.code,
-            // icon_code = kode huruf dari ekonomi, buat load gambar
             icon_code: mappedIconCode,
         };
     });
@@ -356,7 +408,7 @@ function toDynamicQRIS(staticQRIS, amount) {
 // ============================================
 async function qrispyFetch(endpoint, options = {}) {
     const fullUrl = `${QRISPY_BASE}${endpoint}`;
-    console.log('🌐 QRISPY:', fullUrl);
+    console.log('🌐 QRISPY:', fullUrl.split('?')[0]);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
@@ -512,6 +564,84 @@ async function logStatusChange({ entityType, entityId, userId = null, oldStatus 
         );
     } catch (err) {
         console.error('Log error:', err.message);
+    }
+}
+
+// ============================================
+// ===== RECAPTCHA v3 HELPER =====
+// ============================================
+async function verifyRecaptcha(token, { minScore = 0.5, expectedAction = null } = {}) {
+    if (!token) {
+        return { success: false, error: 'Token reCAPTCHA kosong', code: 'MISSING_TOKEN' };
+    }
+    if (!RECAPTCHA_SECRET) {
+        console.error('⚠️ RECAPTCHA_SECRET_KEY belum di-set');
+        return { success: false, error: 'Verifikasi belum dikonfigurasi', code: 'NO_SECRET' };
+    }
+
+    try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+
+        const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                secret: RECAPTCHA_SECRET,
+                response: String(token),
+            }),
+            signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+            return { success: false, error: 'Gagal menghubungi reCAPTCHA', code: 'HTTP_ERROR' };
+        }
+
+        const data = await res.json();
+
+        if (!data.success) {
+            console.warn('reCAPTCHA rejected:', data['error-codes'] || 'unknown');
+            return {
+                success: false,
+                error: 'Verifikasi keamanan gagal. Coba lagi.',
+                code: 'VERIFY_FAILED',
+                details: data['error-codes'] || [],
+            };
+        }
+
+        if (typeof data.score === 'number' && data.score < minScore) {
+            console.warn(`reCAPTCHA low score: ${data.score} (min ${minScore})`);
+            return {
+                success: false,
+                error: 'Aktivitas mencurigakan terdeteksi. Coba lagi nanti.',
+                code: 'LOW_SCORE',
+                score: data.score,
+            };
+        }
+
+        if (expectedAction && data.action !== expectedAction) {
+            return {
+                success: false,
+                error: 'Aksi tidak valid.',
+                code: 'ACTION_MISMATCH',
+                action: data.action,
+            };
+        }
+
+        return {
+            success: true,
+            score: data.score,
+            action: data.action,
+            hostname: data.hostname,
+        };
+    } catch (err) {
+        if (err.name === 'AbortError') {
+            return { success: false, error: 'Timeout verifikasi keamanan', code: 'TIMEOUT' };
+        }
+        console.error('verifyRecaptcha error:', err.message);
+        return { success: false, error: 'Gagal verifikasi keamanan', code: 'ERROR' };
     }
 }
 
@@ -1215,105 +1345,29 @@ async function checkAndRefundUserOrders(userId) {
 app.get('/api/health', withDB(async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW() as time');
-        res.json({
-            status: 'ok',
-            time: result.rows[0].time,
-            hasDibananaKey: !!DIBANANA_API_KEY,
-            hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
-            hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
-            hasJwtSecret: !!JWT_SECRET,
-            hasCronSecret: !!CRON_SECRET,
-            hasApiCdn: !!API_CDN,
-            hasRecaptcha: !!RECAPTCHA_SECRET,  // ← tambah ini
-            schemaEnsured,
-            poolTotal: pool.totalCount,
-            poolIdle: pool.idleCount,
-            poolWaiting: pool.waitingCount,
-        });
+        const wantsDetail = req.query.detail === '1' && CRON_SECRET && req.headers['x-cron-secret'] === CRON_SECRET;
+
+        const base = { status: 'ok', time: result.rows[0].time };
+        if (wantsDetail) {
+            Object.assign(base, {
+                hasDibananaKey: !!DIBANANA_API_KEY,
+                hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
+                hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
+                hasJwtSecret: !!JWT_SECRET,
+                hasCronSecret: !!CRON_SECRET,
+                hasApiCdn: !!API_CDN,
+                hasRecaptcha: !!RECAPTCHA_SECRET,
+                schemaEnsured,
+                poolTotal: pool.totalCount,
+                poolIdle: pool.idleCount,
+                poolWaiting: pool.waitingCount,
+            });
+        }
+        res.json(base);
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        res.status(500).json({ error: 'Server error' });
     }
 }));
-
-// ============================================
-// ===== RECAPTCHA v3 — VERIFY HELPER =====
-// ============================================
-const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
-
-async function verifyRecaptcha(token, { minScore = 0.5, expectedAction = null } = {}) {
-    if (!token) {
-        return { success: false, error: 'Token reCAPTCHA kosong', code: 'MISSING_TOKEN' };
-    }
-    if (!RECAPTCHA_SECRET) {
-        console.error('⚠️ RECAPTCHA_SECRET_KEY belum di-set');
-        return { success: false, error: 'Verifikasi belum dikonfigurasi', code: 'NO_SECRET' };
-    }
-
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-
-        const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                secret: RECAPTCHA_SECRET,
-                response: String(token),
-            }),
-            signal: controller.signal,
-        });
-
-        clearTimeout(timeout);
-
-        if (!res.ok) {
-            return { success: false, error: 'Gagal menghubungi reCAPTCHA', code: 'HTTP_ERROR' };
-        }
-
-        const data = await res.json();
-
-        if (!data.success) {
-            console.warn('reCAPTCHA rejected:', data['error-codes'] || 'unknown');
-            return {
-                success: false,
-                error: 'Verifikasi keamanan gagal. Coba lagi.',
-                code: 'VERIFY_FAILED',
-                details: data['error-codes'] || [],
-            };
-        }
-
-        if (typeof data.score === 'number' && data.score < minScore) {
-            console.warn(`reCAPTCHA low score: ${data.score} (min ${minScore})`);
-            return {
-                success: false,
-                error: 'Aktivitas mencurigakan terdeteksi. Coba lagi nanti.',
-                code: 'LOW_SCORE',
-                score: data.score,
-            };
-        }
-
-        if (expectedAction && data.action !== expectedAction) {
-            return {
-                success: false,
-                error: 'Aksi tidak valid.',
-                code: 'ACTION_MISMATCH',
-                action: data.action,
-            };
-        }
-
-        return {
-            success: true,
-            score: data.score,
-            action: data.action,
-            hostname: data.hostname,
-        };
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            return { success: false, error: 'Timeout verifikasi keamanan', code: 'TIMEOUT' };
-        }
-        console.error('verifyRecaptcha error:', err.message);
-        return { success: false, error: 'Gagal verifikasi keamanan', code: 'ERROR' };
-    }
-}
 
 // ============================================
 // ===== AUTH =====
@@ -1325,16 +1379,12 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
         return res.status(400).json({ error: 'Username dan password wajib diisi' });
     }
 
-    // ===== VERIFIKASI RECAPTCHA =====
     const captcha = await verifyRecaptcha(recaptcha_token, {
         minScore: 0.5,
         expectedAction: 'register',
     });
     if (!captcha.success) {
-        return res.status(400).json({
-            error: captcha.error,
-            code: captcha.code,
-        });
+        return res.status(400).json({ error: captcha.error, code: captcha.code });
     }
 
     if (!isValidUsername(username)) {
@@ -1352,16 +1402,26 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
         const result = await pool.query(
             `INSERT INTO users (username, password_hash, name)
              VALUES ($1, $2, $3)
-             RETURNING id, username, name, balance, user_code`,
+             RETURNING username, name, balance, user_code`,
             [username.toLowerCase(), hash, name || username]
         );
-        res.json({ message: 'Registrasi berhasil!', user: result.rows[0] });
+        const u = result.rows[0];
+        res.json({
+            message: 'Registrasi berhasil!',
+            user: {
+                username: u.username,
+                name: u.name,
+                balance: Number(u.balance) || 0,
+                user_code: u.user_code,
+            },
+        });
     } catch (err) {
         if (err.code === '23505') return res.status(400).json({ error: 'Username sudah dipakai' });
-        console.error('Register error:', err);
+        console.error('Register error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
 app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { username, password, recaptcha_token } = req.body;
 
@@ -1369,16 +1429,12 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
         return res.status(400).json({ error: 'Username dan password wajib diisi' });
     }
 
-    // ===== VERIFIKASI RECAPTCHA =====
     const captcha = await verifyRecaptcha(recaptcha_token, {
         minScore: 0.5,
         expectedAction: 'login',
     });
     if (!captcha.success) {
-        return res.status(400).json({
-            error: captcha.error,
-            code: captcha.code,
-        });
+        return res.status(400).json({ error: captcha.error, code: captcha.code });
     }
 
     try {
@@ -1398,13 +1454,19 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
         res.json({
             message: 'Login berhasil!',
             session: { access_token: token },
-            user: { id: user.id, username: user.username, name: user.name, balance: user.balance, user_code: user.user_code }
+            user: {
+                username: user.username,
+                name: user.name,
+                balance: Number(user.balance) || 0,
+                user_code: user.user_code,
+            }
         });
     } catch (err) {
-        console.error('Login error:', err);
+        console.error('Login error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
 app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
     try {
         if (req.user.jti) {
@@ -1414,7 +1476,7 @@ app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
         }
         res.json({ message: 'Logout berhasil' });
     } catch (err) {
-        console.error('Logout error:', err);
+        console.error('Logout error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1425,11 +1487,20 @@ app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT id, username, name, balance, role, user_code, created_at FROM users WHERE id = $1 LIMIT 1',
+            'SELECT username, name, balance, role, user_code, status, created_at FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
         );
         if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
-        res.json(result.rows[0]);
+        const u = result.rows[0];
+        res.json({
+            username: u.username,
+            name: u.name,
+            balance: Number(u.balance) || 0,
+            role: u.role,
+            user_code: u.user_code,
+            status: u.status,
+            created_at: u.created_at,
+        });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1442,11 +1513,20 @@ app.post('/api/user/update', requireAuth, withDB(async (req, res) => {
 
     try {
         const result = await pool.query(
-            'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username, name, balance, user_code',
+            'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING username, name, balance, user_code',
             [name.trim(), req.user.id]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
-        res.json({ message: 'Profil berhasil diupdate', user: result.rows[0] });
+        const u = result.rows[0];
+        res.json({
+            message: 'Profil berhasil diupdate',
+            user: {
+                username: u.username,
+                name: u.name,
+                balance: Number(u.balance) || 0,
+                user_code: u.user_code,
+            }
+        });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1786,7 +1866,7 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
             hasPrev: page > 1,
         });
     } catch (err) {
-        console.error('List deposits error:', err);
+        console.error('List deposits error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1822,46 +1902,6 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
 
         res.json({ updated, count: updated.length });
     } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdmin, withDB(async (req, res) => {
-    const { referenceId } = req.params;
-
-    try {
-        const result = await pool.query('SELECT * FROM deposits WHERE reference_id = $1 LIMIT 1', [referenceId]);
-        if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
-
-        const deposit = result.rows[0];
-        if (deposit.status === 'success') return res.status(400).json({ error: 'Sudah di-approve' });
-
-        const beforeRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
-        const balanceBefore = Number(beforeRes.rows[0]?.balance || 0);
-
-        const result2 = await markDepositPaid(deposit, deposit.total_amount || deposit.amount, new Date());
-
-        if (result2.alreadyProcessed) {
-            return res.status(400).json({ error: 'Sudah diproses sebelumnya' });
-        }
-
-        const afterRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [deposit.user_id]);
-        const balanceAfter = Number(afterRes.rows[0]?.balance || 0);
-        const credited = balanceAfter - balanceBefore;
-
-        if (credited !== result2.saldoMasuk) {
-            console.error(`⚠️ Mismatch credit: expected ${result2.saldoMasuk}, got ${credited}`);
-        }
-
-        const updated = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-        res.json({
-            message: 'Deposit di-approve',
-            deposit: updated.rows[0],
-            credit_verified: credited === result2.saldoMasuk,
-            credited_amount: credited,
-        });
-    } catch (err) {
-        console.error('Approve error:', err);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1907,7 +1947,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
 
         res.json({ status: 'ok' });
     } catch (err) {
-        console.error('Webhook error:', err);
+        console.error('Webhook error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -1934,7 +1974,11 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         }
 
         const data = req.body;
-        console.log('📥 Webhook OTP1:', JSON.stringify(data).substring(0, 300));
+        console.log('📥 Webhook OTP1:', JSON.stringify({
+            order_id: data.order_id || data.orderId || data.reference,
+            has_otp: !!(data.otp_code || data.otpCode || data.code || data.otp),
+            has_sms: !!(data.full_sms || data.fullSms || data.message),
+        }));
 
         const providerOrderId = data.order_id || data.orderId || data.reference;
         const otpCode = data.otp_code || data.otpCode || data.code || data.otp;
@@ -2076,7 +2120,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 
         res.status(200).json({ status: 'ok', message: 'received', revived });
     } catch (err) {
-        console.error('Webhook OTP1 error:', err);
+        console.error('Webhook OTP1 error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2237,7 +2281,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
             });
         }
     } catch (err) {
-        console.error('CekOTP error:', err);
+        console.error('CekOTP error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2256,7 +2300,7 @@ app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
             new_balance: userRes.rows[0] ? Number(userRes.rows[0].balance) : null,
         });
     } catch (err) {
-        console.error('Check refunds error:', err);
+        console.error('Check refunds error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2339,7 +2383,7 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
             limit: limitNum,
         });
     } catch (err) {
-        console.error('Get status logs error:', err);
+        console.error('Get status logs error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2424,7 +2468,7 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
 
         res.json({ checked: result.rows.length, updated, expired, refunded });
     } catch (err) {
-        console.error('Auto-validate error:', err);
+        console.error('Auto-validate error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2536,7 +2580,6 @@ app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
 });
 
-// ===== SERVICES (dengan icon_code mapping) =====
 app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi' } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -2551,8 +2594,6 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
     try {
         const data = await dibananaFetch(`/services?server=${encodeURIComponent(server)}`);
         const rawServices = data.services || [];
-
-        // Enrich: inject `icon_code` (huruf) dari ekonomi, tanpa nimpa `code` asli
         const services = await enrichServicesWithCode(rawServices, server);
 
         const response = { server, services };
@@ -2561,7 +2602,11 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
         res.json(response);
     } catch (err) {
         console.error('Get services error:', err.message);
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
@@ -2627,14 +2672,16 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
         res.json(response);
     } catch (err) {
         console.error('Get prices error:', err.message);
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
 // ============================================
-// ===== NOKOS — CREATE ORDER (v11) =====
-// ===== Pre-check saldo + cache harga + icon_code
-// ===== Handle INSUFFICIENT_BALANCE dari provider
+// ===== NOKOS — CREATE ORDER =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     const startTime = Date.now();
@@ -2663,12 +2710,10 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
     let finalIconCode = String(icon_code || '').trim() || null;
 
     try {
-        // ===== STEP 1: Ambil saldo user DULU =====
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         const userBalanceAtStart = Number(userRes.rows[0].balance);
 
-        // ===== STEP 2: Tentukan estimasi harga =====
         let estimatedPrice = 0;
 
         if (isPremium) {
@@ -2684,7 +2729,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             }
         }
 
-        // ===== STEP 3: Cek saldo user >= estimasi =====
         if (estimatedPrice > 0 && userBalanceAtStart < estimatedPrice) {
             return res.status(400).json({
                 error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
@@ -2703,7 +2747,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // ===== STEP 4: Pre-check saldo PROVIDER (khusus premium) =====
         if (isPremium) {
             try {
                 const providerBal = await getProviderBalance();
@@ -2718,7 +2761,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             }
         }
 
-        // ===== STEP 5: Panggil provider order =====
         let orderBody;
         if (isPremium) {
             orderBody = { server, service, country, provider_id, provider_price, operator };
@@ -2731,8 +2773,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             data = await dibananaFetch('/order', { method: 'POST', body: JSON.stringify(orderBody) });
         } catch (err) {
             console.error('Provider order error:', err.message);
-
-            // Handle INSUFFICIENT_BALANCE dari provider (saldo server kurang)
             const errCode = err.code || err.data?.error;
             if (errCode === 'INSUFFICIENT_BALANCE' || /saldo tidak cukup/i.test(err.message)) {
                 return res.status(503).json({
@@ -2740,14 +2780,12 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
                     code: 'INSUFFICIENT_BALANCE',
                 });
             }
-
             return res.status(err.status || 500).json({
                 error: err.message || 'Gagal order dari provider',
                 code: errCode || 'PROVIDER_ERROR'
             });
         }
 
-        // ===== STEP 6: Validasi response =====
         if (!data || !data.order_id) {
             return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
         }
@@ -2761,7 +2799,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ===== STEP 7: Final check saldo user >= price dari provider =====
         if (userBalanceAtStart < price) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(400).json({
@@ -2772,7 +2809,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        // Kalau icon_code belum di-set dari frontend, coba mapping dari service_name
         if (!finalIconCode && service_name) {
             try {
                 const codeMap = await getServiceCodeMap();
@@ -2781,7 +2817,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             } catch (e) {}
         }
 
-        // ===== STEP 8: Insert order + deduct saldo (atomic) =====
         const otpId = await generateOtpReferenceId();
         const expiredAt = new Date(Date.now() + ORDER_EXPIRY_MS);
 
@@ -2881,11 +2916,15 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
         }
 
     } catch (err) {
-        console.error('Create order error:', err);
+        console.error('Create order error:', err.message);
         if (providerOrderId && !saldoDeducted) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
         }
-        res.status(err.status || 500).json({ error: err.message || 'Server error', code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
@@ -2966,8 +3005,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             created_at: o.created_at,
         });
     } catch (err) {
-        console.error('Check status error:', err);
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        console.error('Check status error:', err.message);
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
@@ -3037,7 +3080,11 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
 
         res.json(data);
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
@@ -3140,7 +3187,11 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
             balance: userRes.rows[0] ? Number(userRes.rows[0].balance) : null
         });
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
 
@@ -3271,49 +3322,8 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 
         res.json({ updated, count: updated.length });
     } catch (err) {
-        console.error('Sync batch error:', err);
+        console.error('Sync batch error:', err.message);
         res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-// ===== GLOBAL ERROR HANDLER =====
-app.use((err, req, res, next) => {
-    console.error('Unhandled error:', err);
-    res.status(500).json({ error: 'Internal server error' });
-});
-
-// ===== PROXY COUNTRIES API =====
-app.get('/api/countries/:code', requireAuth, withDB(async (req, res) => {
-    if (!API_CDN) return res.status(500).json({ error: 'API_CDN belum di-set' });
-
-    const code = String(req.params.code || '').toUpperCase();
-    if (!/^[A-Z]{2}$/.test(code)) return res.status(400).json({ error: 'Kode negara tidak valid' });
-
-    const cacheKey = `country_${code}`;
-    const cached = cacheGet(cacheKey);
-    if (cached) return res.json(cached);
-
-    try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-
-        const resp = await fetch(
-            `https://api.restcountries.com/countries/v5?codes=${code}&pretty=1`,
-            {
-                signal: controller.signal,
-                headers: { 'Authorization': `Bearer ${API_CDN}` }
-            }
-        );
-        clearTimeout(timeout);
-
-        if (!resp.ok) throw new Error(`REST Countries error ${resp.status}`);
-        const data = await resp.json();
-
-        cacheSet(cacheKey, data, 24 * 60 * 60 * 1000);
-        res.json(data);
-    } catch (err) {
-        console.error('Countries API error:', err.message);
-        res.status(500).json({ error: 'Gagal fetch data negara' });
     }
 }));
 
@@ -3331,7 +3341,6 @@ function isAdminUser(user) {
     return ADMIN_USERNAMES.includes(uname) || ADMIN_USER_CODES.includes(ucode);
 }
 
-// Middleware requireAdmin: cek role / username / user_code
 async function requireAdminFlex(req, res, next) {
     try {
         const result = await pool.query(
@@ -3356,7 +3365,6 @@ async function requireAdminFlex(req, res, next) {
     }
 }
 
-// Helper: log admin action ke status_logs
 async function logAdminAction({ adminId, adminUsername, action, targetType, targetId, metadata = null }) {
     try {
         await pool.query(
@@ -3379,7 +3387,6 @@ async function logAdminAction({ adminId, adminUsername, action, targetType, targ
     }
 }
 
-// Helper: parse pagination
 function parsePagination(req, defaultLimit = 20, maxLimit = 100) {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(maxLimit, Math.max(1, parseInt(req.query.limit, 10) || defaultLimit));
@@ -3387,13 +3394,11 @@ function parsePagination(req, defaultLimit = 20, maxLimit = 100) {
     return { page, limit, offset };
 }
 
-// Helper: cek status sukses untuk order/deposit
 const ORDER_SUCCESS_STATUSES = ['success', 'received', 'confirmed'];
 const ORDER_FAIL_STATUSES = ['cancelled', 'expired', 'failed', 'refunded'];
 const DEPOSIT_SUCCESS_STATUSES = ['success'];
 const DEPOSIT_FAIL_STATUSES = ['cancelled', 'expired', 'failed', 'refunded'];
 
-// Helper: apakah transisi status butuh adjust saldo
 function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
     const a = Number(amount) || 0;
     if (a <= 0) return 0;
@@ -3427,18 +3432,17 @@ function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
     return 0;
 }
 
-// Helper: insert admin_action log untuk balance adjust
 // FIX: parameter dipisah → $1 (entity_id/TEXT) & $2 (user_id/UUID), gak konflik tipe
 async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action, metadata }) {
     await executor.query(
         `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
          VALUES ('admin_action', $1, $2, $3, 'balance_adjust', $4, $5)`,
         [
-            String(entityId || ''),        // $1 → entity_id (TEXT)
-            userId,                        // $2 → user_id (UUID)
-            String(oldBalance),            // $3 → old_status (TEXT)
-            action,                        // $4 → reason
-            JSON.stringify(metadata || {}),// $5 → metadata (JSONB)
+            String(entityId || ''),
+            userId,
+            String(oldBalance),
+            action,
+            JSON.stringify(metadata || {}),
         ]
     );
 }
@@ -3646,7 +3650,6 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
 
 // ============================================
 // ===== ADMIN — EDIT USER BALANCE =====
-// ===== mode: 'set' | 'add' | 'subtract' =====
 // ============================================
 app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
@@ -3700,7 +3703,6 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
             [newBalance, userId]
         );
 
-        // FIX: pakai helper logBalanceAdjust biar parameter dipisah benar
         await logBalanceAdjust({
             executor: client,
             entityId: userId,
@@ -3964,7 +3966,6 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
 
 // ============================================
 // ===== ADMIN — UPDATE ORDER STATUS =====
-// ===== Auto adjust saldo user =====
 // ============================================
 const ALLOWED_ORDER_STATUSES = [
     'pending', 'success', 'received', 'confirmed',
@@ -4037,7 +4038,6 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
                 [newBalance, user.id]
             );
 
-            // FIX: pakai helper biar parameter gak konflik tipe
             await logBalanceAdjust({
                 executor: client,
                 entityId: orderId,
@@ -4259,7 +4259,6 @@ app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB
 
 // ============================================
 // ===== ADMIN — UPDATE DEPOSIT STATUS =====
-// ===== Auto adjust saldo user =====
 // ============================================
 const ALLOWED_DEPOSIT_STATUSES = ['pending', 'success', 'cancelled', 'expired', 'failed', 'refunded'];
 
@@ -4333,7 +4332,6 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
                 [newBalance, user.id]
             );
 
-            // FIX: pakai helper biar parameter gak konflik tipe
             await logBalanceAdjust({
                 executor: client,
                 entityId: referenceId,
@@ -4409,7 +4407,6 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
 
 // ============================================
 // ===== ADMIN — APPROVE DEPOSIT (legacy wrapper) =====
-// ===== Tetap ada untuk kompatibilitas. Panggil status change ke 'success' =====
 // ============================================
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
@@ -4458,7 +4455,6 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
                 [newBalance, user.id]
             );
 
-            // FIX: pakai helper biar parameter gak konflik tipe
             await logBalanceAdjust({
                 executor: client,
                 entityId: referenceId,
@@ -4562,9 +4558,36 @@ app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async
         const data = await dibananaFetch('/balance');
         res.json(data);
     } catch (err) {
-        res.status(err.status || 500).json({ error: err.message, code: err.code });
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Server error',
+            code: isClientErr ? err.code : undefined,
+        });
     }
 }));
+
+// ============================================
+// ===== GLOBAL ERROR HANDLER + 404 =====
+// ============================================
+app.use((err, req, res, next) => {
+    const status = err?.status || 500;
+    const safeErr = {
+        message: err?.message || 'unknown',
+        name: err?.name || 'Error',
+        status,
+        path: req.path,
+        method: req.method,
+    };
+    console.error('Unhandled error:', JSON.stringify(safeErr));
+
+    res.status(status < 500 ? status : 500).json({
+        error: status < 500 ? (err.message || 'Bad request') : 'Internal server error',
+    });
+});
+
+app.use((req, res) => {
+    res.status(404).json({ error: 'Endpoint tidak ditemukan' });
+});
 
 // ============================================
 // ===== STARTUP WARMUP =====
