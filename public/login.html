@@ -14,7 +14,10 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+
+    <!-- reCAPTCHA v3 (invisible) -->
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -164,16 +167,6 @@
 
         .form-control::placeholder { color: #94a3b8; }
 
-        .form-control.invalid {
-            border-color: var(--danger);
-            background: #fef2f2;
-        }
-
-        .form-control.valid {
-            border-color: var(--success);
-        }
-
-        /* Toggle mata */
         .eye-btn {
             position: absolute;
             right: 8px;
@@ -382,36 +375,28 @@
         passwordVisible = !passwordVisible;
         passwordInput.type = passwordVisible ? 'text' : 'password';
         eyeIcon.innerHTML = passwordVisible ? EYE_CLOSED : EYE_OPEN;
-        togglePassword.setAttribute('aria-label', passwordVisible ? 'Sembunyikan password' : 'Lihat password');
     });
 
-    /* ===== Alert helpers ===== */
+    /* ===== Alert ===== */
     function showAlert(message, type = 'error') {
         alertEl.className = 'alert show ' + type;
         alertText.textContent = message;
-        alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
-
-    function hideAlert() {
-        alertEl.classList.remove('show');
-    }
+    function hideAlert() { alertEl.classList.remove('show'); }
 
     /* ===== Tunggu reCAPTCHA ready ===== */
     function waitForRecaptcha() {
         return new Promise((resolve) => {
-            if (window.grecaptcha && window.grecaptcha.execute) {
-                return resolve();
-            }
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
             let attempts = 0;
-            const maxAttempts = 50; // ~5 detik
             const timer = setInterval(() => {
                 attempts++;
                 if (window.grecaptcha && window.grecaptcha.execute) {
                     clearInterval(timer);
                     resolve();
-                } else if (attempts >= maxAttempts) {
+                } else if (attempts >= 50) {
                     clearInterval(timer);
-                    resolve(); // resolve juga biar bisa muncul error yang jelas
+                    resolve();
                 }
             }, 100);
         });
@@ -435,7 +420,6 @@
         btnIcon.outerHTML = '<div class="spinner" id="btnIcon"></div>';
 
         try {
-            // === Ambil token reCAPTCHA ===
             await waitForRecaptcha();
 
             if (!window.grecaptcha || !window.grecaptcha.execute) {
@@ -458,19 +442,13 @@
             });
 
             const data = await res.json();
-
-            if (!res.ok) {
-                throw new Error(data.error || 'Login gagal');
-            }
+            if (!res.ok) throw new Error(data.error || 'Login gagal');
 
             localStorage.setItem('access_token', data.session.access_token);
             localStorage.setItem('user', JSON.stringify(data.user));
 
             showAlert('Login berhasil! Mengalihkan...', 'success');
-
-            setTimeout(() => {
-                window.location.href = '/dashboard';
-            }, 800);
+            setTimeout(() => { window.location.href = '/dashboard'; }, 800);
 
         } catch (err) {
             showAlert(err.message, 'error');
