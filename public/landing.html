@@ -2,17 +2,16 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
     <meta name="robots" content="index, follow, max-image-preview:large">
     <meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi digital.">
     <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -20,31 +19,31 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
-    <!-- 🔒 SECURITY: Anti-FOUC theme + Anti-iframe + DevTools lock (jalan paling awal) -->
+    <!-- 🔒 SECURITY: jalan paling awal -->
     <script>
-        // Theme sebelum render (cegah flash)
+        // Theme + view-source + iframe + DevTools lock
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
             const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
 
-        // Anti-iframe (clickjacking protection)
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
 
-        // 🔒 DevTools LOCK SCREEN — jalan sebelum DOM render
-        // Kalau flag lock ada → wipe semua & tampilkan peringatan aja
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
-
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                // Sembunyikan semua konten sejak awal
                 document.documentElement.innerHTML = '<head></head><body></body>';
-
-                // Bikin lock screen pas DOM ready
                 function showLockScreen() {
                     document.body.innerHTML = `
                         <div id="devtoolsLockScreen">
@@ -56,89 +55,43 @@
                             </div>
                         </div>
                         <style>
-                            #devtoolsLockScreen {
-                                position: fixed;
-                                inset: 0;
-                                background: #0f172a;
-                                z-index: 2147483647;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                padding: 24px;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                                user-select: none;
-                                -webkit-user-select: none;
-                                overflow: hidden;
-                                margin: 0;
-                            }
-                            #devtoolsLockScreen .lock-box {
-                                background: #1e293b;
-                                border: 3px solid #475569;
-                                border-radius: 20px;
-                                padding: 40px 32px;
-                                max-width: 440px;
-                                text-align: center;
-                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
-                            }
-                            #devtoolsLockScreen .lock-icon {
-                                font-size: 3rem;
-                                margin-bottom: 16px;
-                                line-height: 1;
-                            }
-                            #devtoolsLockScreen h2 {
-                                color: #dc2626;
-                                font-size: 1.5rem;
-                                font-weight: 800;
-                                margin: 0 0 12px;
-                                font-family: inherit;
-                            }
-                            #devtoolsLockScreen p {
-                                color: #cbd5e1;
-                                font-size: 0.95rem;
-                                line-height: 1.6;
-                                margin: 0 0 8px;
-                            }
-                            #devtoolsLockScreen .lock-hint {
-                                color: #64748b;
-                                font-size: 0.78rem;
-                                font-family: ui-monospace, monospace;
-                                margin-top: 20px;
-                                padding-top: 16px;
-                                border-top: 1px dashed #334155;
-                            }
-                            body { margin: 0; background: #0f172a; }
+                            html, body { margin:0; padding:0; background:#0f172a; overflow:auto !important; position:static !important; height:auto !important; min-height:100vh !important; width:100% !important; }
+                            #devtoolsLockScreen { min-height:100vh; width:100%; background:#0f172a; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; user-select:none; -webkit-user-select:none; }
+                            #devtoolsLockScreen .lock-box { background:#1e293b; border:3px solid #475569; border-radius:20px; padding:40px 32px; max-width:440px; width:100%; text-align:center; box-shadow:8px 8px 0px rgba(0,0,0,.5); box-sizing:border-box; }
+                            #devtoolsLockScreen .lock-icon { font-size:3rem; margin-bottom:16px; line-height:1; }
+                            #devtoolsLockScreen h2 { color:#dc2626; font-size:1.5rem; font-weight:800; margin:0 0 12px; font-family:inherit; }
+                            #devtoolsLockScreen p { color:#cbd5e1; font-size:.95rem; line-height:1.6; margin:0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color:#64748b; font-size:.78rem; font-family:ui-monospace,monospace; margin-top:20px; padding-top:16px; border-top:1px dashed #334155; }
                         </style>
                     `;
-
-                    // Polling: kalau DevTools ditutup → clear flag → reload
                     const THRESHOLD = 200;
                     setInterval(() => {
                         const wDiff = window.outerWidth - window.innerWidth;
                         const hDiff = window.outerHeight - window.innerHeight;
                         const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-
                         if (!stillOpen) {
                             sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
                             window.location.reload();
                         }
                     }, 500);
                 }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
-                // Skip sisa script — stop eksekusi dengan throw
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
+                else showLockScreen();
                 throw new Error('__DEVTOOLS_LOCK__');
             }
         })();
     </script>
 
     <style>
-        /* ===== RESET & VARIABLES ===== */
-        * {
+        /* ============================================
+           RESET & VARIABLES
+           ============================================ */
+        *, *::before, *::after {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -149,10 +102,14 @@
             --primary-light: #eff6ff;
             --primary-dark: #1d4ed8;
             --primary-darker: #1e3a8a;
+            --purple: #7c3aed;
+            --purple-light: #f5f3ff;
+            --pink: #ec4899;
             --telegram: #229ED9;
             --whatsapp: #25D366;
             --text-dark: #0f172a;
             --text-gray: #64748b;
+            --text-light: #94a3b8;
             --bg-light: #f8fafc;
             --bg-white: #ffffff;
             --bg-card: #ffffff;
@@ -160,9 +117,16 @@
             --border-dark: #0f172a;
             --radius: 16px;
             --radius-sm: 10px;
+            --radius-lg: 24px;
             --shadow-hard: 4px 4px 0px rgba(15, 23, 42, 1);
             --shadow-hard-sm: 3px 3px 0px rgba(15, 23, 42, 1);
+            --shadow-hard-lg: 8px 8px 0px rgba(15, 23, 42, 1);
             --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #dc2626;
+            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #7c3aed 50%, #ec4899 100%);
+            --gradient-primary: linear-gradient(135deg, #2563eb, #7c3aed);
+            --gradient-soft: linear-gradient(135deg, #eff6ff, #f5f3ff);
             color-scheme: light;
         }
 
@@ -171,8 +135,11 @@
             --primary-light: rgba(59, 130, 246, 0.15);
             --primary-dark: #2563eb;
             --primary-darker: #1e40af;
+            --purple: #a78bfa;
+            --purple-light: rgba(167, 139, 250, 0.15);
             --text-dark: #f1f5f9;
             --text-gray: #94a3b8;
+            --text-light: #64748b;
             --bg-light: #0f172a;
             --bg-white: #1e293b;
             --bg-card: #1e293b;
@@ -180,6 +147,8 @@
             --border-dark: #475569;
             --shadow-hard: 4px 4px 0px rgba(0, 0, 0, 0.5);
             --shadow-hard-sm: 3px 3px 0px rgba(0, 0, 0, 0.5);
+            --shadow-hard-lg: 8px 8px 0px rgba(0, 0, 0, 0.5);
+            --gradient-soft: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(167, 139, 250, 0.1));
             color-scheme: dark;
         }
 
@@ -190,7 +159,7 @@
         }
 
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: var(--bg-light);
             color: var(--text-dark);
             line-height: 1.6;
@@ -200,15 +169,13 @@
         }
 
         /* 🔒 ANTI-LEAK */
-        body,
-        body * {
+        body, body * {
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             user-select: none;
             -webkit-touch-callout: none;
         }
-
         input, textarea, select, code, [contenteditable="true"] {
             -webkit-user-select: text;
             -moz-user-select: text;
@@ -216,27 +183,88 @@
             user-select: text;
             -webkit-touch-callout: default;
         }
-
         img, svg {
             -webkit-user-drag: none;
             -khtml-user-drag: none;
             user-drag: none;
         }
 
-        a img, a svg, button img, button svg {
-            pointer-events: auto;
+        /* ============================================
+           ANIMATED BACKGROUND — mesh gradient + noise
+           ============================================ */
+        .bg-mesh {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .bg-mesh .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.5;
+            animation: blobFloat 20s ease-in-out infinite;
+            will-change: transform;
+        }
+        .bg-mesh .blob:nth-child(1) {
+            width: 500px; height: 500px;
+            background: radial-gradient(circle, #3b82f6, transparent 70%);
+            top: -10%; left: -10%;
+            animation-delay: 0s;
+        }
+        .bg-mesh .blob:nth-child(2) {
+            width: 600px; height: 600px;
+            background: radial-gradient(circle, #7c3aed, transparent 70%);
+            top: 30%; right: -15%;
+            animation-delay: -7s;
+        }
+        .bg-mesh .blob:nth-child(3) {
+            width: 450px; height: 450px;
+            background: radial-gradient(circle, #ec4899, transparent 70%);
+            bottom: -10%; left: 30%;
+            animation-delay: -14s;
+        }
+
+        [data-theme="dark"] .bg-mesh .blob { opacity: 0.25; }
+
+        @keyframes blobFloat {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(60px, -40px) scale(1.1); }
+            50% { transform: translate(-40px, 60px) scale(0.95); }
+            75% { transform: translate(30px, 30px) scale(1.05); }
+        }
+
+        /* Grid pattern overlay */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background-image:
+                linear-gradient(rgba(37, 99, 235, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
+            background-size: 60px 60px;
+            -webkit-mask-image: radial-gradient(circle at 50% 30%, black 0%, transparent 70%);
+            mask-image: radial-gradient(circle at 50% 30%, black 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        [data-theme="dark"] .bg-grid {
+            background-image:
+                linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px);
         }
 
         /* ===== CONTAINER ===== */
         .container {
-            max-width: 1100px;
+            max-width: 1160px;
             margin: 0 auto;
             padding: 0 24px;
             position: relative;
             z-index: 1;
         }
 
-        /* ===== SVG ICON DEFAULT ===== */
+        /* ===== SVG ICON ===== */
         .icon-svg {
             width: 20px;
             height: 20px;
@@ -252,20 +280,18 @@
             user-select: none;
             -webkit-user-select: none;
         }
+        .icon-svg.fill { fill: currentColor; stroke: none; }
 
-        .icon-svg.fill {
-            fill: currentColor;
-            stroke: none;
-        }
-
-        /* ===== THEME TOGGLE ===== */
+        /* ============================================
+           THEME TOGGLE — upgraded dengan rotate animation
+           ============================================ */
         .theme-toggle {
             position: fixed;
             top: 20px;
             right: 20px;
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
             background: var(--bg-white);
             border: 2px solid var(--border-dark);
             color: var(--text-dark);
@@ -274,56 +300,63 @@
             align-items: center;
             justify-content: center;
             box-shadow: var(--shadow-hard-sm);
-            transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+            transition: transform 0.25s cubic-bezier(.2,.8,.2,1.4), background-color 0.2s, color 0.2s, box-shadow 0.2s;
             z-index: 200;
             padding: 0;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            overflow: hidden;
         }
-
         .theme-toggle:hover {
             background: var(--primary);
             color: white;
             box-shadow: var(--shadow-hard);
+            transform: translate(-2px, -2px) rotate(-10deg);
         }
-
+        .theme-toggle:active { transform: translate(0, 0) scale(0.95); }
         .theme-toggle:focus-visible {
             outline: 3px solid var(--primary);
             outline-offset: 2px;
         }
+        .theme-toggle .icon-svg {
+            width: 22px;
+            height: 22px;
+            position: absolute;
+            transition: transform 0.4s cubic-bezier(.2,.8,.2,1.4), opacity 0.3s;
+        }
+        .theme-toggle .sun-icon { transform: rotate(0) scale(1); opacity: 1; }
+        .theme-toggle .moon-icon { transform: rotate(180deg) scale(0); opacity: 0; }
+        [data-theme="dark"] .theme-toggle .sun-icon { transform: rotate(-180deg) scale(0); opacity: 0; }
+        [data-theme="dark"] .theme-toggle .moon-icon { transform: rotate(0) scale(1); opacity: 1; }
 
-        .theme-toggle .icon-svg { width: 20px; height: 20px; }
-        .theme-toggle .sun-icon { display: block; }
-        .theme-toggle .moon-icon { display: none; }
-        [data-theme="dark"] .theme-toggle .sun-icon { display: none; }
-        [data-theme="dark"] .theme-toggle .moon-icon { display: block; }
-
-        /* ===== NAVBAR ===== */
+        /* ============================================
+           NAVBAR — glassmorphism upgraded
+           ============================================ */
         nav {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(16px) saturate(180%);
+            -webkit-backdrop-filter: blur(16px) saturate(180%);
             border-bottom: 2px solid var(--border-dark);
             position: sticky;
             top: 0;
             z-index: 100;
+            transition: background-color 0.3s, box-shadow 0.3s;
         }
-
+        nav.scrolled {
+            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+        }
         [data-theme="dark"] nav {
-            background: rgba(30, 41, 59, 0.85);
+            background: rgba(30, 41, 59, 0.7);
         }
-
-        @supports not (backdrop-filter: blur(12px)) {
-            nav {
-                background: var(--bg-white);
-            }
+        @supports not (backdrop-filter: blur(16px)) {
+            nav { background: var(--bg-white); }
         }
 
         .nav-inner {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 72px;
+            height: 76px;
         }
 
         .logo {
@@ -334,40 +367,61 @@
             font-size: 1.25rem;
             color: var(--text-dark);
             text-decoration: none;
+            transition: transform 0.2s;
         }
+        .logo:hover { transform: scale(1.02); }
 
         .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
+            background-size: 300% 300%;
+            animation: gradientShift 6s ease infinite;
             border: 2.5px solid var(--border-dark);
-            border-radius: 12px;
+            border-radius: 13px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-weight: 900;
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             font-family: 'Plus Jakarta Sans', sans-serif;
             box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
             text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
             line-height: 1;
             padding-bottom: 2px;
             transform: rotate(-3deg);
-            transition: transform 0.2s;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
             user-select: none;
             -webkit-user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%);
+            animation: shine 4s infinite;
+        }
+        .logo:hover .logo-icon {
+            transform: rotate(6deg) scale(1.1);
         }
 
-        .logo:hover .logo-icon {
-            transform: rotate(3deg) scale(1.05);
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
         }
 
         .logo-text {
             font-weight: 900;
             letter-spacing: -0.02em;
         }
-
         .logo-text span { color: var(--primary); }
 
         .nav-links {
@@ -376,125 +430,113 @@
             list-style: none;
             margin-right: 60px;
         }
-
         .nav-links a {
             text-decoration: none;
             color: var(--text-gray);
-            font-weight: 500;
+            font-weight: 600;
             font-size: 0.95rem;
             transition: color 0.2s;
             position: relative;
+            padding: 4px 0;
         }
-
         .nav-links a:hover { color: var(--primary); }
-
         .nav-links a::after {
             content: '';
             position: absolute;
-            bottom: -4px;
-            left: 0;
+            bottom: 0; left: 0;
             width: 0;
             height: 2px;
-            background: var(--primary);
-            transition: width 0.25s;
+            background: linear-gradient(90deg, var(--primary), var(--purple));
+            transition: width 0.3s cubic-bezier(.2,.8,.2,1);
+            border-radius: 2px;
         }
-
         .nav-links a:hover::after { width: 100%; }
 
-        /* ===== HERO ===== */
+        /* ============================================
+           HERO — upgraded dengan animated gradient + floating badges
+           ============================================ */
         .hero {
-            padding: 90px 0 70px;
+            padding: 100px 0 80px;
             text-align: center;
             position: relative;
             overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 160vmax;
-            height: 160vmax;
-            transform: translate3d(-50%, -50%, 0);
-            background: repeating-conic-gradient(
-                from 0deg,
-                rgba(37, 99, 235, 0.07) 0deg 10deg,
-                transparent 10deg 20deg
-            );
-            -webkit-mask-image: radial-gradient(circle, black 0%, transparent 60%);
-            mask-image: radial-gradient(circle, black 0%, transparent 60%);
-            animation: spin 60s linear infinite;
-            z-index: 0;
-            pointer-events: none;
-            will-change: transform;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-
-        @keyframes spin {
-            from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
-            to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
-        }
-
-        .hero > * {
-            position: relative;
-            z-index: 1;
         }
 
         .hero-badge {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: var(--primary-light);
+            background: var(--bg-white);
             color: var(--primary);
-            padding: 6px 16px;
+            padding: 8px 18px;
             border-radius: 50px;
             font-size: 0.85rem;
-            font-weight: 600;
-            margin-bottom: 24px;
+            font-weight: 700;
+            margin-bottom: 28px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
+            position: relative;
+            overflow: hidden;
+            animation: badgeFloat 4s ease-in-out infinite;
+        }
+        .hero-badge::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.15), transparent);
+            animation: badgeShine 3s infinite;
+        }
+        @keyframes badgeFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes badgeShine {
+            0% { left: -100%; }
+            100% { left: 100%; }
         }
 
         .hero-badge .dot {
             width: 8px;
             height: 8px;
-            background: #22c55e;
+            background: var(--success);
             border-radius: 50%;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
         }
-
         @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(0.85); }
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            50% { opacity: 0.9; transform: scale(1.1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
         }
 
         .hero h1 {
-            font-size: 3rem;
-            font-weight: 800;
+            font-size: clamp(2rem, 5vw, 3.4rem);
+            font-weight: 900;
             line-height: 1.15;
-            letter-spacing: -0.02em;
-            margin-bottom: 20px;
+            letter-spacing: -0.03em;
+            margin-bottom: 24px;
+            animation: fadeUp 0.8s cubic-bezier(.2,.8,.2,1) both;
         }
-
         .hero h1 span {
-            background: linear-gradient(135deg, var(--primary), #7c3aed);
+            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
+            background-size: 300% 300%;
+            animation: gradientShift 5s ease infinite;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            color: var(--primary);
         }
 
-        @supports (-webkit-background-clip: text) or (background-clip: text) {
-            .hero h1 span { color: transparent; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .hero p {
             color: var(--text-gray);
-            font-size: 1.1rem;
-            max-width: 560px;
-            margin: 0 auto 36px;
+            font-size: 1.12rem;
+            max-width: 600px;
+            margin: 0 auto 40px;
+            animation: fadeUp 0.8s 0.15s cubic-bezier(.2,.8,.2,1) both;
         }
 
         .hero-buttons {
@@ -502,18 +544,19 @@
             gap: 16px;
             justify-content: center;
             flex-wrap: wrap;
+            animation: fadeUp 0.8s 0.3s cubic-bezier(.2,.8,.2,1) both;
         }
 
-        .btn-primary,
-        .btn-outline {
-            padding: 14px 30px;
+        /* Button primary upgraded */
+        .btn-primary, .btn-outline {
+            padding: 15px 32px;
             border-radius: 50px;
             text-decoration: none;
-            font-weight: 700;
+            font-weight: 800;
             font-size: 1rem;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s, color 0.2s;
+            transition: transform 0.2s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.2s, background-color 0.2s, color 0.2s;
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -521,19 +564,31 @@
             -webkit-user-select: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
+            position: relative;
+            overflow: hidden;
+            z-index: 1;
         }
 
         .btn-primary {
-            background: var(--primary);
+            background: linear-gradient(135deg, #2563eb, #7c3aed, #2563eb);
+            background-size: 200% 200%;
+            animation: gradientShift 4s ease infinite;
             color: white;
         }
-
-        .btn-primary:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
-            background: var(--primary-dark);
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+            transition: left 0.5s ease;
+            z-index: -1;
         }
-
+        .btn-primary:hover::before { left: 100%; }
+        .btn-primary:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hard-lg), 0 0 24px rgba(124, 58, 237, 0.4);
+        }
         .btn-primary:active {
             transform: translate(1px, 1px);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
@@ -542,51 +597,78 @@
         .btn-outline {
             background: var(--bg-white);
             color: var(--text-dark);
-            font-weight: 600;
         }
-
         .btn-outline:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            transform: translate(-3px, -3px);
+            box-shadow: var(--shadow-hard-lg);
             color: var(--primary);
+            background: var(--primary-light);
         }
-
         .btn-outline:active {
             transform: translate(1px, 1px);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
 
-        .btn-primary .icon-svg,
-        .btn-outline .icon-svg {
-            width: 18px;
-            height: 18px;
-        }
-
-        .btn-primary:focus-visible,
-        .btn-outline:focus-visible {
+        .btn-primary .icon-svg, .btn-outline .icon-svg { width: 18px; height: 18px; }
+        .btn-primary:focus-visible, .btn-outline:focus-visible {
             outline: 3px solid var(--primary);
             outline-offset: 3px;
         }
 
-        /* ===== CONTACT CARDS ===== */
+        /* Floating stats bawah hero */
+        .hero-stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 60px;
+            flex-wrap: wrap;
+            animation: fadeUp 0.8s 0.45s cubic-bezier(.2,.8,.2,1) both;
+        }
+        .hero-stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .hero-stat-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.03em;
+        }
+        .hero-stat-label {
+            font-size: 0.78rem;
+            color: var(--text-gray);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ============================================
+           CONTACT CARDS — upgraded
+           ============================================ */
         .contact-section { padding: 0 0 90px; }
 
         .contact-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 24px;
-            max-width: 720px;
+            max-width: 760px;
             margin: 0 auto;
         }
 
         .contact-card {
             background: var(--bg-white);
-            border-radius: var(--radius);
-            padding: 32px 28px;
+            border-radius: var(--radius-lg);
+            padding: 36px 28px;
             text-align: center;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            transition: transform 0.25s, box-shadow 0.25s, background-color 0.25s;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s, background-color 0.3s;
             text-decoration: none;
             color: inherit;
             display: block;
@@ -600,88 +682,90 @@
 
         .contact-card .glow {
             position: absolute;
-            width: 220px;
-            height: 220px;
+            width: 280px;
+            height: 280px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.25) 0%, transparent 70%);
             pointer-events: none;
             z-index: -1;
             transform: translate(-50%, -50%);
-            transition: opacity 0.3s;
+            transition: opacity 0.4s;
             opacity: 0;
-            filter: blur(20px);
+            filter: blur(30px);
         }
-
         .contact-card.telegram-card .glow {
-            background: radial-gradient(circle, rgba(34, 158, 217, 0.3) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(34, 158, 217, 0.4) 0%, transparent 70%);
         }
-
         .contact-card.whatsapp-card .glow {
-            background: radial-gradient(circle, rgba(37, 211, 102, 0.3) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(37, 211, 102, 0.4) 0%, transparent 70%);
         }
-
         .contact-card:hover .glow { opacity: 1; }
 
         .contact-card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
+            top: 0; left: 0;
+            width: 100%; height: 4px;
             background: var(--primary);
             z-index: 1;
         }
-
-        .contact-card.telegram-card::before { background: var(--telegram); }
-        .contact-card.whatsapp-card::before { background: var(--whatsapp); }
-
-        .contact-card:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: 7px 7px 0px rgba(15, 23, 42, 1);
+        .contact-card.telegram-card::before {
+            background: linear-gradient(90deg, #229ED9, #4fc3f7, #229ED9);
+            background-size: 200% 100%;
+            animation: gradientShift 3s linear infinite;
+        }
+        .contact-card.whatsapp-card::before {
+            background: linear-gradient(90deg, #25D366, #4ade80, #25D366);
+            background-size: 200% 100%;
+            animation: gradientShift 3s linear infinite;
         }
 
+        .contact-card:hover {
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-hard-lg);
+        }
         .contact-card:focus-visible {
             outline: 3px solid var(--primary);
             outline-offset: 3px;
         }
 
         .contact-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: 18px;
+            width: 72px;
+            height: 72px;
+            border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 16px;
+            margin: 0 auto 20px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
             position: relative;
             z-index: 1;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
+        .contact-card:hover .contact-icon { transform: scale(1.1) rotate(-6deg); }
 
         .contact-icon.telegram { background: #e8f4fd; color: var(--telegram); }
         .contact-icon.whatsapp { background: #e8f9ee; color: var(--whatsapp); }
-
         [data-theme="dark"] .contact-icon.telegram { background: rgba(34, 158, 217, 0.15); }
         [data-theme="dark"] .contact-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
 
-        .contact-icon .icon-svg { width: 30px; height: 30px; }
+        .contact-icon .icon-svg { width: 34px; height: 34px; }
 
         .contact-card h3 {
-            font-size: 1.15rem;
-            font-weight: 700;
-            margin-bottom: 6px;
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin-bottom: 8px;
             position: relative;
             z-index: 1;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: -0.02em;
         }
-
         .contact-card p {
             color: var(--text-gray);
-            font-size: 0.9rem;
-            margin-bottom: 18px;
-            font-family: 'Courier New', monospace;
-            font-weight: 600;
+            font-size: 0.92rem;
+            margin-bottom: 20px;
+            font-family: ui-monospace, 'Courier New', monospace;
+            font-weight: 700;
             position: relative;
             z-index: 1;
         }
@@ -689,11 +773,11 @@
         .contact-btn {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 9px 22px;
+            gap: 8px;
+            padding: 11px 24px;
             border-radius: 50px;
-            font-size: 0.85rem;
-            font-weight: 600;
+            font-size: 0.88rem;
+            font-weight: 800;
             transition: transform 0.2s, box-shadow 0.2s;
             border: 2px solid var(--border-dark);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
@@ -701,60 +785,58 @@
             z-index: 1;
             pointer-events: none;
         }
-
-        .contact-btn .icon-svg { width: 14px; height: 14px; }
-
+        .contact-btn .icon-svg { width: 15px; height: 15px; }
         .contact-btn.telegram { background: var(--telegram); color: white; }
         .contact-btn.whatsapp { background: var(--whatsapp); color: white; }
 
         .contact-card:hover .contact-btn {
-            transform: translate(-1px, -1px);
-            box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
         }
 
-        /* ===== FEATURES ===== */
+        /* ============================================
+           FEATURES — upgraded
+           ============================================ */
         .features {
-            padding: 90px 0;
+            padding: 100px 0;
             background: var(--bg-white);
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
             position: relative;
         }
 
-        .features .container {
-            position: relative;
-            z-index: 1;
-        }
-
         .section-header {
             text-align: center;
-            margin-bottom: 56px;
+            margin-bottom: 64px;
         }
 
         .section-badge {
             display: inline-block;
-            background: var(--primary-light);
+            background: var(--gradient-soft);
             color: var(--primary);
-            padding: 5px 14px;
+            padding: 6px 16px;
             border-radius: 50px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 16px;
+            font-size: 0.82rem;
+            font-weight: 800;
+            margin-bottom: 18px;
             border: 2px solid var(--border-dark);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
         }
 
         .section-header h2 {
-            font-size: 2.2rem;
-            font-weight: 800;
-            letter-spacing: -0.02em;
-            margin-bottom: 12px;
+            font-size: clamp(1.8rem, 3.5vw, 2.5rem);
+            font-weight: 900;
+            letter-spacing: -0.03em;
+            margin-bottom: 14px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .section-header p {
             color: var(--text-gray);
-            font-size: 1rem;
-            max-width: 500px;
+            font-size: 1.02rem;
+            max-width: 520px;
             margin: 0 auto;
         }
 
@@ -766,10 +848,10 @@
 
         .feature-card {
             background: var(--bg-light);
-            border-radius: var(--radius);
-            padding: 32px 28px;
+            border-radius: var(--radius-lg);
+            padding: 36px 30px;
             border: 2px solid var(--border-dark);
-            transition: transform 0.25s, box-shadow 0.25s, background-color 0.25s;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s, background-color 0.3s;
             box-shadow: var(--shadow-hard-sm);
             position: relative;
             overflow: hidden;
@@ -780,147 +862,205 @@
 
         .feature-card .glow {
             position: absolute;
-            width: 180px;
-            height: 180px;
+            width: 220px;
+            height: 220px;
             border-radius: 50%;
-            background: radial-gradient(circle, rgba(37, 99, 235, 0.2) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(37, 99, 235, 0.3) 0%, transparent 70%);
             pointer-events: none;
             z-index: -1;
             transform: translate(-50%, -50%);
             opacity: 0;
-            transition: opacity 0.3s;
-            filter: blur(20px);
+            transition: opacity 0.4s;
+            filter: blur(30px);
         }
-
         .feature-card:hover .glow { opacity: 1; }
 
         .feature-card:hover {
             background: var(--bg-white);
-            transform: translate(-3px, -3px);
-            box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
+            transform: translate(-4px, -4px);
+            box-shadow: var(--shadow-hard-lg);
         }
 
         .feature-icon {
-            width: 52px;
-            height: 52px;
-            background: var(--primary-light);
-            border-radius: 14px;
+            width: 58px;
+            height: 58px;
+            background: var(--gradient-soft);
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
+            margin-bottom: 22px;
             border: 2px solid var(--border-dark);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
             color: var(--primary);
             position: relative;
             z-index: 1;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
-
-        .feature-icon .icon-svg { width: 24px; height: 24px; }
+        .feature-card:hover .feature-icon { transform: scale(1.1) rotate(-8deg); }
+        .feature-icon .icon-svg { width: 26px; height: 26px; }
 
         .feature-card h3 {
-            font-size: 1.05rem;
-            font-weight: 700;
-            margin-bottom: 8px;
+            font-size: 1.12rem;
+            font-weight: 800;
+            margin-bottom: 10px;
             position: relative;
             z-index: 1;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            letter-spacing: -0.01em;
         }
 
         .feature-card p {
             color: var(--text-gray);
-            font-size: 0.9rem;
-            line-height: 1.6;
+            font-size: 0.92rem;
+            line-height: 1.65;
             position: relative;
             z-index: 1;
         }
 
-        /* ===== STEPS ===== */
-        .steps { padding: 90px 0; position: relative; }
+        /* ============================================
+           STEPS — upgraded dengan connector line
+           ============================================ */
+        .steps { padding: 100px 0; position: relative; }
 
         .steps-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 24px;
+            position: relative;
+        }
+
+        /* Connector line desktop */
+        @media (min-width: 769px) {
+            .steps-grid::before {
+                content: '';
+                position: absolute;
+                top: 26px;
+                left: 12%;
+                right: 12%;
+                height: 2px;
+                background: repeating-linear-gradient(
+                    to right,
+                    var(--border) 0,
+                    var(--border) 8px,
+                    transparent 8px,
+                    transparent 16px
+                );
+                z-index: 0;
+            }
         }
 
         .step-card {
             text-align: center;
             position: relative;
+            z-index: 1;
             user-select: none;
             -webkit-user-select: none;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
+        .step-card:hover { transform: translateY(-6px); }
 
         .step-number {
-            width: 52px;
-            height: 52px;
-            background: var(--primary);
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #2563eb, #7c3aed);
+            background-size: 200% 200%;
+            animation: gradientShift 5s ease infinite;
             color: white;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 800;
-            font-size: 1.1rem;
-            margin: 0 auto 20px;
+            font-weight: 900;
+            font-size: 1.2rem;
+            margin: 0 auto 22px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s;
+            position: relative;
+        }
+        .step-number::after {
+            content: '';
+            position: absolute;
+            inset: -6px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            opacity: 0;
+            transition: opacity 0.3s, inset 0.3s;
+        }
+        .step-card:hover .step-number {
+            transform: scale(1.15) rotate(-8deg);
+            box-shadow: var(--shadow-hard);
+        }
+        .step-card:hover .step-number::after {
+            opacity: 0.4;
+            inset: -10px;
+            animation: pulseRing 1.5s ease-out infinite;
+        }
+
+        @keyframes pulseRing {
+            0% { opacity: 0.5; inset: -6px; }
+            100% { opacity: 0; inset: -20px; }
         }
 
         .step-card h3 {
-            font-size: 1rem;
-            font-weight: 700;
-            margin-bottom: 8px;
+            font-size: 1.02rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .step-card p {
             color: var(--text-gray);
-            font-size: 0.85rem;
+            font-size: 0.86rem;
             line-height: 1.6;
         }
 
-        /* ===== FAQ ===== */
+        /* ============================================
+           FAQ — upgraded dengan smooth expand
+           ============================================ */
         .faq {
-            padding: 90px 0;
+            padding: 100px 0;
             background: var(--bg-white);
             border-top: 2px solid var(--border-dark);
             border-bottom: 2px solid var(--border-dark);
             position: relative;
         }
 
-        .faq .container {
-            position: relative;
-            z-index: 1;
-        }
-
         .faq-list {
-            max-width: 720px;
+            max-width: 760px;
             margin: 0 auto;
         }
 
         .faq-item {
             border: 2px solid var(--border-dark);
             border-radius: var(--radius-sm);
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s, box-shadow 0.25s, background-color 0.25s;
             background: var(--bg-white);
             box-shadow: var(--shadow-hard-sm);
         }
 
         .faq-item:hover {
-            transform: translate(-1px, -1px);
+            transform: translate(-2px, -2px);
             box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+        }
+
+        .faq-item.active {
+            background: var(--gradient-soft);
         }
 
         .faq-question {
             width: 100%;
             background: none;
             border: none;
-            padding: 20px 24px;
+            padding: 22px 26px;
             text-align: left;
             font-family: inherit;
-            font-size: 0.95rem;
-            font-weight: 600;
+            font-size: 0.98rem;
+            font-weight: 700;
             color: var(--text-dark);
             cursor: pointer;
             display: flex;
@@ -929,57 +1069,133 @@
             gap: 16px;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            transition: color 0.2s;
         }
-
+        .faq-question:hover { color: var(--primary); }
         .faq-question:focus-visible {
             outline: 3px solid var(--primary);
             outline-offset: -3px;
         }
 
         .faq-question .icon-plus {
-            width: 20px;
-            height: 20px;
+            width: 22px;
+            height: 22px;
             color: var(--primary);
-            transition: transform 0.3s;
+            transition: transform 0.4s cubic-bezier(.2,.8,.2,1.4);
             flex-shrink: 0;
             pointer-events: none;
         }
 
         .faq-item.active .faq-question .icon-plus {
-            transform: rotate(45deg);
+            transform: rotate(135deg);
         }
 
         .faq-answer {
             max-height: 0;
             overflow: hidden;
-            transition: max-height 0.3s ease;
+            transition: max-height 0.4s cubic-bezier(.2,.8,.2,1);
         }
 
         .faq-answer-inner {
-            padding: 0 24px 20px;
+            padding: 0 26px 22px;
             color: var(--text-gray);
-            font-size: 0.9rem;
-            line-height: 1.7;
+            font-size: 0.92rem;
+            line-height: 1.75;
         }
 
         .faq-item.active .faq-answer {
-            max-height: 250px;
+            max-height: 300px;
         }
 
-        /* ===== FOOTER ===== */
+        /* ============================================
+           CTA BANNER — NEW: konversi tambahan
+           ============================================ */
+        .cta-banner {
+            padding: 80px 0;
+            position: relative;
+        }
+        .cta-banner-inner {
+            background: linear-gradient(135deg, #1e3a8a, #4c1d95, #831843);
+            background-size: 200% 200%;
+            animation: gradientShift 8s ease infinite;
+            border-radius: var(--radius-lg);
+            padding: 60px 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-lg);
+        }
+        .cta-banner-inner::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(255,255,255,0.04) 0deg 10deg,
+                transparent 10deg 20deg
+            );
+            animation: spin 40s linear infinite;
+            pointer-events: none;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .cta-banner-inner > * { position: relative; z-index: 1; }
+        .cta-banner h2 {
+            color: white;
+            font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 900;
+            margin-bottom: 12px;
+            letter-spacing: -0.03em;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }
+        .cta-banner p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1.02rem;
+            max-width: 520px;
+            margin: 0 auto 28px;
+        }
+        .cta-banner .btn-cta {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 32px;
+            border-radius: 50px;
+            background: white;
+            color: #1e3a8a;
+            font-weight: 800;
+            font-size: 1rem;
+            text-decoration: none;
+            border: 2px solid #0f172a;
+            box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .cta-banner .btn-cta:hover {
+            transform: translate(-3px, -3px);
+            box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+        }
+        .cta-banner .btn-cta:active {
+            transform: translate(1px, 1px);
+            box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+        }
+
+        /* ============================================
+           FOOTER — upgraded
+           ============================================ */
         footer {
-            background: var(--text-dark);
+            background: #0f172a;
             color: #94a3b8;
-            padding: 48px 0 32px;
+            padding: 56px 0 32px;
             position: relative;
             z-index: 1;
             border-top: 2px solid var(--border-dark);
         }
-
-        [data-theme="dark"] footer {
-            background: #020617;
-            color: #94a3b8;
-        }
+        [data-theme="dark"] footer { background: #020617; }
 
         .footer-inner {
             display: flex;
@@ -994,61 +1210,112 @@
             align-items: center;
             gap: 10px;
             color: white;
-            font-weight: 700;
-            font-size: 1.1rem;
+            font-weight: 800;
+            font-size: 1.15rem;
             user-select: none;
             -webkit-user-select: none;
         }
-
         .footer-logo .logo-icon {
-            width: 32px;
-            height: 32px;
-            font-size: 1.2rem;
+            width: 34px;
+            height: 34px;
+            font-size: 1.25rem;
+            border-radius: 10px;
             box-shadow: 2px 2px 0px rgba(255, 255, 255, 0.15);
         }
+        .footer-logo .logo-icon::after { display: none; }
 
         .footer-links {
             display: flex;
             gap: 24px;
             list-style: none;
         }
-
         .footer-links a {
             color: #94a3b8;
             text-decoration: none;
-            font-size: 0.85rem;
-            transition: color 0.2s;
+            font-size: 0.88rem;
+            font-weight: 600;
+            transition: color 0.2s, transform 0.2s;
+            display: inline-block;
         }
-
-        .footer-links a:hover { color: white; }
+        .footer-links a:hover { color: white; transform: translateY(-2px); }
 
         .footer-copy {
             text-align: center;
-            margin-top: 32px;
-            padding-top: 24px;
+            margin-top: 36px;
+            padding-top: 28px;
             border-top: 1px solid #1e293b;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             color: #64748b;
         }
-
         .footer-copy a {
             text-decoration: none;
-            font-weight: 600;
+            font-weight: 700;
+            transition: opacity 0.2s;
+        }
+        .footer-copy a:hover { opacity: 0.8; text-decoration: underline; }
+
+        /* ============================================
+           SCROLL REVEAL
+           ============================================ */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.7s cubic-bezier(.2,.8,.2,1), transform 0.7s cubic-bezier(.2,.8,.2,1);
+            will-change: opacity, transform;
+        }
+        .reveal.in-view {
+            opacity: 1;
+            transform: translateY(0);
         }
 
-        /* ===== ANTI-PRINT ===== */
+        /* ============================================
+           BACK TO TOP BUTTON
+           ============================================ */
+        .back-to-top {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 14px;
+            background: var(--primary);
+            color: white;
+            border: 2px solid var(--border-dark);
+            box-shadow: var(--shadow-hard-sm);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s, background-color 0.2s;
+            z-index: 90;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateY(0);
+        }
+        .back-to-top:hover {
+            background: var(--primary-dark);
+            transform: translateY(-3px);
+        }
+        .back-to-top:active { transform: translateY(0) scale(.95); }
+        .back-to-top .icon-svg { width: 20px; height: 20px; }
+
+        /* ============================================
+           ANTI-PRINT
+           ============================================ */
         @media print {
-            body {
-                display: none !important;
-                visibility: hidden !important;
-            }
+            body { display: none !important; visibility: hidden !important; }
             body::after {
                 content: '⚠️ Halaman ini tidak dapat dicetak / disimpan.';
                 display: block !important;
                 visibility: visible !important;
                 position: fixed;
                 inset: 0;
-                display: flex;
                 align-items: center;
                 justify-content: center;
                 font-family: system-ui, sans-serif;
@@ -1060,30 +1327,33 @@
             }
         }
 
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 768px) {
+        /* ============================================
+           RESPONSIVE
+           ============================================ */
+        @media (max-width: 900px) {
             .nav-links { display: none; }
-
-            .theme-toggle {
-                top: 16px;
-                right: 16px;
-                width: 40px;
-                height: 40px;
-            }
-
-            .hero h1 { font-size: 2rem; }
-            .hero p { font-size: 1rem; }
-            .contact-grid { grid-template-columns: 1fr; }
+            .theme-toggle { top: 16px; right: 16px; width: 42px; height: 42px; }
+            .hero { padding: 70px 0 60px; }
+            .hero-stats { gap: 28px; margin-top: 44px; }
+            .hero-stat-value { font-size: 1.5rem; }
+            .contact-grid { grid-template-columns: 1fr; max-width: 460px; }
             .features-grid { grid-template-columns: 1fr; }
-            .steps-grid { grid-template-columns: 1fr 1fr; }
+            .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
             .footer-inner { flex-direction: column; text-align: center; }
-            .section-header h2 { font-size: 1.7rem; }
+            .features, .steps, .faq { padding: 70px 0; }
+            .section-header { margin-bottom: 44px; }
+            .cta-banner-inner { padding: 44px 24px; }
         }
 
-        @media (max-width: 480px) {
-            .steps-grid { grid-template-columns: 1fr; }
-            .hero-buttons { flex-direction: column; align-items: center; }
+        @media (max-width: 560px) {
+            .steps-grid { grid-template-columns: 1fr; gap: 28px; }
+            .hero-buttons { flex-direction: column; align-items: stretch; }
             .btn-primary, .btn-outline { width: 100%; justify-content: center; }
+            .hero-stats { gap: 20px; }
+            .hero-stat-value { font-size: 1.35rem; }
+            .contact-card { padding: 28px 22px; }
+            .feature-card { padding: 28px 22px; }
+            .back-to-top { bottom: 16px; right: 16px; width: 44px; height: 44px; }
         }
 
         /* ===== REDUCED MOTION ===== */
@@ -1094,10 +1364,20 @@
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
+            .bg-mesh .blob { animation: none; }
+            .reveal { opacity: 1; transform: none; }
         }
     </style>
 </head>
 <body>
+
+    <!-- ===== ANIMATED BACKGROUND ===== -->
+    <div class="bg-mesh" aria-hidden="true">
+        <div class="blob"></div>
+        <div class="blob"></div>
+        <div class="blob"></div>
+    </div>
+    <div class="bg-grid" aria-hidden="true"></div>
 
     <!-- ===== THEME TOGGLE ===== -->
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -1111,9 +1391,9 @@
     </button>
 
     <!-- ===== NAVBAR ===== -->
-    <nav>
+    <nav id="mainNav">
         <div class="container nav-inner">
-            <a href="/landing" class="logo">
+            <a href="/" class="logo">
                 <div class="logo-icon">A</div>
                 <div class="logo-text">Asyrof<span>OTP</span></div>
             </a>
@@ -1150,6 +1430,26 @@
                     Cara Kerja
                 </a>
             </div>
+
+            <!-- Floating stats -->
+            <div class="hero-stats">
+                <div class="hero-stat">
+                    <div class="hero-stat-value">1.700+</div>
+                    <div class="hero-stat-label">Layanan</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">100+</div>
+                    <div class="hero-stat-label">Negara</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">5 Detik</div>
+                    <div class="hero-stat-label">Rata-rata OTP</div>
+                </div>
+                <div class="hero-stat">
+                    <div class="hero-stat-value">24/7</div>
+                    <div class="hero-stat-label">Support</div>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -1157,7 +1457,7 @@
     <section class="contact-section">
         <div class="container">
             <div class="contact-grid">
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="contact-card telegram-card">
+                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="contact-card telegram-card reveal">
                     <div class="glow"></div>
                     <div class="contact-icon telegram">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
@@ -1170,7 +1470,7 @@
                     </span>
                 </a>
 
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="contact-card whatsapp-card">
+                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="contact-card whatsapp-card reveal">
                     <div class="glow"></div>
                     <div class="contact-icon whatsapp">
                         <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
@@ -1189,13 +1489,13 @@
     <!-- ===== FEATURES ===== -->
     <section class="features" id="fitur">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="section-badge">Fitur Unggulan</div>
                 <h2>Layanan Terbaik Kami</h2>
                 <p>Fitur terbaik untuk solusi digital yang cepat, aman, dan mudah.</p>
             </div>
             <div class="features-grid">
-                <div class="feature-card">
+                <div class="feature-card reveal">
                     <div class="glow"></div>
                     <div class="feature-icon">
                         <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -1203,7 +1503,7 @@
                     <h3>Fast Receive</h3>
                     <p>Layanan OTP kami menjamin penerimaan SMS instan tanpa delay atau gangguan jaringan.</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-card reveal">
                     <div class="glow"></div>
                     <div class="feature-icon">
                         <svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
@@ -1211,7 +1511,7 @@
                     <h3>Terpercaya</h3>
                     <p>AsyrofOTP berkomitmen untuk menjaga kepercayaan pengguna dengan terus meningkatkan kualitas layanan.</p>
                 </div>
-                <div class="feature-card">
+                <div class="feature-card reveal">
                     <div class="glow"></div>
                     <div class="feature-icon">
                         <svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1226,28 +1526,28 @@
     <!-- ===== STEPS ===== -->
     <section class="steps" id="cara-kerja">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="section-badge">Langkah Demi Langkah</div>
                 <h2>Bagaimana Cara Kerjanya</h2>
                 <p>4 langkah mudah mendapatkan Jasa OTP secara instan!</p>
             </div>
             <div class="steps-grid">
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-number">1</div>
                     <h3>Pilih Layanan</h3>
                     <p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-number">2</div>
                     <h3>Pilih Negara</h3>
                     <p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-number">3</div>
                     <h3>Gunakan Layanan</h3>
                     <p>Masukkan dan tunggu hingga pesan text masuk.</p>
                 </div>
-                <div class="step-card">
+                <div class="step-card reveal">
                     <div class="step-number">4</div>
                     <h3>Terima Pesan</h3>
                     <p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p>
@@ -1256,16 +1556,33 @@
         </div>
     </section>
 
+    <!-- ===== CTA BANNER ===== -->
+    <section class="cta-banner">
+        <div class="container">
+            <div class="cta-banner-inner reveal">
+                <h2>Siap Mulai Sekarang?</h2>
+                <p>Daftar gratis, top-up saldo, dan nikmati layanan OTP tercepat di Indonesia.</p>
+                <a href="/dashboard" class="btn-cta">
+                    <svg class="icon-svg" viewBox="0 0 24 24" style="width:18px;height:18px;">
+                        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                    </svg>
+                    Mulai Sekarang
+                </a>
+            </div>
+        </div>
+    </section>
+
     <!-- ===== FAQ ===== -->
     <section class="faq" id="faq">
         <div class="container">
-            <div class="section-header">
+            <div class="section-header reveal">
                 <div class="section-badge">FAQ</div>
                 <h2>Frequently Asked Questions</h2>
                 <p>Beberapa pertanyaan yang sering di tanyakan oleh pengguna layanan kami.</p>
             </div>
             <div class="faq-list">
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Untuk apa ini?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1276,7 +1593,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Bagaimana proses top-up dan keamanan saldo?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1287,7 +1604,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Saldo tidak bertambah meskipun pembayaran sudah berhasil?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1298,7 +1615,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Pesanan gagal, apakah saldo tetap terpotong?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1309,7 +1626,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="faq-item">
+                <div class="faq-item reveal">
                     <button class="faq-question" type="button">
                         Apakah layanan ini terpercaya?
                         <svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1340,21 +1657,24 @@
                 </ul>
             </div>
             <div class="footer-copy">
-                &copy; 2025 AsyrofOTP. All rights reserved. | Support via
+                &copy; 2026 AsyrofOTP. All rights reserved. | Support via
                 <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" style="color: #229ED9;">Telegram</a> &
                 <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" style="color: #25D366;">WhatsApp</a>
             </div>
         </div>
     </footer>
 
+    <!-- ===== BACK TO TOP ===== -->
+    <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas">
+        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
+
     <script src="/js/cache.js"></script>
 
     <script>
         /* ============================================
-           🔒 SECURITY HARDENING — Frontend
+           SECURITY HARDENING — Frontend
            ============================================ */
-
-        // 1. Console warning
         (function() {
             const style = 'color:#dc2626;font-size:20px;font-weight:900;';
             const styleSub = 'color:#64748b;font-size:12px;';
@@ -1365,23 +1685,16 @@
             } catch (e) {}
         })();
 
-        // 2. Disable right-click, F12, Ctrl+Shift+I/J/C, Ctrl+U/S/P
         (function() {
             document.addEventListener('contextmenu', (e) => e.preventDefault());
-
             document.addEventListener('keydown', (e) => {
                 const k = e.key;
                 if (k === 'F12') { e.preventDefault(); return false; }
-                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) {
-                    e.preventDefault(); return false;
-                }
-                if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) {
-                    e.preventDefault(); return false;
-                }
+                if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+                if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
             }, true);
         })();
 
-        // 3. Deteksi DevTools → wipe DOM + auto reload
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
             const THRESHOLD_WIDTH = 200;
@@ -1392,69 +1705,57 @@
                 if (window.innerWidth < 600) return true;
                 return false;
             }
-
             function isDevToolsOpen() {
                 if (shouldSkipDetection()) return false;
                 const widthDiff = window.outerWidth - window.innerWidth;
                 const heightDiff = window.outerHeight - window.innerHeight;
                 return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
             }
-
-            // FASE 1: Cek terus — kalau DevTools kebuka, wipe + reload
             function startDetection() {
                 setInterval(() => {
                     if (isDevToolsOpen()) {
-                        // Set flag biar setelah reload tau harus lock
                         try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
-                        // Wipe DOM biar makin brutal
+                        try {
+                            document.body.style.cssText = '';
+                            document.documentElement.style.cssText = '';
+                            document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                        } catch (e) {}
                         document.body.innerHTML = '';
-                        // Reload
                         window.location.reload();
                     }
                 }, 500);
             }
-
-            // FASE 2 (kalau flag ada): Diproses oleh script di <head> (lock screen)
-            // Script di <head> udah handle — kalau flag ada, dia wipe & tampil peringatan + polling unlock
-
-            // Routing
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                // Udah di-lock screen, script di <head> yang handle
-                // Skip detection di sini biar gak loop
-                return;
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', startDetection);
-            } else {
-                startDetection();
-            }
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startDetection);
+            else startDetection();
         })();
 
-        // 4. Anti-copy di area non-input
         (function() {
             document.addEventListener('copy', (e) => {
-                const target = e.target;
-                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-                    return;
-                }
+                const t = e.target;
+                if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
                 e.preventDefault();
             });
-
             document.addEventListener('cut', (e) => {
-                const target = e.target;
-                if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-                    return;
-                }
+                const t = e.target;
+                if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
                 e.preventDefault();
             });
         })();
 
-        // 5. Auto-redirect kalau sudah login
+        (function() {
+            try {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                if (window.location.search) history.replaceState(null, '', cleanUrl);
+            } catch (e) {}
+        })();
+
+        /* ============================================
+           AUTO-REDIRECT KALAU SUDAH LOGIN
+           ============================================ */
         (async function checkAlreadyLoggedIn() {
             const token = localStorage.getItem('access_token');
             if (!token) return;
-
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 5000);
@@ -1463,22 +1764,17 @@
                     signal: controller.signal,
                 });
                 clearTimeout(timeout);
-
-                if (res.ok) {
-                    window.location.replace('/dashboard');
-                    return;
-                }
-
+                if (res.ok) { window.location.replace('/dashboard'); return; }
                 if (res.status === 401 || res.status === 403) {
                     localStorage.removeItem('access_token');
                     localStorage.removeItem('user');
                 }
-            } catch (err) {
-                // silent
-            }
+            } catch (err) {}
         })();
 
-        // 6. Theme toggle
+        /* ============================================
+           THEME TOGGLE
+           ============================================ */
         (function initTheme() {
             const btn = document.getElementById('themeToggle');
             if (!btn) return;
@@ -1492,25 +1788,67 @@
             });
         })();
 
-        // 7. FAQ accordion
+        /* ============================================
+           NAVBAR SCROLL SHADOW
+           ============================================ */
+        (function initNavScroll() {
+            const nav = document.getElementById('mainNav');
+            if (!nav) return;
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => {
+                    nav.classList.toggle('scrolled', window.scrollY > 10);
+                    ticking = false;
+                });
+            }, { passive: true });
+        })();
+
+        /* ============================================
+           FAQ ACCORDION
+           ============================================ */
         (function initFaq() {
             document.querySelectorAll('.faq-question').forEach(button => {
                 button.addEventListener('click', () => {
                     const item = button.parentElement;
                     const isActive = item.classList.contains('active');
-
                     document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
-
                     if (!isActive) item.classList.add('active');
                 });
             });
         })();
 
-        // 8. Parallax glow (mouse + gyro) — cuma kalau bukan reduced-motion
-        (function initParallax() {
-            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        /* ============================================
+           SCROLL REVEAL — IntersectionObserver
+           ============================================ */
+        (function initReveal() {
+            const els = document.querySelectorAll('.reveal');
+            if (els.length === 0) return;
+
+            if (!('IntersectionObserver' in window) ||
+                (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+                els.forEach(el => el.classList.add('in-view'));
                 return;
             }
+
+            const io = new IntersectionObserver((entries) => {
+                entries.forEach((entry, i) => {
+                    if (entry.isIntersecting) {
+                        setTimeout(() => entry.target.classList.add('in-view'), i * 80);
+                        io.unobserve(entry.target);
+                    }
+                });
+            }, { rootMargin: '0px 0px -80px 0px', threshold: 0.1 });
+
+            els.forEach(el => io.observe(el));
+        })();
+
+        /* ============================================
+           PARALLAX GLOW (mouse + gyro)
+           ============================================ */
+        (function initParallax() {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
 
             const cards = document.querySelectorAll('.contact-card, .feature-card');
 
@@ -1526,7 +1864,6 @@
                         glow.style.opacity = '1';
                     }
                 });
-
                 card.addEventListener('mouseleave', () => {
                     const glow = card.querySelector('.glow');
                     if (glow) glow.style.opacity = '0';
@@ -1534,37 +1871,66 @@
             });
 
             let lastX = 0, lastY = 0;
-
             function handleOrientation(event) {
                 const beta = event.beta || 0;
                 const gamma = event.gamma || 0;
-
                 const normX = Math.max(-1, Math.min(1, gamma / 45));
                 const normY = Math.max(-1, Math.min(1, (beta - 45) / 45));
-
                 lastX += (normX - lastX) * 0.1;
                 lastY += (normY - lastY) * 0.1;
-
                 cards.forEach(card => {
                     const glow = card.querySelector('.glow');
                     if (!glow) return;
-
                     const rect = card.getBoundingClientRect();
-                    const centerX = rect.width / 2;
-                    const centerY = rect.height / 2;
-
                     const offsetX = lastX * (rect.width * 0.4);
                     const offsetY = lastY * (rect.height * 0.4);
-
-                    glow.style.left = (centerX + offsetX) + 'px';
-                    glow.style.top = (centerY + offsetY) + 'px';
+                    glow.style.left = (rect.width / 2 + offsetX) + 'px';
+                    glow.style.top = (rect.height / 2 + offsetY) + 'px';
                     glow.style.opacity = '0.8';
                 });
             }
-
             if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleOrientation);
+                window.addEventListener('deviceorientation', handleOrientation, { passive: true });
             }
+        })();
+
+        /* ============================================
+           BACK TO TOP
+           ============================================ */
+        (function initBackToTop() {
+            const btn = document.getElementById('backToTop');
+            if (!btn) return;
+            let ticking = false;
+            window.addEventListener('scroll', () => {
+                if (ticking) return;
+                ticking = true;
+                requestAnimationFrame(() => {
+                    btn.classList.toggle('visible', window.scrollY > 400);
+                    ticking = false;
+                });
+            }, { passive: true });
+            btn.addEventListener('click', () => {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+        })();
+
+        /* ============================================
+           SMOOTH ANCHOR SCROLL (dengan offset navbar)
+           ============================================ */
+        (function initSmoothAnchor() {
+            document.querySelectorAll('a[href^="#"]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const href = link.getAttribute('href');
+                    if (href === '#' || href.length < 2) return;
+                    const target = document.querySelector(href);
+                    if (!target) return;
+                    e.preventDefault();
+                    const nav = document.getElementById('mainNav');
+                    const navH = nav ? nav.offsetHeight : 0;
+                    const top = target.getBoundingClientRect().top + window.scrollY - navH - 12;
+                    window.scrollTo({ top, behavior: 'smooth' });
+                });
+            });
         })();
     </script>
 
