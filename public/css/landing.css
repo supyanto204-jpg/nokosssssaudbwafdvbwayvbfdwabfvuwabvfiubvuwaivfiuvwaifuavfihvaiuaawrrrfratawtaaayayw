@@ -603,12 +603,13 @@ nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
     border-radius: 50%;
     /* EDGE BLUR 50% — mask radial dengan blur di tepi dalam */
     -webkit-mask-image: radial-gradient(
-        circle,
-        black 0%,
-        black 45%,
-        rgba(0, 0, 0, 0.5) 65%,
-        transparent 85%
-    );
+    circle,
+    black 0%,          /* tengah 100% */
+    rgba(0,0,0,0.85) 35%,
+    rgba(0,0,0,0.5) 60%,
+    rgba(0,0,0,0.15) 80%,
+    transparent 100%   /* pinggir 0% */
+);
     mask-image: radial-gradient(
         circle,
         black 0%,
