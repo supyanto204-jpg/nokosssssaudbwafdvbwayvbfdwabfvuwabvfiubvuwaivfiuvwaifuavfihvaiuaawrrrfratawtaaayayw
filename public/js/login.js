@@ -1,5 +1,9 @@
 /* ============================================
-   LOGIN PAGE v7 — Full script dengan Cursor Grid
+   LOGIN PAGE v8 — Full script
+   Tema BG: Aurora (dark) / Iridescence (light) + MicroSlats
+   Theme transition: Pixel Swap
+   Input: Fold Text label animation
+   Login: Folder check animation
    ============================================ */
 (function () {
     'use strict';
@@ -63,7 +67,7 @@
     })();
 
     /* ============================================
-       AUTO REDIRECT — kalau udah login
+       AUTO REDIRECT
        ============================================ */
     (async function checkAlreadyLoggedIn() {
         const token = localStorage.getItem('access_token');
@@ -85,30 +89,90 @@
     })();
 
     /* ============================================
-       THEME TOGGLE
+       THEME TOGGLE with PIXEL SWAP
        ============================================ */
     (function theme() {
         const btn = document.getElementById('themeToggle');
-        if (!btn) return;
+        const overlay = document.getElementById('pixelSwapOverlay');
+        if (!btn || !overlay) return;
+
+        let isAnimating = false;
+
+        // Build pixel grid
+        function buildPixels(themeColor) {
+            const pixelSize = 20; // banyak pixel kecil
+            const cols = Math.ceil(window.innerWidth / pixelSize);
+            const rows = Math.ceil(window.innerHeight / pixelSize);
+            const total = cols * rows;
+
+            overlay.innerHTML = '';
+            overlay.style.gridTemplateColumns = `repeat(${cols}, ${pixelSize}px)`;
+            overlay.style.gridTemplateRows = `repeat(${rows}, ${pixelSize}px)`;
+            overlay.setAttribute('data-theme-color', themeColor);
+
+            // Batasi max pixel
+            const MAX = 4000;
+            const step = total > MAX ? Math.ceil(total / MAX) : 1;
+
+            const frag = document.createDocumentFragment();
+            for (let i = 0; i < total; i += step) {
+                const p = document.createElement('div');
+                p.className = 'pixel';
+                // Delay random untuk efek chaotic
+                const delay = Math.random() * 0.4;
+                p.style.animationDelay = delay + 's';
+                frag.appendChild(p);
+            }
+            overlay.appendChild(frag);
+        }
+
         btn.addEventListener('click', () => {
+            if (isAnimating) return;
+
             const cur = document.documentElement.getAttribute('data-theme') || 'light';
             const next = cur === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('asyrofotp_theme', next);
-            const m = document.querySelector('meta[name="theme-color"]');
-            if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+
+            isAnimating = true;
+
+            // Warna overlay = warna tema TUJUAN
+            const targetColor = next === 'dark' ? 'dark' : 'light';
+            buildPixels(targetColor);
+
+            overlay.classList.add('active');
+            overlay.classList.remove('closing');
+
+            // Ganti tema pas pixel nutup penuh
+            setTimeout(() => {
+                document.documentElement.setAttribute('data-theme', next);
+                localStorage.setItem('asyrofotp_theme', next);
+                const m = document.querySelector('meta[name="theme-color"]');
+                if (m) m.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+
+                // Restart aurora/iridescence berdasarkan tema baru
+                restartBgByTheme(next);
+
+                // Fade out pixel
+                overlay.classList.add('closing');
+                setTimeout(() => {
+                    overlay.classList.remove('active', 'closing');
+                    overlay.innerHTML = '';
+                    isAnimating = false;
+                }, 700);
+            }, 700);
         });
     })();
 
     /* ============================================
-       AURORA BG
+       AURORA (dark theme)
        ============================================ */
-    (function aurora() {
-        const container = document.getElementById('auroraBg');
+    function initAurora() {
+        const container = document.getElementById('bgAurora');
         if (!container) return;
+        if (container.dataset.inited === '1') return;
+        container.dataset.inited = '1';
 
         if (DISABLE_HEAVY) {
-            container.classList.add('aurora-fallback');
+            container.style.background = 'linear-gradient(180deg, rgba(82,39,255,0.4) 0%, rgba(37,99,235,0.3) 50%, rgba(236,72,153,0.35) 100%)';
             return;
         }
 
@@ -122,7 +186,7 @@
         });
 
         if (!gl) {
-            container.classList.add('aurora-fallback');
+            container.style.background = 'linear-gradient(180deg, rgba(82,39,255,0.4) 0%, rgba(37,99,235,0.3) 50%, rgba(236,72,153,0.35) 100%)';
             return;
         }
 
@@ -210,13 +274,13 @@ void main() {
 
         const vs = compile(gl.VERTEX_SHADER, VERT);
         const fs = compile(gl.FRAGMENT_SHADER, FRAG);
-        if (!vs || !fs) { container.classList.add('aurora-fallback'); return; }
+        if (!vs || !fs) return;
 
         const prog = gl.createProgram();
         gl.attachShader(prog, vs);
         gl.attachShader(prog, fs);
         gl.linkProgram(prog);
-        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { container.classList.add('aurora-fallback'); return; }
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
         gl.useProgram(prog);
 
         const buf = gl.createBuffer();
@@ -238,11 +302,10 @@ void main() {
             [0.95, 0.4, 0.7]
         ];
 
-        let w = 1, h = 1;
         function resize() {
             const rect = container.getBoundingClientRect();
-            w = Math.max(1, Math.floor(rect.width));
-            h = Math.max(1, Math.floor(rect.height));
+            const w = Math.max(1, Math.floor(rect.width));
+            const h = Math.max(1, Math.floor(rect.height));
             const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
             canvas.width = Math.floor(w * dpr);
             canvas.height = Math.floor(h * dpr);
@@ -256,17 +319,13 @@ void main() {
         let raf = 0;
         let visible = true;
         let lastRender = 0;
-        const FPS_CAP = isMobile ? 24 : 30;
-        const FRAME_MIN = 1000 / FPS_CAP;
+        const FRAME_MIN = 1000 / (isMobile ? 24 : 30);
         const t0 = performance.now();
 
         function frame(now) {
             raf = 0;
             if (!visible || document.hidden) return;
-            if (now - lastRender < FRAME_MIN) {
-                raf = requestAnimationFrame(frame);
-                return;
-            }
+            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(frame); return; }
             lastRender = now;
 
             gl.uniform1f(uTime, (now - t0) * 0.001);
@@ -277,7 +336,6 @@ void main() {
             gl.clearColor(0, 0, 0, 0);
             gl.clear(gl.COLOR_BUFFER_BIT);
             gl.drawArrays(gl.TRIANGLES, 0, 3);
-
             raf = requestAnimationFrame(frame);
         }
 
@@ -299,281 +357,312 @@ void main() {
         });
 
         schedule();
-    })();
+    }
 
     /* ============================================
-       CURSOR GRID — kotak-kotak nyala di bawah kursor
+       IRIDESCENCE (light theme)
        ============================================ */
-    (function cursorGrid() {
-        // Skip total di mobile & reduced motion
-        if (isMobile) return;
-        if (prefersReduced) return;
+    function initIridescence() {
+        const container = document.getElementById('bgIridescence');
+        if (!container) return;
+        if (container.dataset.inited === '1') return;
+        container.dataset.inited = '1';
 
-        const canvas = document.getElementById('cursorGridCanvas');
-        if (!canvas) return;
+        if (DISABLE_HEAVY) {
+            container.style.background = 'linear-gradient(135deg, rgba(191,219,254,0.5) 0%, rgba(221,214,254,0.5) 50%, rgba(251,207,232,0.5) 100%)';
+            return;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = 'display:block;width:100%;height:100%;';
+        container.appendChild(canvas);
+
+        const gl = canvas.getContext('webgl2', {
+            alpha: true, premultipliedAlpha: true, antialias: false, depth: false,
+            powerPreference: 'low-power',
+        });
+
+        if (!gl) {
+            container.style.background = 'linear-gradient(135deg, rgba(191,219,254,0.5) 0%, rgba(221,214,254,0.5) 50%, rgba(251,207,232,0.5) 100%)';
+            return;
+        }
+
+        const VERT = `#version 300 es
+in vec2 position;
+in vec2 uv;
+out vec2 vUv;
+void main() {
+    vUv = uv;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+`;
+
+        const FRAG = `#version 300 es
+precision highp float;
+uniform float uTime;
+uniform vec3 uColor;
+uniform vec2 uResolution;
+out vec4 fragColor;
+in vec2 vUv;
+
+void main() {
+    float mr = min(uResolution.x, uResolution.y);
+    vec2 uv = (vUv * 2.0 - 1.0) * uResolution / mr;
+
+    float d = -uTime * 0.5;
+    float a = 0.0;
+    for (float i = 0.0; i < 8.0; ++i) {
+        a += cos(i - d - a * uv.x);
+        d += sin(uv.y * i + a);
+    }
+    d += uTime * 0.5;
+    vec3 col = vec3(cos(uv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
+    col = cos(col * cos(vec3(d, a, 2.5)) * 0.5 + 0.5) * uColor;
+    // Pastikan warna soft untuk light mode
+    col = mix(vec3(1.0), col, 0.35);
+    fragColor = vec4(col, 1.0);
+}
+`;
+
+        function compile(type, src) {
+            const sh = gl.createShader(type);
+            gl.shaderSource(sh, src);
+            gl.compileShader(sh);
+            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) return null;
+            return sh;
+        }
+
+        const vs = compile(gl.VERTEX_SHADER, VERT);
+        const fs = compile(gl.FRAGMENT_SHADER, FRAG);
+        if (!vs || !fs) return;
+
+        const prog = gl.createProgram();
+        gl.attachShader(prog, vs);
+        gl.attachShader(prog, fs);
+        gl.linkProgram(prog);
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+        gl.useProgram(prog);
+
+        const buf = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+        // Quad dengan UV: position + uv
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+            -1, -1, 0, 0,
+             3, -1, 2, 0,
+            -1,  3, 0, 2,
+        ]), gl.STATIC_DRAW);
+        const loc = gl.getAttribLocation(prog, 'position');
+        const locUv = gl.getAttribLocation(prog, 'uv');
+        gl.enableVertexAttribArray(loc);
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 16, 0);
+        gl.enableVertexAttribArray(locUv);
+        gl.vertexAttribPointer(locUv, 2, gl.FLOAT, false, 16, 8);
+
+        const uTime = gl.getUniformLocation(prog, 'uTime');
+        const uColor = gl.getUniformLocation(prog, 'uColor');
+        const uRes = gl.getUniformLocation(prog, 'uResolution');
+
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            const w = Math.max(1, Math.floor(rect.width));
+            const h = Math.max(1, Math.floor(rect.height));
+            const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5);
+            canvas.width = Math.floor(w * dpr);
+            canvas.height = Math.floor(h * dpr);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.uniform2f(uRes, canvas.width, canvas.height);
+        }
+        const ro = new ResizeObserver(resize);
+        ro.observe(container);
+        resize();
+
+        gl.uniform3f(uColor, 0.78, 0.85, 0.98);
+
+        let raf = 0;
+        let visible = true;
+        let lastRender = 0;
+        const FRAME_MIN = 1000 / (isMobile ? 24 : 30);
+        const t0 = performance.now();
+
+        function frame(now) {
+            raf = 0;
+            if (!visible || document.hidden) return;
+            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(frame); return; }
+            lastRender = now;
+
+            gl.uniform1f(uTime, (now - t0) * 0.001);
+            gl.clearColor(1, 1, 1, 0);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+            raf = requestAnimationFrame(frame);
+        }
+
+        function schedule() {
+            if (!raf && visible && !document.hidden) {
+                lastRender = 0;
+                raf = requestAnimationFrame(frame);
+            }
+        }
+
+        const io = new IntersectionObserver(([en]) => {
+            visible = en.isIntersecting;
+            if (visible) schedule();
+        }, { threshold: 0 });
+        io.observe(container);
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) schedule();
+        });
+
+        schedule();
+    }
+
+    /* ============================================
+       MICRO SLATS (canvas 2D — versi ringan)
+       ============================================ */
+    function initMicroSlats() {
+        const container = document.getElementById('bgMicroSlats');
+        if (!container) return;
+        if (DISABLE_HEAVY) return;
+        if (container.dataset.inited === '1') return;
+        container.dataset.inited = '1';
+
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = 'display:block;width:100%;height:100%;';
+        container.appendChild(canvas);
         const ctx = canvas.getContext('2d', { alpha: true });
         if (!ctx) return;
 
-        const CELL = 70;
-        const RADIUS = 140;
-        const HOLD = 400;
-        const FADE_MS = 800;
-        const LINE = 1;
-        const MAX_OP = 0.7;
-        const COLOR = [37, 99, 235]; // biru
-
-        let cols = 0, rows = 0, offX = 0, offY = 0;
-        let alphas = new Float32Array(0);
-        let touched = new Float64Array(0);
         let w = 1, h = 1;
+        let cols = 1, rows = 1;
+        let offX = 0, offY = 0;
+        const slatW = 8, slatH = 22, gap = 4;
         let raf = 0;
-        let running = false;
-        let lastFrame = 0;
+        let time = 0;
         let visible = true;
         let lastRender = 0;
-        const FRAME_MIN = 1000 / 30;
+        const FRAME_MIN = 1000 / 24;
 
-        function rebuild() {
-            const r = canvas.getBoundingClientRect();
-            w = Math.max(1, r.width);
-            h = Math.max(1, r.height);
+        function resize() {
+            const rect = container.getBoundingClientRect();
+            w = Math.max(1, rect.width);
+            h = Math.max(1, rect.height);
             canvas.width = Math.floor(w);
             canvas.height = Math.floor(h);
             canvas.style.width = w + 'px';
             canvas.style.height = h + 'px';
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            cols = Math.ceil(w / CELL) + 1;
-            rows = Math.ceil(h / CELL) + 1;
-            offX = (w - cols * CELL) / 2;
-            offY = (h - rows * CELL) / 2;
-            alphas = new Float32Array(cols * rows);
-            touched = new Float64Array(cols * rows);
+
+            const pitchX = slatW + gap;
+            const pitchY = slatH + gap;
+            cols = Math.ceil((w + gap) / pitchX) + 1;
+            rows = Math.ceil((h + gap) / pitchY) + 1;
+            offX = (w - (cols * pitchX - gap)) / 2;
+            offY = (h - (rows * pitchY - gap)) / 2;
         }
 
-        function cellCenter(i) {
-            const cx = offX + (i % cols) * CELL + CELL / 2;
-            const cy = offY + Math.floor(i / cols) * CELL + CELL / 2;
-            return [cx, cy];
-        }
-
-        function energize(x, y) {
-            const now = performance.now();
-            const minC = Math.max(0, Math.floor((x - RADIUS - offX) / CELL));
-            const maxC = Math.min(cols - 1, Math.floor((x + RADIUS - offX) / CELL));
-            const minR = Math.max(0, Math.floor((y - RADIUS - offY) / CELL));
-            const maxR = Math.min(rows - 1, Math.floor((y + RADIUS - offY) / CELL));
-            for (let r = minR; r <= maxR; r++) {
-                for (let c = minC; c <= maxC; c++) {
-                    const i = r * cols + c;
-                    const [cx, cy] = cellCenter(i);
-                    const dist = Math.hypot(cx - x, cy - y);
-                    if (dist > RADIUS) continue;
-                    const t = 1 - dist / RADIUS;
-                    const eased = t * t * (3 - 2 * t);
-                    const level = eased * MAX_OP;
-                    if (level > alphas[i]) {
-                        alphas[i] = level;
-                        touched[i] = now;
-                    } else if (level > 0) {
-                        touched[i] = now;
-                    }
-                }
-            }
-        }
-
-        function draw(now) {
+        function render(now) {
             raf = 0;
-            if (!visible || document.hidden) { running = false; return; }
-            if (now - lastRender < FRAME_MIN) {
-                raf = requestAnimationFrame(draw);
-                return;
-            }
+            if (!visible || document.hidden) return;
+            if (now - lastRender < FRAME_MIN) { raf = requestAnimationFrame(render); return; }
             lastRender = now;
-            const dt = Math.min(now - lastFrame, 50);
-            lastFrame = now;
+            time += 0.016;
+
             ctx.clearRect(0, 0, w, h);
 
-            let any = false;
-            const fadeStep = dt / FADE_MS;
-            const half = CELL / 2;
-            const [cr, cg, cb] = COLOR;
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            const pitchX = slatW + gap;
+            const pitchY = slatH + gap;
 
-            for (let i = 0; i < alphas.length; i++) {
-                let a = alphas[i];
-                if (a <= 0) continue;
-                if (now - touched[i] > HOLD) {
-                    a = Math.max(0, a - fadeStep);
-                    alphas[i] = a;
-                    if (a <= 0) continue;
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const cx = offX + col * pitchX + slatW / 2;
+                    const cy = offY + row * pitchY + slatH / 2;
+
+                    const wave1 = Math.sin(col * 0.3 + time * 0.8) * 0.5 + 0.5;
+                    const wave2 = Math.cos(row * 0.25 + time * 0.6) * 0.5 + 0.5;
+                    const level = (wave1 + wave2) / 2;
+
+                    const alpha = 0.04 + level * 0.28;
+                    const curH = slatH * (0.4 + level * 0.6);
+                    const color = isDark ? '59,130,246' : '37,99,235';
+
+                    ctx.fillStyle = `rgba(${color},${alpha.toFixed(3)})`;
+                    ctx.fillRect(cx - slatW / 2, cy - curH / 2, slatW, curH);
                 }
-                any = true;
-                const [cx, cy] = cellCenter(i);
-                const x = cx - half + 0.5;
-                const y = cy - half + 0.5;
-                const s = CELL - 1;
-
-                ctx.strokeStyle = `rgba(${cr},${cg},${cb},${a})`;
-                ctx.lineWidth = LINE;
-                ctx.strokeRect(x, y, s, s);
             }
 
-            if (any) raf = requestAnimationFrame(draw);
-            else running = false;
+            raf = requestAnimationFrame(render);
         }
 
-        function wake() {
-            if (running) return;
-            running = true;
-            lastFrame = performance.now();
-            lastRender = 0;
-            raf = requestAnimationFrame(draw);
-        }
-
-        function stop() {
-            if (raf) {
-                cancelAnimationFrame(raf);
-                raf = 0;
+        function schedule() {
+            if (!raf && visible && !document.hidden) {
+                lastRender = 0;
+                raf = requestAnimationFrame(render);
             }
-            running = false;
         }
 
-        const onPointerMove = (e) => {
-            const r = canvas.getBoundingClientRect();
-            const x = e.clientX - r.left;
-            const y = e.clientY - r.top;
-            if (x < 0 || y < 0 || x > w || y > h) return;
-            energize(x, y);
-            wake();
-        };
-        const onPointerDown = (e) => {
-            const r = canvas.getBoundingClientRect();
-            const x = e.clientX - r.left;
-            const y = e.clientY - r.top;
-            if (x < 0 || y < 0 || x > w || y > h) return;
-            energize(x, y);
-            wake();
-        };
-        window.addEventListener('pointermove', onPointerMove, { passive: true });
-        window.addEventListener('pointerdown', onPointerDown, { passive: true });
-
-        const ro = new ResizeObserver(() => { rebuild(); wake(); });
-        ro.observe(canvas);
-        rebuild();
+        const ro = new ResizeObserver(() => { resize(); schedule(); });
+        ro.observe(container);
+        resize();
 
         const io = new IntersectionObserver(([en]) => {
             visible = en.isIntersecting;
-            if (visible) wake();
-            else stop();
+            if (visible) schedule();
         }, { threshold: 0 });
-        io.observe(canvas);
+        io.observe(container);
 
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) stop();
-            else wake();
+            if (!document.hidden) schedule();
         });
 
-        wake();
+        schedule();
+    }
 
-        window.addEventListener('beforeunload', () => {
-            stop();
-            ro.disconnect();
-            io.disconnect();
-            window.removeEventListener('pointermove', onPointerMove);
-            window.removeEventListener('pointerdown', onPointerDown);
-        });
-    })();
+    function restartBgByTheme(theme) {
+        // Reset & init ulang BG sesuai tema
+        const aurora = document.getElementById('bgAurora');
+        const iridescence = document.getElementById('bgIridescence');
+
+        // Aurora hanya untuk dark, tapi tetap init sekali
+        if (!aurora.dataset.inited) initAurora();
+        if (!iridescence.dataset.inited) initIridescence();
+    }
+
+    // Init awal
+    initAurora();
+    initIridescence();
+    initMicroSlats();
 
     /* ============================================
-       STICKER — drag ke mana aja, spring balik
+       FOLD LABEL — animasi unfold saat input focus
        ============================================ */
-    (function sticker() {
-        const wrapper = document.getElementById('stickerWrapper');
-        const link = document.getElementById('stickerLink');
-        const stickerContainer = document.getElementById('stickerContainer');
-        if (!wrapper || !link || !stickerContainer) return;
+    (function foldLabel() {
+        const labels = document.querySelectorAll('[data-fold-label]');
+        labels.forEach(label => {
+            const text = label.getAttribute('data-fold-label');
+            const chars = text.split('').map((c, i) =>
+                `<span class="fold-char" style="transition-delay: ${i * 0.03}s;">${c === ' ' ? '&nbsp;' : c}</span>`
+            ).join('');
+            label.innerHTML = chars;
+        });
 
-        const DEFAULT_ROTATION = -8;
-        let dragging = false;
-        let startX = 0, startY = 0;
-        let currentX = 0, currentY = 0;
-        let velocityX = 0, velocityY = 0;
-        let rotation = DEFAULT_ROTATION;
-        let raf = 0;
+        // Unfold pas halaman load
+        setTimeout(() => {
+            labels.forEach((label, idx) => {
+                setTimeout(() => label.classList.add('unfolded'), idx * 150);
+            });
+        }, 300);
 
-        const MAX_DRIFT_X = 300;
-        const MAX_DRIFT_Y = 300;
-
-        function applyTransform() {
-            stickerContainer.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`;
-        }
-
-        function animate() {
-            raf = 0;
-            if (!dragging) {
-                const stiffness = 0.12;
-                const damping = 0.85;
-
-                velocityX += (0 - currentX) * stiffness;
-                velocityY += (0 - currentY) * stiffness;
-                velocityX *= damping;
-                velocityY *= damping;
-
-                currentX += velocityX;
-                currentY += velocityY;
-
-                rotation += (DEFAULT_ROTATION - rotation) * 0.1;
-                rotation += velocityX * 0.5;
-                rotation *= 0.85;
-
-                if (Math.abs(currentX) < 0.1 && Math.abs(currentY) < 0.1 &&
-                    Math.abs(velocityX) < 0.1 && Math.abs(velocityY) < 0.1 &&
-                    Math.abs(rotation - DEFAULT_ROTATION) < 0.1) {
-                    currentX = 0; currentY = 0; rotation = DEFAULT_ROTATION;
-                    velocityX = 0; velocityY = 0;
-                    applyTransform();
-                    return;
+        // Unfold pas input focus kalau sebelumnya gak unfolded
+        document.querySelectorAll('.form-control').forEach(input => {
+            input.addEventListener('focus', () => {
+                const label = input.parentElement?.previousElementSibling;
+                if (label && label.classList.contains('fold-label')) {
+                    label.classList.add('unfolded');
                 }
-                applyTransform();
-                raf = requestAnimationFrame(animate);
-            }
-        }
-
-        function onPointerDown(e) {
-            if (e.button !== 0 && e.pointerType === 'mouse') return;
-            dragging = true;
-            startX = e.clientX - currentX;
-            startY = e.clientY - currentY;
-            velocityX = 0; velocityY = 0;
-            try { link.setPointerCapture(e.pointerId); } catch (_) {}
-            wrapper.classList.add('dragging');
-            stickerContainer.classList.add('touch-active');
-        }
-
-        function onPointerMove(e) {
-            if (!dragging) return;
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-
-            currentX = Math.max(-MAX_DRIFT_X, Math.min(MAX_DRIFT_X, dx));
-            currentY = Math.max(-MAX_DRIFT_Y, Math.min(MAX_DRIFT_Y, dy));
-
-            rotation = DEFAULT_ROTATION + (dx * 0.15);
-            applyTransform();
-        }
-
-        function onPointerUp(e) {
-            if (!dragging) return;
-            dragging = false;
-            wrapper.classList.remove('dragging');
-            stickerContainer.classList.remove('touch-active');
-            try { link.releasePointerCapture(e.pointerId); } catch (_) {}
-            if (!raf) raf = requestAnimationFrame(animate);
-        }
-
-        link.addEventListener('pointerdown', onPointerDown, { passive: true });
-        link.addEventListener('pointermove', onPointerMove, { passive: true });
-        link.addEventListener('pointerup', onPointerUp);
-        link.addEventListener('pointercancel', onPointerUp);
+            });
+        });
     })();
 
     /* ============================================
@@ -624,13 +713,10 @@ void main() {
             raf = 0;
             curX += (targetX - curX) * 0.25;
             curY += (targetY - curY) * 0.25;
-
             const edge = getEdgeProximity(card, curX, curY);
             const angle = getCursorAngle(card, curX, curY);
-
             card.style.setProperty('--edge-proximity', (edge * 100).toFixed(2));
             card.style.setProperty('--cursor-angle', angle.toFixed(2) + 'deg');
-
             if (Math.abs(targetX - curX) > 0.5 || Math.abs(targetY - curY) > 0.5) {
                 raf = requestAnimationFrame(animate);
             }
@@ -641,6 +727,60 @@ void main() {
         card.addEventListener('pointerleave', () => {
             card.style.setProperty('--edge-proximity', '0');
         });
+    })();
+
+    /* ============================================
+       FOLDER CHECK ANIMATION
+       ============================================ */
+    const folderCheck = (function () {
+        const overlay = document.getElementById('folderCheckOverlay');
+        const folder = document.getElementById('folder3d');
+        const textEl = document.getElementById('folderCheckText');
+        if (!overlay || !folder) return { play: () => Promise.resolve() };
+
+        const MESSAGES = [
+            'Membuka database...',
+            'Mencari user...',
+            'Memverifikasi kredensial...',
+            'Menyiapkan sesi...'
+        ];
+
+        function setText(text) {
+            if (textEl) textEl.textContent = text;
+        }
+
+        function play() {
+            return new Promise((resolve) => {
+                if (prefersReduced) { resolve(); return; }
+
+                overlay.classList.add('active');
+                folder.classList.remove('open');
+                setText(MESSAGES[0]);
+
+                // Buka folder
+                setTimeout(() => folder.classList.add('open'), 200);
+
+                let idx = 1;
+                const msgTimer = setInterval(() => {
+                    if (idx < MESSAGES.length) {
+                        setText(MESSAGES[idx]);
+                        idx++;
+                    }
+                }, 700);
+
+                // Total durasi ~2.8s
+                setTimeout(() => {
+                    clearInterval(msgTimer);
+                    folder.classList.remove('open');
+                    setTimeout(() => {
+                        overlay.classList.remove('active');
+                        resolve();
+                    }, 400);
+                }, 2800);
+            });
+        }
+
+        return { play };
     })();
 
     /* ============================================
@@ -667,7 +807,6 @@ void main() {
         if (!statusMark) return;
         statusMark.setAttribute('data-status', status);
         if (statusLabel && labelText) statusLabel.textContent = labelText;
-
         if (status === 'pending') {
             statusRow.classList.remove('visible');
             statusRow.setAttribute('aria-hidden', 'true');
@@ -738,13 +877,14 @@ void main() {
 
         setStatus('running', 'Memverifikasi kredensial...');
 
+        // Play folder check animation
+        await folderCheck.play();
+
         try {
             await waitForRecaptcha();
             if (!window.grecaptcha || !window.grecaptcha.execute) {
                 throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
             }
-
-            setStatus('running', 'Memeriksa keamanan...');
 
             const recaptchaToken = await new Promise((resolve, reject) => {
                 grecaptcha.ready(() => {
@@ -754,8 +894,6 @@ void main() {
                 });
                 setTimeout(() => reject(new Error('Timeout verifikasi keamanan')), 10000);
             });
-
-            setStatus('running', 'Menghubungi server...');
 
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
