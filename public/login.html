@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/landing.css">
     <link rel="stylesheet" href="/css/login.css">
 
     <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + DevTools lock -->
@@ -32,7 +33,7 @@
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
 
-        // DevTools LOCK SCREEN — simpel, kayak versi lama
+        // DevTools LOCK SCREEN — simpel
         (function() {
             const LOCK_FLAG = 'asyrof_devtools_lock';
 
@@ -113,7 +114,6 @@
                         </style>
                     `;
 
-                    // Polling: kalau DevTools ditutup → clear flag → reload
                     const THRESHOLD = 200;
                     setInterval(() => {
                         const wDiff = window.outerWidth - window.innerWidth;
@@ -145,6 +145,9 @@
 <!-- ===== AURORA BG ===== -->
 <div class="aurora-bg" id="auroraBg" aria-hidden="true"></div>
 
+<!-- ===== CURSOR GRID ===== -->
+<canvas class="cursor-grid-bg" id="cursorGridCanvas" aria-hidden="true"></canvas>
+
 <!-- ===== Theme toggle ===== -->
 <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
     <svg class="icon-svg sun-icon" viewBox="0 0 24 24">
@@ -156,13 +159,12 @@
     </svg>
 </button>
 
-<!-- ===== LAYOUT: LOGO ATAS + CARD ===== -->
+<!-- ===== LAYOUT ===== -->
 <div class="auth-center">
 
-    <!-- Logo sticker (di atas card) -->
+    <!-- Logo sticker di atas card -->
     <div class="auth-logo-block">
         <div class="sticker-wrapper" id="stickerWrapper">
-            <!-- SVG filters -->
             <svg width="0" height="0" aria-hidden="true">
                 <defs>
                     <filter id="pointLight">
@@ -192,7 +194,6 @@
                 </defs>
             </svg>
 
-            <!-- Div — gak bisa diklik, cuma bisa di-drag -->
             <div class="sticker-link" id="stickerLink" aria-hidden="true">
                 <div class="sticker-container" id="stickerContainer">
                     <div class="sticker-main">
@@ -220,7 +221,6 @@
                 <h1 class="auth-title">Masuk</h1>
                 <p class="subtitle">Selamat datang kembali! Silakan login.</p>
 
-                <!-- ALERT — cuma 1 -->
                 <div class="alert" id="alert" role="alert">
                     <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                     <span id="alert-text"></span>
