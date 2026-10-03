@@ -650,7 +650,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         `<u>• Method:</u> <b>${escapeHtmlNotif(deposit.method || '-')}</b>\n` +
         `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
         `<u>• Total Bayar:</u> <b>${toRupiahNotif(totalBayar)}</b>\n` +
-        `<u>• Fee:</u> <b>${toRupiahNotif(unique_id)}</b>\n` +
+        `<u>• Fee:</u> <b>${toRupiahNotif(fee)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
     try {
