@@ -5180,6 +5180,406 @@ app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (
 }));
 
 // ============================================
+// ===== ADMIN — WEBHOOK MONITOR (BARU) =====
+// ============================================
+app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 1)); // max 7 hari
+    const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
+    const type = String(req.query.type || 'all'); // 'otp' | 'deposit' | 'all'
+    const onlyNotified = req.query.only_notified; // '1' | '0' | undefined
+    const onlyUnnotified = req.query.only_unnotified; // '1' | '0' | undefined
+
+    try {
+        let whereParts = [];
+        const params = [];
+
+        // Filter entity_type
+        if (type === 'otp') {
+            whereParts.push(`entity_type = 'order'`);
+        } else if (type === 'deposit') {
+            whereParts.push(`entity_type = 'deposit'`);
+        } else {
+            whereParts.push(`entity_type IN ('order', 'deposit')`);
+        }
+
+        // Filter waktu
+        params.push(hours);
+        whereParts.push(`created_at > NOW() - INTERVAL '1 hour' * $${params.length}`);
+
+        // Filter reason (cuma yang berkaitan webhook / OTP / payment)
+        whereParts.push(`(
+            (entity_type = 'order' AND (
+                new_status IN ('received', 'success', 'confirmed', 'refunded', 'cancelled', 'expired', 'failed')
+                OR reason LIKE 'webhook%'
+                OR reason LIKE 'polling%'
+                OR reason LIKE 'cron_validate%'
+                OR reason LIKE 'sync_batch%'
+                OR reason LIKE 'check_status%'
+                OR reason LIKE 'provider_%'
+            ))
+            OR
+            (entity_type = 'deposit' AND (
+                new_status IN ('success', 'expired', 'cancelled', 'failed')
+                OR reason LIKE '%payment%'
+                OR reason LIKE 'expired_%'
+                OR reason LIKE 'manual_%'
+            ))
+        )`);
+
+        // Filter notified
+        if (onlyNotified === '1') {
+            whereParts.push(`
+                (
+                    (entity_type = 'order' AND EXISTS (
+                        SELECT 1 FROM orders o2 WHERE o2.order_id = status_logs.entity_id AND o2.notified_at IS NOT NULL
+                    ))
+                    OR
+                    (entity_type = 'deposit' AND EXISTS (
+                        SELECT 1 FROM deposits d2 WHERE d2.reference_id = status_logs.entity_id AND d2.notified_at IS NOT NULL
+                    ))
+                )
+            `);
+        } else if (onlyUnnotified === '1') {
+            whereParts.push(`
+                (
+                    (entity_type = 'order' AND EXISTS (
+                        SELECT 1 FROM orders o2 WHERE o2.order_id = status_logs.entity_id AND o2.notified_at IS NULL AND o2.otp_code IS NOT NULL
+                    ))
+                    OR
+                    (entity_type = 'deposit' AND EXISTS (
+                        SELECT 1 FROM deposits d2 WHERE d2.reference_id = status_logs.entity_id AND d2.notified_at IS NULL AND d2.status = 'success'
+                    ))
+                )
+            `);
+        }
+
+        const whereClause = whereParts.join(' AND ');
+        params.push(limit);
+
+        // Query log + join ke tabel terkait buat dapet info lengkap
+        const query = `
+            SELECT 
+                sl.id, sl.entity_type, sl.entity_id, sl.user_id,
+                sl.old_status, sl.new_status, sl.reason, sl.metadata,
+                sl.created_at,
+                u.username, u.user_code,
+                o.otp_id AS order_otp_id,
+                o.order_id AS order_provider_id,
+                o.service_name AS order_service_name,
+                o.phone_number AS order_phone,
+                o.otp_code AS order_otp_code,
+                o.notified_at AS order_notified_at,
+                d.reference_id AS deposit_ref,
+                d.method AS deposit_method,
+                d.amount AS deposit_amount,
+                d.notified_at AS deposit_notified_at
+            FROM status_logs sl
+            LEFT JOIN users u ON u.id = sl.user_id
+            LEFT JOIN orders o ON sl.entity_type = 'order' AND o.order_id = sl.entity_id
+            LEFT JOIN deposits d ON sl.entity_type = 'deposit' AND d.reference_id = sl.entity_id
+            WHERE ${whereClause}
+            ORDER BY sl.created_at DESC
+            LIMIT $${params.length}
+        `;
+
+        const result = await pool.query(query, params);
+
+        // Stats per jam (histogram)
+        const statsParams = [hours];
+        const statsQuery = `
+            SELECT 
+                DATE_TRUNC('hour', created_at) AS hour_bucket,
+                entity_type,
+                new_status,
+                COUNT(*) AS count
+            FROM status_logs
+            WHERE entity_type IN ('order', 'deposit')
+              AND created_at > NOW() - INTERVAL '1 hour' * $1
+              AND (
+                (entity_type = 'order' AND new_status IN ('received', 'success', 'confirmed'))
+                OR (entity_type = 'deposit' AND new_status = 'success')
+              )
+            GROUP BY hour_bucket, entity_type, new_status
+            ORDER BY hour_bucket DESC
+        `;
+        const statsRes = await pool.query(statsQuery, statsParams);
+
+        res.json({
+            hours,
+            type,
+            total: result.rows.length,
+            events: result.rows.map(r => ({
+                id: r.id,
+                entity_type: r.entity_type,
+                entity_id: r.entity_id,
+                old_status: r.old_status,
+                new_status: r.new_status,
+                reason: r.reason,
+                metadata: r.metadata,
+                created_at: r.created_at,
+                user: {
+                    username: r.username,
+                    user_code: r.user_code,
+                },
+                order: r.entity_type === 'order' ? {
+                    otp_id: r.order_otp_id,
+                    order_id: r.order_provider_id,
+                    service_name: r.order_service_name,
+                    phone: r.order_phone,
+                    otp_code: r.order_otp_code,
+                    notified_at: r.order_notified_at,
+                } : null,
+                deposit: r.entity_type === 'deposit' ? {
+                    reference_id: r.deposit_ref,
+                    method: r.deposit_method,
+                    amount: Number(r.deposit_amount) || 0,
+                    notified_at: r.deposit_notified_at,
+                } : null,
+            })),
+            hourly_stats: statsRes.rows.map(s => ({
+                hour: s.hour_bucket,
+                entity_type: s.entity_type,
+                status: s.new_status,
+                count: Number(s.count),
+            })),
+        });
+    } catch (err) {
+        console.error('Webhook monitor error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — KIRIM ULANG NOTIF ORDER =====
+// ============================================
+app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const otpId = String(req.params.otpId || '').trim();
+    const forceResend = req.body?.force === true;
+
+    if (!otpId) return res.status(400).json({ error: 'otp_id wajib' });
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM orders WHERE otp_id = $1 LIMIT 1',
+            [otpId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Order dengan otp_id tersebut tidak ditemukan' });
+        }
+
+        const order = result.rows[0];
+
+        // Validasi: cuma boleh kirim kalau status sukses & ada OTP
+        if (!['received', 'success', 'confirmed'].includes(order.status)) {
+            return res.status(400).json({
+                error: `Order status "${order.status}" tidak bisa dikirim notif. Harus received/success/confirmed.`,
+            });
+        }
+        if (!order.otp_code || !String(order.otp_code).trim()) {
+            return res.status(400).json({ error: 'Order belum punya OTP code' });
+        }
+
+        // Kalau force, reset notified_at dulu
+        if (forceResend && order.notified_at) {
+            await pool.query('UPDATE orders SET notified_at = NULL WHERE id = $1', [order.id]);
+            order.notified_at = null;
+        }
+
+        // Kalau udah pernah dikirim & gak force, skip
+        if (order.notified_at && !forceResend) {
+            return res.status(409).json({
+                error: 'Notif untuk order ini sudah pernah dikirim',
+                notified_at: order.notified_at,
+                hint: 'Kirim ulang dengan { "force": true }',
+            });
+        }
+
+        const r = await notifyOtpSuccess(order);
+
+        // Log aksi admin
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'manual_send_otp_notif',
+            targetType: 'order',
+            targetId: otpId,
+            metadata: { sent: r.sent, reason: r.reason, message_id: r.message_id },
+        });
+
+        if (!r.sent) {
+            return res.status(500).json({ error: `Gagal kirim notif: ${r.reason}`, detail: r });
+        }
+
+        res.json({
+            message: 'Notif OTP berhasil dikirim',
+            otp_id: otpId,
+            message_id: r.message_id,
+        });
+    } catch (err) {
+        console.error('notif-order error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — KIRIM ULANG NOTIF DEPOSIT =====
+// ============================================
+app.post('/api/admin/notif-deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const referenceId = String(req.params.referenceId || '').trim();
+    const forceResend = req.body?.force === true;
+
+    if (!referenceId) return res.status(400).json({ error: 'reference_id wajib' });
+
+    try {
+        const result = await pool.query(
+            'SELECT d.*, u.username, u.name AS user_name, u.user_code FROM deposits d LEFT JOIN users u ON u.id = d.user_id WHERE d.reference_id = $1 LIMIT 1',
+            [referenceId]
+        );
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Deposit dengan reference_id tersebut tidak ditemukan' });
+        }
+
+        const row = result.rows[0];
+        const deposit = { ...row };
+
+        if (deposit.status !== 'success') {
+            return res.status(400).json({
+                error: `Deposit status "${deposit.status}" tidak bisa dikirim notif. Harus success.`,
+            });
+        }
+
+        if (forceResend && deposit.notified_at) {
+            await pool.query('UPDATE deposits SET notified_at = NULL WHERE id = $1', [deposit.id]);
+            deposit.notified_at = null;
+        }
+
+        if (deposit.notified_at && !forceResend) {
+            return res.status(409).json({
+                error: 'Notif untuk deposit ini sudah pernah dikirim',
+                notified_at: deposit.notified_at,
+                hint: 'Kirim ulang dengan { "force": true }',
+            });
+        }
+
+        const saldoMasuk = Number(deposit.amount) || 0;
+        const totalBayar = Number(deposit.total_amount) || saldoMasuk;
+        const fee = Number(deposit.fee) || 0;
+
+        const r = await notifyDepositSuccess(
+            deposit,
+            saldoMasuk,
+            totalBayar,
+            fee,
+            { username: row.username, name: row.user_name, user_code: row.user_code }
+        );
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'manual_send_deposit_notif',
+            targetType: 'deposit',
+            targetId: referenceId,
+            metadata: { sent: r.sent, reason: r.reason, message_id: r.message_id },
+        });
+
+        if (!r.sent) {
+            return res.status(500).json({ error: `Gagal kirim notif: ${r.reason}`, detail: r });
+        }
+
+        res.json({
+            message: 'Notif deposit berhasil dikirim',
+            reference_id: referenceId,
+            message_id: r.message_id,
+        });
+    } catch (err) {
+        console.error('notif-deposit error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — BATCH KIRIM NOTIF (BULK) =====
+// ============================================
+app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { type, ids } = req.body;
+
+    if (!['otp', 'deposit'].includes(type)) {
+        return res.status(400).json({ error: 'type harus otp/deposit' });
+    }
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: 'ids wajib array dan tidak boleh kosong' });
+    }
+
+    const limitedIds = ids.slice(0, 20); // max 20 per call
+    const results = [];
+
+    for (const id of limitedIds) {
+        try {
+            if (type === 'otp') {
+                const orderRes = await pool.query('SELECT * FROM orders WHERE otp_id = $1 LIMIT 1', [String(id)]);
+                if (orderRes.rows.length === 0) {
+                    results.push({ id, sent: false, reason: 'NOT_FOUND' });
+                    continue;
+                }
+                const order = orderRes.rows[0];
+                if (!order.otp_code || !['received', 'success', 'confirmed'].includes(order.status)) {
+                    results.push({ id, sent: false, reason: 'INVALID_STATUS_OR_NO_OTP' });
+                    continue;
+                }
+                const r = await notifyOtpSuccess(order);
+                results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
+            } else {
+                const depRes = await pool.query(
+                    'SELECT d.*, u.username, u.name AS user_name, u.user_code FROM deposits d LEFT JOIN users u ON u.id = d.user_id WHERE d.reference_id = $1 LIMIT 1',
+                    [String(id)]
+                );
+                if (depRes.rows.length === 0) {
+                    results.push({ id, sent: false, reason: 'NOT_FOUND' });
+                    continue;
+                }
+                const row = depRes.rows[0];
+                if (row.status !== 'success') {
+                    results.push({ id, sent: false, reason: 'NOT_SUCCESS' });
+                    continue;
+                }
+                const r = await notifyDepositSuccess(
+                    row,
+                    Number(row.amount) || 0,
+                    Number(row.total_amount) || Number(row.amount) || 0,
+                    Number(row.fee) || 0,
+                    { username: row.username, name: row.user_name, user_code: row.user_code }
+                );
+                results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
+            }
+        } catch (err) {
+            results.push({ id, sent: false, reason: 'ERROR', error: err.message });
+        }
+
+        // delay kecil biar gak kena rate limit Telegram
+        await new Promise(r => setTimeout(r, 50));
+    }
+
+    const sentCount = results.filter(r => r.sent).length;
+    const failedCount = results.filter(r => !r.sent).length;
+
+    await logAdminAction({
+        adminId: req.admin.id,
+        adminUsername: req.admin.username,
+        action: 'batch_send_notif',
+        targetType: type,
+        targetId: `${sentCount}/${limitedIds.length}`,
+        metadata: { type, total: limitedIds.length, sent: sentCount, failed: failedCount },
+    });
+
+    res.json({
+        total: limitedIds.length,
+        sent: sentCount,
+        failed: failedCount,
+        results,
+    });
+}));
+
+// ============================================
 // ===== GLOBAL ERROR HANDLER + 404 =====
 // ============================================
 app.use((err, req, res, next) => {
