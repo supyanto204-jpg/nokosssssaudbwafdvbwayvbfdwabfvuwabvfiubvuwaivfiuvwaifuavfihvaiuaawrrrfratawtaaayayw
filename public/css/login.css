@@ -1,0 +1,700 @@
+/* ============================================
+   LOGIN PAGE
+   ============================================ */
+
+:root {
+    --primary: #2563eb;
+    --primary-light: #eff6ff;
+    --primary-dark: #1d4ed8;
+    --text-dark: #0f172a;
+    --text-gray: #64748b;
+    --bg-light: #f8fafc;
+    --bg-card: #ffffff;
+    --border-dark: #0f172a;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --shadow-color: rgba(15, 23, 42, 1);
+    color-scheme: light;
+}
+
+[data-theme="dark"] {
+    --primary: #3b82f6;
+    --primary-light: #1e3a8a;
+    --primary-dark: #2563eb;
+    --text-dark: #f1f5f9;
+    --text-gray: #94a3b8;
+    --bg-light: #0f172a;
+    --bg-card: #1e293b;
+    --border-dark: #334155;
+    --danger: #f87171;
+    --success: #4ade80;
+    --shadow-color: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg-light);
+    color: var(--text-dark);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* ===== ANTI-LEAK ===== */
+body, body * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+input, textarea, select, code, [contenteditable="true"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}
+img, svg {
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+/* ===== CONIC PATTERN BG ===== */
+body::before {
+    content: '';
+    position: fixed;
+    top: 50%; left: 50%;
+    width: 160vmax;
+    height: 160vmax;
+    transform: translate3d(-50%, -50%, 0);
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(37, 99, 235, 0.06) 0deg 10deg,
+        transparent 10deg 20deg
+    );
+    -webkit-mask-image: radial-gradient(circle, black 0%, transparent 60%);
+    mask-image: radial-gradient(circle, black 0%, transparent 60%);
+    animation: spin 60s linear infinite;
+    z-index: 0;
+    pointer-events: none;
+    will-change: transform;
+}
+[data-theme="dark"] body::before {
+    background: repeating-conic-gradient(
+        from 0deg,
+        rgba(59, 130, 246, 0.08) 0deg 10deg,
+        transparent 10deg 20deg
+    );
+}
+@keyframes spin {
+    from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
+    to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
+}
+
+/* ===== CURSOR GRID BG ===== */
+.cursor-grid-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+/* ===== CONTAINER ===== */
+.auth-container {
+    width: 100%;
+    max-width: 440px;
+    position: relative;
+    z-index: 1;
+}
+
+.auth-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 28px;
+    text-decoration: none;
+    color: var(--text-dark);
+    font-weight: 900;
+    font-size: 1.5rem;
+}
+
+.auth-logo .logo-icon {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+    border: 2.5px solid var(--border-dark);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 900;
+    font-size: 1.8rem;
+    box-shadow: 3px 3px 0px var(--shadow-color);
+    text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
+    transform: rotate(-3deg);
+}
+.auth-logo span { color: var(--primary); }
+
+/* ============================================
+   BORDER GLOW CARD
+   ============================================ */
+.border-glow-card {
+    --edge-proximity: 0;
+    --cursor-angle: 45deg;
+    --edge-sensitivity: 25;
+    --color-sensitivity: 45;
+    --border-radius: 20px;
+    --glow-padding: 30px;
+    --cone-spread: 30;
+    --fill-opacity: 0.4;
+
+    position: relative;
+    border-radius: var(--border-radius);
+    isolation: isolate;
+    transform: translate3d(0, 0, 0.01px);
+    display: block;
+    border: 1.5px solid var(--border-dark);
+    background: var(--bg-card);
+    box-shadow: 6px 6px 0px var(--shadow-color);
+    overflow: visible;
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.border-glow-card::before,
+.border-glow-card::after,
+.border-glow-card > .edge-light {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    transition: opacity 0.25s ease-out;
+    z-index: -1;
+    pointer-events: none;
+}
+
+.border-glow-card:not(:hover)::before,
+.border-glow-card:not(:hover)::after,
+.border-glow-card:not(:hover) > .edge-light {
+    opacity: 0;
+    transition: opacity 0.75s ease-in-out;
+}
+
+/* Colored mesh border */
+.border-glow-card::before {
+    border: 1px solid transparent;
+    background:
+        linear-gradient(var(--bg-card) 0 100%) padding-box,
+        radial-gradient(at 80% 55%, #c084fc 0px, transparent 50%) border-box,
+        radial-gradient(at 69% 34%, #f472b6 0px, transparent 50%) border-box,
+        radial-gradient(at 8% 6%, #38bdf8 0px, transparent 50%) border-box,
+        radial-gradient(at 41% 38%, #c084fc 0px, transparent 50%) border-box,
+        radial-gradient(at 86% 85%, #f472b6 0px, transparent 50%) border-box,
+        radial-gradient(at 82% 18%, #38bdf8 0px, transparent 50%) border-box,
+        radial-gradient(at 51% 4%, #c084fc 0px, transparent 50%) border-box,
+        linear-gradient(#c299ff 0 100%) border-box;
+    opacity: calc((var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
+    -webkit-mask-image: conic-gradient(
+        from var(--cursor-angle) at center,
+        black calc(var(--cone-spread) * 1%),
+        transparent calc((var(--cone-spread) + 15) * 1%),
+        transparent calc((100 - var(--cone-spread) - 15) * 1%),
+        black calc((100 - var(--cone-spread)) * 1%)
+    );
+    mask-image: conic-gradient(
+        from var(--cursor-angle) at center,
+        black calc(var(--cone-spread) * 1%),
+        transparent calc((var(--cone-spread) + 15) * 1%),
+        transparent calc((100 - var(--cone-spread) - 15) * 1%),
+        black calc((100 - var(--cone-spread)) * 1%)
+    );
+}
+
+/* Colored fill near edges */
+.border-glow-card::after {
+    border: 1px solid transparent;
+    background:
+        radial-gradient(at 80% 55%, #c084fc 0px, transparent 50%) padding-box,
+        radial-gradient(at 69% 34%, #f472b6 0px, transparent 50%) padding-box,
+        radial-gradient(at 8% 6%, #38bdf8 0px, transparent 50%) padding-box,
+        radial-gradient(at 41% 38%, #c084fc 0px, transparent 50%) padding-box,
+        radial-gradient(at 86% 85%, #f472b6 0px, transparent 50%) padding-box,
+        radial-gradient(at 82% 18%, #38bdf8 0px, transparent 50%) padding-box,
+        radial-gradient(at 51% 4%, #c084fc 0px, transparent 50%) padding-box,
+        linear-gradient(#c299ff 0 100%) padding-box;
+    -webkit-mask-image:
+        linear-gradient(to bottom, black, black),
+        radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
+        radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
+        conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
+    mask-image:
+        linear-gradient(to bottom, black, black),
+        radial-gradient(ellipse at 50% 50%, black 40%, transparent 65%),
+        radial-gradient(ellipse at 66% 66%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 33% 33%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 66% 33%, black 5%, transparent 40%),
+        radial-gradient(ellipse at 33% 66%, black 5%, transparent 40%),
+        conic-gradient(from var(--cursor-angle) at center, transparent 5%, black 15%, black 85%, transparent 95%);
+    -webkit-mask-composite: source-over;
+    mask-composite: subtract, add, add, add, add, add;
+    opacity: calc(var(--fill-opacity) * (var(--edge-proximity) - var(--color-sensitivity)) / (100 - var(--color-sensitivity)));
+    mix-blend-mode: soft-light;
+    z-index: -1;
+}
+
+/* Outer glow */
+.border-glow-card > .edge-light {
+    inset: calc(var(--glow-padding) * -1);
+    pointer-events: none;
+    z-index: -1;
+    -webkit-mask-image: conic-gradient(
+        from var(--cursor-angle) at center,
+        black 2.5%, transparent 10%, transparent 90%, black 97.5%
+    );
+    mask-image: conic-gradient(
+        from var(--cursor-angle) at center,
+        black 2.5%, transparent 10%, transparent 90%, black 97.5%
+    );
+    opacity: calc((var(--edge-proximity) - var(--edge-sensitivity)) / (100 - var(--edge-sensitivity)));
+    mix-blend-mode: plus-lighter;
+}
+
+.border-glow-card > .edge-light::before {
+    content: "";
+    position: absolute;
+    inset: var(--glow-padding);
+    border-radius: inherit;
+    box-shadow:
+        inset 0 0 0 1px hsl(40deg 80% 80% / 100%),
+        inset 0 0 6px 0 hsl(40deg 80% 80% / 40%),
+        inset 0 0 15px 0 hsl(40deg 80% 80% / 30%),
+        inset 0 0 30px 2px hsl(40deg 80% 80% / 20%),
+        0 0 6px 0 hsl(40deg 80% 80% / 40%),
+        0 0 15px 0 hsl(40deg 80% 80% / 30%),
+        0 0 30px 2px hsl(40deg 80% 80% / 20%);
+}
+
+.border-glow-inner {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    border-radius: inherit;
+}
+
+.auth-card-content {
+    padding: 32px;
+}
+
+.auth-card-content h1 {
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+    letter-spacing: -0.02em;
+}
+
+.auth-card-content .subtitle {
+    color: var(--text-gray);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+}
+
+/* ============================================
+   FORM
+   ============================================ */
+.form-group { margin-bottom: 18px; }
+
+.form-label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+.input-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid var(--border-dark);
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 0.95rem;
+    background: var(--bg-card);
+    color: var(--text-dark);
+    transition: all 0.2s;
+    outline: none;
+}
+
+.form-control.with-eye { padding-right: 46px; }
+
+.form-control:focus {
+    box-shadow: 3px 3px 0px var(--shadow-color);
+    transform: translate(-1px, -1px);
+}
+
+.form-control::placeholder { color: var(--text-gray); opacity: 0.6; }
+
+.eye-btn {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    color: var(--text-gray);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+.eye-btn:hover {
+    background: var(--bg-light);
+    color: var(--text-dark);
+}
+.eye-btn .icon-svg { width: 18px; height: 18px; pointer-events: none; }
+
+/* ============================================
+   BUTTON
+   ============================================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 14px 24px;
+    border-radius: 50px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    border: 2px solid var(--border-dark);
+    box-shadow: 4px 4px 0px var(--shadow-color);
+    transition: all 0.2s;
+    background: var(--primary);
+    color: white;
+}
+.btn:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 6px 6px 0px var(--shadow-color);
+    background: var(--primary-dark);
+}
+.btn:active {
+    transform: translate(1px, 1px);
+    box-shadow: 2px 2px 0px var(--shadow-color);
+}
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+.btn:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 3px;
+}
+
+.icon-svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+/* ============================================
+   STATUS MARK (adapted dari React Bits)
+   ============================================ */
+.status-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+    min-height: 20px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+.status-row.visible { opacity: 1; }
+
+.status-mark {
+    --sm-color: var(--text-gray);
+    --sm-done: #22c55e;
+    --sm-error: #ef4444;
+    --sm-fill: 0.08;
+    --sm-stroke: 2;
+    --sm-draw: 240ms;
+
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    line-height: 1;
+    font-size: 0.85rem;
+}
+
+.status-mark__glyph {
+    flex: none;
+    overflow: visible;
+    color: var(--sm-color);
+    transition: color 200ms ease;
+}
+
+.status-mark[data-status='running'] .status-mark__glyph {
+    color: var(--primary);
+}
+.status-mark[data-status='done'] .status-mark__glyph {
+    color: var(--sm-done);
+}
+.status-mark[data-status='failed'] .status-mark__glyph {
+    color: var(--sm-error);
+}
+
+.status-mark__track {
+    fill: currentColor;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    transition: fill-opacity 180ms ease, stroke-opacity 200ms ease;
+}
+.status-mark[data-status='running'] .status-mark__track {
+    stroke-opacity: 0.2;
+}
+.status-mark[data-status='done'] .status-mark__track,
+.status-mark[data-status='failed'] .status-mark__track {
+    fill-opacity: var(--sm-fill);
+}
+
+.status-mark__ring {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    opacity: 0.55;
+    transition: opacity 200ms ease;
+}
+.status-mark[data-status='running'] .status-mark__ring,
+.status-mark[data-status='done'] .status-mark__ring,
+.status-mark[data-status='failed'] .status-mark__ring {
+    opacity: 1;
+}
+
+.status-mark__check,
+.status-mark__cross {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 1 2;
+    stroke-dashoffset: 1.05;
+    opacity: 0;
+    transition: stroke-dashoffset 160ms ease-out, opacity 0ms linear 160ms;
+}
+.status-mark[data-status='done'] .status-mark__check,
+.status-mark[data-status='failed'] .status-mark__cross {
+    stroke-dashoffset: 0;
+    opacity: 1;
+    transition: stroke-dashoffset var(--sm-draw) ease-out 120ms, opacity 0ms linear 120ms;
+}
+
+.status-mark__label {
+    position: relative;
+    color: var(--sm-color);
+    font-size: 0.85rem;
+    line-height: 1.25;
+    opacity: 0.65;
+    transition: opacity 200ms ease;
+}
+.status-mark[data-status='running'] .status-mark__label { opacity: 1; color: var(--primary); }
+.status-mark[data-status='done'] .status-mark__label { opacity: 0.6; }
+.status-mark[data-status='failed'] .status-mark__label { opacity: 1; }
+
+.status-mark__strike {
+    position: absolute;
+    top: 50%;
+    right: 0; left: 0;
+    height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left center;
+    translate: 0 -50%;
+    pointer-events: none;
+    transition: transform 160ms ease-out;
+}
+.status-mark[data-status='done'] .status-mark__strike {
+    transform: scaleX(1);
+    transition: transform 280ms ease-out 60ms;
+}
+
+/* Ring animation untuk status running (indeterminate) */
+@keyframes statusRingSpin {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: -56.5; }
+}
+.status-mark[data-status='running'] .status-mark__ring {
+    stroke-dasharray: 38 56.5;
+    animation: statusRingSpin 1.1s linear infinite;
+}
+
+/* ============================================
+   ALERT
+   ============================================ */
+.alert {
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 2px solid var(--border-dark);
+    box-shadow: 3px 3px 0px var(--shadow-color);
+    margin-bottom: 20px;
+    display: none;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+.alert.show { display: flex; }
+.alert.error { background: #fee2e2; color: #991b1b; }
+.alert.success { background: #dcfce7; color: #166534; }
+[data-theme="dark"] .alert.error { background: #450a0a; color: #fecaca; }
+[data-theme="dark"] .alert.success { background: #052e16; color: #bbf7d0; }
+.alert .icon-svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
+
+/* ============================================
+   FOOTER & NOTICE
+   ============================================ */
+.auth-footer {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 0.9rem;
+    color: var(--text-gray);
+}
+.auth-footer a {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: none;
+}
+.auth-footer a:hover { text-decoration: underline; }
+
+.recaptcha-notice {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--text-gray);
+    margin-top: 16px;
+    line-height: 1.5;
+}
+.recaptcha-notice a {
+    color: var(--primary);
+    text-decoration: none;
+}
+
+/* ============================================
+   THEME TOGGLE
+   ============================================ */
+.theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px solid var(--border-dark);
+    color: var(--text-dark);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 3px 3px 0px var(--shadow-color);
+    transition: all 0.2s;
+    z-index: 100;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+.theme-toggle:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 5px 5px 0px var(--shadow-color);
+}
+.theme-toggle:active {
+    transform: translate(1px, 1px);
+    box-shadow: 1px 1px 0px var(--shadow-color);
+}
+.theme-toggle .icon-svg { width: 20px; height: 20px; }
+.theme-toggle .moon-icon { display: none; }
+[data-theme="dark"] .theme-toggle .sun-icon { display: none; }
+[data-theme="dark"] .theme-toggle .moon-icon { display: block; }
+
+/* ============================================
+   SPINNER (fallback kalau StatusMark gak jalan)
+   ============================================ */
+.spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spinner 0.6s linear infinite;
+}
+@keyframes spinner { to { transform: rotate(360deg); } }
+
+/* ============================================
+   ANTI-PRINT
+   ============================================ */
+@media print {
+    body { display: none !important; visibility: hidden !important; }
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+@media (max-width: 480px) {
+    body { padding: 16px; }
+    .auth-card-content { padding: 24px 20px; }
+    .border-glow-card { --glow-padding: 20px; --border-radius: 16px; }
+    .auth-logo { font-size: 1.3rem; }
+    .auth-logo .logo-icon { width: 42px; height: 42px; font-size: 1.5rem; }
+    .auth-card-content h1 { font-size: 1.3rem; }
+    .cursor-grid-bg { opacity: 0.4; }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+    body::before { animation: none; }
+    .cursor-grid-bg { display: none; }
+    .status-mark[data-status='running'] .status-mark__ring {
+        animation-duration: 2.5s;
+    }
+}
