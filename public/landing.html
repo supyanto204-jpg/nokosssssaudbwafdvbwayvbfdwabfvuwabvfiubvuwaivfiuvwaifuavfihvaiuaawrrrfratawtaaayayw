@@ -14,14 +14,13 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
     <!-- 🔒 SECURITY: jalan paling awal -->
     <script>
-        // Theme + view-source + iframe + DevTools lock
         (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
             const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -105,6 +104,7 @@
             --purple: #7c3aed;
             --purple-light: #f5f3ff;
             --pink: #ec4899;
+            --cyan: #06b6d4;
             --telegram: #229ED9;
             --whatsapp: #25D366;
             --text-dark: #0f172a;
@@ -124,7 +124,6 @@
             --success: #22c55e;
             --warning: #f59e0b;
             --danger: #dc2626;
-            --gradient-hero: linear-gradient(135deg, #3b82f6 0%, #7c3aed 50%, #ec4899 100%);
             --gradient-primary: linear-gradient(135deg, #2563eb, #7c3aed);
             --gradient-soft: linear-gradient(135deg, #eff6ff, #f5f3ff);
             color-scheme: light;
@@ -190,69 +189,115 @@
         }
 
         /* ============================================
-           ANIMATED BACKGROUND — mesh gradient + noise
+           BACKGROUND — GRADIENT WAVES
+           ============================================ */
+        .bg-waves {
+            position: fixed;
+            inset: 0;
+            z-index: -3;
+            overflow: hidden;
+            pointer-events: none;
+        }
+        .bg-waves svg {
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 200%;
+            height: 100%;
+            opacity: 0.35;
+        }
+        .bg-waves .wave-1 { animation: waveMove1 25s linear infinite; }
+        .bg-waves .wave-2 { animation: waveMove2 35s linear infinite; }
+        .bg-waves .wave-3 { animation: waveMove3 45s linear infinite; }
+
+        @keyframes waveMove1 {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+        @keyframes waveMove2 {
+            from { transform: translateX(-50%); }
+            to { transform: translateX(0); }
+        }
+        @keyframes waveMove3 {
+            from { transform: translateX(-25%); }
+            to { transform: translateX(-75%); }
+        }
+
+        [data-theme="dark"] .bg-waves svg { opacity: 0.5; }
+
+        /* ============================================
+           BACKGROUND — CURSOR GRID
+           ============================================ */
+        .cursor-grid {
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        .cursor-grid svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .cursor-grid line {
+            stroke: var(--primary);
+            stroke-width: 0.5;
+            opacity: 0.08;
+            transition: opacity 0.3s;
+        }
+        .cursor-grid .cursor-cell {
+            fill: var(--primary);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        .cursor-grid .cursor-cell.active {
+            opacity: 0.18;
+        }
+
+        /* ============================================
+           BACKGROUND — MESH GRADIENT BLOBS
            ============================================ */
         .bg-mesh {
             position: fixed;
             inset: 0;
-            z-index: -2;
+            z-index: -4;
             overflow: hidden;
             pointer-events: none;
         }
         .bg-mesh .blob {
             position: absolute;
             border-radius: 50%;
-            filter: blur(80px);
-            opacity: 0.5;
-            animation: blobFloat 20s ease-in-out infinite;
+            filter: blur(100px);
+            opacity: 0.4;
+            animation: blobFloat 24s ease-in-out infinite;
             will-change: transform;
         }
         .bg-mesh .blob:nth-child(1) {
-            width: 500px; height: 500px;
+            width: 520px; height: 520px;
             background: radial-gradient(circle, #3b82f6, transparent 70%);
-            top: -10%; left: -10%;
-            animation-delay: 0s;
+            top: -12%; left: -10%;
         }
         .bg-mesh .blob:nth-child(2) {
-            width: 600px; height: 600px;
+            width: 640px; height: 640px;
             background: radial-gradient(circle, #7c3aed, transparent 70%);
-            top: 30%; right: -15%;
-            animation-delay: -7s;
+            top: 25%; right: -15%;
+            animation-delay: -8s;
         }
         .bg-mesh .blob:nth-child(3) {
-            width: 450px; height: 450px;
+            width: 480px; height: 480px;
             background: radial-gradient(circle, #ec4899, transparent 70%);
-            bottom: -10%; left: 30%;
-            animation-delay: -14s;
+            bottom: -10%; left: 25%;
+            animation-delay: -16s;
         }
 
-        [data-theme="dark"] .bg-mesh .blob { opacity: 0.25; }
+        [data-theme="dark"] .bg-mesh .blob { opacity: 0.22; }
 
         @keyframes blobFloat {
             0%, 100% { transform: translate(0, 0) scale(1); }
-            25% { transform: translate(60px, -40px) scale(1.1); }
-            50% { transform: translate(-40px, 60px) scale(0.95); }
-            75% { transform: translate(30px, 30px) scale(1.05); }
-        }
-
-        /* Grid pattern overlay */
-        .bg-grid {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background-image:
-                linear-gradient(rgba(37, 99, 235, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
-            background-size: 60px 60px;
-            -webkit-mask-image: radial-gradient(circle at 50% 30%, black 0%, transparent 70%);
-            mask-image: radial-gradient(circle at 50% 30%, black 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        [data-theme="dark"] .bg-grid {
-            background-image:
-                linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px);
+            25% { transform: translate(70px, -50px) scale(1.1); }
+            50% { transform: translate(-50px, 70px) scale(0.95); }
+            75% { transform: translate(40px, 40px) scale(1.05); }
         }
 
         /* ===== CONTAINER ===== */
@@ -283,7 +328,7 @@
         .icon-svg.fill { fill: currentColor; stroke: none; }
 
         /* ============================================
-           THEME TOGGLE — upgraded dengan rotate animation
+           THEME TOGGLE
            ============================================ */
         .theme-toggle {
             position: fixed;
@@ -314,10 +359,6 @@
             transform: translate(-2px, -2px) rotate(-10deg);
         }
         .theme-toggle:active { transform: translate(0, 0) scale(0.95); }
-        .theme-toggle:focus-visible {
-            outline: 3px solid var(--primary);
-            outline-offset: 2px;
-        }
         .theme-toggle .icon-svg {
             width: 22px;
             height: 22px;
@@ -330,7 +371,7 @@
         [data-theme="dark"] .theme-toggle .moon-icon { transform: rotate(0) scale(1); opacity: 1; }
 
         /* ============================================
-           NAVBAR — glassmorphism upgraded
+           NAVBAR
            ============================================ */
         nav {
             background: rgba(255, 255, 255, 0.7);
@@ -342,15 +383,8 @@
             z-index: 100;
             transition: background-color 0.3s, box-shadow 0.3s;
         }
-        nav.scrolled {
-            box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-        }
-        [data-theme="dark"] nav {
-            background: rgba(30, 41, 59, 0.7);
-        }
-        @supports not (backdrop-filter: blur(16px)) {
-            nav { background: var(--bg-white); }
-        }
+        nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
+        [data-theme="dark"] nav { background: rgba(30, 41, 59, 0.7); }
 
         .nav-inner {
             display: flex;
@@ -385,15 +419,12 @@
             color: white;
             font-weight: 900;
             font-size: 1.55rem;
-            font-family: 'Plus Jakarta Sans', sans-serif;
             box-shadow: 3px 3px 0px rgba(15, 23, 42, 1);
             text-shadow: 1.5px 1.5px 0px rgba(15, 23, 42, 0.4);
             line-height: 1;
             padding-bottom: 2px;
             transform: rotate(-3deg);
             transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
-            user-select: none;
-            -webkit-user-select: none;
             position: relative;
             overflow: hidden;
         }
@@ -405,9 +436,7 @@
             background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.4) 50%, transparent 60%);
             animation: shine 4s infinite;
         }
-        .logo:hover .logo-icon {
-            transform: rotate(6deg) scale(1.1);
-        }
+        .logo:hover .logo-icon { transform: rotate(6deg) scale(1.1); }
 
         @keyframes gradientShift {
             0%, 100% { background-position: 0% 50%; }
@@ -418,10 +447,7 @@
             100% { transform: translateX(100%) rotate(45deg); }
         }
 
-        .logo-text {
-            font-weight: 900;
-            letter-spacing: -0.02em;
-        }
+        .logo-text { font-weight: 900; letter-spacing: -0.02em; }
         .logo-text span { color: var(--primary); }
 
         .nav-links {
@@ -453,7 +479,7 @@
         .nav-links a:hover::after { width: 100%; }
 
         /* ============================================
-           HERO — upgraded dengan animated gradient + floating badges
+           HERO — dengan TEXT SELECTION BOX (React Bits style)
            ============================================ */
         .hero {
             padding: 100px 0 80px;
@@ -475,60 +501,124 @@
             margin-bottom: 28px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
-            position: relative;
-            overflow: hidden;
             animation: badgeFloat 4s ease-in-out infinite;
-        }
-        .hero-badge::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(37, 99, 235, 0.15), transparent);
-            animation: badgeShine 3s infinite;
         }
         @keyframes badgeFloat {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
         }
-        @keyframes badgeShine {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-
         .hero-badge .dot {
             width: 8px;
             height: 8px;
             background: var(--success);
             border-radius: 50%;
             animation: pulse 2s infinite;
-            box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
             50% { opacity: 0.9; transform: scale(1.1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
         }
 
-        .hero h1 {
-            font-size: clamp(2rem, 5vw, 3.4rem);
-            font-weight: 900;
-            line-height: 1.15;
-            letter-spacing: -0.03em;
+        /* ==== HERO TITLE dengan SELECTION BOX ==== */
+        .hero-title-wrap {
+            position: relative;
+            display: inline-block;
             margin-bottom: 24px;
-            animation: fadeUp 0.8s cubic-bezier(.2,.8,.2,1) both;
+            padding: 20px 40px;
         }
-        .hero h1 span {
-            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
-            background-size: 300% 300%;
-            animation: gradientShift 5s ease infinite;
+
+        .hero h1 {
+            font-size: clamp(2rem, 6vw, 4rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.04em;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            position: relative;
+            z-index: 2;
+            background: linear-gradient(135deg, var(--text-dark) 0%, var(--text-dark) 40%, var(--primary) 60%, var(--purple) 80%, var(--pink) 100%);
+            background-size: 200% 200%;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            animation: heroGradientShift 6s ease infinite;
+        }
+        @keyframes heroGradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
         }
 
-        @keyframes fadeUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+        .hero h1 .line-2 {
+            display: block;
+        }
+
+        /* ==== SELECTION BOX — kotak dashed yang ngikutin kursor ==== */
+        .selection-box {
+            position: absolute;
+            pointer-events: none;
+            border: 2px dashed var(--primary);
+            background: rgba(37, 99, 235, 0.08);
+            border-radius: 6px;
+            z-index: 1;
+            transition: opacity 0.4s ease;
+            opacity: 0;
+            will-change: transform, width, height;
+        }
+
+        .selection-box.visible {
+            opacity: 1;
+        }
+
+        /* Corner handles */
+        .selection-box::before,
+        .selection-box::after,
+        .selection-box .corner-tl,
+        .selection-box .corner-tr,
+        .selection-box .corner-bl,
+        .selection-box .corner-br {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border: 1.5px solid var(--bg-white);
+            border-radius: 2px;
+            z-index: 3;
+        }
+        .selection-box .corner-tl { top: -5px; left: -5px; }
+        .selection-box .corner-tr { top: -5px; right: -5px; }
+        .selection-box .corner-bl { bottom: -5px; left: -5px; }
+        .selection-box .corner-br { bottom: -5px; right: -5px; }
+
+        /* Side handles */
+        .selection-box .side-t,
+        .selection-box .side-b,
+        .selection-box .side-l,
+        .selection-box .side-r {
+            position: absolute;
+            background: var(--primary);
+            border: 1.5px solid var(--bg-white);
+            border-radius: 2px;
+            z-index: 3;
+        }
+        .selection-box .side-t { top: -4px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; }
+        .selection-box .side-b { bottom: -4px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; }
+        .selection-box .side-l { left: -4px; top: 50%; transform: translateY(-50%); width: 6px; height: 10px; }
+        .selection-box .side-r { right: -4px; top: 50%; transform: translateY(-50%); width: 6px; height: 10px; }
+
+        /* Dimension label di atas kiri */
+        .selection-box .dim-label {
+            position: absolute;
+            top: -26px;
+            left: 0;
+            background: var(--primary);
+            color: white;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+            letter-spacing: 0.04em;
         }
 
         .hero p {
@@ -536,7 +626,12 @@
             font-size: 1.12rem;
             max-width: 600px;
             margin: 0 auto 40px;
-            animation: fadeUp 0.8s 0.15s cubic-bezier(.2,.8,.2,1) both;
+            animation: fadeUp 0.8s 0.3s cubic-bezier(.2,.8,.2,1) both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .hero-buttons {
@@ -544,7 +639,7 @@
             gap: 16px;
             justify-content: center;
             flex-wrap: wrap;
-            animation: fadeUp 0.8s 0.3s cubic-bezier(.2,.8,.2,1) both;
+            animation: fadeUp 0.8s 0.4s cubic-bezier(.2,.8,.2,1) both;
         }
 
         /* Button primary upgraded */
@@ -560,13 +655,11 @@
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
             position: relative;
             overflow: hidden;
             z-index: 1;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
 
         .btn-primary {
@@ -609,20 +702,93 @@
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
         }
 
-        .btn-primary .icon-svg, .btn-outline .icon-svg { width: 18px; height: 18px; }
-        .btn-primary:focus-visible, .btn-outline:focus-visible {
-            outline: 3px solid var(--primary);
-            outline-offset: 3px;
+        .btn-primary .icon-svg, .btn-outline .icon-svg {
+            width: 18px;
+            height: 18px;
+            position: relative;
+            z-index: 2;
         }
 
-        /* Floating stats bawah hero */
+        /* Roket animasi di btn-primary */
+        .btn-rocket {
+            display: inline-block;
+            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
+        }
+        .btn-primary:hover .btn-rocket {
+            animation: rocketFly 0.8s ease-in-out;
+        }
+        @keyframes rocketFly {
+            0% { transform: translate(0, 0) rotate(0); }
+            40% { transform: translate(8px, -12px) rotate(15deg); }
+            60% { transform: translate(-8px, 12px) rotate(-15deg); }
+            100% { transform: translate(0, 0) rotate(0); }
+        }
+
+        /* ============================================
+           LOOPING TEXT MARQUEE
+           ============================================ */
+        .loop-text {
+            padding: 20px 0;
+            background: var(--text-dark);
+            overflow: hidden;
+            position: relative;
+            border-top: 2px solid var(--border-dark);
+            border-bottom: 2px solid var(--border-dark);
+        }
+        [data-theme="dark"] .loop-text { background: #020617; }
+
+        .loop-text-inner {
+            display: flex;
+            gap: 40px;
+            white-space: nowrap;
+            animation: loopScroll 30s linear infinite;
+            will-change: transform;
+        }
+        .loop-text-inner.paused { animation-play-state: paused; }
+
+        @keyframes loopScroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        .loop-text-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            color: white;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-weight: 900;
+            font-size: clamp(1.2rem, 2vw, 1.6rem);
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            padding: 0 4px;
+        }
+        .loop-text-item .star {
+            color: var(--warning);
+            font-size: 1.2em;
+            animation: rotateStar 4s linear infinite;
+            display: inline-block;
+        }
+        @keyframes rotateStar {
+            from { transform: rotate(0); }
+            to { transform: rotate(360deg); }
+        }
+        .loop-text-item .divider {
+            color: var(--primary);
+            font-size: 1.4em;
+            opacity: 0.8;
+        }
+
+        /* ============================================
+           HERO STATS
+           ============================================ */
         .hero-stats {
             display: flex;
             justify-content: center;
             gap: 40px;
             margin-top: 60px;
             flex-wrap: wrap;
-            animation: fadeUp 0.8s 0.45s cubic-bezier(.2,.8,.2,1) both;
+            animation: fadeUp 0.8s 0.5s cubic-bezier(.2,.8,.2,1) both;
         }
         .hero-stat {
             display: flex;
@@ -633,7 +799,6 @@
         .hero-stat-value {
             font-size: 1.8rem;
             font-weight: 900;
-            font-family: 'Plus Jakarta Sans', sans-serif;
             background: linear-gradient(135deg, var(--primary), var(--purple));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
@@ -649,7 +814,7 @@
         }
 
         /* ============================================
-           CONTACT CARDS — upgraded
+           CONTACT CARDS (FLIP CARD)
            ============================================ */
         .contact-section { padding: 0 0 90px; }
 
@@ -659,118 +824,134 @@
             gap: 24px;
             max-width: 760px;
             margin: 0 auto;
+            perspective: 1200px;
         }
 
-        .contact-card {
-            background: var(--bg-white);
+        .flip-card {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(.2,.8,.2,1);
+        }
+
+        .flip-card.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+        }
+
+        .flip-card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
             border-radius: var(--radius-lg);
-            padding: 36px 28px;
-            text-align: center;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s, background-color 0.3s;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 32px 24px;
+            text-align: center;
             overflow: hidden;
             isolation: isolate;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
         }
 
-        .contact-card .glow {
-            position: absolute;
-            width: 280px;
-            height: 280px;
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: -1;
-            transform: translate(-50%, -50%);
-            transition: opacity 0.4s;
-            opacity: 0;
-            filter: blur(30px);
+        .flip-card-front {
+            background: var(--bg-white);
         }
-        .contact-card.telegram-card .glow {
-            background: radial-gradient(circle, rgba(34, 158, 217, 0.4) 0%, transparent 70%);
-        }
-        .contact-card.whatsapp-card .glow {
-            background: radial-gradient(circle, rgba(37, 211, 102, 0.4) 0%, transparent 70%);
-        }
-        .contact-card:hover .glow { opacity: 1; }
 
-        .contact-card::before {
+        .flip-card-back {
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            color: white;
+            transform: rotateY(180deg);
+        }
+        .flip-card.telegram-flip .flip-card-back {
+            background: linear-gradient(135deg, #229ED9, #06b6d4);
+        }
+        .flip-card.whatsapp-flip .flip-card-back {
+            background: linear-gradient(135deg, #25D366, #10b981);
+        }
+
+        .flip-card-face::before {
             content: '';
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 4px;
-            background: var(--primary);
             z-index: 1;
         }
-        .contact-card.telegram-card::before {
+        .flip-card.telegram-flip .flip-card-front::before {
             background: linear-gradient(90deg, #229ED9, #4fc3f7, #229ED9);
             background-size: 200% 100%;
             animation: gradientShift 3s linear infinite;
         }
-        .contact-card.whatsapp-card::before {
+        .flip-card.whatsapp-flip .flip-card-front::before {
             background: linear-gradient(90deg, #25D366, #4ade80, #25D366);
             background-size: 200% 100%;
             animation: gradientShift 3s linear infinite;
         }
 
-        .contact-card:hover {
-            transform: translate(-4px, -4px);
-            box-shadow: var(--shadow-hard-lg);
-        }
-        .contact-card:focus-visible {
-            outline: 3px solid var(--primary);
-            outline-offset: 3px;
-        }
-
-        .contact-icon {
+        .flip-icon {
             width: 72px;
             height: 72px;
             border-radius: 20px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
+            margin-bottom: 16px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
             position: relative;
             z-index: 1;
-            transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
-        .contact-card:hover .contact-icon { transform: scale(1.1) rotate(-6deg); }
+        .flip-icon.telegram { background: #e8f4fd; color: var(--telegram); }
+        .flip-icon.whatsapp { background: #e8f9ee; color: var(--whatsapp); }
+        [data-theme="dark"] .flip-icon.telegram { background: rgba(34, 158, 217, 0.15); }
+        [data-theme="dark"] .flip-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
+        .flip-icon .icon-svg { width: 34px; height: 34px; }
 
-        .contact-icon.telegram { background: #e8f4fd; color: var(--telegram); }
-        .contact-icon.whatsapp { background: #e8f9ee; color: var(--whatsapp); }
-        [data-theme="dark"] .contact-icon.telegram { background: rgba(34, 158, 217, 0.15); }
-        [data-theme="dark"] .contact-icon.whatsapp { background: rgba(37, 211, 102, 0.15); }
-
-        .contact-icon .icon-svg { width: 34px; height: 34px; }
-
-        .contact-card h3 {
-            font-size: 1.25rem;
+        .flip-card-face h3 {
+            font-size: 1.3rem;
             font-weight: 800;
-            margin-bottom: 8px;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 6px;
             font-family: 'Plus Jakarta Sans', sans-serif;
             letter-spacing: -0.02em;
         }
-        .contact-card p {
+        .flip-card-face p {
             color: var(--text-gray);
             font-size: 0.92rem;
-            margin-bottom: 20px;
-            font-family: ui-monospace, 'Courier New', monospace;
+            font-family: ui-monospace, 'JetBrains Mono', monospace;
             font-weight: 700;
-            position: relative;
-            z-index: 1;
+            margin-bottom: 16px;
+        }
+        .flip-card-back p {
+            color: rgba(255,255,255,0.9);
         }
 
-        .contact-btn {
+        .flip-hint {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--text-light);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            position: absolute;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .flip-btn {
             display: inline-flex;
             align-items: center;
             gap: 8px;
@@ -778,24 +959,23 @@
             border-radius: 50px;
             font-size: 0.88rem;
             font-weight: 800;
-            transition: transform 0.2s, box-shadow 0.2s;
             border: 2px solid var(--border-dark);
             box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
-            position: relative;
-            z-index: 1;
-            pointer-events: none;
+            background: white;
+            color: var(--text-dark);
+            text-decoration: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
         }
-        .contact-btn .icon-svg { width: 15px; height: 15px; }
-        .contact-btn.telegram { background: var(--telegram); color: white; }
-        .contact-btn.whatsapp { background: var(--whatsapp); color: white; }
-
-        .contact-card:hover .contact-btn {
+        .flip-btn:hover {
             transform: translate(-2px, -2px);
             box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
         }
+        .flip-btn .icon-svg { width: 15px; height: 15px; }
 
         /* ============================================
-           FEATURES — upgraded
+           FEATURES
            ============================================ */
         .features {
             padding: 100px 0;
@@ -830,7 +1010,6 @@
             font-weight: 900;
             letter-spacing: -0.03em;
             margin-bottom: 14px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
         .section-header p {
@@ -856,8 +1035,6 @@
             position: relative;
             overflow: hidden;
             isolation: isolate;
-            user-select: none;
-            -webkit-user-select: none;
         }
 
         .feature-card .glow {
@@ -906,8 +1083,6 @@
             margin-bottom: 10px;
             position: relative;
             z-index: 1;
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            letter-spacing: -0.01em;
         }
 
         .feature-card p {
@@ -919,7 +1094,60 @@
         }
 
         /* ============================================
-           STEPS — upgraded dengan connector line
+           STAR RATING (fake visual)
+           ============================================ */
+        .rating-block {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .rating-stars {
+            display: flex;
+            gap: 4px;
+        }
+
+        .rating-star {
+            width: 18px;
+            height: 18px;
+            color: var(--border);
+            transition: color 0.3s, transform 0.3s;
+        }
+        .rating-star.filled {
+            color: var(--warning);
+            fill: var(--warning);
+        }
+        .feature-card:hover .rating-star.filled {
+            animation: starPop 0.6s ease-out;
+        }
+        .feature-card:hover .rating-star.filled:nth-child(1) { animation-delay: 0s; }
+        .feature-card:hover .rating-star.filled:nth-child(2) { animation-delay: 0.05s; }
+        .feature-card:hover .rating-star.filled:nth-child(3) { animation-delay: 0.1s; }
+        .feature-card:hover .rating-star.filled:nth-child(4) { animation-delay: 0.15s; }
+        .feature-card:hover .rating-star.filled:nth-child(5) { animation-delay: 0.2s; }
+
+        @keyframes starPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3) rotate(15deg); }
+            100% { transform: scale(1); }
+        }
+
+        .rating-text {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--text-gray);
+            letter-spacing: 0.02em;
+        }
+        .rating-text strong { color: var(--text-dark); }
+
+        /* ============================================
+           STEPS
            ============================================ */
         .steps { padding: 100px 0; position: relative; }
 
@@ -930,7 +1158,6 @@
             position: relative;
         }
 
-        /* Connector line desktop */
         @media (min-width: 769px) {
             .steps-grid::before {
                 content: '';
@@ -954,8 +1181,6 @@
             text-align: center;
             position: relative;
             z-index: 1;
-            user-select: none;
-            -webkit-user-select: none;
             transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4);
         }
         .step-card:hover { transform: translateY(-6px); }
@@ -976,7 +1201,6 @@
             margin: 0 auto 22px;
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
-            font-family: 'Plus Jakarta Sans', sans-serif;
             transition: transform 0.3s cubic-bezier(.2,.8,.2,1.4), box-shadow 0.3s;
             position: relative;
         }
@@ -998,7 +1222,6 @@
             inset: -10px;
             animation: pulseRing 1.5s ease-out infinite;
         }
-
         @keyframes pulseRing {
             0% { opacity: 0.5; inset: -6px; }
             100% { opacity: 0; inset: -20px; }
@@ -1008,9 +1231,7 @@
             font-size: 1.02rem;
             font-weight: 800;
             margin-bottom: 10px;
-            font-family: 'Plus Jakarta Sans', sans-serif;
         }
-
         .step-card p {
             color: var(--text-gray);
             font-size: 0.86rem;
@@ -1018,102 +1239,9 @@
         }
 
         /* ============================================
-           FAQ — upgraded dengan smooth expand
+           CTA BANNER
            ============================================ */
-        .faq {
-            padding: 100px 0;
-            background: var(--bg-white);
-            border-top: 2px solid var(--border-dark);
-            border-bottom: 2px solid var(--border-dark);
-            position: relative;
-        }
-
-        .faq-list {
-            max-width: 760px;
-            margin: 0 auto;
-        }
-
-        .faq-item {
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            margin-bottom: 14px;
-            overflow: hidden;
-            transition: transform 0.2s, box-shadow 0.25s, background-color 0.25s;
-            background: var(--bg-white);
-            box-shadow: var(--shadow-hard-sm);
-        }
-
-        .faq-item:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
-        }
-
-        .faq-item.active {
-            background: var(--gradient-soft);
-        }
-
-        .faq-question {
-            width: 100%;
-            background: none;
-            border: none;
-            padding: 22px 26px;
-            text-align: left;
-            font-family: inherit;
-            font-size: 0.98rem;
-            font-weight: 700;
-            color: var(--text-dark);
-            cursor: pointer;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 16px;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            transition: color 0.2s;
-        }
-        .faq-question:hover { color: var(--primary); }
-        .faq-question:focus-visible {
-            outline: 3px solid var(--primary);
-            outline-offset: -3px;
-        }
-
-        .faq-question .icon-plus {
-            width: 22px;
-            height: 22px;
-            color: var(--primary);
-            transition: transform 0.4s cubic-bezier(.2,.8,.2,1.4);
-            flex-shrink: 0;
-            pointer-events: none;
-        }
-
-        .faq-item.active .faq-question .icon-plus {
-            transform: rotate(135deg);
-        }
-
-        .faq-answer {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.4s cubic-bezier(.2,.8,.2,1);
-        }
-
-        .faq-answer-inner {
-            padding: 0 26px 22px;
-            color: var(--text-gray);
-            font-size: 0.92rem;
-            line-height: 1.75;
-        }
-
-        .faq-item.active .faq-answer {
-            max-height: 300px;
-        }
-
-        /* ============================================
-           CTA BANNER — NEW: konversi tambahan
-           ============================================ */
-        .cta-banner {
-            padding: 80px 0;
-            position: relative;
-        }
+        .cta-banner { padding: 80px 0; }
         .cta-banner-inner {
             background: linear-gradient(135deg, #1e3a8a, #4c1d95, #831843);
             background-size: 200% 200%;
@@ -1150,7 +1278,6 @@
             font-weight: 900;
             margin-bottom: 12px;
             letter-spacing: -0.03em;
-            font-family: 'Plus Jakarta Sans', sans-serif;
         }
         .cta-banner p {
             color: rgba(255, 255, 255, 0.85);
@@ -1158,7 +1285,7 @@
             max-width: 520px;
             margin: 0 auto 28px;
         }
-        .cta-banner .btn-cta {
+        .btn-cta {
             display: inline-flex;
             align-items: center;
             gap: 10px;
@@ -1175,24 +1302,101 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-        .cta-banner .btn-cta:hover {
+        .btn-cta:hover {
             transform: translate(-3px, -3px);
             box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
         }
-        .cta-banner .btn-cta:active {
+        .btn-cta:active {
             transform: translate(1px, 1px);
             box-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
         }
+        .btn-cta:hover .btn-rocket {
+            animation: rocketFly 0.8s ease-in-out;
+        }
 
         /* ============================================
-           FOOTER — upgraded
+           FAQ
+           ============================================ */
+        .faq {
+            padding: 100px 0;
+            background: var(--bg-white);
+            border-top: 2px solid var(--border-dark);
+            border-bottom: 2px solid var(--border-dark);
+        }
+
+        .faq-list {
+            max-width: 760px;
+            margin: 0 auto;
+        }
+
+        .faq-item {
+            border: 2px solid var(--border-dark);
+            border-radius: var(--radius-sm);
+            margin-bottom: 14px;
+            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.25s, background-color 0.25s;
+            background: var(--bg-white);
+            box-shadow: var(--shadow-hard-sm);
+        }
+        .faq-item:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 4px 4px 0px rgba(15, 23, 42, 1);
+        }
+        .faq-item.active { background: var(--gradient-soft); }
+
+        .faq-question {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 22px 26px;
+            text-align: left;
+            font-family: inherit;
+            font-size: 0.98rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: color 0.2s;
+        }
+        .faq-question:hover { color: var(--primary); }
+
+        .faq-question .icon-plus {
+            width: 22px;
+            height: 22px;
+            color: var(--primary);
+            transition: transform 0.4s cubic-bezier(.2,.8,.2,1.4);
+            flex-shrink: 0;
+            pointer-events: none;
+        }
+        .faq-item.active .faq-question .icon-plus {
+            transform: rotate(135deg);
+        }
+
+        .faq-answer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(.2,.8,.2,1);
+        }
+        .faq-answer-inner {
+            padding: 0 26px 22px;
+            color: var(--text-gray);
+            font-size: 0.92rem;
+            line-height: 1.75;
+        }
+        .faq-item.active .faq-answer { max-height: 300px; }
+
+        /* ============================================
+           FOOTER
            ============================================ */
         footer {
             background: #0f172a;
             color: #94a3b8;
             padding: 56px 0 32px;
-            position: relative;
-            z-index: 1;
             border-top: 2px solid var(--border-dark);
         }
         [data-theme="dark"] footer { background: #020617; }
@@ -1204,7 +1408,6 @@
             flex-wrap: wrap;
             gap: 20px;
         }
-
         .footer-logo {
             display: flex;
             align-items: center;
@@ -1212,8 +1415,6 @@
             color: white;
             font-weight: 800;
             font-size: 1.15rem;
-            user-select: none;
-            -webkit-user-select: none;
         }
         .footer-logo .logo-icon {
             width: 34px;
@@ -1261,7 +1462,6 @@
             opacity: 0;
             transform: translateY(30px);
             transition: opacity 0.7s cubic-bezier(.2,.8,.2,1), transform 0.7s cubic-bezier(.2,.8,.2,1);
-            will-change: opacity, transform;
         }
         .reveal.in-view {
             opacity: 1;
@@ -1269,7 +1469,7 @@
         }
 
         /* ============================================
-           BACK TO TOP BUTTON
+           BACK TO TOP
            ============================================ */
         .back-to-top {
             position: fixed;
@@ -1310,21 +1510,6 @@
            ============================================ */
         @media print {
             body { display: none !important; visibility: hidden !important; }
-            body::after {
-                content: '⚠️ Halaman ini tidak dapat dicetak / disimpan.';
-                display: block !important;
-                visibility: visible !important;
-                position: fixed;
-                inset: 0;
-                align-items: center;
-                justify-content: center;
-                font-family: system-ui, sans-serif;
-                font-size: 1.2rem;
-                color: #dc2626;
-                text-align: center;
-                padding: 20px;
-                background: white;
-            }
         }
 
         /* ============================================
@@ -1334,9 +1519,11 @@
             .nav-links { display: none; }
             .theme-toggle { top: 16px; right: 16px; width: 42px; height: 42px; }
             .hero { padding: 70px 0 60px; }
+            .hero-title-wrap { padding: 12px 20px; }
             .hero-stats { gap: 28px; margin-top: 44px; }
             .hero-stat-value { font-size: 1.5rem; }
             .contact-grid { grid-template-columns: 1fr; max-width: 460px; }
+            .flip-card { height: 280px; }
             .features-grid { grid-template-columns: 1fr; }
             .steps-grid { grid-template-columns: repeat(2, 1fr); gap: 32px; }
             .footer-inner { flex-direction: column; text-align: center; }
@@ -1351,9 +1538,9 @@
             .btn-primary, .btn-outline { width: 100%; justify-content: center; }
             .hero-stats { gap: 20px; }
             .hero-stat-value { font-size: 1.35rem; }
-            .contact-card { padding: 28px 22px; }
-            .feature-card { padding: 28px 22px; }
+            .flip-card { height: 260px; }
             .back-to-top { bottom: 16px; right: 16px; width: 44px; height: 44px; }
+            .selection-box .dim-label { font-size: 0.62rem; }
         }
 
         /* ===== REDUCED MOTION ===== */
@@ -1364,20 +1551,54 @@
                 animation-iteration-count: 1 !important;
                 transition-duration: 0.01ms !important;
             }
-            .bg-mesh .blob { animation: none; }
             .reveal { opacity: 1; transform: none; }
         }
     </style>
 </head>
 <body>
 
-    <!-- ===== ANIMATED BACKGROUND ===== -->
+    <!-- ===== BACKGROUND: MESH BLOBS ===== -->
     <div class="bg-mesh" aria-hidden="true">
         <div class="blob"></div>
         <div class="blob"></div>
         <div class="blob"></div>
     </div>
-    <div class="bg-grid" aria-hidden="true"></div>
+
+    <!-- ===== BACKGROUND: GRADIENT WAVES ===== -->
+    <div class="bg-waves" aria-hidden="true">
+        <svg class="wave-3" viewBox="0 0 1440 600" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="waveGrad3" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.15"/>
+                    <stop offset="50%" stop-color="#ec4899" stop-opacity="0.2"/>
+                    <stop offset="100%" stop-color="#06b6d4" stop-opacity="0.15"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#waveGrad3)" d="M0,300 C240,200 480,400 720,300 C960,200 1200,400 1440,300 L1440,600 L0,600 Z"/>
+        </svg>
+        <svg class="wave-2" viewBox="0 0 1440 600" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="waveGrad2" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#2563eb" stop-opacity="0.2"/>
+                    <stop offset="50%" stop-color="#7c3aed" stop-opacity="0.15"/>
+                    <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.2"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#waveGrad2)" d="M0,350 C240,250 480,450 720,350 C960,250 1200,450 1440,350 L1440,600 L0,600 Z"/>
+        </svg>
+        <svg class="wave-1" viewBox="0 0 1440 600" preserveAspectRatio="none">
+            <defs>
+                <linearGradient id="waveGrad1" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.25"/>
+                    <stop offset="100%" stop-color="#ec4899" stop-opacity="0.25"/>
+                </linearGradient>
+            </defs>
+            <path fill="url(#waveGrad1)" d="M0,400 C240,300 480,500 720,400 C960,300 1200,500 1440,400 L1440,600 L0,600 Z"/>
+        </svg>
+    </div>
+
+    <!-- ===== BACKGROUND: CURSOR GRID ===== -->
+    <div class="cursor-grid" id="cursorGrid" aria-hidden="true"></div>
 
     <!-- ===== THEME TOGGLE ===== -->
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -1413,16 +1634,37 @@
                 <span class="dot"></span>
                 Layanan Aktif 24 Jam
             </div>
-            <h1>Digital Mudah,<br><span>Tanpa Perlu Ribet</span></h1>
+
+            <!-- Text + Selection Box -->
+            <div class="hero-title-wrap" id="heroTitleWrap">
+                <div class="selection-box" id="selectionBox">
+                    <div class="dim-label" id="selectionDim">w 512 · h 84</div>
+                    <span class="corner-tl"></span>
+                    <span class="corner-tr"></span>
+                    <span class="corner-bl"></span>
+                    <span class="corner-br"></span>
+                    <span class="side-t"></span>
+                    <span class="side-b"></span>
+                    <span class="side-l"></span>
+                    <span class="side-r"></span>
+                </div>
+                <h1>
+                    Digital Mudah,
+                    <span class="line-2">Tanpa Perlu Ribet</span>
+                </h1>
+            </div>
+
             <p>Platform layanan OTP cepat, aman, dan terpercaya. Dapatkan kode verifikasi instan untuk berbagai aplikasi dan layanan digital.</p>
             <div class="hero-buttons">
                 <a href="/dashboard" class="btn-primary">
-                    <svg class="icon-svg" viewBox="0 0 24 24">
-                        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                        <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-                        <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-                    </svg>
+                    <span class="btn-rocket">
+                        <svg class="icon-svg" viewBox="0 0 24 24">
+                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+                            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+                        </svg>
+                    </span>
                     Mulai Sekarang
                 </a>
                 <a href="#cara-kerja" class="btn-outline">
@@ -1431,7 +1673,7 @@
                 </a>
             </div>
 
-            <!-- Floating stats -->
+            <!-- Hero stats -->
             <div class="hero-stats">
                 <div class="hero-stat">
                     <div class="hero-stat-value">1.700+</div>
@@ -1453,40 +1695,104 @@
         </div>
     </section>
 
-    <!-- ===== CONTACT CARDS ===== -->
-    <section class="contact-section">
+    <!-- ===== LOOPING TEXT MARQUEE ===== -->
+    <div class="loop-text" aria-hidden="true">
+        <div class="loop-text-inner" id="loopText">
+            <div class="loop-text-item">
+                <span class="star">★</span>
+                CEPAT
+                <span class="divider">•</span>
+                AMAN
+                <span class="divider">•</span>
+                TERPERCAYA
+                <span class="divider">•</span>
+                <span class="star">★</span>
+                OTP INSTAN
+                <span class="divider">•</span>
+                1700+ LAYANAN
+                <span class="divider">•</span>
+                100+ NEGARA
+                <span class="divider">•</span>
+            </div>
+            <div class="loop-text-item">
+                <span class="star">★</span>
+                CEPAT
+                <span class="divider">•</span>
+                AMAN
+                <span class="divider">•</span>
+                TERPERCAYA
+                <span class="divider">•</span>
+                <span class="star">★</span>
+                OTP INSTAN
+                <span class="divider">•</span>
+                1700+ LAYANAN
+                <span class="divider">•</span>
+                100+ NEGARA
+                <span class="divider">•</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FLIP CARDS (CONTACT) ===== -->
+    <section class="contact-section" style="padding-top: 80px;">
         <div class="container">
             <div class="contact-grid">
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="contact-card telegram-card reveal">
-                    <div class="glow"></div>
-                    <div class="contact-icon telegram">
-                        <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                <!-- Telegram Flip Card -->
+                <div class="flip-card telegram-flip reveal" data-flip>
+                    <div class="flip-card-inner">
+                        <div class="flip-card-face flip-card-front">
+                            <div class="flip-icon telegram">
+                                <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                            </div>
+                            <h3>Telegram</h3>
+                            <p>@AsyrofC</p>
+                            <span class="flip-hint">
+                                <svg class="icon-svg" viewBox="0 0 24 24" style="width:12px;height:12px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                Klik untuk chat
+                            </span>
+                        </div>
+                        <div class="flip-card-face flip-card-back">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24" style="width:56px;height:56px;margin-bottom:16px;"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                            <h3>Chat via Telegram</h3>
+                            <p style="color:rgba(255,255,255,0.9);">Support 24/7 di Telegram</p>
+                            <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="flip-btn">
+                                Buka Telegram
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+                            </a>
+                        </div>
                     </div>
-                    <h3>Telegram</h3>
-                    <p>@AsyrofC</p>
-                    <span class="contact-btn telegram">
-                        Chat Sekarang
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    </span>
-                </a>
+                </div>
 
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="contact-card whatsapp-card reveal">
-                    <div class="glow"></div>
-                    <div class="contact-icon whatsapp">
-                        <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                <!-- WhatsApp Flip Card -->
+                <div class="flip-card whatsapp-flip reveal" data-flip>
+                    <div class="flip-card-inner">
+                        <div class="flip-card-face flip-card-front">
+                            <div class="flip-icon whatsapp">
+                                <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            </div>
+                            <h3>WhatsApp</h3>
+                            <p>@AsyrofC_</p>
+                            <span class="flip-hint">
+                                <svg class="icon-svg" viewBox="0 0 24 24" style="width:12px;height:12px;"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                Klik untuk chat
+                            </span>
+                        </div>
+                        <div class="flip-card-face flip-card-back">
+                            <svg class="icon-svg fill" viewBox="0 0 24 24" style="width:56px;height:56px;margin-bottom:16px;"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            <h3>Chat via WhatsApp</h3>
+                            <p style="color:rgba(255,255,255,0.9);">Support 24/7 di WhatsApp</p>
+                            <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="flip-btn">
+                                Buka WhatsApp
+                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M7 17 17 7"/><path d="M7 7h10v10"/></svg>
+                            </a>
+                        </div>
                     </div>
-                    <h3>WhatsApp</h3>
-                    <p>@AsyrofC_</p>
-                    <span class="contact-btn whatsapp">
-                        Chat Sekarang
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    </span>
-                </a>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- ===== FEATURES ===== -->
+    <!-- ===== FEATURES dengan STAR RATING ===== -->
     <section class="features" id="fitur">
         <div class="container">
             <div class="section-header reveal">
@@ -1502,6 +1808,16 @@
                     </div>
                     <h3>Fast Receive</h3>
                     <p>Layanan OTP kami menjamin penerimaan SMS instan tanpa delay atau gangguan jaringan.</p>
+                    <div class="rating-block">
+                        <div class="rating-stars">
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </div>
+                        <div class="rating-text"><strong>4.9</strong> dari 2.847 ulasan</div>
+                    </div>
                 </div>
                 <div class="feature-card reveal">
                     <div class="glow"></div>
@@ -1510,6 +1826,16 @@
                     </div>
                     <h3>Terpercaya</h3>
                     <p>AsyrofOTP berkomitmen untuk menjaga kepercayaan pengguna dengan terus meningkatkan kualitas layanan.</p>
+                    <div class="rating-block">
+                        <div class="rating-stars">
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </div>
+                        <div class="rating-text"><strong>4.8</strong> dari 1.562 ulasan</div>
+                    </div>
                 </div>
                 <div class="feature-card reveal">
                     <div class="glow"></div>
@@ -1518,6 +1844,16 @@
                     </div>
                     <h3>Dukungan Prima</h3>
                     <p>Tim support kami siap membantu 24/7 untuk memastikan kelancaran layanan dan kepuasan pengguna.</p>
+                    <div class="rating-block">
+                        <div class="rating-stars">
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        </div>
+                        <div class="rating-text"><strong>5.0</strong> dari 3.219 ulasan</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1563,10 +1899,12 @@
                 <h2>Siap Mulai Sekarang?</h2>
                 <p>Daftar gratis, top-up saldo, dan nikmati layanan OTP tercepat di Indonesia.</p>
                 <a href="/dashboard" class="btn-cta">
-                    <svg class="icon-svg" viewBox="0 0 24 24" style="width:18px;height:18px;">
-                        <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                        <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                    </svg>
+                    <span class="btn-rocket">
+                        <svg class="icon-svg" viewBox="0 0 24 24" style="width:18px;height:18px;">
+                            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+                            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+                        </svg>
+                    </span>
                     Mulai Sekarang
                 </a>
             </div>
@@ -1699,7 +2037,6 @@
             const LOCK_FLAG = 'asyrof_devtools_lock';
             const THRESHOLD_WIDTH = 200;
             const THRESHOLD_HEIGHT = 200;
-
             function shouldSkipDetection() {
                 if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
                 if (window.innerWidth < 600) return true;
@@ -1820,18 +2157,16 @@
         })();
 
         /* ============================================
-           SCROLL REVEAL — IntersectionObserver
+           SCROLL REVEAL
            ============================================ */
         (function initReveal() {
             const els = document.querySelectorAll('.reveal');
             if (els.length === 0) return;
-
             if (!('IntersectionObserver' in window) ||
                 (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) {
                 els.forEach(el => el.classList.add('in-view'));
                 return;
             }
-
             const io = new IntersectionObserver((entries) => {
                 entries.forEach((entry, i) => {
                     if (entry.isIntersecting) {
@@ -1840,18 +2175,15 @@
                     }
                 });
             }, { rootMargin: '0px 0px -80px 0px', threshold: 0.1 });
-
             els.forEach(el => io.observe(el));
         })();
 
         /* ============================================
-           PARALLAX GLOW (mouse + gyro)
+           PARALLAX GLOW on cards
            ============================================ */
         (function initParallax() {
             if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-            const cards = document.querySelectorAll('.contact-card, .feature-card');
-
+            const cards = document.querySelectorAll('.feature-card');
             cards.forEach(card => {
                 card.addEventListener('mousemove', (e) => {
                     const rect = card.getBoundingClientRect();
@@ -1869,29 +2201,6 @@
                     if (glow) glow.style.opacity = '0';
                 });
             });
-
-            let lastX = 0, lastY = 0;
-            function handleOrientation(event) {
-                const beta = event.beta || 0;
-                const gamma = event.gamma || 0;
-                const normX = Math.max(-1, Math.min(1, gamma / 45));
-                const normY = Math.max(-1, Math.min(1, (beta - 45) / 45));
-                lastX += (normX - lastX) * 0.1;
-                lastY += (normY - lastY) * 0.1;
-                cards.forEach(card => {
-                    const glow = card.querySelector('.glow');
-                    if (!glow) return;
-                    const rect = card.getBoundingClientRect();
-                    const offsetX = lastX * (rect.width * 0.4);
-                    const offsetY = lastY * (rect.height * 0.4);
-                    glow.style.left = (rect.width / 2 + offsetX) + 'px';
-                    glow.style.top = (rect.height / 2 + offsetY) + 'px';
-                    glow.style.opacity = '0.8';
-                });
-            }
-            if (window.DeviceOrientationEvent) {
-                window.addEventListener('deviceorientation', handleOrientation, { passive: true });
-            }
         })();
 
         /* ============================================
@@ -1915,7 +2224,7 @@
         })();
 
         /* ============================================
-           SMOOTH ANCHOR SCROLL (dengan offset navbar)
+           SMOOTH ANCHOR SCROLL
            ============================================ */
         (function initSmoothAnchor() {
             document.querySelectorAll('a[href^="#"]').forEach(link => {
@@ -1930,6 +2239,363 @@
                     const top = target.getBoundingClientRect().top + window.scrollY - navH - 12;
                     window.scrollTo({ top, behavior: 'smooth' });
                 });
+            });
+        })();
+
+        /* ============================================
+           SELECTION BOX — ngikutin kursor / random
+           ============================================ */
+        (function initSelectionBox() {
+            const wrap = document.getElementById('heroTitleWrap');
+            const box = document.getElementById('selectionBox');
+            const dimLabel = document.getElementById('selectionDim');
+            if (!wrap || !box) return;
+
+            const titleH1 = wrap.querySelector('h1');
+            let mouseX = 0, mouseY = 0;
+            let currentX = 0, currentY = 0;
+            let currentW = 0, currentH = 0;
+            let targetX = 0, targetY = 0;
+            let targetW = 0, targetH = 0;
+            let hasMouse = false;
+            let lastMouseTime = 0;
+            let autoTimer = null;
+            let autoPhase = 0;
+            let autoStartTime = performance.now();
+
+            const isMobile = () => window.matchMedia('(max-width: 900px)').matches ||
+                (navigator.maxTouchPoints > 0 && window.innerWidth < 1024);
+
+            function getWrapRect() {
+                return wrap.getBoundingClientRect();
+            }
+
+            function setTargetFromMouse(clientX, clientY) {
+                const rect = getWrapRect();
+                const relX = clientX - rect.left;
+                const relY = clientY - rect.top;
+
+                // Size kotak: 180-260px wide, 70-100px tall
+                const w = 200 + Math.sin(Date.now() / 800) * 40;
+                const h = 80 + Math.cos(Date.now() / 700) * 12;
+
+                // Center kotak di posisi mouse
+                targetX = relX - w / 2;
+                targetY = relY - h / 2;
+                targetW = w;
+                targetH = h;
+
+                // Clamp biar gak keluar wrap
+                targetX = Math.max(-10, Math.min(rect.width - w + 10, targetX));
+                targetY = Math.max(-10, Math.min(rect.height - h + 10, targetY));
+            }
+
+            function setTargetRandom() {
+                const rect = getWrapRect();
+                const time = performance.now() / 1000;
+
+                // Kombinasi beberapa sinyal sinus untuk gerakan organik
+                const w = 180 + Math.sin(time * 0.7) * 60;
+                const h = 70 + Math.cos(time * 0.9) * 25;
+
+                const cx = rect.width / 2;
+                const cy = rect.height / 2;
+
+                // Orbit + wobble
+                const orbitX = Math.sin(time * 0.5) * (rect.width * 0.28);
+                const orbitY = Math.cos(time * 0.65) * (rect.height * 0.32);
+                const wobbleX = Math.sin(time * 1.8) * 18;
+                const wobbleY = Math.cos(time * 2.2) * 12;
+
+                targetX = cx + orbitX + wobbleX - w / 2;
+                targetY = cy + orbitY + wobbleY - h / 2;
+                targetW = w;
+                targetH = h;
+
+                // Clamp
+                targetX = Math.max(-10, Math.min(rect.width - w + 10, targetX));
+                targetY = Math.max(-10, Math.min(rect.height - h + 10, targetY));
+            }
+
+            // Mouse events (desktop)
+            wrap.addEventListener('mousemove', (e) => {
+                hasMouse = true;
+                lastMouseTime = performance.now();
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                setTargetFromMouse(mouseX, mouseY);
+                box.classList.add('visible');
+            });
+
+            wrap.addEventListener('mouseleave', () => {
+                hasMouse = false;
+            });
+
+            // Touch events (mobile)
+            wrap.addEventListener('touchstart', (e) => {
+                hasMouse = true;
+                lastMouseTime = performance.now();
+                const t = e.touches[0];
+                setTargetFromMouse(t.clientX, t.clientY);
+                box.classList.add('visible');
+            }, { passive: true });
+
+            wrap.addEventListener('touchmove', (e) => {
+                hasMouse = true;
+                lastMouseTime = performance.now();
+                const t = e.touches[0];
+                setTargetFromMouse(t.clientX, t.clientY);
+            }, { passive: true });
+
+            wrap.addEventListener('touchend', () => {
+                // Biar tetap visible sebentar, baru auto mode
+                setTimeout(() => {
+                    if (performance.now() - lastMouseTime > 2000) {
+                        hasMouse = false;
+                    }
+                }, 2000);
+            });
+
+            // Animation loop
+            function animate() {
+                const now = performance.now();
+                const idle = now - lastMouseTime > 1800;
+
+                // Kalau gak ada mouse / idle → gerak random
+                if (!hasMouse || idle) {
+                    setTargetRandom();
+                    box.classList.add('visible');
+                }
+
+                // Smooth lerp
+                const ease = hasMouse && !idle ? 0.15 : 0.08;
+                currentX += (targetX - currentX) * ease;
+                currentY += (targetY - currentY) * ease;
+                currentW += (targetW - currentW) * ease;
+                currentH += (targetH - currentH) * ease;
+
+                box.style.transform = `translate(${currentX}px, ${currentY}px)`;
+                box.style.width = currentW + 'px';
+                box.style.height = currentH + 'px';
+
+                // Update dim label
+                if (dimLabel) {
+                    dimLabel.textContent = `w ${Math.round(currentW)} · h ${Math.round(currentH)}`;
+                }
+
+                requestAnimationFrame(animate);
+            }
+
+            // Init posisi
+            const rect = getWrapRect();
+            currentX = targetX = rect.width / 2 - 100;
+            currentY = targetY = rect.height / 2 - 40;
+            currentW = targetW = 200;
+            currentH = targetH = 80;
+            box.classList.add('visible');
+
+            requestAnimationFrame(animate);
+        })();
+
+        /* ============================================
+           LOOPING TEXT — pause on hover (desktop)
+           ============================================ */
+        (function initLoopText() {
+            const loop = document.getElementById('loopText');
+            if (!loop) return;
+            const container = loop.parentElement;
+            container.addEventListener('mouseenter', () => loop.classList.add('paused'));
+            container.addEventListener('mouseleave', () => loop.classList.remove('paused'));
+            container.addEventListener('touchstart', () => loop.classList.add('paused'), { passive: true });
+            container.addEventListener('touchend', () => {
+                setTimeout(() => loop.classList.remove('paused'), 800);
+            });
+        })();
+
+        /* ============================================
+           FLIP CARD — klik / tap untuk flip
+           ============================================ */
+        (function initFlipCards() {
+            document.querySelectorAll('[data-flip]').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    // Kalau yang diklik adalah link di back face, biarkan
+                    if (e.target.closest('.flip-btn')) return;
+                    card.classList.toggle('flipped');
+                });
+                // Keyboard accessibility
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        card.classList.toggle('flipped');
+                    }
+                });
+            });
+        })();
+
+        /* ============================================
+           CURSOR GRID — sel yang mengikuti kursor
+           ============================================ */
+        (function initCursorGrid() {
+            const gridContainer = document.getElementById('cursorGrid');
+            if (!gridContainer) return;
+
+            const CELL = 60; // px
+            let cells = [];
+            let cols = 0, rows = 0;
+            let mouseGridX = -1, mouseGridY = -1;
+            let autoPhase = 0;
+            let lastMouseTime = 0;
+            let hasMouse = false;
+            let rafId = null;
+
+            const svgNS = 'http://www.w3.org/2000/svg';
+
+            function buildGrid() {
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                cols = Math.ceil(w / CELL) + 1;
+                rows = Math.ceil(h / CELL) + 1;
+
+                // Clear
+                gridContainer.innerHTML = '';
+                cells = [];
+
+                const svg = document.createElementNS(svgNS, 'svg');
+                svg.setAttribute('viewBox', `0 0 ${cols * CELL} ${rows * CELL}`);
+                svg.setAttribute('preserveAspectRatio', 'none');
+                svg.style.width = (cols * CELL) + 'px';
+                svg.style.height = (rows * CELL) + 'px';
+
+                // Vertical lines
+                for (let i = 0; i <= cols; i++) {
+                    const line = document.createElementNS(svgNS, 'line');
+                    line.setAttribute('x1', i * CELL);
+                    line.setAttribute('y1', 0);
+                    line.setAttribute('x2', i * CELL);
+                    line.setAttribute('y2', rows * CELL);
+                    svg.appendChild(line);
+                }
+                // Horizontal lines
+                for (let j = 0; j <= rows; j++) {
+                    const line = document.createElementNS(svgNS, 'line');
+                    line.setAttribute('x1', 0);
+                    line.setAttribute('y1', j * CELL);
+                    line.setAttribute('x2', cols * CELL);
+                    line.setAttribute('y2', j * CELL);
+                    svg.appendChild(line);
+                }
+
+                // Cells (untuk highlight)
+                for (let i = 0; i < cols; i++) {
+                    for (let j = 0; j < rows; j++) {
+                        const rect = document.createElementNS(svgNS, 'rect');
+                        rect.setAttribute('class', 'cursor-cell');
+                        rect.setAttribute('x', i * CELL);
+                        rect.setAttribute('y', j * CELL);
+                        rect.setAttribute('width', CELL);
+                        rect.setAttribute('height', CELL);
+                        rect.setAttribute('rx', 2);
+                        svg.appendChild(rect);
+                        cells.push({ el: rect, col: i, row: j });
+                    }
+                }
+
+                gridContainer.appendChild(svg);
+            }
+
+            function setActive(col, row) {
+                cells.forEach(c => {
+                    const dx = Math.abs(c.col - col);
+                    const dy = Math.abs(c.row - row);
+                    if (dx === 0 && dy === 0) {
+                        c.el.classList.add('active');
+                        c.el.style.opacity = '0.22';
+                    } else if (dx <= 1 && dy <= 1) {
+                        c.el.classList.add('active');
+                        c.el.style.opacity = '0.08';
+                    } else {
+                        c.el.classList.remove('active');
+                        c.el.style.opacity = '0';
+                    }
+                });
+            }
+
+            function clearActive() {
+                cells.forEach(c => {
+                    c.el.classList.remove('active');
+                    c.el.style.opacity = '0';
+                });
+            }
+
+            // Mouse / touch
+            document.addEventListener('mousemove', (e) => {
+                hasMouse = true;
+                lastMouseTime = performance.now();
+                mouseGridX = Math.floor(e.clientX / CELL);
+                mouseGridY = Math.floor(e.clientY / CELL);
+                setActive(mouseGridX, mouseGridY);
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                hasMouse = true;
+                lastMouseTime = performance.now();
+                const t = e.touches[0];
+                if (!t) return;
+                mouseGridX = Math.floor(t.clientX / CELL);
+                mouseGridY = Math.floor(t.clientY / CELL);
+                setActive(mouseGridX, mouseGridY);
+            }, { passive: true });
+
+            document.addEventListener('mouseleave', () => {
+                hasMouse = false;
+            });
+
+            // Auto mode: 3 sel bergerak random
+            function autoAnimate() {
+                const now = performance.now();
+                const idle = now - lastMouseTime > 2500;
+
+                if (!hasMouse || idle) {
+                    autoPhase += 0.008;
+                    const t = now / 1000;
+
+                    const c1x = Math.floor((Math.sin(t * 0.4) * 0.4 + 0.5) * cols);
+                    const c1y = Math.floor((Math.cos(t * 0.5) * 0.4 + 0.5) * rows);
+                    const c2x = Math.floor((Math.sin(t * 0.7 + 2) * 0.4 + 0.5) * cols);
+                    const c2y = Math.floor((Math.cos(t * 0.6 + 1) * 0.4 + 0.5) * rows);
+                    const c3x = Math.floor((Math.sin(t * 0.3 + 4) * 0.4 + 0.5) * cols);
+                    const c3y = Math.floor((Math.cos(t * 0.9 + 3) * 0.4 + 0.5) * rows);
+
+                    clearActive();
+
+                    const activeCells = new Set();
+                    [[c1x, c1y], [c2x, c2y], [c3x, c3y]].forEach(([cx, cy]) => {
+                        cells.forEach(c => {
+                            const dx = Math.abs(c.col - cx);
+                            const dy = Math.abs(c.row - cy);
+                            if (dx === 0 && dy === 0) {
+                                c.el.classList.add('active');
+                                c.el.style.opacity = '0.18';
+                            } else if (dx <= 1 && dy <= 1 && (dx + dy) === 1) {
+                                c.el.classList.add('active');
+                                c.el.style.opacity = '0.06';
+                            }
+                        });
+                    });
+                }
+
+                rafId = requestAnimationFrame(autoAnimate);
+            }
+
+            buildGrid();
+            autoAnimate();
+
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(buildGrid, 250);
             });
         })();
     </script>
