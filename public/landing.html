@@ -20,7 +20,7 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
-    <!-- 🔒 SECURITY: Anti-FOUC theme + Anti-iframe (jalan paling awal) -->
+    <!-- 🔒 SECURITY: Anti-FOUC theme + Anti-iframe + DevTools lock (jalan paling awal) -->
     <script>
         // Theme sebelum render (cegah flash)
         (function() {
@@ -34,6 +34,106 @@
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
+
+        // 🔒 DevTools LOCK SCREEN — jalan sebelum DOM render
+        // Kalau flag lock ada → wipe semua & tampilkan peringatan aja
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                // Sembunyikan semua konten sejak awal
+                document.documentElement.innerHTML = '<head></head><body></body>';
+
+                // Bikin lock screen pas DOM ready
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            #devtoolsLockScreen {
+                                position: fixed;
+                                inset: 0;
+                                background: #0f172a;
+                                z-index: 2147483647;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 24px;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                user-select: none;
+                                -webkit-user-select: none;
+                                overflow: hidden;
+                                margin: 0;
+                            }
+                            #devtoolsLockScreen .lock-box {
+                                background: #1e293b;
+                                border: 3px solid #475569;
+                                border-radius: 20px;
+                                padding: 40px 32px;
+                                max-width: 440px;
+                                text-align: center;
+                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                            }
+                            #devtoolsLockScreen .lock-icon {
+                                font-size: 3rem;
+                                margin-bottom: 16px;
+                                line-height: 1;
+                            }
+                            #devtoolsLockScreen h2 {
+                                color: #dc2626;
+                                font-size: 1.5rem;
+                                font-weight: 800;
+                                margin: 0 0 12px;
+                                font-family: inherit;
+                            }
+                            #devtoolsLockScreen p {
+                                color: #cbd5e1;
+                                font-size: 0.95rem;
+                                line-height: 1.6;
+                                margin: 0 0 8px;
+                            }
+                            #devtoolsLockScreen .lock-hint {
+                                color: #64748b;
+                                font-size: 0.78rem;
+                                font-family: ui-monospace, monospace;
+                                margin-top: 20px;
+                                padding-top: 16px;
+                                border-top: 1px dashed #334155;
+                            }
+                            body { margin: 0; background: #0f172a; }
+                        </style>
+                    `;
+
+                    // Polling: kalau DevTools ditutup → clear flag → reload
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showLockScreen);
+                } else {
+                    showLockScreen();
+                }
+
+                // Skip sisa script — stop eksekusi dengan throw
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
     </script>
 
     <style>
@@ -99,7 +199,7 @@
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* 🔒 ANTI-LEAK: block select & drag global */
+        /* 🔒 ANTI-LEAK */
         body,
         body * {
             -webkit-user-select: none;
@@ -109,7 +209,6 @@
             -webkit-touch-callout: none;
         }
 
-        /* Kecuali input */
         input, textarea, select, code, [contenteditable="true"] {
             -webkit-user-select: text;
             -moz-user-select: text;
@@ -118,7 +217,6 @@
             -webkit-touch-callout: default;
         }
 
-        /* Block drag untuk image & svg */
         img, svg {
             -webkit-user-drag: none;
             -khtml-user-drag: none;
@@ -160,7 +258,7 @@
             stroke: none;
         }
 
-        /* ===== THEME TOGGLE (fixed kanan atas) ===== */
+        /* ===== THEME TOGGLE ===== */
         .theme-toggle {
             position: fixed;
             top: 20px;
@@ -276,7 +374,7 @@
             display: flex;
             gap: 32px;
             list-style: none;
-            margin-right: 60px; /* space untuk theme toggle */
+            margin-right: 60px;
         }
 
         .nav-links a {
@@ -938,45 +1036,6 @@
             font-weight: 600;
         }
 
-        /* ===== DEVTOOLS WARNING OVERLAY ===== */
-        #devtoolsOverlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            z-index: 999998;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 24px;
-            text-align: center;
-        }
-
-        #devtoolsOverlay.show { display: flex; }
-
-        #devtoolsOverlay .warn-box {
-            background: var(--bg-card);
-            border: 3px solid var(--border-dark);
-            border-radius: 20px;
-            padding: 40px 32px;
-            max-width: 420px;
-            box-shadow: 8px 8px 0px rgba(15, 23, 42, 1);
-        }
-
-        #devtoolsOverlay h2 {
-            font-size: 1.4rem;
-            font-weight: 800;
-            margin-bottom: 12px;
-            color: #dc2626;
-        }
-
-        #devtoolsOverlay p {
-            color: var(--text-gray);
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-
         /* ===== ANTI-PRINT ===== */
         @media print {
             body {
@@ -1039,14 +1098,6 @@
     </style>
 </head>
 <body>
-
-    <!-- 🔒 DevTools warning overlay -->
-    <div id="devtoolsOverlay">
-        <div class="warn-box">
-            <h2>⚠️ Akses Dibatasi</h2>
-            <p>Tolong tutup Developer Tools untuk melanjutkan. Halaman ini dilindungi demi keamanan.</p>
-        </div>
-    </div>
 
     <!-- ===== THEME TOGGLE ===== -->
     <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
@@ -1330,25 +1381,54 @@
             }, true);
         })();
 
-        // 3. Deteksi DevTools terbuka
+        // 3. Deteksi DevTools → wipe DOM + auto reload
         (function() {
-            let devtoolsOpen = false;
-            const overlay = document.getElementById('devtoolsOverlay');
-            const threshold = 160;
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+            const THRESHOLD_WIDTH = 200;
+            const THRESHOLD_HEIGHT = 200;
 
-            function check() {
-                const widthDiff = window.outerWidth - window.innerWidth > threshold;
-                const heightDiff = window.outerHeight - window.innerHeight > threshold;
-                const isOpen = widthDiff || heightDiff;
-
-                if (isOpen !== devtoolsOpen) {
-                    devtoolsOpen = isOpen;
-                    if (isOpen) overlay.classList.add('show');
-                    else overlay.classList.remove('show');
-                }
+            function shouldSkipDetection() {
+                if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+                if (window.innerWidth < 600) return true;
+                return false;
             }
 
-            setInterval(check, 1000);
+            function isDevToolsOpen() {
+                if (shouldSkipDetection()) return false;
+                const widthDiff = window.outerWidth - window.innerWidth;
+                const heightDiff = window.outerHeight - window.innerHeight;
+                return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+            }
+
+            // FASE 1: Cek terus — kalau DevTools kebuka, wipe + reload
+            function startDetection() {
+                setInterval(() => {
+                    if (isDevToolsOpen()) {
+                        // Set flag biar setelah reload tau harus lock
+                        try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                        // Wipe DOM biar makin brutal
+                        document.body.innerHTML = '';
+                        // Reload
+                        window.location.reload();
+                    }
+                }, 500);
+            }
+
+            // FASE 2 (kalau flag ada): Diproses oleh script di <head> (lock screen)
+            // Script di <head> udah handle — kalau flag ada, dia wipe & tampil peringatan + polling unlock
+
+            // Routing
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                // Udah di-lock screen, script di <head> yang handle
+                // Skip detection di sini biar gak loop
+                return;
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', startDetection);
+            } else {
+                startDetection();
+            }
         })();
 
         // 4. Anti-copy di area non-input
@@ -1356,7 +1436,7 @@
             document.addEventListener('copy', (e) => {
                 const target = e.target;
                 if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
-                    return; // biarkan copy di input
+                    return;
                 }
                 e.preventDefault();
             });
