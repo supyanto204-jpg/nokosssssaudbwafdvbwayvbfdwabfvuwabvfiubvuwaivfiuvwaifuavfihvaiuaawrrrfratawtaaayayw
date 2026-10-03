@@ -1,6 +1,52 @@
 /* ============================================
    LAYOUT.CSS — Layout, Sidebar, Topbar, Taskbar
+   HARDENED v3 — anti-leak, anti-select, anti-hover-jitter
    ============================================ */
+
+/* ============================================
+   🔒 ANTI-LEAK / ANTI-SELECT — global scope
+   ============================================ */
+.dashboard-layout,
+.dashboard-layout * {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    -moz-user-drag: none;
+    -o-user-drag: none;
+}
+
+/* Kecuali input, textarea, code, select — biar tetap bisa diketik */
+.dashboard-layout input,
+.dashboard-layout textarea,
+.dashboard-layout select,
+.dashboard-layout code,
+.dashboard-layout [contenteditable="true"] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+}
+
+/* Image & SVG gak bisa di-drag (kecuali di dalam link/button) */
+.dashboard-layout img,
+.dashboard-layout svg {
+    -webkit-user-drag: none;
+    -khtml-user-drag: none;
+    user-drag: none;
+    pointer-events: none;
+}
+
+.dashboard-layout a img,
+.dashboard-layout a svg,
+.dashboard-layout button img,
+.dashboard-layout button svg {
+    pointer-events: auto;
+}
 
 /* ============================================
    DASHBOARD LAYOUT
@@ -10,6 +56,8 @@
     min-height: 100vh;
     width: 100%;
     position: relative;
+    /* Performance: batasi layout & paint scope */
+    contain: layout style;
 }
 
 /* ============================================
@@ -24,6 +72,7 @@
     pointer-events: none;
     z-index: 0;
     overflow: hidden;
+    contain: strict;
 }
 
 .bg-pulse span {
@@ -32,6 +81,7 @@
     filter: blur(80px);
     opacity: 0.3;
     animation: glowPulse 8s ease-in-out infinite;
+    will-change: opacity, transform;
 }
 
 .bg-pulse span:nth-child(1) {
@@ -79,6 +129,7 @@
     transition: width 0.3s var(--ease);
     overflow: hidden;
     flex-shrink: 0;
+    contain: layout style paint;
 }
 
 .sidebar.collapsed {
@@ -140,13 +191,15 @@
     font-size: 1.3rem;
     box-shadow: var(--shadow-hard-sm);
     flex-shrink: 0;
-    transition: transform var(--transition);
-    animation: logoWiggle 4s ease-in-out infinite;
+    /* HAPUS: animation logoWiggle — bikin gerak-gerak
+       HAPUS: transition transform */
+    /* Cegah text kepilih di dalam logo */
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
-.sidebar-logo:hover .logo-icon {
-    transform: rotate(3deg) scale(1.1);
-}
+/* HAPUS: .sidebar-logo:hover .logo-icon transform — gak perlu animasi */
 
 .sidebar-logo span { color: var(--primary); }
 
@@ -162,23 +215,38 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition);
+    /* HAPUS: transition all — ganti spesifik */
+    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .collapse-btn:hover {
     background: var(--primary);
     color: white;
-    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
+    /* HAPUS: transform translate(-1px, -1px) */
+}
+
+.collapse-btn:active {
+    /* HAPUS: transform translate */
+    box-shadow: none;
+}
+
+.collapse-btn:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .collapse-btn .icon-svg {
     width: 16px;
     height: 16px;
     transition: transform 0.3s var(--ease);
+    pointer-events: none;
 }
 
 .sidebar.collapsed .collapse-btn .icon-svg {
@@ -197,6 +265,7 @@
     scrollbar-width: thin;
     scrollbar-color: var(--border) transparent;
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
 }
 
 .sidebar-nav::-webkit-scrollbar { width: 4px; }
@@ -217,7 +286,8 @@
     color: var(--text-gray);
     font-weight: 600;
     font-size: 0.9rem;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
     border: 2px solid transparent;
     position: relative;
     white-space: nowrap;
@@ -227,6 +297,8 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .sidebar.collapsed .nav-item {
@@ -239,11 +311,13 @@
 .nav-item:hover {
     background: var(--primary-light);
     color: var(--primary);
-    transform: translateX(3px);
+    /* HAPUS: transform translateX(3px) */
 }
 
 .sidebar.collapsed .nav-item:hover {
-    transform: scale(1.05);
+    /* HAPUS: transform scale(1.05) */
+    background: var(--primary-light);
+    color: var(--primary);
 }
 
 .nav-item.active {
@@ -253,26 +327,29 @@
     box-shadow: var(--shadow-hard-sm);
 }
 
+.nav-item:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .nav-item .icon-svg {
     width: 20px;
     height: 20px;
-    transition: transform var(--transition);
+    /* HAPUS: transition transform */
     flex-shrink: 0;
+    pointer-events: none;
 }
 
-.nav-item:hover .icon-svg {
-    transform: scale(1.15) rotate(-5deg);
-}
+/* HAPUS: .nav-item:hover .icon-svg transform scale(1.15) rotate(-5deg) */
 
-.nav-item.active .icon-svg {
-    animation: iconPulse 2s ease-in-out infinite;
-}
+/* HAPUS: .nav-item.active .icon-svg animation iconPulse — bikin pusing */
 
 .nav-item .nav-label {
     transition: opacity 0.2s;
     overflow: hidden;
     white-space: nowrap;
     flex: 1;
+    pointer-events: none;
 }
 
 .sidebar.collapsed .nav-label {
@@ -281,6 +358,7 @@
     display: none;
 }
 
+/* Tooltip saat collapsed */
 .sidebar.collapsed .nav-item::after {
     content: attr(data-tooltip);
     position: absolute;
@@ -299,6 +377,9 @@
     transition: opacity 0.2s var(--ease);
     z-index: 1000;
     box-shadow: var(--shadow-hard-sm);
+    /* Tooltip gak boleh ke-select */
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .sidebar.collapsed .nav-item:hover::after {
@@ -316,6 +397,8 @@
     transition: opacity 0.2s, height 0.3s, padding 0.3s;
     white-space: nowrap;
     overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .sidebar.collapsed .nav-section-label {
@@ -346,9 +429,12 @@
     border-radius: var(--radius-sm);
     background: var(--bg-light);
     border: 2px solid var(--border-dark);
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), box-shadow var(--transition);
     overflow: hidden;
     width: 100%;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .sidebar.collapsed .user-info {
@@ -361,6 +447,7 @@
 .user-info:hover {
     background: var(--primary-light);
     box-shadow: var(--shadow-hard-sm);
+    /* HAPUS: transform */
 }
 
 .user-avatar {
@@ -378,11 +465,15 @@
     font-size: 0.9rem;
     flex-shrink: 0;
     box-shadow: var(--shadow-hard-sm);
+    user-select: none;
+    -webkit-user-select: none;
+    pointer-events: none;
 }
 
 .user-details {
     flex: 1;
     min-width: 0;
+    pointer-events: none;
 }
 
 .sidebar.collapsed .user-details {
@@ -420,10 +511,12 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .sidebar.collapsed .logout-btn {
@@ -433,11 +526,25 @@
 .logout-btn:hover {
     background: var(--danger);
     color: white;
-    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
+    /* HAPUS: transform translate(-1px, -1px) */
 }
 
-.logout-btn .icon-svg { width: 18px; height: 18px; }
+.logout-btn:active {
+    /* HAPUS: transform translate(1px, 1px) */
+    box-shadow: none;
+}
+
+.logout-btn:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.logout-btn .icon-svg {
+    width: 18px;
+    height: 18px;
+    pointer-events: none;
+}
 
 /* ============================================
    MAIN CONTENT
@@ -452,6 +559,7 @@
     min-width: 0;
     transition: margin-left 0.3s var(--ease);
     z-index: 1;
+    contain: layout style;
 }
 
 body.sidebar-collapsed .main-content {
@@ -480,6 +588,14 @@ body.sidebar-collapsed .main-content {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    /* Fallback kalau background-clip gak didukung */
+    color: var(--text-dark);
+}
+
+@supports (-webkit-background-clip: text) or (background-clip: text) {
+    .topbar-left h1 {
+        color: transparent;
+    }
 }
 
 .topbar-left p {
@@ -505,13 +621,17 @@ body.sidebar-collapsed .main-content {
     box-shadow: var(--shadow-hard-sm);
     font-weight: 700;
     font-size: 0.9rem;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: box-shadow var(--transition), background-color var(--transition);
     white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
 }
 
 .balance-pill:hover {
-    transform: translate(-2px, -2px);
     box-shadow: var(--shadow-hard);
+    /* HAPUS: transform translate(-2px, -2px) */
 }
 
 .balance-pill .label {
@@ -530,7 +650,8 @@ body.sidebar-collapsed .main-content {
     width: 16px;
     height: 16px;
     color: var(--warning);
-    animation: coinSpin 3s ease-in-out infinite;
+    /* HAPUS: animation coinSpin 3s — bikin pusing */
+    pointer-events: none;
 }
 
 /* Theme toggle */
@@ -545,10 +666,12 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
     position: relative;
     overflow: hidden;
 }
@@ -556,19 +679,27 @@ body.sidebar-collapsed .main-content {
 .theme-toggle:hover {
     background: var(--primary);
     color: white;
-    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
+    /* HAPUS: transform translate(-1px, -1px) */
+}
+
+.theme-toggle:active {
+    box-shadow: none;
+}
+
+.theme-toggle:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .theme-toggle .icon-svg {
     width: 20px;
     height: 20px;
-    transition: transform 0.4s var(--ease-bounce);
+    /* HAPUS: transition transform — gak perlu rotate */
+    pointer-events: none;
 }
 
-.theme-toggle:hover .icon-svg {
-    transform: rotate(180deg) scale(1.1);
-}
+/* HAPUS: .theme-toggle:hover .icon-svg transform rotate(180deg) scale(1.1) */
 
 .theme-toggle .sun-icon { display: block; }
 .theme-toggle .moon-icon { display: none; }
@@ -585,16 +716,27 @@ body.sidebar-collapsed .main-content {
     cursor: pointer;
     box-shadow: var(--shadow-hard-sm);
     color: var(--text-dark);
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     position: relative;
     z-index: 10000;
 }
 
+.mobile-toggle:hover {
+    background: var(--primary);
+    color: white;
+}
+
 .mobile-toggle:active {
-    transform: translate(1px, 1px);
-    box-shadow: 1px 1px 0px rgba(15, 23, 42, 1);
+    /* HAPUS: transform translate(1px, 1px) */
+    box-shadow: none;
+}
+
+.mobile-toggle:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .mobile-toggle .icon-svg {
@@ -615,7 +757,8 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: background-color var(--transition), color var(--transition), box-shadow var(--transition);
     flex-shrink: 0;
     padding: 0;
     -webkit-tap-highlight-color: transparent;
@@ -625,18 +768,24 @@ body.sidebar-collapsed .main-content {
 .icon-btn:hover {
     background: var(--primary);
     color: white;
-    transform: translate(-1px, -1px);
     box-shadow: var(--shadow-hard-sm);
+    /* HAPUS: transform translate(-1px, -1px) */
 }
 
 .icon-btn:active {
-    transform: translate(1px, 1px);
+    /* HAPUS: transform translate(1px, 1px) */
     box-shadow: none;
+}
+
+.icon-btn:focus-visible {
+    outline: 3px solid var(--primary);
+    outline-offset: 2px;
 }
 
 .icon-btn .icon-svg {
     width: 18px;
     height: 18px;
+    pointer-events: none;
 }
 
 .icon-btn.spinning .icon-svg {
@@ -659,6 +808,8 @@ body.sidebar-collapsed .main-content {
     padding: 0 8px;
     padding-bottom: env(safe-area-inset-bottom, 0);
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .mobile-taskbar-inner {
@@ -685,30 +836,30 @@ body.sidebar-collapsed .main-content {
     font-family: var(--font-mono);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: color var(--transition);
     position: relative;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .taskbar-item .icon-svg {
     width: 22px;
     height: 22px;
-    transition: transform var(--transition);
+    /* HAPUS transition transform — gak perlu animasi */
+    pointer-events: none;
 }
 
-.taskbar-item:active .icon-svg {
-    transform: scale(0.85);
-}
+/* HAPUS: .taskbar-item:active .icon-svg transform scale(0.85) */
 
 .taskbar-item.active {
     color: var(--primary);
 }
 
-.taskbar-item.active .icon-svg {
-    transform: scale(1.1);
-}
+/* HAPUS: .taskbar-item.active .icon-svg transform scale(1.1) */
 
 .taskbar-item.active::before {
     content: '';
@@ -739,7 +890,8 @@ body.sidebar-collapsed .main-content {
     align-items: center;
     justify-content: center;
     color: white;
-    transition: all var(--transition);
+    /* HAPUS transition all */
+    transition: box-shadow var(--transition), background-color var(--transition);
     position: relative;
 }
 
@@ -751,17 +903,24 @@ body.sidebar-collapsed .main-content {
     border: 2px solid var(--primary);
     opacity: 0.4;
     animation: pulseRing 2s ease-out infinite;
+    pointer-events: none;
+}
+
+.taskbar-item.taskbar-primary:hover .icon-wrapper {
+    box-shadow: var(--shadow-hard-lg);
+    /* HAPUS transform */
 }
 
 .taskbar-item.taskbar-primary:active .icon-wrapper {
-    transform: scale(0.92);
+    /* HAPUS: transform scale(0.92) */
     box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
 }
 
 .taskbar-item.taskbar-primary .icon-svg {
     width: 26px;
     height: 26px;
-    animation: iconPulse 2.5s ease-in-out infinite;
+    /* HAPUS: animation iconPulse — bikin gerak-gerak */
+    pointer-events: none;
 }
 
 .taskbar-item.taskbar-primary .taskbar-label {
@@ -778,18 +937,33 @@ body.sidebar-collapsed .main-content {
     position: fixed;
     inset: 0;
     background: rgba(15, 23, 42, 0.5);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    /* Fallback kalau backdrop-filter gak didukung */
     z-index: 9998;
     opacity: 0;
     transition: opacity var(--transition);
     pointer-events: none;
 }
 
+@supports (backdrop-filter: blur(4px)) or (-webkit-backdrop-filter: blur(4px)) {
+    .sidebar-overlay {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        background: rgba(15, 23, 42, 0.5);
+    }
+}
+
 .sidebar-overlay.active {
     display: block;
     opacity: 1;
     pointer-events: auto;
+}
+
+/* ============================================
+   🔒 ANTI-IFRAME (CSS hint)
+   ============================================ */
+html {
+    /* Hint ke browser — walau gak enforce, beberapa browser hormati */
+    -webkit-touch-callout: none;
 }
 
 /* ============================================
@@ -800,7 +974,6 @@ body.sidebar-collapsed .main-content {
 }
 
 @media (max-width: 768px) {
-    /* Sidebar jadi slide */
     .sidebar {
         position: fixed !important;
         top: 0 !important;
@@ -921,5 +1094,28 @@ body.sidebar-collapsed .main-content {
     .sidebar {
         width: 300px !important;
         max-width: 60vw !important;
+    }
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+@media (prefers-reduced-motion: reduce) {
+    .bg-pulse span,
+    .taskbar-item.taskbar-primary .icon-wrapper::before,
+    .icon-btn.spinning .icon-svg {
+        animation: none !important;
+    }
+
+    .sidebar,
+    .main-content,
+    .sidebar-overlay,
+    .nav-item,
+    .collapse-btn,
+    .icon-btn,
+    .theme-toggle,
+    .mobile-toggle,
+    .logout-btn {
+        transition-duration: 0.01ms !important;
     }
 }
