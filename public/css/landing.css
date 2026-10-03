@@ -536,6 +536,53 @@ nav.scrolled { box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08); }
     60% { transform: translate(-8px, 12px) rotate(-15deg); }
     100% { transform: translate(0, 0) rotate(0); }
 }
+/* ============================================
+   SVG ROKET — animasi kustom
+   ============================================ */
+.rocket-svg {
+    width: 20px;
+    height: 20px;
+    transform-origin: center;
+    transition: transform 0.3s ease;
+}
+
+/* Roket idle: sedikit getar halus */
+.btn-primary .rocket-svg {
+    animation: rocketIdle 2.5s ease-in-out infinite;
+}
+
+@keyframes rocketIdle {
+    0%, 100% { transform: translate(0, 0) rotate(0deg); }
+    50% { transform: translate(0, -1px) rotate(-3deg); }
+}
+
+/* Hover: roket meluncur */
+.btn-primary:hover .rocket-svg {
+    animation: rocketLaunch 0.9s cubic-bezier(.2,.8,.2,1.4) forwards;
+}
+
+@keyframes rocketLaunch {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    40% {
+        transform: translate(14px, -14px) rotate(45deg);
+        opacity: 0.7;
+    }
+    60% {
+        transform: translate(-8px, 8px) rotate(-15deg);
+        opacity: 0;
+    }
+    61% {
+        transform: translate(-8px, 8px) rotate(-15deg);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+}
 
 /* ============================================
    HERO VISUAL — Infinite Spiral
