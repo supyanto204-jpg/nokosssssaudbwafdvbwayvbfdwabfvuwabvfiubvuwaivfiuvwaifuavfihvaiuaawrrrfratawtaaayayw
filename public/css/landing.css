@@ -224,6 +224,74 @@ img, svg { -webkit-user-drag: none; user-drag: none; }
 }
 
 /* ============================================
+   GRADIENT WAVES — CSS Animation (tanpa WebGL)
+   ============================================ */
+.bg-gradient-waves {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.85;
+    overflow: hidden;
+}
+
+[data-theme="dark"] .bg-gradient-waves { opacity: 0.7; }
+
+.waves-layer {
+    position: absolute;
+    inset: -20% -20%;
+    border-radius: 50%;
+    filter: blur(80px);
+    will-change: transform;
+    pointer-events: none;
+}
+
+.waves-layer-1 {
+    background: radial-gradient(circle at 30% 40%,
+        rgba(124, 58, 237, 0.55) 0%,
+        rgba(124, 58, 237, 0.2) 35%,
+        transparent 70%);
+    animation: waveDrift1 18s ease-in-out infinite;
+}
+
+.waves-layer-2 {
+    background: radial-gradient(circle at 70% 60%,
+        rgba(37, 99, 235, 0.5) 0%,
+        rgba(37, 99, 235, 0.15) 40%,
+        transparent 75%);
+    animation: waveDrift2 22s ease-in-out infinite;
+}
+
+.waves-layer-3 {
+    background: radial-gradient(circle at 50% 80%,
+        rgba(236, 72, 153, 0.45) 0%,
+        rgba(236, 72, 153, 0.15) 40%,
+        transparent 70%);
+    animation: waveDrift3 26s ease-in-out infinite;
+}
+
+@keyframes waveDrift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(8%, -6%) scale(1.08); }
+    66% { transform: translate(-6%, 8%) scale(0.95); }
+}
+
+@keyframes waveDrift2 {
+    0%, 100% { transform: translate(0, 0) scale(1.05); }
+    33% { transform: translate(-10%, 5%) scale(0.95); }
+    66% { transform: translate(6%, -8%) scale(1.1); }
+}
+
+@keyframes waveDrift3 {
+    0%, 100% { transform: translate(0, 0) scale(0.95); }
+    50% { transform: translate(-8%, -10%) scale(1.12); }
+}
+
+/* Kalau device low-end: skip animasi */
+@media (prefers-reduced-motion: reduce) {
+    .waves-layer { animation: none; }
+}
+
+/* ============================================
    SVG ROKET — animasi
    ============================================ */
 .rocket-svg {
