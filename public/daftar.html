@@ -17,9 +17,43 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-    <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + Anti-view-source + DevTools lock (jalan paling awal) -->
+    <!-- 🔒 SECURITY: Semua proteksi jalan paling awal -->
     <script>
-        // Anti-view-source: kalau URL pakai view-source: → langsung blank
+        // ============================================
+        // 🔥 SAFETY: hapus freeze style yang nyangkut dari page sebelumnya
+        // HARUS JALAN PALING PERTAMA — sebelum apapun
+        // ============================================
+        (function() {
+            try {
+                // Reset body style (inline) yang sering nyangkut
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.overflowX = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+
+                // Body mungkin belum ada di DOM — tunggu sampai ada
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.overflowX = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        // Anti view-source
         (function() {
             if (window.location.protocol === 'view-source:') {
                 document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
@@ -34,7 +68,7 @@
             document.documentElement.setAttribute('data-theme', theme);
         })();
 
-        // Anti-iframe (clickjacking protection)
+        // Anti-iframe (clickjacking)
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
@@ -45,7 +79,7 @@
             const LOCK_FLAG = 'asyrof_devtools_lock';
 
             if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                // Wipe semua konten sejak awal
+                // Wipe semua konten
                 document.documentElement.innerHTML = '<head></head><body></body>';
 
                 function showLockScreen() {
@@ -59,35 +93,54 @@
                             </div>
                         </div>
                         <style>
-                            #devtoolsLockScreen {
-                                position: fixed;
-                                inset: 0;
+                            /* Reset total — pastikan gak ada freeze dari page sebelumnya */
+                            html, body {
+                                margin: 0;
+                                padding: 0;
                                 background: #0f172a;
-                                z-index: 2147483647;
+                                overflow: auto !important;
+                                position: static !important;
+                                height: auto !important;
+                                min-height: 100vh !important;
+                                width: 100% !important;
+                                top: auto !important;
+                                left: auto !important;
+                                right: auto !important;
+                            }
+
+                            #devtoolsLockScreen {
+                                min-height: 100vh;
+                                width: 100%;
+                                background: #0f172a;
                                 display: flex;
                                 align-items: center;
                                 justify-content: center;
                                 padding: 24px;
+                                box-sizing: border-box;
                                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
                                 user-select: none;
                                 -webkit-user-select: none;
-                                overflow: hidden;
-                                margin: 0;
+                                overflow: auto;
                             }
+
                             #devtoolsLockScreen .lock-box {
                                 background: #1e293b;
                                 border: 3px solid #475569;
                                 border-radius: 20px;
                                 padding: 40px 32px;
                                 max-width: 440px;
+                                width: 100%;
                                 text-align: center;
                                 box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                                box-sizing: border-box;
                             }
+
                             #devtoolsLockScreen .lock-icon {
                                 font-size: 3rem;
                                 margin-bottom: 16px;
                                 line-height: 1;
                             }
+
                             #devtoolsLockScreen h2 {
                                 color: #dc2626;
                                 font-size: 1.5rem;
@@ -95,12 +148,14 @@
                                 margin: 0 0 12px;
                                 font-family: inherit;
                             }
+
                             #devtoolsLockScreen p {
                                 color: #cbd5e1;
                                 font-size: 0.95rem;
                                 line-height: 1.6;
                                 margin: 0 0 8px;
                             }
+
                             #devtoolsLockScreen .lock-hint {
                                 color: #64748b;
                                 font-size: 0.78rem;
@@ -109,11 +164,10 @@
                                 padding-top: 16px;
                                 border-top: 1px dashed #334155;
                             }
-                            body { margin: 0; background: #0f172a; }
                         </style>
                     `;
 
-                    // Polling unlock: kalau DevTools ditutup → clear flag → reload
+                    // Polling unlock
                     const THRESHOLD = 200;
                     setInterval(() => {
                         const wDiff = window.outerWidth - window.innerWidth;
@@ -122,6 +176,12 @@
 
                         if (!stillOpen) {
                             sessionStorage.removeItem(LOCK_FLAG);
+                            // Reset freeze style sebelum reload
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
                             window.location.reload();
                         }
                     }, 500);
@@ -173,17 +233,30 @@
             color-scheme: dark;
         }
 
+        html {
+            scroll-behavior: smooth;
+            -webkit-text-size-adjust: 100%;
+            overscroll-behavior-y: none;
+            /* FIX: pastikan scroll normal */
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
             background: var(--bg-light);
             color: var(--text-dark);
+            /* FIX: min-height (bukan height) biar bisa scroll */
             min-height: 100vh;
+            width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px;
             position: relative;
-            overflow: hidden;
+            /* FIX: hapus overflow: hidden */
+            overflow-y: auto;
+            overflow-x: hidden;
             transition: background-color 0.3s ease, color 0.3s ease;
         }
 
@@ -211,6 +284,7 @@
             user-drag: none;
         }
 
+        /* Sunburst — fixed, gak ganggu scroll */
         body::before {
             content: '';
             position: fixed;
@@ -249,6 +323,8 @@
             max-width: 420px;
             position: relative;
             z-index: 1;
+            /* FIX: margin auto biar center tanpa flex yang bikin overflow */
+            margin: auto;
         }
 
         .auth-logo {
@@ -837,14 +913,18 @@
             setInterval(() => {
                 if (isDevToolsOpen()) {
                     try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
-                    // Wipe DOM biar ga keliatan di Network/Elements
+                    // Reset freeze style sebelum wipe
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
                     document.body.innerHTML = '';
                     window.location.reload();
                 }
             }, 500);
         }
 
-        // Kalau flag lock ada → script di <head> yang handle, skip detection
         if (sessionStorage.getItem(LOCK_FLAG) === '1') {
             return;
         }
@@ -875,8 +955,7 @@
         });
     })();
 
-    // 5. Obfuscate sensitive URLs di Network tab
-    // Ganti history state biar URL sensitif ga keliatan
+    // 5. Obfuscate URL di history
     (function() {
         try {
             const cleanUrl = window.location.origin + window.location.pathname;
@@ -963,7 +1042,8 @@
     function showAlert(message, type = 'error') {
         alertEl.className = 'alert show ' + type;
         alertText.textContent = message;
-        alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        // FIX: jangan pakai scrollIntoView — bisa bikin page lompat terus
+        // alertEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     function hideAlert() { alertEl.classList.remove('show'); }
 
