@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="noindex, nofollow">
     <title>Profile - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -13,33 +16,119 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: jalan paling awal -->
     <script>
         (function() {
-            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            try {
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
-    </script>
-    <style>
-        .dashboard-layout,
-        .dashboard-layout * {
-            -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
-            user-select: none;
-            -webkit-touch-callout: none;
+
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
 
-        .dashboard-layout input,
-        .dashboard-layout textarea,
-        .dashboard-layout select {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                document.documentElement.innerHTML = '<head></head><body></body>';
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            html, body { margin:0; padding:0; background:#0f172a; overflow:auto !important; position:static !important; height:auto !important; min-height:100vh !important; width:100% !important; }
+                            #devtoolsLockScreen { min-height:100vh; width:100%; background:#0f172a; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif; user-select:none; -webkit-user-select:none; }
+                            #devtoolsLockScreen .lock-box { background:#1e293b; border:3px solid #475569; border-radius:20px; padding:40px 32px; max-width:440px; width:100%; text-align:center; box-shadow:8px 8px 0px rgba(0,0,0,.5); box-sizing:border-box; }
+                            #devtoolsLockScreen .lock-icon { font-size:3rem; margin-bottom:16px; line-height:1; }
+                            #devtoolsLockScreen h2 { color:#dc2626; font-size:1.5rem; font-weight:800; margin:0 0 12px; font-family:inherit; }
+                            #devtoolsLockScreen p { color:#cbd5e1; font-size:.95rem; line-height:1.6; margin:0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color:#64748b; font-size:.78rem; font-family:ui-monospace,monospace; margin-top:20px; padding-top:16px; border-top:1px dashed #334155; }
+                        </style>
+                    `;
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
+                else showLockScreen();
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
+    </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
+    <style>
+        /* ============================================
+           GLOBAL ANTI-SELECT + ANTI-DRAG
+           ============================================ */
+        .dashboard-layout, .dashboard-layout * {
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none;
+        }
+        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout [contenteditable="true"] {
+            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
+            -webkit-touch-callout: default;
+        }
+        .dashboard-layout img, .dashboard-layout svg {
+            -webkit-user-drag: none; -khtml-user-drag: none; user-drag: none;
         }
 
         /* ============================================
-           PROFILE HERO
+           PROFILE HERO — UPGRADED
            ============================================ */
         .profile-hero-card {
             background: var(--bg-card);
@@ -50,17 +139,24 @@
             margin-bottom: 24px;
             position: relative;
             overflow: hidden;
+            animation: cardFadeIn .4s cubic-bezier(.2,.8,.2,1) both;
         }
-
+        @keyframes cardFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
         .profile-hero-card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--purple));
+            top: 0; left: 0;
+            width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--purple), var(--primary));
             background-size: 200% 100%;
+            animation: gradientShift 4s linear infinite;
+        }
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
         }
 
         .profile-hero {
@@ -71,28 +167,38 @@
         }
 
         .profile-avatar {
-            width: 88px;
-            height: 88px;
+            width: 88px; height: 88px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #3b82f6, var(--primary-dark));
+            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
+            background-size: 300% 300%;
+            animation: gradientShift 6s ease infinite;
             border: 3px solid var(--border-dark);
             box-shadow: var(--shadow-hard);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: white;
             font-family: var(--font-display);
             font-weight: 900;
             font-size: 2.2rem;
             flex-shrink: 0;
             text-shadow: 2px 2px 0px rgba(15, 23, 42, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+        .profile-avatar::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.3) 50%, transparent 60%);
+            animation: shine 4s infinite;
+            pointer-events: none;
+        }
+        @keyframes shine {
+            0% { transform: translateX(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) rotate(45deg); }
         }
 
-        .profile-meta {
-            flex: 1;
-            min-width: 200px;
-        }
-
+        .profile-meta { flex: 1; min-width: 200px; }
         .profile-meta h2 {
             font-size: 1.5rem;
             font-weight: 800;
@@ -101,7 +207,6 @@
             font-family: var(--font-display);
             color: var(--text-dark);
         }
-
         .profile-meta .username {
             color: var(--text-gray);
             font-family: var(--font-mono);
@@ -125,27 +230,25 @@
             font-family: var(--font-mono);
             letter-spacing: 0.04em;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: transform .15s, box-shadow .2s, background-color .2s;
         }
-
         .user-code-badge:hover {
             transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard);
+            background: var(--bg-white);
         }
-
-        .user-code-badge .icon-svg {
-            width: 14px;
-            height: 14px;
+        .user-code-badge:active { transform: translate(0, 0) scale(.98); }
+        .user-code-badge .icon-svg { width: 14px; height: 14px; }
+        .user-code-badge.copied {
+            background: var(--success-light);
+            color: var(--success-dark);
+            border-color: var(--success-dark);
         }
 
         /* ============================================
            INFO LIST
            ============================================ */
-        .info-list {
-            display: flex;
-            flex-direction: column;
-        }
-
+        .info-list { display: flex; flex-direction: column; }
         .info-row {
             display: flex;
             justify-content: space-between;
@@ -154,15 +257,14 @@
             border-bottom: 1px solid var(--border);
             gap: 16px;
             flex-wrap: wrap;
-            transition: all 0.15s;
+            transition: padding-left .2s ease, background-color .2s;
+            border-radius: 6px;
         }
-
         .info-row:last-child { border-bottom: none; }
-
         .info-row:hover {
             padding-left: 8px;
+            background: linear-gradient(90deg, var(--primary-light) 0%, transparent 60%);
         }
-
         .info-row-label {
             font-size: 0.85rem;
             color: var(--text-gray);
@@ -171,7 +273,6 @@
             text-transform: uppercase;
             letter-spacing: 0.04em;
         }
-
         .info-row-value {
             font-weight: 700;
             font-size: 0.9rem;
@@ -180,10 +281,8 @@
             text-align: right;
             word-break: break-all;
         }
-
         .info-row-value.primary { color: var(--primary); }
 
-        /* Tombol copy inline di info row */
         .copy-inline-btn {
             background: none;
             border: none;
@@ -194,28 +293,22 @@
             align-items: center;
             justify-content: center;
             border-radius: 6px;
-            transition: all 0.15s;
+            transition: color .15s, background-color .15s, transform .15s;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
             flex-shrink: 0;
         }
-
         .copy-inline-btn:hover {
             color: var(--primary);
             background: var(--primary-light);
+            transform: scale(1.1);
         }
-
-        .copy-inline-btn.copied {
-            color: var(--success);
-        }
-
-        .copy-inline-btn .icon-svg {
-            width: 14px;
-            height: 14px;
-        }
+        .copy-inline-btn:active { transform: scale(.95); }
+        .copy-inline-btn.copied { color: var(--success); }
+        .copy-inline-btn .icon-svg { width: 14px; height: 14px; }
 
         /* ============================================
-           ACTION BUTTONS
+           ACTION BUTTONS — UPGRADED
            ============================================ */
         .action-row {
             display: grid;
@@ -223,7 +316,6 @@
             gap: 12px;
             margin-top: 16px;
         }
-
         .action-btn {
             display: flex;
             align-items: center;
@@ -234,7 +326,7 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: transform .2s ease, box-shadow .25s, background-color .2s;
             text-align: left;
             font-family: inherit;
             position: relative;
@@ -242,46 +334,43 @@
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
-
+        .action-btn::before {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,.4), transparent);
+            transition: left .5s ease;
+        }
+        .action-btn:hover::before { left: 100%; }
         .action-btn:hover {
             transform: translate(-3px, -3px);
             box-shadow: var(--shadow-hard);
             background: var(--bg-white);
         }
-
+        .action-btn:active {
+            transform: translate(1px, 1px) scale(.99);
+            box-shadow: 2px 2px 0px rgba(15, 23, 42, 1);
+        }
         .action-btn .icon-box {
-            width: 42px;
-            height: 42px;
+            width: 42px; height: 42px;
             border-radius: 12px;
             background: var(--primary-light);
             border: 2px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             flex-shrink: 0;
-            transition: all var(--transition);
+            transition: transform .3s cubic-bezier(.2,.8,.2,1.4), background-color .2s;
         }
-
         .action-btn:hover .icon-box {
-            transform: scale(1.1) rotate(5deg);
+            transform: scale(1.12) rotate(6deg);
         }
-
         .action-btn .icon-box.danger {
             background: var(--danger-light);
             color: var(--danger);
         }
-
-        .action-btn .icon-box .icon-svg {
-            width: 20px;
-            height: 20px;
-        }
-
-        .action-btn-text {
-            flex: 1;
-            min-width: 0;
-        }
-
+        .action-btn .icon-box .icon-svg { width: 20px; height: 20px; }
+        .action-btn-text { flex: 1; min-width: 0; }
         .action-btn-title {
             font-weight: 700;
             font-size: 0.9rem;
@@ -289,7 +378,6 @@
             margin-bottom: 2px;
             font-family: var(--font-display);
         }
-
         .action-btn-desc {
             font-size: 0.78rem;
             color: var(--text-gray);
@@ -297,33 +385,30 @@
         }
 
         /* ============================================
-           MODAL
+           MODAL — UPGRADED
            ============================================ */
         .modal-icon {
-            width: 56px;
-            height: 56px;
+            width: 56px; height: 56px;
             border-radius: 16px;
-            background: var(--primary-light);
+            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
             border: 2px solid var(--border-dark);
             box-shadow: var(--shadow-hard-sm);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            display: flex; align-items: center; justify-content: center;
             color: var(--primary);
             margin: 0 auto 16px;
+            animation: iconPop .4s cubic-bezier(.2,.9,.3,1.4) both;
         }
-
-        .modal-icon .icon-svg {
-            width: 26px;
-            height: 26px;
+        @keyframes iconPop {
+            0% { transform: scale(0) rotate(-90deg); opacity: 0; }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
         }
+        .modal-icon .icon-svg { width: 26px; height: 26px; }
 
         .modal h2 {
             text-align: center;
             margin-bottom: 6px;
             font-family: var(--font-display);
         }
-
         .modal .modal-subtitle {
             text-align: center;
             color: var(--text-gray);
@@ -331,15 +416,8 @@
             margin-bottom: 24px;
         }
 
-        /* Password input wrapper */
-        .password-wrapper {
-            position: relative;
-        }
-
-        .password-wrapper .form-control {
-            padding-right: 48px;
-        }
-
+        .password-wrapper { position: relative; }
+        .password-wrapper .form-control { padding-right: 48px; }
         .password-toggle {
             position: absolute;
             right: 14px;
@@ -350,20 +428,29 @@
             cursor: pointer;
             color: var(--text-gray);
             padding: 4px;
+            display: flex; align-items: center; justify-content: center;
+            transition: color var(--transition), transform .15s;
+        }
+        .password-toggle:hover { color: var(--primary); transform: translateY(-50%) scale(1.1); }
+        .password-toggle:active { transform: translateY(-50%) scale(.9); }
+        .password-toggle .icon-svg { width: 20px; height: 20px; }
+
+        /* Password strength meter */
+        .pwd-strength {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: color var(--transition);
+            gap: 4px;
+            margin-top: 8px;
         }
-
-        .password-toggle:hover {
-            color: var(--primary);
+        .pwd-strength-bar {
+            flex: 1;
+            height: 4px;
+            border-radius: 50px;
+            background: var(--border);
+            transition: background-color .3s ease;
         }
-
-        .password-toggle .icon-svg {
-            width: 20px;
-            height: 20px;
-        }
+        .pwd-strength-bar.weak { background: var(--danger); }
+        .pwd-strength-bar.medium { background: var(--warning); }
+        .pwd-strength-bar.strong { background: var(--success); }
 
         /* ============================================
            FOOTER
@@ -380,7 +467,6 @@
             color: var(--text-light);
             font-size: 0.78rem;
         }
-
         .site-footer-links { display: flex; gap: 16px; flex-wrap: wrap; }
         .site-footer a { color: var(--text-gray); text-decoration: none; }
         .site-footer a:hover { color: var(--primary); text-decoration: underline; }
@@ -389,25 +475,30 @@
            RESPONSIVE
            ============================================ */
         @media (max-width: 640px) {
-            .action-row {
-                grid-template-columns: 1fr;
-            }
-
-            .profile-avatar {
-                width: 72px;
-                height: 72px;
-                font-size: 1.8rem;
-            }
-
+            .action-row { grid-template-columns: 1fr; }
+            .profile-avatar { width: 72px; height: 72px; font-size: 1.8rem; }
             .profile-meta h2 { font-size: 1.2rem; }
             .profile-hero-card { padding: 18px; }
         }
-
         @media (max-width: 480px) {
             .profile-meta h2 { font-size: 1.1rem; }
             .info-row { padding: 12px 0; }
             .site-footer { font-size: 0.72rem; padding: 14px 4px 6px; }
             .site-footer-links { gap: 12px; }
+        }
+
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body { display: none !important; visibility: hidden !important; }
+        }
+
+        /* ===== REDUCED MOTION ===== */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
@@ -518,7 +609,7 @@
                     <div class="username" id="profileUsername">
                         <span class="skeleton skeleton-text-sm" style="width: 120px;"></span>
                     </div>
-                    <div class="user-code-badge" id="profileCodeBadge" style="display:none;" title="Klik untuk copy">
+                    <div class="user-code-badge" id="profileCodeBadge" style="display:none;" title="Klik untuk copy" role="button" tabindex="0">
                         <svg class="icon-svg" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                         <span id="profileCodeText">—</span>
                     </div>
@@ -634,6 +725,7 @@
     </div>
 </nav>
 
+<!-- MODAL EDIT NAME -->
 <div class="modal-overlay" id="modalName">
     <div class="modal">
         <div class="modal-icon">
@@ -647,10 +739,10 @@
             <span id="alertNameText"></span>
         </div>
 
-        <form id="formName">
+        <form id="formName" autocomplete="off">
             <div class="form-group">
-                <label class="form-label">Nama Tampilan</label>
-                <input type="text" class="form-control" id="inputName" placeholder="Nama kamu" required>
+                <label class="form-label" for="inputName">Nama Tampilan</label>
+                <input type="text" class="form-control" id="inputName" placeholder="Nama kamu" required maxlength="50" autocomplete="off">
             </div>
             <div style="display:flex;gap:10px;">
                 <button type="button" class="btn btn-block" data-modal-close>Batal</button>
@@ -663,6 +755,7 @@
     </div>
 </div>
 
+<!-- MODAL CHANGE PASSWORD -->
 <div class="modal-overlay" id="modalPassword">
     <div class="modal">
         <div class="modal-icon">
@@ -676,32 +769,38 @@
             <span id="alertPasswordText"></span>
         </div>
 
-        <form id="formPassword">
+        <form id="formPassword" autocomplete="off">
             <div class="form-group">
-                <label class="form-label">Password Lama</label>
+                <label class="form-label" for="inputOldPassword">Password Lama</label>
                 <div class="password-wrapper">
-                    <input type="password" class="form-control" id="inputOldPassword" placeholder="••••••••" required>
-                    <button type="button" class="password-toggle" data-toggle="inputOldPassword">
+                    <input type="password" class="form-control" id="inputOldPassword" placeholder="••••••••" required autocomplete="current-password">
+                    <button type="button" class="password-toggle" data-toggle="inputOldPassword" aria-label="Toggle password">
                         <svg class="icon-svg eye-open" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         <svg class="icon-svg eye-closed" viewBox="0 0 24 24" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     </button>
                 </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Password Baru</label>
+                <label class="form-label" for="inputNewPassword">Password Baru</label>
                 <div class="password-wrapper">
-                    <input type="password" class="form-control" id="inputNewPassword" placeholder="Minimal 6 karakter" required>
-                    <button type="button" class="password-toggle" data-toggle="inputNewPassword">
+                    <input type="password" class="form-control" id="inputNewPassword" placeholder="Minimal 6 karakter" required minlength="6" autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-toggle="inputNewPassword" aria-label="Toggle password">
                         <svg class="icon-svg eye-open" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         <svg class="icon-svg eye-closed" viewBox="0 0 24 24" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     </button>
                 </div>
+                <div class="pwd-strength" id="pwdStrength" aria-hidden="true">
+                    <div class="pwd-strength-bar"></div>
+                    <div class="pwd-strength-bar"></div>
+                    <div class="pwd-strength-bar"></div>
+                    <div class="pwd-strength-bar"></div>
+                </div>
             </div>
             <div class="form-group">
-                <label class="form-label">Konfirmasi Password Baru</label>
+                <label class="form-label" for="inputNewPassword2">Konfirmasi Password Baru</label>
                 <div class="password-wrapper">
-                    <input type="password" class="form-control" id="inputNewPassword2" placeholder="Ulangi password baru" required>
-                    <button type="button" class="password-toggle" data-toggle="inputNewPassword2">
+                    <input type="password" class="form-control" id="inputNewPassword2" placeholder="Ulangi password baru" required autocomplete="new-password">
+                    <button type="button" class="password-toggle" data-toggle="inputNewPassword2" aria-label="Toggle password">
                         <svg class="icon-svg eye-open" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                         <svg class="icon-svg eye-closed" viewBox="0 0 24 24" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
                     </button>
@@ -720,9 +819,185 @@
 
 <script src="/js/main.js"></script>
 <script>
+    /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
+    })();
+
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (k === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
+
+    (function() {
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+    })();
+
+    (function() {
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
+
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
+                }
+            }, 500);
+        }
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startDetection);
+        else startDetection();
+    })();
+
+    (function() {
+        try {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            if (window.location.search) history.replaceState(null, '', cleanUrl);
+        } catch (e) {}
+    })();
+
+    /* ============================================
+       RECAPTCHA HELPER
+       ============================================ */
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(timer); resolve(); }
+                else if (attempts >= 50) { clearInterval(timer); resolve(); }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
+        try {
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action }).then(resolve).catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) { return null; }
+    }
+
+    /* ============================================
+       PROFILE SCRIPT
+       ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
+    /* ============================================
+       UTIL: escapeHtml & copy safe
+       ============================================ */
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
+    }
+
+    function copyToClipboard(text, btnEl, successHtml = null) {
+        const onSuccess = () => {
+            if (!btnEl) return;
+            if (successHtml) {
+                const orig = btnEl.innerHTML;
+                btnEl.classList.add('copied');
+                btnEl.innerHTML = successHtml;
+                setTimeout(() => {
+                    btnEl.classList.remove('copied');
+                    btnEl.innerHTML = orig;
+                }, 1200);
+            } else {
+                btnEl.classList.add('copied');
+                setTimeout(() => btnEl.classList.remove('copied'), 1200);
+            }
+        };
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
+        } else {
+            fallbackCopy(text, onSuccess);
+        }
+    }
+
+    function fallbackCopy(text, onSuccess) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        try {
+            const ok = document.execCommand('copy');
+            if (ok && typeof onSuccess === 'function') onSuccess();
+        } catch (e) { console.error('Copy fallback failed:', e); }
+        document.body.removeChild(ta);
+    }
+
+    /* ============================================
+       SECURE POST (dengan reCAPTCHA)
+       ============================================ */
+    async function securePost(url, body = {}, action = 'profile') {
+        const recaptchaToken = await getRecaptchaToken(action);
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
+        });
+    }
+
+    /* ===== THEME ===== */
     (function initTheme() {
         const themeToggle = document.getElementById('themeToggle');
         if (!themeToggle) return;
@@ -736,6 +1011,7 @@
         });
     })();
 
+    /* ===== SIDEBAR COLLAPSE ===== */
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
@@ -747,7 +1023,6 @@
             sidebar.classList.add('collapsed');
             document.body.classList.add('sidebar-collapsed');
         }
-
         collapseBtn.addEventListener('click', () => {
             if (window.innerWidth <= 768) return;
             const collapsed = sidebar.classList.toggle('collapsed');
@@ -756,6 +1031,7 @@
         });
     })();
 
+    /* ===== MOBILE SIDEBAR ===== */
     (function initMobileSidebar() {
         const mobileToggle = document.getElementById('mobileToggle');
         const sidebar = document.getElementById('sidebar');
@@ -763,7 +1039,6 @@
         if (!mobileToggle || !sidebar) return;
 
         let isOpen = false;
-
         function openSidebar() {
             if (isOpen) return;
             isOpen = true;
@@ -773,7 +1048,6 @@
             const scrollY = window.scrollY;
             document.body.style.top = `-${scrollY}px`;
         }
-
         function closeSidebar() {
             if (!isOpen) return;
             isOpen = false;
@@ -784,62 +1058,74 @@
             document.body.style.top = '';
             window.scrollTo(0, parseInt(scrollY || '0') * -1);
         }
-
         mobileToggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
+            e.preventDefault(); e.stopPropagation();
             if (isOpen) closeSidebar(); else openSidebar();
         });
-
         if (sidebarOverlay) sidebarOverlay.addEventListener('click', closeSidebar);
-
         sidebar.querySelectorAll('.nav-item').forEach(link => {
             link.addEventListener('click', () => {
                 if (window.innerWidth <= 768 && isOpen) setTimeout(closeSidebar, 100);
             });
         });
-
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isOpen) closeSidebar();
         });
-
         window.addEventListener('pageshow', () => {
             document.body.style.top = '';
             document.body.classList.remove('sidebar-open');
         });
     })();
 
+    /* ============================================
+       LOAD USER PROFILE
+       ============================================ */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
 
-        document.getElementById('userName').textContent = user.name || user.username;
-        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-        document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
-        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+        const displayName = user.name || user.username || '';
+        const initial = typeof getInitial === 'function' ? getInitial(displayName) : displayName.charAt(0).toUpperCase();
+        const balanceText = typeof formatRupiah === 'function' ? formatRupiah(user.balance) : user.balance;
 
-        document.getElementById('profileAvatar').textContent = getInitial(user.name || user.username);
-        document.getElementById('profileName').textContent = user.name || user.username;
-        document.getElementById('profileUsername').textContent = '@' + user.username;
+        // Sidebar
+        document.getElementById('userName').textContent = displayName;
+        document.getElementById('userBalance').textContent = balanceText;
+        document.getElementById('userInitial').textContent = initial;
+        document.getElementById('balancePill').textContent = balanceText;
+
+        // Profile hero
+        document.getElementById('profileAvatar').textContent = initial;
+        document.getElementById('profileName').textContent = displayName;
+        document.getElementById('profileUsername').textContent = '@' + (user.username || '');
         document.getElementById('inputName').value = user.name || '';
 
-        document.getElementById('infoUsername').textContent = '@' + user.username;
+        // Info rows
+        document.getElementById('infoUsername').textContent = '@' + (user.username || '');
         document.getElementById('infoName').textContent = user.name || '—';
-        document.getElementById('infoBalance').textContent = formatRupiah(user.balance);
+        document.getElementById('infoBalance').textContent = balanceText;
 
+        // User code
         if (user.user_code) {
+            const code = String(user.user_code);
             document.getElementById('profileCodeBadge').style.display = 'inline-flex';
-            document.getElementById('profileCodeText').textContent = user.user_code;
-            document.getElementById('infoUserCode').textContent = user.user_code;
+            document.getElementById('profileCodeText').textContent = code;
+            document.getElementById('infoUserCode').textContent = code;
             document.getElementById('btnCopyUserCode').style.display = 'inline-flex';
         }
     });
 
+    /* ============================================
+       MODAL OPEN/CLOSE
+       ============================================ */
     function openModal(id) {
-        document.getElementById(id).classList.add('active');
+        const modal = document.getElementById(id);
+        if (!modal) return;
+        modal.classList.add('active');
         document.body.classList.add('modal-open');
     }
 
     function closeModal(el) {
+        if (!el) return;
         el.classList.remove('active');
         if (!document.querySelector('.modal-overlay.active')) {
             document.body.classList.remove('modal-open');
@@ -869,10 +1155,14 @@
         }
     });
 
+    /* ============================================
+       PASSWORD TOGGLE + STRENGTH METER
+       ============================================ */
     document.querySelectorAll('.password-toggle').forEach(btn => {
         btn.addEventListener('click', () => {
             const inputId = btn.dataset.toggle;
             const input = document.getElementById(inputId);
+            if (!input) return;
             const eyeOpen = btn.querySelector('.eye-open');
             const eyeClosed = btn.querySelector('.eye-closed');
 
@@ -888,16 +1178,52 @@
         });
     });
 
+    // Password strength meter
+    (function initPasswordStrength() {
+        const input = document.getElementById('inputNewPassword');
+        const meter = document.getElementById('pwdStrength');
+        if (!input || !meter) return;
+        const bars = meter.querySelectorAll('.pwd-strength-bar');
+
+        input.addEventListener('input', () => {
+            const v = input.value;
+            let score = 0;
+            if (v.length >= 6) score++;
+            if (v.length >= 10) score++;
+            if (/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+            if (/\d/.test(v) && /[^A-Za-z0-9]/.test(v)) score++;
+            score = Math.min(score, 4);
+
+            bars.forEach((b, i) => {
+                b.className = 'pwd-strength-bar';
+                if (i < score) {
+                    if (score <= 1) b.classList.add('weak');
+                    else if (score <= 2) b.classList.add('medium');
+                    else b.classList.add('strong');
+                }
+            });
+        });
+    })();
+
+    /* ============================================
+       ALERT HELPER
+       ============================================ */
     function showAlert(id, message, type = 'error') {
         const el = document.getElementById(id);
+        if (!el) return;
         el.className = 'alert show ' + type;
-        document.getElementById(id + 'Text').textContent = message;
+        const textEl = document.getElementById(id + 'Text');
+        if (textEl) textEl.textContent = message;
     }
 
     function hideAlert(id) {
-        document.getElementById(id).classList.remove('show');
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('show');
     }
 
+    /* ============================================
+       FORM: EDIT NAME
+       ============================================ */
     document.getElementById('formName').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertName');
@@ -905,29 +1231,31 @@
         const btn = document.getElementById('btnSaveName');
         const original = btn.innerHTML;
 
+        if (!name) {
+            showAlert('alertName', 'Nama tidak boleh kosong', 'error');
+            return;
+        }
+        if (name.length > 50) {
+            showAlert('alertName', 'Nama maksimal 50 karakter', 'error');
+            return;
+        }
+
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Menyimpan...';
 
         try {
-            const res = await fetch('/api/user/update', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ name })
-            });
-
+            const res = await securePost('/api/user/update', { name }, 'update_profile');
             const data = await safeJson(res);
-            if (data.error) throw new Error(data.error);
+            if (!res.ok || data.error) throw new Error(data.error || 'Gagal menyimpan');
 
             showAlert('alertName', 'Nama berhasil diupdate!', 'success');
 
+            const initial = typeof getInitial === 'function' ? getInitial(name) : name.charAt(0).toUpperCase();
             document.getElementById('profileName').textContent = name;
             document.getElementById('infoName').textContent = name;
             document.getElementById('userName').textContent = name;
-            document.getElementById('profileAvatar').textContent = getInitial(name);
-            document.getElementById('userInitial').textContent = getInitial(name);
+            document.getElementById('profileAvatar').textContent = initial;
+            document.getElementById('userInitial').textContent = initial;
 
             CacheManager.remove('user_profile');
 
@@ -936,13 +1264,16 @@
                 hideAlert('alertName');
             }, 1000);
         } catch (err) {
-            showAlert('alertName', err.message, 'error');
+            showAlert('alertName', err.message || 'Gagal menyimpan', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = original;
         }
     });
 
+    /* ============================================
+       FORM: CHANGE PASSWORD
+       ============================================ */
     document.getElementById('formPassword').addEventListener('submit', async (e) => {
         e.preventDefault();
         hideAlert('alertPassword');
@@ -953,8 +1284,20 @@
         const btn = document.getElementById('btnSavePassword');
         const original = btn.innerHTML;
 
+        if (!current_password) {
+            showAlert('alertPassword', 'Password lama wajib diisi', 'error');
+            return;
+        }
+        if (new_password.length < 6) {
+            showAlert('alertPassword', 'Password baru minimal 6 karakter', 'error');
+            return;
+        }
         if (new_password !== new_password2) {
             showAlert('alertPassword', 'Konfirmasi password tidak cocok', 'error');
+            return;
+        }
+        if (new_password === current_password) {
+            showAlert('alertPassword', 'Password baru harus beda dengan yang lama', 'error');
             return;
         }
 
@@ -962,20 +1305,14 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Menyimpan...';
 
         try {
-            const res = await fetch('/api/user/change-password', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ current_password, new_password })
-            });
-
+            const res = await securePost('/api/user/change-password', { current_password, new_password }, 'change_password');
             const data = await safeJson(res);
-            if (data.error) throw new Error(data.error);
+            if (!res.ok || data.error) throw new Error(data.error || 'Gagal mengubah password');
 
             showAlert('alertPassword', 'Password berhasil diubah!', 'success');
             document.getElementById('formPassword').reset();
+            // Reset strength meter
+            document.querySelectorAll('#pwdStrength .pwd-strength-bar').forEach(b => b.className = 'pwd-strength-bar');
 
             CacheManager.remove('user_profile');
 
@@ -984,37 +1321,42 @@
                 hideAlert('alertPassword');
             }, 1200);
         } catch (err) {
-            showAlert('alertPassword', err.message, 'error');
+            showAlert('alertPassword', err.message || 'Gagal mengubah password', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = original;
         }
     });
 
-    document.getElementById('profileCodeBadge').addEventListener('click', () => {
+    /* ============================================
+       COPY USER CODE
+       ============================================ */
+    document.getElementById('profileCodeBadge').addEventListener('click', function() {
         const code = document.getElementById('profileCodeText').textContent;
-        navigator.clipboard.writeText(code).then(() => {
-            const badge = document.getElementById('profileCodeBadge');
-            const original = badge.innerHTML;
-            badge.innerHTML = '✓ Copied!';
-            setTimeout(() => badge.innerHTML = original, 1200);
-        });
+        if (!code || code === '—') return;
+        const badge = this;
+        const orig = badge.innerHTML;
+        copyToClipboard(code, badge, '<svg class="icon-svg" viewBox="0 0 24 24" style="width:14px;height:14px;"><polyline points="20 6 9 17 4 12"/></svg> Copied!');
     });
 
-    document.getElementById('btnCopyUserCode').addEventListener('click', () => {
+    // Keyboard accessibility
+    document.getElementById('profileCodeBadge').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            this.click();
+        }
+    });
+
+    document.getElementById('btnCopyUserCode').addEventListener('click', function() {
         const code = document.getElementById('infoUserCode').textContent;
-        navigator.clipboard.writeText(code).then(() => {
-            const btn = document.getElementById('btnCopyUserCode');
-            const original = btn.innerHTML;
-            btn.classList.add('copied');
-            btn.innerHTML = '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>';
-            setTimeout(() => {
-                btn.classList.remove('copied');
-                btn.innerHTML = original;
-            }, 1200);
-        });
+        if (!code || code === '—') return;
+        const btn = this;
+        copyToClipboard(code, btn, '<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>');
     });
 
+    /* ============================================
+       LOGOUT
+       ============================================ */
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         try {
             await fetch('/api/auth/logout', {
@@ -1027,6 +1369,10 @@
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/landing';
+    });
+
+    window.addEventListener('beforeunload', () => {
+        // cleanup kalau ada interval
     });
 </script>
 
