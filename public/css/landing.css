@@ -180,6 +180,81 @@ img, svg { -webkit-user-drag: none; user-drag: none; }
 .icon-svg.fill { fill: currentColor; stroke: none; }
 
 /* ============================================
+   FIX: Abu-abu setelah balik dari halaman lain
+   ============================================ */
+.bg-stack {
+    /* Fallback warna — selalu ke-render, gak akan abu-abu */
+    background:
+        radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 60%, rgba(124, 58, 237, 0.12) 0%, transparent 50%),
+        linear-gradient(135deg, #eff6ff 0%, #f5f3ff 100%);
+}
+
+[data-theme="dark"] .bg-stack {
+    background:
+        radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.12) 0%, transparent 50%),
+        radial-gradient(circle at 80% 60%, rgba(167, 139, 250, 0.1) 0%, transparent 50%),
+        linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+}
+
+/* Cegah canvas jadi abu-abu kalau WebGL context lost */
+.bg-gradient-waves canvas,
+.bg-microslats canvas,
+.bg-cursor-grid {
+    image-rendering: auto;
+    background: transparent;
+}
+
+/* Kalau WebGL context lost → sembunyikan canvas, fallback gradient */
+.bg-gradient-waves.context-lost canvas {
+    display: none;
+}
+
+.bg-gradient-waves.context-lost {
+    background: linear-gradient(180deg,
+        rgba(124, 58, 237, 0.4) 0%,
+        rgba(37, 99, 235, 0.35) 40%,
+        rgba(236, 72, 153, 0.4) 100%);
+}
+
+/* ============================================
+   SVG ROKET — animasi
+   ============================================ */
+.rocket-svg {
+    width: 20px;
+    height: 20px;
+    transform-origin: center;
+    transition: transform 0.3s ease;
+}
+
+.btn-primary:hover .rocket-svg {
+    animation: rocketLaunch 0.9s cubic-bezier(.2,.8,.2,1.4);
+}
+
+@keyframes rocketLaunch {
+    0% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+    40% {
+        transform: translate(14px, -14px) rotate(45deg);
+        opacity: 0.7;
+    }
+    60% {
+        transform: translate(-8px, 8px) rotate(-15deg);
+        opacity: 0;
+    }
+    61% {
+        transform: translate(-8px, 8px) rotate(-15deg);
+        opacity: 0;
+    }
+    100% {
+        transform: translate(0, 0) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* ============================================
    THEME TOGGLE
    ============================================ */
 .theme-toggle {
