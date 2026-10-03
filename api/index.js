@@ -3219,7 +3219,6 @@ function isAdminUser(user) {
 // Middleware requireAdmin: cek role / username / user_code
 async function requireAdminFlex(req, res, next) {
     try {
-        // Ambil data user fresh dari DB
         const result = await pool.query(
             'SELECT id, username, role, user_code, status FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
@@ -3285,29 +3284,19 @@ function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
     if (a <= 0) return 0;
 
     if (type === 'order') {
-        // Order: user sudah bayar di awal, jadi:
-        // - sukses → fail: refund (+a)
-        // - fail → sukses: tarik balik refund (-a)
-        // - pending → fail: refund (+a)
-        // - fail → pending: tarik balik (-a)
         const oldSuccess = ORDER_SUCCESS_STATUSES.includes(oldStatus);
         const newSuccess = ORDER_SUCCESS_STATUSES.includes(newStatus);
         const oldFail = ORDER_FAIL_STATUSES.includes(oldStatus);
         const newFail = ORDER_FAIL_STATUSES.includes(newStatus);
 
-        if (oldStatus === 'pending' && newFail) return +a; // refund
-        if (oldFail && newStatus === 'pending') return -a; // tarik balik refund
-        if (oldSuccess && newFail) return +a; // refund
-        if (oldFail && newSuccess) return -a; // tarik balik
+        if (oldStatus === 'pending' && newFail) return +a;
+        if (oldFail && newStatus === 'pending') return -a;
+        if (oldSuccess && newFail) return +a;
+        if (oldFail && newSuccess) return -a;
         return 0;
     }
 
     if (type === 'deposit') {
-        // Deposit: uang masuk ke user
-        // - pending → success: +a
-        // - success → fail: -a
-        // - fail → success: +a
-        // - success → pending: -a
         const oldSuccess = DEPOSIT_SUCCESS_STATUSES.includes(oldStatus);
         const newSuccess = DEPOSIT_SUCCESS_STATUSES.includes(newStatus);
         const oldFail = DEPOSIT_FAIL_STATUSES.includes(oldStatus);
@@ -3321,6 +3310,22 @@ function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
     }
 
     return 0;
+}
+
+// Helper: insert admin_action log untuk balance adjust
+// FIX: parameter dipisah → $1 (entity_id/TEXT) & $2 (user_id/UUID), gak konflik tipe
+async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action, metadata }) {
+    await executor.query(
+        `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+         VALUES ('admin_action', $1, $2, $3, 'balance_adjust', $4, $5)`,
+        [
+            String(entityId || ''),        // $1 → entity_id (TEXT)
+            userId,                        // $2 → user_id (UUID)
+            String(oldBalance),            // $3 → old_status (TEXT)
+            action,                        // $4 → reason
+            JSON.stringify(metadata || {}),// $5 → metadata (JSONB)
+        ]
+    );
 }
 
 // ============================================
@@ -3439,7 +3444,6 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
 
         const user = userRes.rows[0];
 
-        // Stats
         const [orderStats, depositStats, balanceLogs] = await Promise.all([
             pool.query(
                 `SELECT 
@@ -3460,7 +3464,6 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                  FROM deposits WHERE user_id = $1`,
                 [userId]
             ),
-            // Aktivitas saldo dari status_logs
             pool.query(
                 `SELECT id, old_status, new_status, reason, metadata, created_at
                  FROM status_logs
@@ -3476,7 +3479,6 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
             ),
         ]);
 
-        // Recent orders & deposits
         const [recentOrders, recentDeposits] = await Promise.all([
             pool.query(
                 `SELECT order_id, otp_id, service_name, service, icon_code, country, country_name, phone_number,
@@ -3566,7 +3568,7 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
             newBalance = Math.floor(amt);
         } else if (mode === 'add') {
             newBalance = oldBalance + Math.floor(amt);
-        } else { // subtract
+        } else {
             if (oldBalance < amt) {
                 await client.query('ROLLBACK');
                 return res.status(400).json({
@@ -3583,23 +3585,23 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
             [newBalance, userId]
         );
 
-        await client.query(
-            `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
-             VALUES ('admin_action', $1, $1, $2, 'balance_adjust', 'admin_balance_adjust', $3)`,
-            [
-                userId,
-                String(oldBalance),
-                JSON.stringify({
-                    mode,
-                    amount: Math.floor(amt),
-                    old_balance: oldBalance,
-                    new_balance: newBalance,
-                    note: note || null,
-                    admin_id: req.admin.id,
-                    admin_username: req.admin.username,
-                }),
-            ]
-        );
+        // FIX: pakai helper logBalanceAdjust biar parameter dipisah benar
+        await logBalanceAdjust({
+            executor: client,
+            entityId: userId,
+            userId: userId,
+            oldBalance: oldBalance,
+            action: 'admin_balance_adjust',
+            metadata: {
+                mode,
+                amount: Math.floor(amt),
+                old_balance: oldBalance,
+                new_balance: newBalance,
+                note: note || null,
+                admin_id: req.admin.id,
+                admin_username: req.admin.username,
+            },
+        });
 
         await client.query('COMMIT');
 
@@ -3821,7 +3823,6 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
 
         const o = result.rows[0];
 
-        // Riwayat status order
         const logs = await pool.query(
             `SELECT id, old_status, new_status, reason, metadata, created_at
              FROM status_logs
@@ -3894,7 +3895,6 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
         let newBalance = null;
 
         if (adjustment !== 0) {
-            // Lock user
             const userRes = await client.query(
                 'SELECT id, username, balance FROM users WHERE id = $1 FOR UPDATE',
                 [order.user_id]
@@ -3922,34 +3922,30 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
                 [newBalance, user.id]
             );
 
-            // Log balance adjust
-            await client.query(
-                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
-                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_order_status_change', $4)`,
-                [
-                    orderId,
-                    user.id,
-                    String(oldBalance),
-                    JSON.stringify({
-                        order_id: orderId,
-                        old_status: oldStatus,
-                        new_status: newStatus,
-                        adjustment,
-                        old_balance: oldBalance,
-                        new_balance: newBalance,
-                        note: note || null,
-                        admin_id: req.admin.id,
-                        admin_username: req.admin.username,
-                    }),
-                ]
-            );
+            // FIX: pakai helper biar parameter gak konflik tipe
+            await logBalanceAdjust({
+                executor: client,
+                entityId: orderId,
+                userId: user.id,
+                oldBalance: oldBalance,
+                action: 'admin_order_status_change',
+                metadata: {
+                    order_id: orderId,
+                    old_status: oldStatus,
+                    new_status: newStatus,
+                    adjustment,
+                    old_balance: oldBalance,
+                    new_balance: newBalance,
+                    note: note || null,
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                },
+            });
         }
 
-        // Update order status
         const updateFields = ['status = $1', 'updated_at = NOW()'];
         const updateParams = [newStatus];
 
-        // Kalau jadi fail → set refunded_at & refunded_amount
         if (ORDER_FAIL_STATUSES.includes(newStatus) && !ORDER_FAIL_STATUSES.includes(oldStatus)) {
             updateFields.push(`refunded_at = $${updateParams.length + 1}`);
             updateParams.push(Date.now());
@@ -3959,14 +3955,12 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
             updateParams.push(note || 'admin_force_fail');
         }
 
-        // Kalau dari fail → sukses → hapus refunded
         if (ORDER_SUCCESS_STATUSES.includes(newStatus) && ORDER_FAIL_STATUSES.includes(oldStatus)) {
             updateFields.push(`refunded_at = NULL`);
             updateFields.push(`refunded_amount = NULL`);
             updateFields.push(`refund_reason = NULL`);
         }
 
-        // Set received_at kalau jadi sukses
         if (ORDER_SUCCESS_STATUSES.includes(newStatus)) {
             updateFields.push(`received_at = COALESCE(received_at, NOW())`);
         }
@@ -3976,7 +3970,6 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
 
         const updatedOrder = await client.query(updateQuery, updateParams);
 
-        // Log status change
         await client.query(
             `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
              VALUES ('order', $1, $2, $3, $4, 'admin_force_status', $5)`,
@@ -3994,7 +3987,6 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
             ]
         );
 
-        // Sync ke transactions
         await client.query(
             `UPDATE transactions 
              SET status = CASE 
@@ -4226,33 +4218,30 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
                 [newBalance, user.id]
             );
 
-            await client.query(
-                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
-                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_deposit_status_change', $4)`,
-                [
-                    referenceId,
-                    user.id,
-                    String(oldBalance),
-                    JSON.stringify({
-                        reference_id: referenceId,
-                        old_status: oldStatus,
-                        new_status: newStatus,
-                        adjustment,
-                        old_balance: oldBalance,
-                        new_balance: newBalance,
-                        note: note || null,
-                        admin_id: req.admin.id,
-                        admin_username: req.admin.username,
-                    }),
-                ]
-            );
+            // FIX: pakai helper biar parameter gak konflik tipe
+            await logBalanceAdjust({
+                executor: client,
+                entityId: referenceId,
+                userId: user.id,
+                oldBalance: oldBalance,
+                action: 'admin_deposit_status_change',
+                metadata: {
+                    reference_id: referenceId,
+                    old_status: oldStatus,
+                    new_status: newStatus,
+                    adjustment,
+                    old_balance: oldBalance,
+                    new_balance: newBalance,
+                    note: note || null,
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                },
+            });
         }
 
-        // Update deposit status
         const updateFields = ['status = $1', 'updated_at = NOW()'];
         const updateParams = [newStatus];
 
-        // Kalau jadi success → set paid_at
         if (newStatus === 'success') {
             updateFields.push(`paid_at = COALESCE(paid_at, NOW())`);
         }
@@ -4262,7 +4251,6 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
 
         const updatedDeposit = await client.query(updateQuery, updateParams);
 
-        // Log status change
         await client.query(
             `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
              VALUES ('deposit', $1, $2, $3, $4, 'admin_force_status', $5)`,
@@ -4355,25 +4343,24 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
                 [newBalance, user.id]
             );
 
-            await client.query(
-                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
-                 VALUES ('admin_action', $1, $2, $3, 'balance_adjust', 'admin_approve_deposit', $4)`,
-                [
-                    referenceId,
-                    user.id,
-                    String(oldBalance),
-                    JSON.stringify({
-                        reference_id: referenceId,
-                        old_status: oldStatus,
-                        new_status: 'success',
-                        adjustment,
-                        old_balance: oldBalance,
-                        new_balance: newBalance,
-                        admin_id: req.admin.id,
-                        admin_username: req.admin.username,
-                    }),
-                ]
-            );
+            // FIX: pakai helper biar parameter gak konflik tipe
+            await logBalanceAdjust({
+                executor: client,
+                entityId: referenceId,
+                userId: user.id,
+                oldBalance: oldBalance,
+                action: 'admin_approve_deposit',
+                metadata: {
+                    reference_id: referenceId,
+                    old_status: oldStatus,
+                    new_status: 'success',
+                    adjustment,
+                    old_balance: oldBalance,
+                    new_balance: newBalance,
+                    admin_id: req.admin.id,
+                    admin_username: req.admin.username,
+                },
+            });
         }
 
         const updated = await client.query(
