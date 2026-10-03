@@ -166,7 +166,8 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             padding: 16px;
-            transition: all var(--transition);
+            /* ANIMASI HOVER DIHAPUS — cuma transition warna kalau perlu */
+            transition: box-shadow var(--transition), border-color var(--transition);
             position: relative;
             overflow: hidden;
             display: flex;
@@ -183,10 +184,7 @@
         .aoc-card.is-success::before { background: var(--success); }
         .aoc-card.is-expired::before { background: #64748b; }
         .aoc-card.is-cancelled::before { background: var(--danger); }
-        .aoc-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
-        }
+        /* .aoc-card:hover transform DIHAPUS */
 
         .aoc-header {
             display: flex;
@@ -309,7 +307,8 @@
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
             flex-shrink: 0;
-            transition: all var(--transition);
+            /* TRANSFORM HOVER DIHAPUS */
+            transition: background-color var(--transition), color var(--transition);
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
@@ -354,6 +353,12 @@
             min-width: 90px;
             font-size: 0.72rem;
             padding: 7px 10px;
+            /* MATIKAN TRANSFORM DI TOMBOL */
+            transition: background-color var(--transition), border-color var(--transition), color var(--transition);
+        }
+        .aoc-actions .btn:hover,
+        .aoc-actions .btn:active {
+            transform: none;
         }
         .aoc-actions .btn .icon-svg { width: 13px; height: 13px; }
 
@@ -364,6 +369,10 @@
             gap: 8px;
             margin: 4px 0 24px;
             flex-wrap: wrap;
+        }
+        .active-orders-pagination .page-btn:hover,
+        .active-orders-pagination .page-btn:active {
+            transform: none;
         }
 
         /* ============================================
@@ -657,17 +666,17 @@
             font-weight: 700;
             font-size: 0.78rem;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition), box-shadow var(--transition);
             margin-bottom: 16px;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
 
         .sheet-back:hover {
-            transform: translate(-1px, -1px);
             box-shadow: var(--shadow-hard-sm);
             background: var(--bg-white);
         }
+        .sheet-back:active { transform: none; }
 
         .sheet-back .icon-svg { width: 14px; height: 14px; }
 
@@ -690,7 +699,7 @@
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition);
             text-align: left;
             font-family: inherit;
             position: relative;
@@ -700,9 +709,9 @@
         }
 
         .server-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
+            background: var(--bg-hover);
         }
+        .server-card:active { transform: none; }
 
         .server-icon {
             width: 40px;
@@ -827,7 +836,7 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition), border-color var(--transition);
             font-family: inherit;
             text-align: left;
             min-height: 60px;
@@ -838,10 +847,10 @@
         }
 
         .app-card:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
+            background: var(--bg-hover);
             border-color: var(--primary);
         }
+        .app-card:active { transform: none; }
 
         .app-card .name {
             font-size: 0.88rem;
@@ -884,11 +893,12 @@
             border: none;
             background: none;
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition), color var(--transition);
             white-space: nowrap;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
         }
+        .sheet-tab:active { transform: none; }
 
         .sheet-tab.active {
             background: var(--bg-white);
@@ -916,7 +926,7 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition);
             font-family: inherit;
             text-align: left;
             width: 100%;
@@ -925,9 +935,9 @@
         }
 
         .country-item:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
+            background: var(--bg-hover);
         }
+        .country-item:active { transform: none; }
 
         .country-flag {
             width: 32px;
@@ -980,13 +990,9 @@
             border: 2px solid var(--border-dark);
             border-radius: var(--radius);
             box-shadow: var(--shadow-hard-sm);
-            transition: all var(--transition);
+            transition: none;
         }
-
-        .price-item:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
-        }
+        .price-item:active { transform: none; }
 
         .price-stock-icon {
             width: 40px;
@@ -1074,7 +1080,7 @@
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-hard-sm);
             cursor: pointer;
-            transition: all var(--transition);
+            transition: background-color var(--transition), color var(--transition);
             font-family: inherit;
             font-weight: 700;
             font-size: 0.82rem;
@@ -1086,9 +1092,9 @@
         }
 
         .operator-item:hover {
-            transform: translate(-2px, -2px);
-            box-shadow: var(--shadow-hard);
+            background: var(--bg-hover);
         }
+        .operator-item:active { transform: none; }
 
         .operator-item.active {
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -1903,6 +1909,9 @@
     let servicesCache = [];
     let autoSyncInterval = null;
 
+    /* Deadline absolut per order — biar refresh gak reset timer */
+    const countdownDeadlines = {};
+
     /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
@@ -2004,6 +2013,27 @@
     }
 
     /* ============================================
+       Hitung sisa detik dari deadline absolut
+       ============================================ */
+    function getRemainingSec(orderId, expiresIn) {
+        const now = Date.now();
+        const existing = countdownDeadlines[orderId];
+
+        // Kalau deadline masih valid → pakai yang lama (gak reset)
+        if (existing && existing > now) {
+            return Math.max(0, Math.floor((existing - now) / 1000));
+        }
+
+        // Kalau belum ada / expired → bikin deadline baru
+        if (expiresIn > 0) {
+            countdownDeadlines[orderId] = now + expiresIn * 1000;
+            return expiresIn;
+        }
+
+        return 0;
+    }
+
+    /* ============================================
        BUILD HTML card pesanan aktif
        ============================================ */
     function buildActiveCardHtml(o) {
@@ -2016,9 +2046,6 @@
         const serviceDisplayName = getServiceDisplayName(o);
         const countryName = getCountryName(o);
         const expiresIn = Number(o.expires_in || 0);
-        const mins = Math.floor(expiresIn / 60);
-        const secs = expiresIn % 60;
-        const timeText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         const hasValidCountdown = isPending && !hasOtp && expiresIn > 0;
         const priceIdr = Number(o.price_idr ?? o.price ?? 0);
         const createdDate = new Date(o.created_at).toLocaleString('id-ID', {
@@ -2029,6 +2056,21 @@
         const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
+
+        // Countdown pakai deadline absolut
+        let countdownHtml = '';
+        if (hasValidCountdown && apiOrderId) {
+            const remaining = getRemainingSec(apiOrderId, expiresIn);
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            const timeText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            countdownHtml = `
+                <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-deadline="${countdownDeadlines[apiOrderId]}">
+                    ${ICONS.clock}
+                    <span class="countdown-text">${timeText}</span> tersisa
+                </div>
+            `;
+        }
 
         return `
             <div class="aoc-card ${cardClass}"
@@ -2091,12 +2133,7 @@
                     </div>
                 </div>
 
-                ${hasValidCountdown ? `
-                    <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-expires="${expiresIn}">
-                        ${ICONS.clock}
-                        <span class="countdown-text">${timeText}</span> tersisa
-                    </div>
-                ` : ''}
+                ${countdownHtml}
 
                 <div class="aoc-actions">
                     ${isPending && hasApiOrderId ? `
@@ -2214,11 +2251,12 @@
 
             const existing = existingCards.get(cardKey);
 
+            // PENTING: expires_in TIDAK dimasukkan ke signature
+            // biar refresh gak replace card cuma karena server kirim sisa detik beda
             const newSig = [
                 o.status || '',
                 (o.otp_code || '').trim(),
                 (o.phone_number || '').trim(),
-                Number(o.expires_in || 0),
                 (o.service || '').trim(),
                 o._bucket || '',
             ].join('|');
@@ -2241,7 +2279,11 @@
 
         // Hapus kartu yang tidak ada di halaman ini
         existingCards.forEach((card, id) => {
-            if (!newIds.has(id)) card.remove();
+            if (!newIds.has(id)) {
+                card.remove();
+                // Bersihin deadline kalau kartu hilang
+                if (countdownDeadlines[id]) delete countdownDeadlines[id];
+            }
         });
 
         container.appendChild(fragment);
@@ -2270,27 +2312,33 @@
         startCountdowns();
     }
 
-    /* ===== COUNTDOWN ===== */
+    /* ============================================
+       COUNTDOWN — pakai deadline absolut
+       ============================================ */
     function startCountdowns() {
         Object.values(activeState.countdownIntervals).forEach(clearInterval);
         activeState.countdownIntervals = {};
 
         document.querySelectorAll('.aoc-countdown').forEach(el => {
             const orderId = el.dataset.orderId;
-            let remaining = parseInt(el.dataset.expires || '0', 10);
+            const deadline = parseInt(el.dataset.deadline || '0', 10);
             const textEl = el.querySelector('.countdown-text');
 
-            if (remaining <= 0) {
-                el.classList.add('expired');
+            if (!deadline) {
                 if (textEl) textEl.textContent = 'EXPIRED';
+                el.classList.add('expired');
                 return;
             }
 
             function tick() {
+                const remaining = Math.floor((deadline - Date.now()) / 1000);
                 if (remaining <= 0) {
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
-                    clearInterval(activeState.countdownIntervals[orderId]);
+                    if (activeState.countdownIntervals[orderId]) {
+                        clearInterval(activeState.countdownIntervals[orderId]);
+                    }
+                    if (countdownDeadlines[orderId]) delete countdownDeadlines[orderId];
                     setTimeout(() => {
                         CacheManager.remove(getActiveOrdersCacheKey());
                         loadActiveOrders(true);
@@ -2300,7 +2348,6 @@
                 const m = Math.floor(remaining / 60);
                 const s = remaining % 60;
                 if (textEl) textEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-                remaining--;
             }
 
             tick();
