@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="theme-color" content="#2563eb">
+    <meta name="robots" content="noindex, nofollow">
     <title>Inbox - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
@@ -14,19 +17,187 @@
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+
+    <!-- 🔒 SECURITY: jalan paling awal — anti-FOUC, anti-view-source, anti-iframe, DevTools lock -->
     <script>
+        // Safety cleanup freeze style dari page sebelumnya
         (function() {
-            const theme = localStorage.getItem('asyrofotp_theme') || 'light';
+            try {
+                document.documentElement.style.overflow = '';
+                document.documentElement.style.overflowY = '';
+                document.documentElement.style.height = '';
+                document.documentElement.style.position = '';
+                document.documentElement.style.top = '';
+
+                const cleanupBody = () => {
+                    if (!document.body) return;
+                    document.body.style.overflow = '';
+                    document.body.style.overflowY = '';
+                    document.body.style.position = '';
+                    document.body.style.top = '';
+                    document.body.style.left = '';
+                    document.body.style.right = '';
+                    document.body.style.width = '';
+                    document.body.style.height = '';
+                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
+                };
+
+                if (document.body) cleanupBody();
+                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
+            } catch (e) {}
+        })();
+
+        // Anti view-source
+        (function() {
+            if (window.location.protocol === 'view-source:') {
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                throw new Error('__VIEW_SOURCE_BLOCKED__');
+            }
+        })();
+
+        // Anti-FOUC theme
+        (function() {
+            const saved = localStorage.getItem('asyrofotp_theme');
+            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
         })();
-    </script>
-    <style>
-        .dashboard-layout, .dashboard-layout * {
-            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-            -webkit-touch-callout: none;
+
+        // Anti-iframe (clickjacking)
+        if (window.top !== window.self) {
+            try { window.top.location = window.self.location; } catch (e) {}
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
-        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code {
-            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
+
+        // DevTools LOCK SCREEN
+        (function() {
+            const LOCK_FLAG = 'asyrof_devtools_lock';
+
+            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
+                document.documentElement.innerHTML = '<head></head><body></body>';
+
+                function showLockScreen() {
+                    document.body.innerHTML = `
+                        <div id="devtoolsLockScreen">
+                            <div class="lock-box">
+                                <div class="lock-icon">🔒</div>
+                                <h2>Akses Dibatasi</h2>
+                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
+                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
+                            </div>
+                        </div>
+                        <style>
+                            html, body {
+                                margin: 0; padding: 0;
+                                background: #0f172a;
+                                overflow: auto !important;
+                                position: static !important;
+                                height: auto !important;
+                                min-height: 100vh !important;
+                                width: 100% !important;
+                            }
+                            #devtoolsLockScreen {
+                                min-height: 100vh;
+                                width: 100%;
+                                background: #0f172a;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                padding: 24px;
+                                box-sizing: border-box;
+                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                                user-select: none;
+                                -webkit-user-select: none;
+                            }
+                            #devtoolsLockScreen .lock-box {
+                                background: #1e293b;
+                                border: 3px solid #475569;
+                                border-radius: 20px;
+                                padding: 40px 32px;
+                                max-width: 440px;
+                                width: 100%;
+                                text-align: center;
+                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
+                                box-sizing: border-box;
+                            }
+                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
+                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
+                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
+                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
+                        </style>
+                    `;
+
+                    const THRESHOLD = 200;
+                    setInterval(() => {
+                        const wDiff = window.outerWidth - window.innerWidth;
+                        const hDiff = window.outerHeight - window.innerHeight;
+                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
+
+                        if (!stillOpen) {
+                            sessionStorage.removeItem(LOCK_FLAG);
+                            try {
+                                document.body.style.cssText = '';
+                                document.documentElement.style.cssText = '';
+                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                            } catch (e) {}
+                            window.location.reload();
+                        }
+                    }, 500);
+                }
+
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', showLockScreen);
+                } else {
+                    showLockScreen();
+                }
+
+                throw new Error('__DEVTOOLS_LOCK__');
+            }
+        })();
+    </script>
+
+    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
+    <style>
+        /* ============================================
+           GLOBAL ANTI-SELECT + ANTI-DRAG
+           ============================================ */
+        .dashboard-layout,
+        .dashboard-layout * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+        }
+
+        .dashboard-layout input,
+        .dashboard-layout textarea,
+        .dashboard-layout select,
+        .dashboard-layout code,
+        .dashboard-layout [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+        }
+
+        .dashboard-layout img,
+        .dashboard-layout svg {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            user-drag: none;
+        }
+
+        .dashboard-layout a img,
+        .dashboard-layout a svg,
+        .dashboard-layout button img,
+        .dashboard-layout button svg {
+            pointer-events: auto;
         }
 
         /* ===== HERO ===== */
@@ -98,9 +269,7 @@
             align-items: center;
             gap: 6px;
         }
-        .inbox-tab:hover {
-            color: var(--primary);
-        }
+        .inbox-tab:hover { color: var(--primary); }
         .inbox-tab.active {
             background: var(--bg-white);
             color: var(--primary);
@@ -171,8 +340,6 @@
         .order-card.refunded::before { background: var(--purple); }
 
         [data-theme="dark"] .order-card.expired::before { background: #94a3b8; }
-
-        /* HAPUS: .order-card:hover transform translate — biar gak timbul saat diklik */
 
         .order-header {
             display: flex;
@@ -392,7 +559,6 @@
             color: var(--text-dark);
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            /* HAPUS transform hover */
             transition: background-color var(--transition), color var(--transition);
             flex-shrink: 0;
             position: relative;
@@ -516,10 +682,8 @@
         .order-actions .btn {
             flex: 1;
             min-width: 120px;
-            /* HAPUS animasi klik di tombol */
             transition: background-color var(--transition), border-color var(--transition), color var(--transition);
         }
-        /* Override btn default hover — biar gak lompat */
         .order-actions .btn:hover,
         .order-actions .btn:active {
             transform: none;
@@ -591,7 +755,6 @@
             font-weight: 700;
             font-size: 0.85rem;
             cursor: pointer;
-            /* HAPUS transform hover */
             transition: background-color var(--transition), color var(--transition);
             display: inline-flex;
             align-items: center;
@@ -980,6 +1143,11 @@
             .order-card { padding: 12px; }
             .otp-info-value { font-size: 1.05rem; letter-spacing: 0.1em; }
         }
+
+        /* ===== ANTI-PRINT ===== */
+        @media print {
+            body { display: none !important; visibility: hidden !important; }
+        }
     </style>
 </head>
 <body>
@@ -1157,6 +1325,145 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
+       SECURITY HARDENING — Frontend
+       ============================================ */
+    (function() {
+        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
+        const styleSub = 'color:#64748b;font-size:12px;';
+        try {
+            console.log('%c⚠️ STOP!', style);
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+        } catch (e) {}
+    })();
+
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (k === 'F12') { e.preventDefault(); return false; }
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
+
+    (function() {
+        document.addEventListener('copy', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+        document.addEventListener('cut', (e) => {
+            const target = e.target;
+            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+            e.preventDefault();
+        });
+    })();
+
+    (function() {
+        const LOCK_FLAG = 'asyrof_devtools_lock';
+        const THRESHOLD_WIDTH = 200;
+        const THRESHOLD_HEIGHT = 200;
+
+        function shouldSkipDetection() {
+            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
+            if (window.innerWidth < 600) return true;
+            return false;
+        }
+
+        function isDevToolsOpen() {
+            if (shouldSkipDetection()) return false;
+            const widthDiff = window.outerWidth - window.innerWidth;
+            const heightDiff = window.outerHeight - window.innerHeight;
+            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
+        }
+
+        function startDetection() {
+            setInterval(() => {
+                if (isDevToolsOpen()) {
+                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
+                    try {
+                        document.body.style.cssText = '';
+                        document.documentElement.style.cssText = '';
+                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
+                    } catch (e) {}
+                    document.body.innerHTML = '';
+                    window.location.reload();
+                }
+            }, 500);
+        }
+
+        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', startDetection);
+        } else {
+            startDetection();
+        }
+    })();
+
+    (function() {
+        try {
+            const cleanUrl = window.location.origin + window.location.pathname;
+            if (window.location.search) {
+                history.replaceState(null, '', cleanUrl);
+            }
+        } catch (e) {}
+    })();
+
+    /* ============================================
+       RECAPTCHA HELPER
+       ============================================ */
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) {
+                    clearInterval(timer);
+                    resolve();
+                } else if (attempts >= 50) {
+                    clearInterval(timer);
+                    resolve();
+                }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
+        try {
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action })
+                        .then(resolve)
+                        .catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async function securePost(url, body = {}, action = 'inbox') {
+        const recaptchaToken = await getRecaptchaToken(action);
+        return fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
+        });
+    }
+
+    /* ============================================
        INBOX SCRIPT
        ============================================ */
     const token = localStorage.getItem('access_token');
@@ -1203,13 +1510,12 @@
         const initial = getServiceInitial(order);
         const url = getAppIconUrl(code);
         if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy"
-                     onerror="this.style.display='none'; if(this.nextElementSibling) this.nextElementSibling.style.display='inline-flex';">
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
     /* ============================================
-       FUNC ASLI
+       CUSTOM ALERT
        ============================================ */
     function showCustomAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
         return new Promise((resolve) => {
@@ -1366,7 +1672,7 @@
             return `<div class="${className}" style="display:flex;align-items:center;justify-content:center;background:var(--bg-light);color:var(--text-light);font-size:0.7rem;font-weight:800;">${escapeHtml((countryCode || '??').toUpperCase())}</div>`;
         }
         const sourcesAttr = JSON.stringify(sources).replace(/"/g, '&quot;');
-        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0" onerror="handleFlagError(this)">`;
+        return `<img class="${className}" src="${sources[0]}" alt="${countryCode}" loading="lazy" data-sources="${sourcesAttr}" data-source-idx="0">`;
     }
 
     window.handleFlagError = function(imgEl) {
@@ -1427,18 +1733,9 @@
         }
 
         try {
-            const res = await fetch('/api/nokos/check-refunds', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
+            const res = await securePost('/api/nokos/check-refunds', {}, 'check_refunds');
             const data = await safeJson(res);
             if (data.refunded && data.refunded.length > 0) {
-                console.log(`💰 ${data.refunded.length} order di-refund:`, data.refunded);
-
                 CacheManager.remove('user_profile');
                 swrFetch('/api/user', 'user_profile', (user) => {
                     if (!user) return;
@@ -1471,6 +1768,9 @@
             .forEach(k => localStorage.removeItem(k));
     }
 
+    /* ===== ABORT CONTROLLER ===== */
+    let _loadOrdersAbort = null;
+
     /* ===== LOAD ORDERS ===== */
     async function loadOrders(silent = false) {
         const container = document.getElementById('ordersContainer');
@@ -1488,9 +1788,13 @@
             `;
         }
 
+        if (_loadOrdersAbort) _loadOrdersAbort.abort();
+        _loadOrdersAbort = new AbortController();
+
         try {
             const res = await fetch(`/api/nokos/orders?page=${state.page}&limit=${state.limit}&status=nokos`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: { 'Authorization': `Bearer ${token}` },
+                signal: _loadOrdersAbort.signal
             });
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal memuat data inbox');
@@ -1500,6 +1804,7 @@
 
             loadCounts();
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error('Load orders error:', err);
             if (!cached && !silent) {
                 container.innerHTML = `
@@ -1510,6 +1815,8 @@
                     </div>
                 `;
             }
+        } finally {
+            _loadOrdersAbort = null;
         }
     }
 
@@ -1586,49 +1893,73 @@
         return `OTP${(hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0')}`;
     }
 
+    /* ===== COPY (dengan fallback aman) ===== */
     function copyToClipboard(text, btnEl) {
-        navigator.clipboard.writeText(text).then(() => {
-            if (btnEl) {
-                btnEl.classList.add('copied');
-                const orig = btnEl.innerHTML;
-                btnEl.innerHTML = ICONS.check;
-                setTimeout(() => {
-                    btnEl.classList.remove('copied');
-                    btnEl.innerHTML = orig;
-                }, 1200);
-            }
-        }).catch(() => {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand('copy');
-            document.body.removeChild(ta);
-        });
+        const onSuccess = () => {
+            if (!btnEl) return;
+            btnEl.classList.add('copied');
+            const orig = btnEl.innerHTML;
+            btnEl.innerHTML = ICONS.check;
+            setTimeout(() => {
+                btnEl.classList.remove('copied');
+                btnEl.innerHTML = orig;
+            }, 1200);
+        };
+
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+            navigator.clipboard.writeText(text)
+                .then(onSuccess)
+                .catch(() => fallbackCopy(text, onSuccess));
+        } else {
+            fallbackCopy(text, onSuccess);
+        }
+    }
+
+    function fallbackCopy(text, onSuccess) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'fixed';
+        ta.style.top = '-9999px';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        ta.setSelectionRange(0, ta.value.length);
+        try {
+            const ok = document.execCommand('copy');
+            if (ok && typeof onSuccess === 'function') onSuccess();
+        } catch (e) {
+            console.error('Copy fallback failed:', e);
+        }
+        document.body.removeChild(ta);
     }
 
     /* ============================================
-       COUNTDOWN — pakai deadline absolut
-       Biar refresh gak reset timer
+       COUNTDOWN — deadline persist di sessionStorage
        ============================================ */
     function getCountdownDeadline(orderId, expiresIn) {
-        // Simpan deadline di memory kalau belum ada
-        if (!window.__countdownDeadlines) window.__countdownDeadlines = {};
+        const key = `asyrof_cd_${orderId}`;
         const now = Date.now();
-        const existing = window.__countdownDeadlines[orderId];
 
-        if (existing && existing > now) {
-            // Deadline masih valid → pakai yang lama
-            return existing;
-        }
+        try {
+            const stored = sessionStorage.getItem(key);
+            if (stored) {
+                const deadline = parseInt(stored, 10);
+                if (Number.isFinite(deadline) && deadline > now) return deadline;
+                sessionStorage.removeItem(key);
+            }
+        } catch (e) {}
 
-        // Kalau expiresIn > 0, bikin deadline baru
         if (expiresIn > 0) {
-            window.__countdownDeadlines[orderId] = now + expiresIn * 1000;
-            return window.__countdownDeadlines[orderId];
+            const deadline = now + expiresIn * 1000;
+            try { sessionStorage.setItem(key, String(deadline)); } catch (e) {}
+            return deadline;
         }
-
         return 0;
+    }
+
+    function clearCountdownDeadline(orderId) {
+        try { sessionStorage.removeItem(`asyrof_cd_${orderId}`); } catch (e) {}
     }
 
     /* ============================================
@@ -1649,7 +1980,7 @@
         const hasOtp = o.otp_code && o.otp_code.trim();
         const isPending = o.status === 'pending';
         const isRefunded = o.status === 'refunded' || (o.refunded_at && Number(o.refunded_at) > 0);
-        const isConfirmed = o.status === 'confirmed' || o.status === 'success';
+        const isConfirmed = ['confirmed', 'success', 'received'].includes(o.status);
         const otpId = getOtpId(o);
         const apiOrderId = String(o.order_id || '').trim();
         const hasApiOrderId = Boolean(apiOrderId);
@@ -1715,9 +2046,8 @@
                </div>`
             : `${infoGridHtml}${otpBoxHtml}`;
 
-        // Countdown pakai deadline absolut (biar gak reset saat refresh)
         let countdownHtml = '';
-        if (hasValidCountdown && !hasOtp) {
+        if (hasValidCountdown && !hasOtp && hasApiOrderId) {
             const deadline = getCountdownDeadline(apiOrderId, expiresIn);
             const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
             const m = Math.floor(remaining / 60);
@@ -1828,7 +2158,7 @@
     }
 
     /* ============================================
-       ATTACH HANDLER ke dalam card
+       ATTACH HANDLER ke dalam card (no inline onerror)
        ============================================ */
     function attachCardHandlers(card) {
         card.querySelectorAll('[data-copy]').forEach(btn => {
@@ -1862,10 +2192,25 @@
                 showOrderDetail(btn.dataset.detail, c);
             });
         });
+        // Image error handler (menggantikan inline onerror)
+        card.querySelectorAll('img[data-sources]').forEach(img => {
+            if (img.dataset.bound) return;
+            img.dataset.bound = '1';
+            img.addEventListener('error', function() { window.handleFlagError(this); });
+        });
+        card.querySelectorAll('.order-app-icon img').forEach(img => {
+            if (img.dataset.boundImg) return;
+            img.dataset.boundImg = '1';
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const next = this.nextElementSibling;
+                if (next) next.style.display = 'inline-flex';
+            });
+        });
     }
 
     /* ============================================
-       RENDER dengan DOM DIFF — TANPA ANIMASI
+       RENDER dengan DOM DIFF — FIXED
        ============================================ */
     function renderOrders(data, fromCache) {
         const container = document.getElementById('ordersContainer');
@@ -1907,7 +2252,8 @@
 
         data.orders.forEach((o, idx) => {
             const apiOrderId = String(o.order_id || '').trim();
-            const cardKey = apiOrderId || `idx-${idx}`;
+            // FIX: fallback key unik & konsisten
+            const cardKey = apiOrderId || `fallback-${o.otp_id || o.created_at || idx}`;
             newIds.add(cardKey);
 
             const newHtml = buildOrderCardHtml(o);
@@ -1917,8 +2263,7 @@
 
             const existing = existingCards.get(cardKey);
 
-            // PENTING: expires_in TIDAK dimasukkan ke signature
-            // Karena countdown pakai deadline absolut, refresh gak akan ganti card
+            // Signature tanpa expires_in (countdown pakai deadline absolut)
             const newSig = [
                 o.status || '',
                 (o.otp_code || '').trim(),
@@ -1930,33 +2275,43 @@
             const oldSig = existing ? existing.dataset.sig || '' : null;
 
             if (existing && oldSig === newSig) {
+                // FIX: reuse card lama, pindah ke fragment (urutan baru)
                 fragment.appendChild(existing);
+                existingCards.delete(cardKey);
                 return;
             }
 
             if (existing) {
-                existing.replaceWith(newCard);
+                // FIX: hapus card lama (jangan replaceWith + appendChild)
+                existing.remove();
+                if (state.countdownIntervals[cardKey]) {
+                    clearInterval(state.countdownIntervals[cardKey]);
+                    delete state.countdownIntervals[cardKey];
+                }
+                clearCountdownDeadline(cardKey);
                 existingCards.delete(cardKey);
             }
+
             newCard.dataset.sig = newSig;
             attachCardHandlers(newCard);
             fragment.appendChild(newCard);
         });
 
+        // Hapus sisa card lama
         existingCards.forEach((card, id) => {
-            if (!newIds.has(id)) {
-                card.remove();
-                // Bersihin deadline kalau kartu hilang
-                if (window.__countdownDeadlines && window.__countdownDeadlines[id]) {
-                    delete window.__countdownDeadlines[id];
-                }
+            card.remove();
+            if (state.countdownIntervals[id]) {
+                clearInterval(state.countdownIntervals[id]);
+                delete state.countdownIntervals[id];
             }
+            clearCountdownDeadline(id);
         });
 
         listWrap.appendChild(fragment);
 
-        if (data.total > state.limit) {
-            state.totalPages = Math.ceil(data.total / state.limit);
+        // FIX: reset totalPages konsisten
+        state.totalPages = Math.ceil((data.total || 0) / state.limit);
+        if (state.totalPages > 1) {
             paginationEl.style.display = 'flex';
             paginationEl.innerHTML = `
                 <button class="page-btn" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>
@@ -1989,7 +2344,6 @@
        COUNTDOWN — pakai deadline absolut
        ============================================ */
     function startCountdowns() {
-        // Clear interval lama
         Object.values(state.countdownIntervals).forEach(clearInterval);
         state.countdownIntervals = {};
 
@@ -2013,10 +2367,7 @@
                     if (state.countdownIntervals[orderId]) {
                         clearInterval(state.countdownIntervals[orderId]);
                     }
-                    // Bersihin deadline & refresh
-                    if (window.__countdownDeadlines && window.__countdownDeadlines[orderId]) {
-                        delete window.__countdownDeadlines[orderId];
-                    }
+                    clearCountdownDeadline(orderId);
                     setTimeout(() => {
                         invalidateInboxCache();
                         loadOrders(true);
@@ -2033,38 +2384,37 @@
         });
     }
 
-    /* ===== POLLING PENDING ===== */
+    /* ===== POLLING PENDING — parallel dengan Promise.allSettled ===== */
     async function pollPendingOrders(orders) {
         const pending = orders;
         if (pending.length === 0) return;
 
+        const results = await Promise.allSettled(
+            pending.map(o => fetch('/api/cekotp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ order_id: o.order_id, otp_id: o.otp_id })
+            }).then(r => safeJson(r)))
+        );
+
         let hasUpdate = false;
-
-        for (const o of pending) {
-            try {
-                const res = await fetch('/api/cekotp', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ order_id: o.order_id, otp_id: o.otp_id })
-                });
-                const data = await safeJson(res);
-
-                if (data.updated || data.otp_code || data.status !== 'pending') {
-                    hasUpdate = true;
-                    if (data.otp_code) {
-                        CacheManager.remove('user_profile');
-                        swrFetch('/api/user', 'user_profile', (user) => {
-                            if (!user) return;
-                            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-                            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-                        });
-                    }
+        for (const r of results) {
+            if (r.status !== 'fulfilled') continue;
+            const data = r.value;
+            if (!data) continue;
+            if (data.updated || data.otp_code || data.status !== 'pending') {
+                hasUpdate = true;
+                if (data.otp_code) {
+                    CacheManager.remove('user_profile');
+                    swrFetch('/api/user', 'user_profile', (user) => {
+                        if (!user) return;
+                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                    });
                 }
-            } catch (err) {
-                console.error(`Poll order ${o.order_id} error:`, err);
             }
         }
 
@@ -2091,10 +2441,7 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/resend`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/resend`, {}, 'resend');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal resend');
 
@@ -2132,10 +2479,7 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/confirm`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/confirm`, {}, 'confirm');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
 
@@ -2175,10 +2519,7 @@
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}/cancel`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/cancel`, {}, 'cancel');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
 
@@ -2227,6 +2568,23 @@
             overlay.classList.remove('active', 'closing');
             document.body.classList.remove('modal-open');
         }, 220);
+    }
+
+    function bindDetailModalImages(root) {
+        root.querySelectorAll('img[data-sources]').forEach(img => {
+            if (img.dataset.bound) return;
+            img.dataset.bound = '1';
+            img.addEventListener('error', function() { window.handleFlagError(this); });
+        });
+        root.querySelectorAll('.detail-modal-app img').forEach(img => {
+            if (img.dataset.boundImg) return;
+            img.dataset.boundImg = '1';
+            img.addEventListener('error', function() {
+                this.style.display = 'none';
+                const next = this.nextElementSibling;
+                if (next) next.style.display = 'inline-flex';
+            });
+        });
     }
 
     function renderDetailSkeleton(card) {
@@ -2295,6 +2653,7 @@
 
         document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
         document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
+        bindDetailModalImages(modalContent);
     }
 
     function renderDetailFull(o) {
@@ -2309,6 +2668,14 @@
             refunded: { label: 'Refund', cls: 'purple' },
         };
         const s = statusMap[o.status] || { label: escapeHtml(o.status || '—'), cls: 'gray' };
+
+        const statusIcon = {
+            success: ICONS.checkCircle,
+            pending: ICONS.clock,
+            danger: ICONS.close,
+            gray: ICONS.clock,
+            purple: ICONS.coin,
+        }[s.cls] || ICONS.info;
 
         const formatDate = (date) => {
             if (!date) return '—';
@@ -2343,7 +2710,7 @@
             </div>
             <div class="detail-modal-body">
                 <div class="detail-status-badge ${s.cls}">
-                    ${ICONS.info}
+                    ${statusIcon}
                     ${s.label}
                 </div>
 
@@ -2436,6 +2803,7 @@
 
         document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
         document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
+        bindDetailModalImages(modalContent);
     }
 
     async function showOrderDetail(orderId, card) {
@@ -2443,7 +2811,7 @@
         openDetailModal();
 
         try {
-            const res = await fetch(`/api/nokos/order/${orderId}`, {
+            const res = await fetch(`/api/nokos/order/${encodeURIComponent(orderId)}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const o = await safeJson(res);
@@ -2489,6 +2857,7 @@
     });
 
     /* ===== AUTO REFRESH ===== */
+    let _lastRefundCheck = 0;
     function startAutoRefresh() {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         state.refreshInterval = setInterval(async () => {
@@ -2503,7 +2872,8 @@
                 await pollPendingOrders(pendingOrders);
             }
 
-            if (state.refundChecked) {
+            if (state.refundChecked && Date.now() - _lastRefundCheck > 30000) {
+                _lastRefundCheck = Date.now();
                 await checkRefunds();
                 await loadOrders(true);
                 await loadCounts();
@@ -2538,6 +2908,7 @@
     window.addEventListener('beforeunload', () => {
         if (state.refreshInterval) clearInterval(state.refreshInterval);
         Object.values(state.countdownIntervals).forEach(clearInterval);
+        if (_loadOrdersAbort) _loadOrdersAbort.abort();
     });
 </script>
 
