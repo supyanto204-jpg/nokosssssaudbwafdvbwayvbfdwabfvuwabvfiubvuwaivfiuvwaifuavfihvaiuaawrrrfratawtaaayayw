@@ -1372,6 +1372,34 @@ app.get('/api/health', withDB(async (req, res) => {
 // ============================================
 // ===== AUTH =====
 // ============================================
+// ============================================
+// ===== CEK USERNAME KETERSEDIAAN =====
+// ============================================
+app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
+    const { username } = req.body;
+
+    if (!username) {
+        return res.status(400).json({ error: 'Username wajib diisi' });
+    }
+    if (!isValidUsername(username)) {
+        return res.status(400).json({
+            available: false,
+            error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)',
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
+            [username.toLowerCase()]
+        );
+        const available = result.rows.length === 0;
+        res.json({ available });
+    } catch (err) {
+        console.error('Check username error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { username, password, name, recaptcha_token } = req.body;
 
