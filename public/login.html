@@ -2,12 +2,14 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
     <title>Login - AsyrofOTP</title>
-    <link rel="stylesheet" href="/css/dashboard.css">
+
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -15,8 +17,24 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
-    <!-- reCAPTCHA v3 (invisible) -->
+    <!-- reCAPTCHA v3 -->
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+
+    <!-- Dark mode: set sebelum render biar gak flicker -->
+    <script>
+        (function() {
+            try {
+                const saved = localStorage.getItem('asyrofotp_theme');
+                let theme = saved;
+                if (!theme) {
+                    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        })();
+    </script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -28,10 +46,26 @@
             --text-dark: #0f172a;
             --text-gray: #64748b;
             --bg-light: #f8fafc;
+            --bg-card: #ffffff;
             --border-dark: #0f172a;
             --danger: #ef4444;
             --success: #22c55e;
         }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --primary-light: #1e293b;
+            --primary-dark: #2563eb;
+            --text-dark: #f1f5f9;
+            --text-gray: #94a3b8;
+            --bg-light: #0f172a;
+            --bg-card: #1e293b;
+            --border-dark: #e2e8f0;
+            --danger: #f87171;
+            --success: #4ade80;
+        }
+
+        html, body { transition: background-color 0.3s ease, color 0.3s ease; }
 
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -44,6 +78,16 @@
             padding: 24px;
             position: relative;
             overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        input, textarea, select {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            user-select: text;
         }
 
         body::before {
@@ -66,10 +110,51 @@
             pointer-events: none;
         }
 
+        [data-theme="dark"] body::before {
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(59, 130, 246, 0.08) 0deg 10deg,
+                transparent 10deg 20deg
+            );
+        }
+
         @keyframes spin {
             from { transform: translate3d(-50%, -50%, 0) rotate(0deg); }
             to { transform: translate3d(-50%, -50%, 0) rotate(360deg); }
         }
+
+        /* ===== Theme toggle ===== */
+        .theme-toggle-fab {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 50;
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--bg-card);
+            border: 2px solid var(--border-dark);
+            color: var(--text-dark);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 3px 3px 0 rgba(15, 23, 42, 1);
+            transition: all 0.2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .theme-toggle-fab:hover {
+            transform: translate(-1px, -1px);
+            box-shadow: 4px 4px 0 rgba(15, 23, 42, 1);
+        }
+        .theme-toggle-fab:active {
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0 rgba(15, 23, 42, 1);
+        }
+        .theme-toggle-fab .icon-svg { width: 20px; height: 20px; }
+        .theme-toggle-fab .moon-icon { display: none; }
+        [data-theme="dark"] .theme-toggle-fab .sun-icon { display: none; }
+        [data-theme="dark"] .theme-toggle-fab .moon-icon { display: block; }
 
         .auth-container {
             width: 100%;
@@ -110,11 +195,16 @@
         .auth-logo span { color: var(--primary); }
 
         .auth-card {
-            background: white;
+            background: var(--bg-card);
             border: 2px solid var(--border-dark);
             border-radius: 16px;
             box-shadow: 6px 6px 0px rgba(15, 23, 42, 1);
             padding: 32px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        [data-theme="dark"] .auth-card {
+            box-shadow: 6px 6px 0px rgba(0, 0, 0, 0.5);
         }
 
         .auth-card h1 {
@@ -152,7 +242,7 @@
             border-radius: 10px;
             font-family: inherit;
             font-size: 0.95rem;
-            background: white;
+            background: var(--bg-card);
             color: var(--text-dark);
             transition: all 0.2s;
             outline: none;
@@ -165,7 +255,7 @@
             transform: translate(-1px, -1px);
         }
 
-        .form-control::placeholder { color: #94a3b8; }
+        .form-control::placeholder { color: var(--text-gray); opacity: 0.7; }
 
         .eye-btn {
             position: absolute;
@@ -184,7 +274,6 @@
             justify-content: center;
             transition: all 0.15s;
             -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
         }
 
         .eye-btn:hover {
@@ -272,6 +361,9 @@
         .alert.error { background: #fee2e2; color: #991b1b; }
         .alert.success { background: #dcfce7; color: #166534; }
 
+        [data-theme="dark"] .alert.error { background: #450a0a; color: #fca5a5; }
+        [data-theme="dark"] .alert.success { background: #052e16; color: #86efac; }
+
         .alert .icon-svg { width: 20px; height: 20px; flex-shrink: 0; margin-top: 2px; }
 
         .spinner {
@@ -299,9 +391,118 @@
         }
 
         .recaptcha-notice a:hover { text-decoration: underline; }
+
+        /* ===== Anti-devtools overlay ===== */
+        #securityOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 999999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            text-align: center;
+            color: white;
+            animation: fadeIn 0.2s ease;
+        }
+
+        #securityOverlay.active { display: flex; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .sec-box {
+            max-width: 400px;
+            padding: 32px 24px;
+            background: #1e293b;
+            border: 2px solid #ef4444;
+            border-radius: 16px;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), 8px 8px 0 rgba(239, 68, 68, 0.3);
+        }
+
+        .sec-icon {
+            width: 72px;
+            height: 72px;
+            margin: 0 auto 16px;
+            border-radius: 50%;
+            background: rgba(239, 68, 68, 0.15);
+            border: 2px solid #ef4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ef4444;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+            50% { box-shadow: 0 0 0 12px rgba(239, 68, 68, 0); }
+        }
+
+        .sec-icon .icon-svg { width: 36px; height: 36px; }
+
+        .sec-box h2 {
+            font-size: 1.2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #fca5a5;
+        }
+
+        .sec-box p {
+            font-size: 0.88rem;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .sec-box .btn-close-sec {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 50px;
+            background: #ef4444;
+            color: white;
+            font-family: inherit;
+            font-weight: 700;
+            font-size: 0.9rem;
+            border: 2px solid #fff;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sec-box .btn-close-sec:hover {
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+        }
     </style>
 </head>
 <body>
+
+<!-- Security overlay (devtools detected) -->
+<div id="securityOverlay">
+    <div class="sec-box">
+        <div class="sec-icon">
+            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </div>
+        <h2>Akses Dibatasi</h2>
+        <p>Kami mendeteksi Developer Tools terbuka. Untuk alasan keamanan, silakan tutup Developer Tools untuk melanjutkan.</p>
+        <button class="btn-close-sec" id="secCloseBtn" type="button">
+            <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            Sudah Ditutup
+        </button>
+    </div>
+</div>
+
+<!-- Theme toggle -->
+<button class="theme-toggle-fab" id="themeToggle" type="button" aria-label="Ganti tema">
+    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
 
 <div class="auth-container">
     <a href="/landing" class="auth-logo">
@@ -353,6 +554,7 @@
     </div>
 </div>
 
+<script src="/js/security.js"></script>
 <script>
     const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
@@ -365,6 +567,16 @@
     const passwordInput = document.getElementById('password');
     const togglePassword = document.getElementById('togglePassword');
     const eyeIcon = document.getElementById('eyeIcon');
+
+    /* ===== Theme toggle ===== */
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        const current = document.documentElement.getAttribute('data-theme') || 'light';
+        const next = current === 'dark' ? 'light' : 'dark';
+        document.documentElement.setAttribute('data-theme', next);
+        try { localStorage.setItem('asyrofotp_theme', next); } catch (e) {}
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', next === 'dark' ? '#0f172a' : '#2563eb');
+    });
 
     /* ===== Toggle mata password ===== */
     const EYE_OPEN = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
@@ -384,7 +596,7 @@
     }
     function hideAlert() { alertEl.classList.remove('show'); }
 
-    /* ===== Tunggu reCAPTCHA ready ===== */
+    /* ===== reCAPTCHA ===== */
     function waitForRecaptcha() {
         return new Promise((resolve) => {
             if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -421,7 +633,6 @@
 
         try {
             await waitForRecaptcha();
-
             if (!window.grecaptcha || !window.grecaptcha.execute) {
                 throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
             }
@@ -437,7 +648,10 @@
 
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
                 body: JSON.stringify({ username, password, recaptcha_token: recaptchaToken })
             });
 
