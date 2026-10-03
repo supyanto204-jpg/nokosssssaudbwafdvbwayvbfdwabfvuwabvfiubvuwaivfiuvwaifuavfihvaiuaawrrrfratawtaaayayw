@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v12)
+// ASYROFOTP - BACKEND API (FULL FIXED v13)
 // + Security headers (CSP, HSTS, X-Frame-Options, dll)
 // + CORS whitelist
 // + Trust proxy
@@ -9,6 +9,8 @@
 // + icon_code mapping (code asli tidak tertimpa)
 // + Handle INSUFFICIENT_BALANCE dari provider
 // + Pre-check saldo user + cache harga
+// + TELEGRAM NOTIF ke channel (OTP + Deposit)
+// + Backfill endpoint buat order lama
 // ============================================
 
 const express = require('express');
@@ -44,7 +46,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
-        "connect-src 'self' https://www.google.com https://dibanana.id https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com",
+        "connect-src 'self' https://www.google.com https://dibanana.id https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com https://api.telegram.org",
         "frame-src https://www.google.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
@@ -177,6 +179,17 @@ const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
 // ===== RECAPTCHA =====
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
 
+// ===== TELEGRAM NOTIF (BARU v13) =====
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID;
+const TELEGRAM_CHANNEL_OTP_ID = process.env.TELEGRAM_CHANNEL_OTP_ID || TELEGRAM_CHANNEL_ID;
+const TELEGRAM_CHANNEL_DEPOSIT_ID = process.env.TELEGRAM_CHANNEL_DEPOSIT_ID || TELEGRAM_CHANNEL_ID;
+
+if (!TELEGRAM_BOT_TOKEN) console.error('⚠️  TELEGRAM_BOT_TOKEN belum di-set!');
+if (!TELEGRAM_CHANNEL_ID) console.error('⚠️  TELEGRAM_CHANNEL_ID belum di-set!');
+
+const TELEGRAM_API = TELEGRAM_BOT_TOKEN ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}` : null;
+
 // ===== AUTO CONFIG =====
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
@@ -184,7 +197,7 @@ const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8000;
 
 // ===== QRIS DANA MANUAL =====
-const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953093605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
+const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
 // ============================================
 // ===== IN-MEMORY CACHE =====
@@ -499,6 +512,164 @@ async function getProviderBalance() {
 }
 
 // ============================================
+// ===== TELEGRAM NOTIF (BARU v13) =====
+// ============================================
+function escapeHtmlNotif(text) {
+    if (!text) return '';
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function censorPhoneNotif(phone) {
+    if (!phone || phone === 'Pending') return 'Pending';
+    let str = String(phone).replace(/^\++/, '+').replace(/\++/g, '+');
+    let cc = '', rest = str;
+
+    if (str.startsWith('+')) {
+        const m = str.match(/^\+(\d{1,3})/);
+        if (m) { cc = '+' + m[1]; rest = str.slice(cc.length); }
+    } else if (str.startsWith('0')) { cc = '0'; rest = str.slice(1); }
+    else if (str.startsWith('62')) { cc = '62'; rest = str.slice(2); }
+    else {
+        if (str.length <= 4) return str;
+        return '****' + str.slice(-4);
+    }
+
+    const d = rest.replace(/\s/g, '');
+    if (d.length <= 4) return cc + rest;
+    return cc + '*'.repeat(d.length - 4) + d.slice(-4);
+}
+
+function toRupiahNotif(n) {
+    if (isNaN(n) || n == null) n = 0;
+    return 'Rp ' + Number(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function formatWaktuJakarta() {
+    return new Date().toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+}
+
+async function telegramSendMessage(channelId, text, options = {}) {
+    if (!TELEGRAM_BOT_TOKEN || !channelId) {
+        throw new Error('Telegram notif belum dikonfigurasi');
+    }
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+
+    try {
+        const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                chat_id: channelId,
+                text,
+                parse_mode: 'HTML',
+                disable_web_page_preview: true,
+                ...options,
+            }),
+            signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.description || 'Telegram API error');
+        return data.result;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+/**
+ * Notif OTP sukses. Identifier pakai otp_id (internal), bukan order_id (provider).
+ * Guard: skip kalau order.notified_at udah ada isinya.
+ */
+async function notifyOtpSuccess(order) {
+    const channelId = TELEGRAM_CHANNEL_OTP_ID;
+    if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
+
+    // Guard: udah pernah di-notif
+    if (order.notified_at) {
+        return { sent: false, reason: 'ALREADY_NOTIFIED' };
+    }
+
+    const displayId = order.otp_id || order.order_id || '-';
+
+    const text =
+        `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
+        `<u>• Service:</u> <b>${escapeHtmlNotif(order.service_name || order.service || '-')}</b>\n` +
+        `<u>• Country:</u> <b>${escapeHtmlNotif(order.country_name || order.country || '-')}</b>\n` +
+        `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(order.phone_number))}</b>\n` +
+        `<u>• Kode:</u> <b>${escapeHtmlNotif(order.otp_code || '-')}</b>\n` +
+        (order.otp_code_2 ? `<u>• Kode 2:</u> <b>${escapeHtmlNotif(order.otp_code_2)}</b>\n` : '') +
+        `<u>• Harga:</u> <b>${toRupiahNotif(order.price)}</b>\n` +
+        `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
+
+    try {
+        const msg = await telegramSendMessage(channelId, text);
+
+        // Tandai udah dikirim (guard anti-dobel)
+        await pool.query(
+            `UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
+            [order.id]
+        ).catch(err => console.error('Update notified_at (otp) error:', err.message));
+
+        console.log(`✅ Notif OTP [${displayId}] sent, msg_id=${msg.message_id}`);
+        return { sent: true, message_id: msg.message_id };
+    } catch (err) {
+        console.error(`❌ Notif OTP [${displayId}] error:`, err.message);
+        return { sent: false, reason: 'SEND_ERROR', error: err.message };
+    }
+}
+
+/**
+ * Notif deposit sukses. Identifier pakai reference_id.
+ * Guard: skip kalau deposit.notified_at udah ada isinya.
+ */
+async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user) {
+    const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
+    if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
+
+    if (deposit.notified_at) {
+        return { sent: false, reason: 'ALREADY_NOTIFIED' };
+    }
+
+    const text =
+        `<b>💰 SUCCESSFUL DEPOSIT</b>\n` +
+        `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        `<u>• User:</u> <b>${escapeHtmlNotif(user?.username || user?.name || '-')}</b>\n` +
+        `<u>• User Code:</u> <code>${escapeHtmlNotif(user?.user_code || '-')}</code>\n` +
+        `<u>• Reference:</u> <code>${escapeHtmlNotif(deposit.reference_id)}</code>\n` +
+        `<u>• Method:</u> <b>${escapeHtmlNotif(deposit.method || '-')}</b>\n` +
+        `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
+        `<u>• Total Bayar:</u> <b>${toRupiahNotif(totalBayar)}</b>\n` +
+        `<u>• Fee:</u> <b>${toRupiahNotif(fee)}</b>\n` +
+        `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
+
+    try {
+        const msg = await telegramSendMessage(channelId, text);
+
+        await pool.query(
+            `UPDATE deposits SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
+            [deposit.id]
+        ).catch(err => console.error('Update notified_at (deposit) error:', err.message));
+
+        console.log(`✅ Notif deposit [${deposit.reference_id}] sent, msg_id=${msg.message_id}`);
+        return { sent: true, message_id: msg.message_id };
+    } catch (err) {
+        console.error(`❌ Notif deposit [${deposit.reference_id}] error:`, err.message);
+        return { sent: false, reason: 'SEND_ERROR', error: err.message };
+    }
+}
+
+// ============================================
 // ===== HELPERS =====
 // ============================================
 function isValidUsername(username) {
@@ -730,6 +901,7 @@ const SCHEMA = {
                 refund_reason TEXT,
                 revived_at TIMESTAMPTZ,
                 revived_count INTEGER DEFAULT 0,
+                notified_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 received_at TIMESTAMPTZ,
@@ -759,6 +931,7 @@ const SCHEMA = {
                 { name: 'refund_reason', def: 'TEXT' },
                 { name: 'revived_at', def: 'TIMESTAMPTZ' },
                 { name: 'revived_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'notified_at', def: 'TIMESTAMPTZ' },
                 { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'received_at', def: 'TIMESTAMPTZ' },
@@ -813,6 +986,7 @@ const SCHEMA = {
                 payment_reference TEXT,
                 paid_at TIMESTAMPTZ,
                 expires_at TIMESTAMPTZ,
+                notified_at TIMESTAMPTZ,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );`,
@@ -826,6 +1000,7 @@ const SCHEMA = {
                 { name: 'payment_reference', def: 'TEXT' },
                 { name: 'paid_at', def: 'TIMESTAMPTZ' },
                 { name: 'expires_at', def: 'TIMESTAMPTZ' },
+                { name: 'notified_at', def: 'TIMESTAMPTZ' },
             ],
         },
         {
@@ -860,11 +1035,13 @@ const SCHEMA = {
         'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
         'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
         'CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_notified ON orders(notified_at, status)',
         'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_notified ON deposits(notified_at, status)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)',
@@ -1051,6 +1228,10 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const paidTime = paidAt ? new Date(paidAt) : new Date();
 
     const client = await pool.connect();
+    let committed = false;
+    let userData = null;
+    let freshDeposit = null;
+
     try {
         await client.query('BEGIN');
 
@@ -1067,6 +1248,8 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
             await client.query('ROLLBACK');
             return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
         }
+
+        freshDeposit = updateRes.rows[0];
 
         await client.query(
             `UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2`,
@@ -1086,16 +1269,24 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
              JSON.stringify({ saldoMasuk, totalBayar, fee, method: deposit.method })]
         );
 
+        const userRes = await client.query(
+            'SELECT username, name, user_code FROM users WHERE id = $1',
+            [deposit.user_id]
+        );
+        userData = userRes.rows[0] || null;
+
         await client.query('COMMIT');
+        committed = true;
         console.log(`✅ Deposit ${deposit.reference_id} | +${saldoMasuk} | fee ${fee}`);
-        return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
     } catch (err) {
-        await client.query('ROLLBACK');
+        if (!committed) await client.query('ROLLBACK').catch(() => {});
         console.error('markDepositPaid error:', err.message);
         throw err;
     } finally {
         client.release();
     }
+
+    return { alreadyProcessed: false, saldoMasuk, totalBayar, fee, freshDeposit, userData };
 }
 
 // ============================================
@@ -1128,7 +1319,12 @@ async function syncDepositStatus(deposit) {
                 try {
                     const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                     if (data.data?.status === 'paid') {
-                        await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                        const result = await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                        // ===== NOTIF DEPOSIT =====
+                        if (!result.alreadyProcessed && result.freshDeposit) {
+                            notifyDepositSuccess(result.freshDeposit, result.saldoMasuk, result.totalBayar, result.fee, result.userData)
+                                .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                        }
                         const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                         return fresh.rows[0];
                     }
@@ -1158,7 +1354,12 @@ async function syncDepositStatus(deposit) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (data.data?.status === 'paid') {
-                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    const result = await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    // ===== NOTIF DEPOSIT =====
+                    if (!result.alreadyProcessed && result.freshDeposit) {
+                        notifyDepositSuccess(result.freshDeposit, result.saldoMasuk, result.totalBayar, result.fee, result.userData)
+                            .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                    }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return fresh.rows[0];
                 }
@@ -1357,6 +1558,10 @@ app.get('/api/health', withDB(async (req, res) => {
                 hasCronSecret: !!CRON_SECRET,
                 hasApiCdn: !!API_CDN,
                 hasRecaptcha: !!RECAPTCHA_SECRET,
+                hasTelegramToken: !!TELEGRAM_BOT_TOKEN,
+                hasTelegramChannel: !!TELEGRAM_CHANNEL_ID,
+                telegramChannelOtp: TELEGRAM_CHANNEL_OTP_ID || null,
+                telegramChannelDeposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null,
                 schemaEnsured,
                 poolTotal: pool.totalCount,
                 poolIdle: pool.idleCount,
@@ -1371,9 +1576,6 @@ app.get('/api/health', withDB(async (req, res) => {
 
 // ============================================
 // ===== AUTH =====
-// ============================================
-// ============================================
-// ===== CEK USERNAME KETERSEDIAAN =====
 // ============================================
 app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { username } = req.body;
@@ -1400,6 +1602,7 @@ app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { username, password, name, recaptcha_token } = req.body;
 
@@ -1773,7 +1976,11 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (data.data?.status === 'paid') {
-                    await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    const result2 = await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
+                    if (!result2.alreadyProcessed && result2.freshDeposit) {
+                        notifyDepositSuccess(result2.freshDeposit, result2.saldoMasuk, result2.totalBayar, result2.fee, result2.userData)
+                            .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                    }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.json({ message: 'Deposit sudah dibayar', deposit: fresh.rows[0] });
                 }
@@ -1821,7 +2028,11 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
             try {
                 const statusData = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (statusData.data?.status === 'paid') {
-                    await markDepositPaid(deposit, statusData.data.received_amount || statusData.data.amount, statusData.data.paid_at);
+                    const result2 = await markDepositPaid(deposit, statusData.data.received_amount || statusData.data.amount, statusData.data.paid_at);
+                    if (!result2.alreadyProcessed && result2.freshDeposit) {
+                        notifyDepositSuccess(result2.freshDeposit, result2.saldoMasuk, result2.totalBayar, result2.fee, result2.userData)
+                            .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                    }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.status(400).json({
                         error: 'Deposit sudah dibayar, tidak bisa dibatalkan',
@@ -1968,9 +2179,24 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
             if (result.rows.length === 0) return res.json({ status: 'ok', message: 'Deposit not found' });
 
             const deposit = result.rows[0];
-            const { alreadyProcessed } = await markDepositPaid(deposit, received_amount || amount, paid_at);
+            const markResult = await markDepositPaid(deposit, received_amount || amount, paid_at);
 
-            if (alreadyProcessed) return res.json({ status: 'ok', message: 'Already processed' });
+            if (markResult.alreadyProcessed) return res.json({ status: 'ok', message: 'Already processed' });
+
+            // ===== NOTIF KE TELEGRAM =====
+            if (markResult.freshDeposit) {
+                try {
+                    await notifyDepositSuccess(
+                        markResult.freshDeposit,
+                        markResult.saldoMasuk,
+                        markResult.totalBayar,
+                        markResult.fee,
+                        markResult.userData
+                    );
+                } catch (err) {
+                    console.error('❌ Notif deposit error:', err.message);
+                }
+            }
         }
 
         res.json({ status: 'ok' });
@@ -2146,6 +2372,18 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             });
         }
 
+        // ===== NOTIF KE TELEGRAM =====
+        if (otpCode) {
+            try {
+                const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                if (freshOrderRes.rows[0]) {
+                    await notifyOtpSuccess(freshOrderRes.rows[0]);
+                }
+            } catch (err) {
+                console.error('❌ Notif OTP error:', err.message);
+            }
+        }
+
         res.status(200).json({ status: 'ok', message: 'received', revived });
     } catch (err) {
         console.error('Webhook OTP1 error:', err.message);
@@ -2254,6 +2492,16 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
                 }
 
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+
+                // ===== NOTIF OTP kalau ada OTP baru =====
+                if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                    try {
+                        await notifyOtpSuccess(fresh.rows[0]);
+                    } catch (err) {
+                        console.error('❌ Notif OTP (cekotp) error:', err.message);
+                    }
+                }
+
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
                     status: fresh.rows[0].status, phone_number: fresh.rows[0].phone_number,
@@ -2484,6 +2732,18 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
                             expired++;
                         } else {
                             updated++;
+
+                            // ===== NOTIF OTP =====
+                            if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                                if (fresh.rows[0]) {
+                                    try {
+                                        await notifyOtpSuccess(fresh.rows[0]);
+                                    } catch (err) {
+                                        console.error('❌ Notif OTP (cron) error:', err.message);
+                                    }
+                                }
+                            }
                         }
                     } else {
                         await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
@@ -3012,6 +3272,18 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                     await refundOrder(fresh.rows[0], 'provider_' + data.status);
                 }
             }
+
+            // ===== NOTIF OTP =====
+            if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
+                if (fresh.rows[0]) {
+                    try {
+                        await notifyOtpSuccess(fresh.rows[0]);
+                    } catch (err) {
+                        console.error('❌ Notif OTP (check status) error:', err.message);
+                    }
+                }
+            }
         }
 
         const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
@@ -3341,6 +3613,15 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 
                         const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
                         if (fresh.rows[0]) updated.push(fresh.rows[0]);
+
+                        // ===== NOTIF OTP =====
+                        if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                            try {
+                                await notifyOtpSuccess(fresh.rows[0]);
+                            } catch (err) {
+                                console.error('❌ Notif OTP (sync batch) error:', err.message);
+                            }
+                        }
                     }
                 } catch (err) {
                     console.error(`Sync ${order.order_id}:`, err.message);
@@ -3460,7 +3741,6 @@ function getBalanceAdjustment(type, oldStatus, newStatus, amount) {
     return 0;
 }
 
-// FIX: parameter dipisah → $1 (entity_id/TEXT) & $2 (user_id/UUID), gak konflik tipe
 async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action, metadata }) {
     await executor.query(
         `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
@@ -4525,6 +4805,25 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
 
         await client.query('COMMIT');
 
+        // ===== NOTIF DEPOSIT (approve manual) =====
+        if (updated.rows[0]) {
+            try {
+                const userRes2 = await pool.query(
+                    'SELECT username, name, user_code FROM users WHERE id = $1',
+                    [deposit.user_id]
+                );
+                await notifyDepositSuccess(
+                    updated.rows[0],
+                    amount,
+                    Number(updated.rows[0].total_amount) || amount,
+                    Number(updated.rows[0].fee) || 0,
+                    userRes2.rows[0] || null
+                );
+            } catch (err) {
+                console.error('❌ Notif deposit (approve) error:', err.message);
+            }
+        }
+
         res.json({
             message: 'Deposit di-approve',
             deposit: updated.rows[0],
@@ -4595,6 +4894,292 @@ app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async
 }));
 
 // ============================================
+// ===== ADMIN — TEST NOTIF TELEGRAM (BARU v13) =====
+// ============================================
+app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { type = 'otp' } = req.body;
+
+    if (!['otp', 'deposit', 'stats'].includes(type)) {
+        return res.status(400).json({ error: 'type harus otp/deposit/stats' });
+    }
+
+    try {
+        // ===== STATS =====
+        if (type === 'stats') {
+            const [otpSentCount, otpPendingCount, depositSentCount, depositPendingCount, recentOtp, recentDeposit] = await Promise.all([
+                pool.query(`SELECT COUNT(*) FROM orders WHERE notified_at IS NOT NULL`),
+                pool.query(`SELECT COUNT(*) FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
+                pool.query(`SELECT COUNT(*) FROM deposits WHERE notified_at IS NOT NULL`),
+                pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
+                pool.query(`SELECT otp_id, order_id, notified_at FROM orders WHERE notified_at IS NOT NULL ORDER BY notified_at DESC LIMIT 5`),
+                pool.query(`SELECT reference_id, notified_at FROM deposits WHERE notified_at IS NOT NULL ORDER BY notified_at DESC LIMIT 5`),
+            ]);
+
+            return res.json({
+                otp: {
+                    sent: Number(otpSentCount.rows[0].count),
+                    pending_backfill: Number(otpPendingCount.rows[0].count),
+                    recent: recentOtp.rows,
+                },
+                deposit: {
+                    sent: Number(depositSentCount.rows[0].count),
+                    pending_backfill: Number(depositPendingCount.rows[0].count),
+                    recent: recentDeposit.rows,
+                },
+                configured: {
+                    bot_token: !!TELEGRAM_BOT_TOKEN,
+                    channel_id: TELEGRAM_CHANNEL_ID || null,
+                    channel_otp: TELEGRAM_CHANNEL_OTP_ID || null,
+                    channel_deposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null,
+                },
+            });
+        }
+
+        // ===== TEST OTP =====
+        if (type === 'otp') {
+            const fakeOrder = {
+                id: -1,        // dummy, biar update notified_at skip
+                otp_id: `TEST-OTP-${Date.now()}`,
+                order_id: `TEST_ORDER_${Date.now()}`,
+                service_name: 'WhatsApp (TEST)',
+                country_name: 'Indonesia',
+                phone_number: '+6281234567890',
+                otp_code: '123456',
+                otp_code_2: null,
+                price: 1500,
+                notified_at: null,
+            };
+
+            // Panggil langsung telegramSendMessage, biar gak nyentuh DB
+            const displayId = fakeOrder.otp_id;
+            const text =
+                `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
+                `<u>• Service:</u> <b>${escapeHtmlNotif(fakeOrder.service_name)}</b>\n` +
+                `<u>• Country:</u> <b>${escapeHtmlNotif(fakeOrder.country_name)}</b>\n` +
+                `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</b>\n` +
+                `<u>• Kode:</u> <b>${escapeHtmlNotif(fakeOrder.otp_code)}</b>\n` +
+                `<u>• Harga:</u> <b>${toRupiahNotif(fakeOrder.price)}</b>\n` +
+                `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>\n\n` +
+                `<i>Ini pesan test. Data tidak disimpan ke DB.</i>`;
+
+            const msg = await telegramSendMessage(TELEGRAM_CHANNEL_OTP_ID, text);
+            return res.json({ sent: true, message_id: msg.message_id, test_id: displayId });
+        }
+
+        // ===== TEST DEPOSIT =====
+        if (type === 'deposit') {
+            const fakeRef = `TEST-DEP-${Date.now()}`;
+            const text =
+                `<b>💰 [TEST] SUCCESSFUL DEPOSIT</b>\n` +
+                `━━━━━━━━━━━━━━━━━━━━━━\n` +
+                `<u>• User:</u> <b>testuser</b>\n` +
+                `<u>• User Code:</u> <code>SRF0000000001</code>\n` +
+                `<u>• Reference:</u> <code>${escapeHtmlNotif(fakeRef)}</code>\n` +
+                `<u>• Method:</u> <b>qrispy</b>\n` +
+                `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(10000)}</b>\n` +
+                `<u>• Total Bayar:</u> <b>${toRupiahNotif(10000)}</b>\n` +
+                `<u>• Fee:</u> <b>${toRupiahNotif(0)}</b>\n` +
+                `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>\n\n` +
+                `<i>Ini pesan test. Data tidak disimpan ke DB.</i>`;
+
+            const msg = await telegramSendMessage(TELEGRAM_CHANNEL_DEPOSIT_ID, text);
+            return res.json({ sent: true, message_id: msg.message_id, test_id: fakeRef });
+        }
+
+    } catch (err) {
+        console.error('test-notif error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — BACKFILL NOTIF (BARU v13) =====
+// ===== Kirim notif ke channel buat order/deposit lama yang belum pernah dikirim =====
+// ============================================
+app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const {
+        type = 'all',       // 'otp' | 'deposit' | 'all'
+        days = 30,          // range hari ke belakang
+        limit = 50,         // batch size per call
+        dry_run = false,    // kalau true, cuma hitung, gak kirim
+    } = req.body;
+
+    if (!['otp', 'deposit', 'all'].includes(type)) {
+        return res.status(400).json({ error: 'type harus otp/deposit/all' });
+    }
+
+    const dayNum = Math.min(365, Math.max(1, parseInt(days) || 30));
+    const limitNum = Math.min(200, Math.max(1, parseInt(limit) || 50));
+
+    const result = {
+        dry_run: !!dry_run,
+        range_days: dayNum,
+        limit: limitNum,
+        otp: { checked: 0, sent: 0, failed: 0, skipped: 0, remaining: 0 },
+        deposit: { checked: 0, sent: 0, failed: 0, skipped: 0, remaining: 0 },
+    };
+
+    try {
+        // ============ OTP BACKFILL ============
+        if (type === 'otp' || type === 'all') {
+            // Ambil order yang:
+            // - status received/success/confirmed
+            // - ada otp_code
+            // - notified_at IS NULL (belum pernah dikirim)
+            // - dalam range hari
+            const otpQuery = `
+                SELECT * FROM orders
+                WHERE status IN ('received', 'success', 'confirmed')
+                  AND otp_code IS NOT NULL
+                  AND TRIM(otp_code) <> ''
+                  AND notified_at IS NULL
+                  AND created_at > NOW() - INTERVAL '${dayNum} days'
+                ORDER BY created_at ASC
+                LIMIT $1
+            `;
+            const otpRes = await pool.query(otpQuery, [limitNum]);
+            result.otp.checked = otpRes.rows.length;
+
+            // Count remaining (setelah batch ini)
+            const remainingOtp = await pool.query(
+                `SELECT COUNT(*) FROM orders
+                 WHERE status IN ('received', 'success', 'confirmed')
+                   AND otp_code IS NOT NULL
+                   AND TRIM(otp_code) <> ''
+                   AND notified_at IS NULL
+                   AND created_at > NOW() - INTERVAL '${dayNum} days'`
+            );
+            result.otp.remaining = Math.max(0, Number(remainingOtp.rows[0].count) - otpRes.rows.length);
+
+            if (!dry_run) {
+                for (const order of otpRes.rows) {
+                    try {
+                        const r = await notifyOtpSuccess(order);
+                        if (r.sent) result.otp.sent++;
+                        else if (r.reason === 'ALREADY_NOTIFIED') result.otp.skipped++;
+                        else result.otp.failed++;
+                    } catch (err) {
+                        console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
+                        result.otp.failed++;
+                    }
+                    // Delay kecil biar gak kena rate limit Telegram (30 msg/detik)
+                    await new Promise(r => setTimeout(r, 50));
+                }
+            }
+        }
+
+        // ============ DEPOSIT BACKFILL ============
+        if (type === 'deposit' || type === 'all') {
+            const depQuery = `
+                SELECT * FROM deposits
+                WHERE status = 'success'
+                  AND notified_at IS NULL
+                  AND created_at > NOW() - INTERVAL '${dayNum} days'
+                ORDER BY created_at ASC
+                LIMIT $1
+            `;
+            const depRes = await pool.query(depQuery, [limitNum]);
+            result.deposit.checked = depRes.rows.length;
+
+            const remainingDep = await pool.query(
+                `SELECT COUNT(*) FROM deposits
+                 WHERE status = 'success'
+                   AND notified_at IS NULL
+                   AND created_at > NOW() - INTERVAL '${dayNum} days'`
+            );
+            result.deposit.remaining = Math.max(0, Number(remainingDep.rows[0].count) - depRes.rows.length);
+
+            if (!dry_run) {
+                for (const deposit of depRes.rows) {
+                    try {
+                        // Ambil user data buat caption
+                        const userRes = await pool.query(
+                            'SELECT username, name, user_code FROM users WHERE id = $1',
+                            [deposit.user_id]
+                        );
+
+                        const saldoMasuk = Number(deposit.amount) || 0;
+                        const totalBayar = Number(deposit.total_amount) || saldoMasuk;
+                        const fee = Number(deposit.fee) || 0;
+
+                        const r = await notifyDepositSuccess(
+                            deposit,
+                            saldoMasuk,
+                            totalBayar,
+                            fee,
+                            userRes.rows[0] || null
+                        );
+                        if (r.sent) result.deposit.sent++;
+                        else if (r.reason === 'ALREADY_NOTIFIED') result.deposit.skipped++;
+                        else result.deposit.failed++;
+                    } catch (err) {
+                        console.error(`Backfill deposit ${deposit.reference_id} error:`, err.message);
+                        result.deposit.failed++;
+                    }
+                    await new Promise(r => setTimeout(r, 50));
+                }
+            }
+        }
+
+        res.json({
+            message: dry_run ? 'Dry run selesai. Tidak ada notif yang dikirim.' : 'Backfill selesai',
+            ...result,
+        });
+
+    } catch (err) {
+        console.error('backfill-notifs error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+}));
+
+// ============================================
+// ===== ADMIN — RESET NOTIF STATUS (BARU v13) =====
+// ===== Buat test ulang: hapus notified_at dari order/deposit =====
+// ============================================
+app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { type, key } = req.body;
+
+    if (!['otp', 'deposit'].includes(type)) {
+        return res.status(400).json({ error: 'type harus otp/deposit' });
+    }
+    if (!key) {
+        return res.status(400).json({ error: 'key wajib (otp_id untuk OTP, reference_id untuk deposit)' });
+    }
+
+    try {
+        let result;
+        if (type === 'otp') {
+            result = await pool.query(
+                `UPDATE orders SET notified_at = NULL WHERE otp_id = $1 RETURNING id, otp_id, order_id`,
+                [String(key)]
+            );
+        } else {
+            result = await pool.query(
+                `UPDATE deposits SET notified_at = NULL WHERE reference_id = $1 RETURNING id, reference_id`,
+                [String(key)]
+            );
+        }
+
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: `${type} dengan key ${key} tidak ditemukan` });
+        }
+
+        res.json({
+            message: 'Notif status direset. Bisa dikirim ulang.',
+            type,
+            key,
+            affected: result.rowCount,
+            data: result.rows[0],
+        });
+    } catch (err) {
+        console.error('reset-notif error:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+}));
+
+// ============================================
 // ===== GLOBAL ERROR HANDLER + 404 =====
 // ============================================
 app.use((err, req, res, next) => {
@@ -4625,6 +5210,11 @@ app.use((req, res) => {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
         console.log('🚀 Server ready');
+        if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
+            console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
+        } else {
+            console.warn('⚠️  Telegram notif belum aktif (env belum di-set)');
+        }
     } catch (err) {
         console.error('❌ Startup warmup failed:', err.message);
     }
