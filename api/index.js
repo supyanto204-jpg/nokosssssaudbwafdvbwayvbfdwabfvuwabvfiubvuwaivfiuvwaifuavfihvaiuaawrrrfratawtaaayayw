@@ -5180,83 +5180,85 @@ app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (
 }));
 
 // ============================================
-// ===== ADMIN — WEBHOOK MONITOR (BARU) =====
+// ===== ADMIN — WEBHOOK MONITOR (v2 FIXED) =====
 // ============================================
 app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(async (req, res) => {
-    const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 1)); // max 7 hari
+    const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 1));
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
-    const type = String(req.query.type || 'all'); // 'otp' | 'deposit' | 'all'
-    const onlyNotified = req.query.only_notified; // '1' | '0' | undefined
-    const onlyUnnotified = req.query.only_unnotified; // '1' | '0' | undefined
+    const type = String(req.query.type || 'all');
+    const onlyNotified = req.query.only_notified === '1';
+    const onlyUnnotified = req.query.only_unnotified === '1';
 
     try {
-        let whereParts = [];
         const params = [];
+        const whereParts = [];
 
-        // Filter entity_type
+        // === Filter entity_type ===
         if (type === 'otp') {
-            whereParts.push(`entity_type = 'order'`);
+            whereParts.push(`sl.entity_type = 'order'`);
         } else if (type === 'deposit') {
-            whereParts.push(`entity_type = 'deposit'`);
+            whereParts.push(`sl.entity_type = 'deposit'`);
         } else {
-            whereParts.push(`entity_type IN ('order', 'deposit')`);
+            whereParts.push(`sl.entity_type IN ('order', 'deposit')`);
         }
 
-        // Filter waktu
+        // === Filter waktu (make_interval lebih aman dari interval * param) ===
         params.push(hours);
-        whereParts.push(`created_at > NOW() - INTERVAL '1 hour' * $${params.length}`);
+        whereParts.push(`sl.created_at > NOW() - make_interval(hours => $${params.length}::int)`);
 
-        // Filter reason (cuma yang berkaitan webhook / OTP / payment)
+        // === Filter reason / status yang relevan ===
         whereParts.push(`(
-            (entity_type = 'order' AND (
-                new_status IN ('received', 'success', 'confirmed', 'refunded', 'cancelled', 'expired', 'failed')
-                OR reason LIKE 'webhook%'
-                OR reason LIKE 'polling%'
-                OR reason LIKE 'cron_validate%'
-                OR reason LIKE 'sync_batch%'
-                OR reason LIKE 'check_status%'
-                OR reason LIKE 'provider_%'
+            (sl.entity_type = 'order' AND (
+                sl.new_status IN ('received', 'success', 'confirmed', 'refunded', 'cancelled', 'expired', 'failed')
+                OR sl.reason LIKE 'webhook%'
+                OR sl.reason LIKE 'polling%'
+                OR sl.reason LIKE 'cron_validate%'
+                OR sl.reason LIKE 'sync_batch%'
+                OR sl.reason LIKE 'check_status%'
+                OR sl.reason LIKE 'provider_%'
             ))
             OR
-            (entity_type = 'deposit' AND (
-                new_status IN ('success', 'expired', 'cancelled', 'failed')
-                OR reason LIKE '%payment%'
-                OR reason LIKE 'expired_%'
-                OR reason LIKE 'manual_%'
+            (sl.entity_type = 'deposit' AND (
+                sl.new_status IN ('success', 'expired', 'cancelled', 'failed')
+                OR sl.reason LIKE '%payment%'
+                OR sl.reason LIKE 'expired_%'
+                OR sl.reason LIKE 'manual_%'
             ))
         )`);
 
-        // Filter notified
-        if (onlyNotified === '1') {
-            whereParts.push(`
-                (
-                    (entity_type = 'order' AND EXISTS (
-                        SELECT 1 FROM orders o2 WHERE o2.order_id = status_logs.entity_id AND o2.notified_at IS NOT NULL
-                    ))
-                    OR
-                    (entity_type = 'deposit' AND EXISTS (
-                        SELECT 1 FROM deposits d2 WHERE d2.reference_id = status_logs.entity_id AND d2.notified_at IS NOT NULL
-                    ))
-                )
-            `);
-        } else if (onlyUnnotified === '1') {
-            whereParts.push(`
-                (
-                    (entity_type = 'order' AND EXISTS (
-                        SELECT 1 FROM orders o2 WHERE o2.order_id = status_logs.entity_id AND o2.notified_at IS NULL AND o2.otp_code IS NOT NULL
-                    ))
-                    OR
-                    (entity_type = 'deposit' AND EXISTS (
-                        SELECT 1 FROM deposits d2 WHERE d2.reference_id = status_logs.entity_id AND d2.notified_at IS NULL AND d2.status = 'success'
-                    ))
-                )
-            `);
+        // === Filter notified / unnotified pakai scalar subquery ===
+        if (onlyNotified) {
+            whereParts.push(`(
+                (sl.entity_type = 'order' AND (
+                    SELECT o2.notified_at FROM orders o2
+                    WHERE o2.order_id = sl.entity_id LIMIT 1
+                ) IS NOT NULL)
+                OR
+                (sl.entity_type = 'deposit' AND (
+                    SELECT d2.notified_at FROM deposits d2
+                    WHERE d2.reference_id = sl.entity_id LIMIT 1
+                ) IS NOT NULL)
+            )`);
+        } else if (onlyUnnotified) {
+            whereParts.push(`(
+                (sl.entity_type = 'order' AND (
+                    SELECT o2.notified_at FROM orders o2
+                    WHERE o2.order_id = sl.entity_id
+                      AND o2.otp_code IS NOT NULL
+                      AND TRIM(o2.otp_code) <> '' LIMIT 1
+                ) IS NULL)
+                OR
+                (sl.entity_type = 'deposit' AND (
+                    SELECT d2.notified_at FROM deposits d2
+                    WHERE d2.reference_id = sl.entity_id
+                      AND d2.status = 'success' LIMIT 1
+                ) IS NULL)
+            )`);
         }
 
-        const whereClause = whereParts.join(' AND ');
         params.push(limit);
+        const limitPlaceholder = `$${params.length}`;
 
-        // Query log + join ke tabel terkait buat dapet info lengkap
         const query = `
             SELECT 
                 sl.id, sl.entity_type, sl.entity_id, sl.user_id,
@@ -5277,32 +5279,32 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
             LEFT JOIN users u ON u.id = sl.user_id
             LEFT JOIN orders o ON sl.entity_type = 'order' AND o.order_id = sl.entity_id
             LEFT JOIN deposits d ON sl.entity_type = 'deposit' AND d.reference_id = sl.entity_id
-            WHERE ${whereClause}
+            WHERE ${whereParts.join(' AND ')}
             ORDER BY sl.created_at DESC
-            LIMIT $${params.length}
+            LIMIT ${limitPlaceholder}
         `;
 
         const result = await pool.query(query, params);
 
-        // Stats per jam (histogram)
-        const statsParams = [hours];
+        // === Histogram per jam (WIB) ===
         const statsQuery = `
             SELECT 
-                DATE_TRUNC('hour', created_at) AS hour_bucket,
+                DATE_TRUNC('hour', created_at AT TIME ZONE 'Asia/Jakarta') AS hour_bucket,
                 entity_type,
                 new_status,
-                COUNT(*) AS count
+                COUNT(*)::int AS count
             FROM status_logs
             WHERE entity_type IN ('order', 'deposit')
-              AND created_at > NOW() - INTERVAL '1 hour' * $1
+              AND created_at > NOW() - make_interval(hours => $1::int)
               AND (
                 (entity_type = 'order' AND new_status IN ('received', 'success', 'confirmed'))
                 OR (entity_type = 'deposit' AND new_status = 'success')
               )
             GROUP BY hour_bucket, entity_type, new_status
             ORDER BY hour_bucket DESC
+            LIMIT 100
         `;
-        const statsRes = await pool.query(statsQuery, statsParams);
+        const statsRes = await pool.query(statsQuery, [hours]);
 
         res.json({
             hours,
@@ -5315,11 +5317,11 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
                 old_status: r.old_status,
                 new_status: r.new_status,
                 reason: r.reason,
-                metadata: r.metadata,
+                metadata: r.metadata || null,
                 created_at: r.created_at,
                 user: {
-                    username: r.username,
-                    user_code: r.user_code,
+                    username: r.username || null,
+                    user_code: r.user_code || null,
                 },
                 order: r.entity_type === 'order' ? {
                     otp_id: r.order_otp_id,
@@ -5345,7 +5347,11 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
         });
     } catch (err) {
         console.error('Webhook monitor error:', err.message);
-        res.status(500).json({ error: 'Server error' });
+        console.error('Stack:', err.stack);
+        res.status(500).json({
+            error: 'Server error',
+            detail: err.message, // biar keliatan error aslinya, hapus kalau udah stabil
+        });
     }
 }));
 
@@ -5510,7 +5516,7 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
         return res.status(400).json({ error: 'ids wajib array dan tidak boleh kosong' });
     }
 
-    const limitedIds = ids.slice(0, 20); // max 20 per call
+    const limitedIds = ids.slice(0, 20);
     const results = [];
 
     for (const id of limitedIds) {
