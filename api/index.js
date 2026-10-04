@@ -1,16 +1,6 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL FIXED v13)
-// + Security headers (CSP, HSTS, X-Frame-Options, dll)
-// + CORS whitelist
-// + Trust proxy
-// + Log sanitization
-// + Error handler aman (no stack trace leak)
-// + No UUID leak
-// + icon_code mapping (code asli tidak tertimpa)
-// + Handle INSUFFICIENT_BALANCE dari provider
-// + Pre-check saldo user + cache harga
-// + TELEGRAM NOTIF ke channel (OTP + Deposit)
-// + Backfill endpoint buat order lama
+// ASYROFOTP - BACKEND API (FULL v14)
+// PART 1/6: Header, Config, Security, Helpers
 // ============================================
 
 const express = require('express');
@@ -21,11 +11,9 @@ const crypto = require('crypto');
 
 const app = express();
 
-// ===== PERFORMANCE: Disable etag & x-powered-by =====
+// ===== PERFORMANCE =====
 app.disable('x-powered-by');
 app.set('etag', false);
-
-// ===== TRUST PROXY (Vercel/Cloudflare) =====
 app.set('trust proxy', 1);
 
 // ===== SECURITY HEADERS =====
@@ -39,7 +27,6 @@ app.use((req, res, next) => {
     res.setHeader('X-DNS-Prefetch-Control', 'off');
     res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
     res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
-
     res.setHeader('Content-Security-Policy', [
         "default-src 'self'",
         "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com",
@@ -54,7 +41,6 @@ app.use((req, res, next) => {
         "object-src 'none'",
         "upgrade-insecure-requests",
     ].join('; '));
-
     next();
 });
 
@@ -76,7 +62,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret, x-encrypt');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -84,21 +70,14 @@ app.use((req, res, next) => {
 
 // ===== BODY PARSER =====
 app.use(express.json({
-    verify: (req, res, buf) => {
-        req.rawBody = buf.toString('utf8');
-    },
-    limit: '256kb'
+    verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); },
+    limit: '512kb'
 }));
-app.use(express.urlencoded({ extended: true, limit: '256kb' }));
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
-// Handle JSON parse error biar gak bocorin path server
 app.use((err, req, res, next) => {
-    if (err && err.type === 'entity.parse.failed') {
-        return res.status(400).json({ error: 'Request body tidak valid' });
-    }
-    if (err && err.type === 'entity.too.large') {
-        return res.status(413).json({ error: 'Request body terlalu besar' });
-    }
+    if (err && err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Request body tidak valid' });
+    if (err && err.type === 'entity.too.large') return res.status(413).json({ error: 'Request body terlalu besar' });
     next(err);
 });
 
@@ -106,50 +85,58 @@ app.use((err, req, res, next) => {
 function safeLogBody(body) {
     if (!body || typeof body !== 'object') return body;
     const safe = { ...body };
-    const SENSITIVE = ['password', 'password_hash', 'current_password', 'new_password',
-        'token', 'access_token', 'recaptcha_token', 'g-recaptcha-response',
-        'secret', 'jti', 'api_key', 'apikey', 'authorization'];
+    const SENSITIVE = [
+        'password', 'password_hash', 'current_password', 'new_password',
+        'token', 'access_token', 'refresh_token', 'recaptcha_token',
+        'g-recaptcha-response', 'secret', 'jti', 'api_key', 'apikey',
+        'authorization', 'x-refresh-token', 'qris_string'
+    ];
     for (const key of Object.keys(safe)) {
         if (SENSITIVE.includes(key.toLowerCase())) safe[key] = '[REDACTED]';
     }
     return safe;
 }
 
+// ===== RESPONSE SANITIZER (anti-leak) =====
+function sanitizeOrderForUser(order) {
+    if (!order) return order;
+    const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = order;
+    return { ...rest, otp_id: rest.otp_id || null };
+}
+
+function sanitizeDepositForUser(dep) {
+    if (!dep) return dep;
+    const { user_id, payment_reference, notified_at, qris_string, ...rest } = dep;
+    return rest;
+}
+
 // ===== DATABASE =====
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 20,
+    max: 25,
     min: 2,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    statement_timeout: 10000,
-    query_timeout: 10000,
+    statement_timeout: 15000,
+    query_timeout: 15000,
     keepAlive: true,
 });
 
-pool.on('error', (err) => {
-    console.error('Unexpected pool error:', err.message);
-});
+pool.on('error', (err) => { console.error('Unexpected pool error:', err.message); });
 
-// ===== JWT =====
+// ===== ENV =====
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    console.error('⚠️  JWT_SECRET belum di-set!');
-}
+if (!JWT_SECRET) console.error('⚠️  JWT_SECRET belum di-set!');
 const JWT_SECRET_FINAL = JWT_SECRET || 'asyrofotp-secret-ganti-di-env';
-const JWT_EXPIRES = '7d';
+const JWT_EXPIRES = '30m';
+const REFRESH_EXPIRES_DAYS = 30;
+const SESSION_MAX_AGE_MS = REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
 
-// ===== CRON SECRET =====
 const CRON_SECRET = process.env.CRON_SECRET;
-if (!CRON_SECRET) {
-    console.error('⚠️  CRON_SECRET belum di-set!');
-}
+if (!CRON_SECRET) console.error('⚠️  CRON_SECRET belum di-set!');
 
-// ===== REST COUNTRIES API =====
 const API_CDN = process.env.API_CDN;
-
-// ===== DIBANANA =====
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
 const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
@@ -169,25 +156,17 @@ const COUNTRY_NAMES = {
     uk: 'United Kingdom', de: 'Germany', fr: 'France', br: 'Brazil', ng: 'Nigeria',
 };
 
-// ===== QRISPY =====
 const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
-
-// ===== WEBHOOK OTP =====
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
-
-// ===== RECAPTCHA =====
 const RECAPTCHA_SECRET = process.env.RECAPTCHA_SECRET_KEY;
 
-// ===== TELEGRAM NOTIF (BARU v13) =====
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID;
 const TELEGRAM_CHANNEL_OTP_ID = process.env.TELEGRAM_CHANNEL_OTP_ID || TELEGRAM_CHANNEL_ID;
 const TELEGRAM_CHANNEL_DEPOSIT_ID = process.env.TELEGRAM_CHANNEL_DEPOSIT_ID || TELEGRAM_CHANNEL_ID;
-
 if (!TELEGRAM_BOT_TOKEN) console.error('⚠️  TELEGRAM_BOT_TOKEN belum di-set!');
 if (!TELEGRAM_CHANNEL_ID) console.error('⚠️  TELEGRAM_CHANNEL_ID belum di-set!');
-
 const TELEGRAM_API = TELEGRAM_BOT_TOKEN ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}` : null;
 
 // ===== AUTO CONFIG =====
@@ -195,51 +174,39 @@ const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
 const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8000;
+const SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
-// ===== QRIS DANA MANUAL =====
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
 // ============================================
 // ===== IN-MEMORY CACHE =====
 // ============================================
 const cache = new Map();
-
 function cacheGet(key) {
     const item = cache.get(key);
     if (!item) return null;
     if (Date.now() > item.expiresAt) { cache.delete(key); return null; }
     return item.value;
 }
-
-function cacheSet(key, value, ttlMs) {
-    cache.set(key, { value, expiresAt: Date.now() + ttlMs });
-}
-
-function cacheDelPattern(prefix) {
-    for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k);
-}
+function cacheSet(key, value, ttlMs) { cache.set(key, { value, expiresAt: Date.now() + ttlMs }); }
+function cacheDelPattern(prefix) { for (const k of cache.keys()) if (k.startsWith(prefix)) cache.delete(k); }
 
 setInterval(() => {
     const now = Date.now();
-    for (const [k, v] of cache.entries()) {
-        if (now > v.expiresAt) cache.delete(k);
-    }
+    for (const [k, v] of cache.entries()) if (now > v.expiresAt) cache.delete(k);
 }, 5 * 60 * 1000);
 
 // ============================================
 // ===== SERVICE NAME → ICON CODE MAPPING =====
 // ============================================
 function normalizeServiceName(name) {
-    return String(name || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '');
+    return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
 async function getServiceCodeMap() {
     const cacheKey = 'service_code_map_ekonomi';
     const cached = cacheGet(cacheKey);
     if (cached) return cached;
-
     try {
         const data = await dibananaFetch('/services?server=ekonomi');
         const services = data.services || [];
@@ -264,25 +231,14 @@ async function getServiceCodeMap() {
 
 async function enrichServicesWithCode(services, server) {
     if (!services || services.length === 0) return services;
-
     if (server === 'ekonomi') {
-        return services.map(s => ({
-            ...s,
-            icon_code: s.code || null,
-        }));
+        return services.map(s => ({ ...s, icon_code: s.code || null }));
     }
-
     const codeMap = await getServiceCodeMap();
-
     return services.map(s => {
         const normName = normalizeServiceName(s.name);
         const mappedIconCode = codeMap[normName] || null;
-
-        return {
-            ...s,
-            code: s.code,
-            icon_code: mappedIconCode,
-        };
+        return { ...s, code: s.code, icon_code: mappedIconCode };
     });
 }
 
@@ -319,20 +275,15 @@ const SERVERS_LIST = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
 // ===== RATE LIMITER =====
 // ============================================
 const rateLimitStore = new Map();
-function rateLimit(maxRequests, windowMs) {
+
+function rateLimit(maxRequests, windowMs, keyFn) {
     return (req, res, next) => {
-        const key = req.ip + ':' + req.path;
+        const key = (keyFn ? keyFn(req) : req.ip) + ':' + req.path;
         const now = Date.now();
         const record = rateLimitStore.get(key) || { count: 0, resetAt: now + windowMs };
-
-        if (now > record.resetAt) {
-            record.count = 0;
-            record.resetAt = now + windowMs;
-        }
-
+        if (now > record.resetAt) { record.count = 0; record.resetAt = now + windowMs; }
         record.count++;
         rateLimitStore.set(key, record);
-
         if (record.count > maxRequests) {
             return res.status(429).json({ error: 'Terlalu banyak percobaan. Coba lagi nanti.' });
         }
@@ -340,11 +291,16 @@ function rateLimit(maxRequests, windowMs) {
     };
 }
 
+function userRateLimit(maxRequests, windowMs) {
+    return (req, res, next) => {
+        if (!req.user || !req.user.id) return next();
+        return rateLimit(maxRequests, windowMs, (r) => 'u:' + r.user.id)(req, res, next);
+    };
+}
+
 setInterval(() => {
     const now = Date.now();
-    for (const [key, record] of rateLimitStore.entries()) {
-        if (now > record.resetAt) rateLimitStore.delete(key);
-    }
+    for (const [key, record] of rateLimitStore.entries()) if (now > record.resetAt) rateLimitStore.delete(key);
 }, 5 * 60 * 1000);
 
 // ============================================
@@ -385,24 +341,16 @@ function buildTLV(tlvArray) {
 function toDynamicQRIS(staticQRIS, amount) {
     if (!staticQRIS || typeof staticQRIS !== 'string') throw new Error('QRIS string tidak valid');
     if (!amount || amount <= 0) throw new Error('Nominal harus lebih dari 0');
-
     let payload = staticQRIS;
     const crcIndex = payload.lastIndexOf('6304');
     if (crcIndex === -1) throw new Error('QRIS tidak punya tag CRC (63)');
     payload = payload.substring(0, crcIndex);
-
     let tlv = parseTLV(payload);
-
     const tag01 = tlv.find(t => t.tag === '01');
     if (tag01) tag01.value = '12';
-    else {
-        const idx00 = tlv.findIndex(t => t.tag === '00');
-        tlv.splice(idx00 + 1, 0, { tag: '01', value: '12' });
-    }
-
+    else { const idx00 = tlv.findIndex(t => t.tag === '00'); tlv.splice(idx00 + 1, 0, { tag: '01', value: '12' }); }
     tlv = tlv.filter(t => t.tag !== '54');
     const tag54 = { tag: '54', value: amount.toString() };
-
     const idx58 = tlv.findIndex(t => t.tag === '58');
     if (idx58 !== -1) tlv.splice(idx58, 0, tag54);
     else {
@@ -410,7 +358,6 @@ function toDynamicQRIS(staticQRIS, amount) {
         if (idx59 !== -1) tlv.splice(idx59, 0, tag54);
         else tlv.push(tag54);
     }
-
     const rebuilt = buildTLV(tlv);
     const withCRCHeader = rebuilt + '6304';
     return withCRCHeader + crc16(withCRCHeader);
@@ -421,52 +368,33 @@ function toDynamicQRIS(staticQRIS, amount) {
 // ============================================
 async function qrispyFetch(endpoint, options = {}) {
     const fullUrl = `${QRISPY_BASE}${endpoint}`;
-    console.log('🌐 QRISPY:', fullUrl.split('?')[0]);
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-
     try {
         const res = await fetch(fullUrl, {
             ...options,
             signal: controller.signal,
-            headers: {
-                'Content-Type': 'application/json',
-                ...(options.headers || {}),
-            },
+            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
         });
-
         const text = await res.text();
-
         let data;
-        try {
-            data = JSON.parse(text);
-        } catch (e) {
+        try { data = JSON.parse(text); }
+        catch (e) {
             const err = new Error(`QRISPY error ${res.status}: response bukan JSON`);
-            err.status = res.status;
-            err.raw = text.substring(0, 500);
-            throw err;
+            err.status = res.status; err.raw = text.substring(0, 500); throw err;
         }
-
         if (!res.ok || data.status === 'error') {
             const err = new Error(data.message || 'QRISPY error');
-            err.status = res.status;
-            err.data = data;
-            throw err;
+            err.status = res.status; err.data = data; throw err;
         }
-
         return data;
-    } finally {
-        clearTimeout(timeout);
-    }
+    } finally { clearTimeout(timeout); }
 }
 
 async function dibananaFetch(endpoint, options = {}) {
     if (!DIBANANA_API_KEY) throw new Error('API_SERVER_EKONOMI belum di-set');
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-
     try {
         const res = await fetch(`${DIBANANA_BASE}${endpoint}`, {
             ...options,
@@ -477,28 +405,15 @@ async function dibananaFetch(endpoint, options = {}) {
                 ...(options.headers || {}),
             },
         });
-
         let data;
-        try {
-            data = await res.json();
-        } catch (e) {
-            const err = new Error(`Provider error: ${res.status}`);
-            err.status = res.status;
-            throw err;
-        }
-
+        try { data = await res.json(); }
+        catch (e) { const err = new Error(`Provider error: ${res.status}`); err.status = res.status; throw err; }
         if (!res.ok || data.ok === false) {
             const err = new Error(data.message || data.error || 'Provider error');
-            err.status = res.status;
-            err.code = data.error;
-            err.data = data;
-            throw err;
+            err.status = res.status; err.code = data.error; err.data = data; throw err;
         }
-
         return data;
-    } finally {
-        clearTimeout(timeout);
-    }
+    } finally { clearTimeout(timeout); }
 }
 
 async function getProviderBalance() {
@@ -512,7 +427,11 @@ async function getProviderBalance() {
 }
 
 // ============================================
-// ===== TELEGRAM NOTIF (BARU v13) =====
+// PART 2/6: Telegram Notif, Helpers, Recaptcha, Sessions
+// ============================================
+
+// ============================================
+// ===== TELEGRAM NOTIF HELPERS =====
 // ============================================
 function escapeHtmlNotif(text) {
     if (!text) return '';
@@ -593,7 +512,6 @@ async function notifyOtpSuccess(order) {
     const channelId = TELEGRAM_CHANNEL_OTP_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
 
-    // Guard: udah pernah di-notif
     if (order.notified_at) {
         return { sent: false, reason: 'ALREADY_NOTIFIED' };
     }
@@ -615,7 +533,6 @@ async function notifyOtpSuccess(order) {
     try {
         const msg = await telegramSendMessage(channelId, text);
 
-        // Tandai udah dikirim (guard anti-dobel)
         await pool.query(
             `UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
             [order.id]
@@ -670,7 +587,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
 }
 
 // ============================================
-// ===== HELPERS =====
+// ===== GENERAL HELPERS =====
 // ============================================
 function isValidUsername(username) {
     return /^[a-zA-Z0-9_]{3,20}$/.test(username);
@@ -845,8 +762,52 @@ async function blacklistToken(jti, expiresAt) {
 }
 
 // ============================================
-// ===== SCHEMA =====
+// ===== SESSION HELPERS (v14) =====
 // ============================================
+function hashRefreshToken(token) {
+    return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+async function createSession({ userId, device, userAgent, ipAddress }) {
+    const rawRefresh = crypto.randomBytes(48).toString('hex');
+    const refreshHash = hashRefreshToken(rawRefresh);
+    const jti = crypto.randomBytes(16).toString('hex');
+    const expiresAt = new Date(Date.now() + SESSION_MAX_AGE_MS);
+
+    await pool.query(
+        `INSERT INTO sessions (user_id, refresh_token_hash, jti, device, user_agent, ip_address, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [userId, refreshHash, jti, device || null, userAgent || null, ipAddress || null, expiresAt]
+    );
+
+    return { rawRefresh, jti, expiresAt };
+}
+
+async function findActiveSessionByRefresh(rawRefresh) {
+    const refreshHash = hashRefreshToken(rawRefresh);
+    const result = await pool.query(
+        `SELECT * FROM sessions WHERE refresh_token_hash = $1 AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1`,
+        [refreshHash]
+    );
+    return result.rows[0] || null;
+}
+
+async function revokeSession(sessionId) {
+    await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE id = $1`, [sessionId]);
+}
+
+async function revokeAllUserSessions(userId, exceptSessionId = null) {
+    if (exceptSessionId) {
+        await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1 AND id <> $2`, [userId, exceptSessionId]);
+    } else {
+        await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1`, [userId]);
+    }
+}
+
+// ============================================
+// PART 3/6: SCHEMA, ensureSchema, withDB, Middleware Auth
+// ============================================
+
 const SCHEMA = {
     tables: [
         {
@@ -860,6 +821,9 @@ const SCHEMA = {
                 role TEXT DEFAULT 'user',
                 status TEXT DEFAULT 'active',
                 user_code TEXT,
+                last_login_at TIMESTAMPTZ,
+                last_login_ip TEXT,
+                last_device TEXT,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );`,
@@ -869,8 +833,34 @@ const SCHEMA = {
                 { name: 'status', def: "TEXT DEFAULT 'active'" },
                 { name: 'name', def: 'TEXT' },
                 { name: 'balance', def: 'BIGINT DEFAULT 0' },
+                { name: 'last_login_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_login_ip', def: 'TEXT' },
+                { name: 'last_device', def: 'TEXT' },
                 { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+            ],
+        },
+        {
+            name: 'sessions',
+            create: `CREATE TABLE IF NOT EXISTS sessions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                refresh_token_hash TEXT UNIQUE NOT NULL,
+                jti TEXT NOT NULL,
+                device TEXT,
+                user_agent TEXT,
+                ip_address TEXT,
+                expires_at TIMESTAMPTZ NOT NULL,
+                revoked_at TIMESTAMPTZ,
+                last_used_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'device', def: 'TEXT' },
+                { name: 'user_agent', def: 'TEXT' },
+                { name: 'ip_address', def: 'TEXT' },
+                { name: 'revoked_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_used_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
             ],
         },
         {
@@ -902,6 +892,8 @@ const SCHEMA = {
                 revived_at TIMESTAMPTZ,
                 revived_count INTEGER DEFAULT 0,
                 notified_at TIMESTAMPTZ,
+                last_synced_at TIMESTAMPTZ,
+                sync_attempt_count INTEGER DEFAULT 0,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW(),
                 received_at TIMESTAMPTZ,
@@ -932,6 +924,8 @@ const SCHEMA = {
                 { name: 'revived_at', def: 'TIMESTAMPTZ' },
                 { name: 'revived_count', def: 'INTEGER DEFAULT 0' },
                 { name: 'notified_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
+                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
                 { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
                 { name: 'received_at', def: 'TIMESTAMPTZ' },
@@ -987,6 +981,8 @@ const SCHEMA = {
                 paid_at TIMESTAMPTZ,
                 expires_at TIMESTAMPTZ,
                 notified_at TIMESTAMPTZ,
+                last_synced_at TIMESTAMPTZ,
+                sync_attempt_count INTEGER DEFAULT 0,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );`,
@@ -1001,6 +997,8 @@ const SCHEMA = {
                 { name: 'paid_at', def: 'TIMESTAMPTZ' },
                 { name: 'expires_at', def: 'TIMESTAMPTZ' },
                 { name: 'notified_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
+                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
             ],
         },
         {
@@ -1027,6 +1025,36 @@ const SCHEMA = {
             );`,
             columns: [],
         },
+        {
+            name: 'webhook_events',
+            create: `CREATE TABLE IF NOT EXISTS webhook_events (
+                id SERIAL PRIMARY KEY,
+                source TEXT NOT NULL,
+                event_type TEXT,
+                signature_valid BOOLEAN DEFAULT FALSE,
+                ip_address TEXT,
+                user_agent TEXT,
+                payload JSONB,
+                raw_body TEXT,
+                processed BOOLEAN DEFAULT FALSE,
+                process_note TEXT,
+                related_entity_type TEXT,
+                related_entity_id TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'event_type', def: 'TEXT' },
+                { name: 'signature_valid', def: 'BOOLEAN DEFAULT FALSE' },
+                { name: 'ip_address', def: 'TEXT' },
+                { name: 'user_agent', def: 'TEXT' },
+                { name: 'payload', def: 'JSONB' },
+                { name: 'raw_body', def: 'TEXT' },
+                { name: 'processed', def: 'BOOLEAN DEFAULT FALSE' },
+                { name: 'process_note', def: 'TEXT' },
+                { name: 'related_entity_type', def: 'TEXT' },
+                { name: 'related_entity_id', def: 'TEXT' },
+            ],
+        },
     ],
     indexes: [
         'CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC)',
@@ -1036,20 +1064,30 @@ const SCHEMA = {
         'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
         'CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_orders_notified ON orders(notified_at, status)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_pending_sync ON orders(status, last_synced_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
         'CREATE INDEX IF NOT EXISTS idx_deposits_notified ON deposits(notified_at, status)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_pending_sync ON deposits(status, last_synced_at)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_created ON status_logs(created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_admin ON status_logs(entity_type, created_at DESC)',
         'CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_refresh ON sessions(refresh_token_hash)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(user_id, revoked_at, expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_webhook_events_source ON webhook_events(source, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_webhook_events_entity ON webhook_events(related_entity_type, related_entity_id)',
     ],
 };
 
 // ============================================
-// ===== ENSURE SCHEMA =====
+// ===== ENSURE SCHEMA (v14) =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -1061,7 +1099,7 @@ async function ensureSchema() {
     schemaPromise = (async () => {
         const start = Date.now();
         try {
-            console.log('🔧 Ensuring schema...');
+            console.log('🔧 Ensuring schema v14...');
 
             await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
                 if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
@@ -1147,8 +1185,31 @@ async function ensureSchema() {
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`).catch(() => {});
             await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`).catch(() => {});
 
+            // ===== AUTO-FIX BUG LAMA =====
+            await pool.query(`
+                UPDATE orders SET status = 'expired', updated_at = NOW()
+                WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() - INTERVAL '5 minutes'
+            `).catch(err => console.error('Auto-fix expired orders:', err.message));
+
+            await pool.query(`
+                UPDATE orders SET status = 'failed', updated_at = NOW()
+                WHERE status = 'received' AND (otp_code IS NULL OR TRIM(otp_code) = '')
+            `).catch(err => console.error('Auto-fix received no otp:', err.message));
+
+            await pool.query(`
+                UPDATE deposits SET status = 'expired', updated_at = NOW()
+                WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW() - INTERVAL '5 minutes'
+            `).catch(err => console.error('Auto-fix expired deposits:', err.message));
+
+            await pool.query(`
+                UPDATE orders SET notified_at = NULL
+                WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL
+                  AND notified_at IS NOT NULL
+                  AND notified_at < NOW() - INTERVAL '7 days'
+            `).catch(() => {});
+
             schemaEnsured = true;
-            console.log(`✅ Schema ensured in ${Date.now() - start}ms`);
+            console.log(`✅ Schema v14 ensured in ${Date.now() - start}ms`);
         } catch (err) {
             console.error('❌ Ensure schema failed:', err.message);
             schemaPromise = null;
@@ -1188,7 +1249,7 @@ function requireCron(req, res, next) {
 }
 
 // ============================================
-// ===== MIDDLEWARE =====
+// ===== MIDDLEWARE AUTH =====
 // ============================================
 async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
@@ -1217,6 +1278,10 @@ function requireAdmin(req, res, next) {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
     next();
 }
+
+// ============================================
+// PART 4/6: Core Business Functions
+// ============================================
 
 // ============================================
 // ===== MARK DEPOSIT PAID =====
@@ -1320,7 +1385,6 @@ async function syncDepositStatus(deposit) {
                     const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                     if (data.data?.status === 'paid') {
                         const result = await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
-                        // ===== NOTIF DEPOSIT =====
                         if (!result.alreadyProcessed && result.freshDeposit) {
                             notifyDepositSuccess(result.freshDeposit, result.saldoMasuk, result.totalBayar, result.fee, result.userData)
                                 .catch(err => console.error('notifyDepositSuccess error:', err.message));
@@ -1355,7 +1419,6 @@ async function syncDepositStatus(deposit) {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (data.data?.status === 'paid') {
                     const result = await markDepositPaid(deposit, data.data.received_amount || data.data.amount, data.data.paid_at);
-                    // ===== NOTIF DEPOSIT =====
                     if (!result.alreadyProcessed && result.freshDeposit) {
                         notifyDepositSuccess(result.freshDeposit, result.saldoMasuk, result.totalBayar, result.fee, result.userData)
                             .catch(err => console.error('notifyDepositSuccess error:', err.message));
@@ -1541,6 +1604,197 @@ async function checkAndRefundUserOrders(userId) {
 }
 
 // ============================================
+// ===== AUTO SYNC ORDER (v14) =====
+// ============================================
+async function autoSyncOrder(order) {
+    if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+        if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
+            try { await notifyOtpSuccess(order); } catch (e) {}
+        }
+        return null;
+    }
+
+    try {
+        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+        await pool.query(
+            `UPDATE orders SET last_synced_at = NOW(), sync_attempt_count = sync_attempt_count + 1 WHERE id = $1`,
+            [order.id]
+        );
+
+        if (data.status !== order.status || data.otp_code) {
+            await pool.query(
+                `UPDATE orders 
+                 SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                     received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
+                     updated_at = NOW() 
+                 WHERE order_id = $5`,
+                [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(order.order_id)]
+            );
+            await pool.query(
+                `UPDATE transactions 
+                 SET status = CASE 
+                    WHEN $1 IN ('received', 'success') THEN 'success' 
+                    WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                    ELSE status 
+                 END, otp_code = $2, updated_at = NOW() 
+                 WHERE order_id = $3`,
+                [data.status, data.otp_code, String(order.order_id)]
+            );
+
+            if (data.status !== order.status) {
+                await logStatusChange({
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: data.status, reason: 'auto_sync',
+                    metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                });
+            }
+
+            if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+                if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_' + data.status);
+            }
+
+            const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+            if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                try { await notifyOtpSuccess(fresh.rows[0]); } catch (e) {}
+            }
+            return fresh.rows[0] || null;
+        }
+        return null;
+    } catch (err) {
+        await pool.query(
+            `UPDATE orders SET last_synced_at = NOW(), sync_attempt_count = sync_attempt_count + 1 WHERE id = $1`,
+            [order.id]
+        ).catch(() => {});
+        return null;
+    }
+}
+
+// ============================================
+// ===== AUTO SYNC ALL (v14) =====
+// ============================================
+let autoSyncRunning = false;
+
+async function autoSyncAll() {
+    if (autoSyncRunning) return;
+    autoSyncRunning = true;
+    try {
+        // 1. Sync pending orders
+        const pendingOrders = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status = 'pending'
+               AND created_at > NOW() - INTERVAL '30 minutes'
+               AND (last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '30 seconds')
+             ORDER BY created_at ASC LIMIT 40`
+        );
+        const chunks = [];
+        for (let i = 0; i < pendingOrders.rows.length; i += 8) {
+            chunks.push(pendingOrders.rows.slice(i, i + 8));
+        }
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(o => autoSyncOrder(o).catch(() => null)));
+        }
+
+        // 2. Expire pending orders
+        const expiredOrders = await pool.query(
+            `SELECT * FROM orders WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() LIMIT 20`
+        );
+        for (const o of expiredOrders.rows) {
+            try { await autoCancelAndRefund(o); } catch (e) {}
+        }
+
+        // 3. Sync pending deposits
+        const pendingDeposits = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE status = 'pending' AND created_at > NOW() - INTERVAL '2 hours'
+               AND (last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '60 seconds')
+             ORDER BY created_at ASC LIMIT 20`
+        );
+        const dChunks = [];
+        for (let i = 0; i < pendingDeposits.rows.length; i += 5) {
+            dChunks.push(pendingDeposits.rows.slice(i, i + 5));
+        }
+        for (const chunk of dChunks) {
+            await Promise.all(chunk.map(d => syncDepositStatus(d).catch(() => null)));
+        }
+
+        // 4. Retry notif OTP yang gagal
+        const unnotifiedOrders = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status IN ('received', 'success', 'confirmed') 
+               AND otp_code IS NOT NULL AND TRIM(otp_code) <> ''
+               AND notified_at IS NULL
+               AND created_at > NOW() - INTERVAL '7 days'
+             ORDER BY created_at ASC LIMIT 10`
+        );
+        for (const o of unnotifiedOrders.rows) {
+            try { await notifyOtpSuccess(o); } catch (e) {}
+            await new Promise(r => setTimeout(r, 50));
+        }
+
+        // 5. Retry notif deposit yang gagal
+        const unnotifiedDeposits = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE status = 'success' AND notified_at IS NULL
+               AND created_at > NOW() - INTERVAL '7 days'
+             ORDER BY created_at ASC LIMIT 10`
+        );
+        for (const d of unnotifiedDeposits.rows) {
+            try {
+                const userRes = await pool.query('SELECT username, name, user_code FROM users WHERE id = $1', [d.user_id]);
+                await notifyDepositSuccess(
+                    d,
+                    Number(d.amount) || 0,
+                    Number(d.total_amount) || Number(d.amount) || 0,
+                    Number(d.fee) || 0,
+                    userRes.rows[0] || null
+                );
+            } catch (e) {}
+            await new Promise(r => setTimeout(r, 50));
+        }
+    } catch (err) {
+        console.error('autoSyncAll error:', err.message);
+    } finally {
+        autoSyncRunning = false;
+    }
+}
+
+// ============================================
+// ===== WEBHOOK LOGGER (v14) =====
+// ============================================
+async function logWebhookEvent({
+    source, eventType, signatureValid, req, payload, processed,
+    processNote, relatedEntityType, relatedEntityId
+}) {
+    try {
+        await pool.query(
+            `INSERT INTO webhook_events 
+             (source, event_type, signature_valid, ip_address, user_agent, payload, raw_body, processed, process_note, related_entity_type, related_entity_id)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+                source,
+                eventType || null,
+                !!signatureValid,
+                req.ip || req.headers['x-forwarded-for'] || null,
+                req.headers['user-agent'] || null,
+                payload ? JSON.stringify(payload) : null,
+                (req.rawBody || '').substring(0, 4000),
+                !!processed,
+                processNote || null,
+                relatedEntityType || null,
+                relatedEntityId ? String(relatedEntityId) : null,
+            ]
+        );
+    } catch (err) {
+        console.error('logWebhookEvent error:', err.message);
+    }
+}
+
+// ============================================
+// PART 5/6: Routes User (Auth, User, Deposit, Webhook, CekOTP, Nokos)
+// ============================================
+
+// ============================================
 // ===== HEALTH =====
 // ============================================
 app.get('/api/health', withDB(async (req, res) => {
@@ -1575,28 +1829,17 @@ app.get('/api/health', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== AUTH =====
+// ===== AUTH ROUTES =====
 // ============================================
 app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { username } = req.body;
-
-    if (!username) {
-        return res.status(400).json({ error: 'Username wajib diisi' });
-    }
+    if (!username) return res.status(400).json({ error: 'Username wajib diisi' });
     if (!isValidUsername(username)) {
-        return res.status(400).json({
-            available: false,
-            error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)',
-        });
+        return res.status(400).json({ available: false, error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
     }
-
     try {
-        const result = await pool.query(
-            'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
-            [username.toLowerCase()]
-        );
-        const available = result.rows.length === 0;
-        res.json({ available });
+        const result = await pool.query('SELECT 1 FROM users WHERE username = $1 LIMIT 1', [username.toLowerCase()]);
+        res.json({ available: result.rows.length === 0 });
     } catch (err) {
         console.error('Check username error:', err.message);
         res.status(500).json({ error: 'Server error' });
@@ -1605,31 +1848,17 @@ app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req
 
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { username, password, name, recaptcha_token } = req.body;
+    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
 
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username dan password wajib diisi' });
-    }
+    const captcha = await verifyRecaptcha(recaptcha_token, { minScore: 0.5, expectedAction: 'register' });
+    if (!captcha.success) return res.status(400).json({ error: captcha.error, code: captcha.code });
 
-    const captcha = await verifyRecaptcha(recaptcha_token, {
-        minScore: 0.5,
-        expectedAction: 'register',
-    });
-    if (!captcha.success) {
-        return res.status(400).json({ error: captcha.error, code: captcha.code });
-    }
-
-    if (!isValidUsername(username)) {
-        return res.status(400).json({ error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
-    }
-    if (password.length < 6) {
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
-    }
-    if (password.length > 100) {
-        return res.status(400).json({ error: 'Password maksimal 100 karakter' });
-    }
+    if (!isValidUsername(username)) return res.status(400).json({ error: 'Username hanya boleh huruf, angka, underscore (3-20 karakter)' });
+    if (password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    if (password.length > 100) return res.status(400).json({ error: 'Password maksimal 100 karakter' });
 
     try {
-        const hash = await bcrypt.hash(password, 8);
+        const hash = await bcrypt.hash(password, 10);
         const result = await pool.query(
             `INSERT INTO users (username, password_hash, name)
              VALUES ($1, $2, $3)
@@ -1655,18 +1884,11 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
 
 app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { username, password, recaptcha_token } = req.body;
+    const device = req.headers['x-device-id'] || null;
+    if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
 
-    if (!username || !password) {
-        return res.status(400).json({ error: 'Username dan password wajib diisi' });
-    }
-
-    const captcha = await verifyRecaptcha(recaptcha_token, {
-        minScore: 0.5,
-        expectedAction: 'login',
-    });
-    if (!captcha.success) {
-        return res.status(400).json({ error: captcha.error, code: captcha.code });
-    }
+    const captcha = await verifyRecaptcha(recaptcha_token, { minScore: 0.5, expectedAction: 'login' });
+    if (!captcha.success) return res.status(400).json({ error: captcha.error, code: captcha.code });
 
     try {
         const result = await pool.query(
@@ -1681,10 +1903,28 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) return res.status(401).json({ error: 'Username atau password salah' });
 
+        const session = await createSession({
+            userId: user.id,
+            device,
+            userAgent: req.headers['user-agent'] || null,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        });
+
+        await pool.query(
+            `UPDATE users SET last_login_at = NOW(), last_login_ip = $1, last_device = $2 WHERE id = $3`,
+            [req.ip || null, device, user.id]
+        );
+
         const token = signToken(user);
+
         res.json({
             message: 'Login berhasil!',
-            session: { access_token: token },
+            session: {
+                access_token: token,
+                refresh_token: session.rawRefresh,
+                expires_in: 30 * 60,
+                refresh_expires_at: session.expiresAt.toISOString(),
+            },
             user: {
                 username: user.username,
                 name: user.name,
@@ -1698,11 +1938,43 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
     }
 }));
 
+app.post('/api/auth/refresh', rateLimit(60, 60 * 1000), withDB(async (req, res) => {
+    const rawRefresh = req.body?.refresh_token || req.headers['x-refresh-token'];
+    if (!rawRefresh) return res.status(400).json({ error: 'refresh_token wajib' });
+
+    try {
+        const session = await findActiveSessionByRefresh(rawRefresh);
+        if (!session) return res.status(401).json({ error: 'Refresh token invalid atau expired' });
+
+        const userRes = await pool.query('SELECT id, username, role, status FROM users WHERE id = $1 LIMIT 1', [session.user_id]);
+        if (userRes.rows.length === 0) return res.status(401).json({ error: 'User tidak ditemukan' });
+
+        const user = userRes.rows[0];
+        if (user.status === 'banned') {
+            await revokeSession(session.id);
+            return res.status(403).json({ error: 'Akun diblokir' });
+        }
+
+        await pool.query(`UPDATE sessions SET last_used_at = NOW() WHERE id = $1`, [session.id]);
+
+        const newAccess = signToken(user);
+        res.json({ access_token: newAccess, expires_in: 30 * 60 });
+    } catch (err) {
+        console.error('Refresh error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
 app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
     try {
+        const rawRefresh = req.body?.refresh_token || req.headers['x-refresh-token'];
+        if (rawRefresh) {
+            const session = await findActiveSessionByRefresh(rawRefresh);
+            if (session) await revokeSession(session.id);
+        }
         if (req.user.jti) {
             const decoded = jwt.decode(req.headers.authorization.replace('Bearer ', ''));
-            const exp = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+            const exp = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 30 * 60 * 1000);
             await blacklistToken(req.user.jti, exp);
         }
         res.json({ message: 'Logout berhasil' });
@@ -1712,8 +1984,36 @@ app.post('/api/auth/logout', requireAuth, withDB(async (req, res) => {
     }
 }));
 
+app.post('/api/auth/logout-all', requireAuth, withDB(async (req, res) => {
+    try {
+        await revokeAllUserSessions(req.user.id);
+        if (req.user.jti) {
+            const decoded = jwt.decode(req.headers.authorization.replace('Bearer ', ''));
+            const exp = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 30 * 60 * 1000);
+            await blacklistToken(req.user.jti, exp);
+        }
+        res.json({ message: 'Semua sesi berhasil di-logout' });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.get('/api/auth/sessions', requireAuth, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, device, user_agent, ip_address, last_used_at, created_at, expires_at
+             FROM sessions WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > NOW()
+             ORDER BY last_used_at DESC LIMIT 20`,
+            [req.user.id]
+        );
+        res.json({ sessions: result.rows });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
 // ============================================
-// ===== USER =====
+// ===== USER ROUTES =====
 // ============================================
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
@@ -1737,7 +2037,7 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-app.post('/api/user/update', requireAuth, withDB(async (req, res) => {
+app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { name } = req.body;
     if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Nama minimal 2 karakter' });
     if (name.trim().length > 50) return res.status(400).json({ error: 'Nama maksimal 50 karakter' });
@@ -1763,7 +2063,7 @@ app.post('/api/user/update', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
+app.post('/api/user/change-password', requireAuth, userRateLimit(5, 60 * 1000), withDB(async (req, res) => {
     const { current_password, new_password } = req.body;
     if (!current_password || !new_password) return res.status(400).json({ error: 'Semua field wajib diisi' });
     if (new_password.length < 6) return res.status(400).json({ error: 'Password baru minimal 6 karakter' });
@@ -1775,9 +2075,10 @@ app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
         const valid = await bcrypt.compare(current_password, result.rows[0].password_hash);
         if (!valid) return res.status(401).json({ error: 'Password lama salah' });
 
-        const newHash = await bcrypt.hash(new_password, 8);
+        const newHash = await bcrypt.hash(new_password, 10);
         await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [newHash, req.user.id]);
-        res.json({ message: 'Password berhasil diubah' });
+        await revokeAllUserSessions(req.user.id);
+        res.json({ message: 'Password berhasil diubah. Semua sesi lain di-logout.' });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1786,7 +2087,7 @@ app.post('/api/user/change-password', requireAuth, withDB(async (req, res) => {
 app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            `SELECT order_id, service_name, country, country_flag, phone_number, status, price, otp_code, created_at
+            `SELECT service_name, country, country_flag, phone_number, status, price, otp_code, created_at
              FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
             [req.user.id]
         );
@@ -1804,7 +2105,7 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== DEPOSIT =====
+// ===== DEPOSIT ROUTES =====
 // ============================================
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({ methods: DEPOSIT_METHODS });
@@ -1814,7 +2115,7 @@ app.get('/api/deposit/presets', requireAuth, (req, res) => {
     res.json(DEPOSIT_PRESETS);
 });
 
-app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
+app.post('/api/deposit/generate-ref', requireAuth, userRateLimit(20, 60 * 1000), withDB(async (req, res) => {
     try {
         const referenceId = await generateUniqueReferenceId();
         res.json({ reference_id: referenceId });
@@ -1823,7 +2124,7 @@ app.post('/api/deposit/generate-ref', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
+app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -1835,7 +2136,15 @@ app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
             const d = existing.rows[0];
             return res.json({
                 message: 'Deposit sudah tercatat',
-                deposit: { reference_id: d.reference_id, method: d.method, amount: Number(d.amount), qris_id: d.qris_id, qris_url: d.qris_url, expired_at: d.expires_at, expires_in_seconds: expires_in_seconds || 900 },
+                deposit: {
+                    reference_id: d.reference_id,
+                    method: d.method,
+                    amount: Number(d.amount),
+                    qris_id: d.qris_id,
+                    qris_url: d.qris_url,
+                    expired_at: d.expires_at,
+                    expires_in_seconds: expires_in_seconds || 900
+                },
             });
         }
 
@@ -1853,14 +2162,18 @@ app.post('/api/deposit/qrispy-save', requireAuth, withDB(async (req, res) => {
 
         res.json({
             message: 'Deposit tercatat',
-            deposit: { reference_id, method: 'qrispy', amount: Number(amount), qris_id, qris_url, expired_at, expires_in_seconds: expires_in_seconds || 900 },
+            deposit: {
+                reference_id, method: 'qrispy', amount: Number(amount),
+                qris_id, qris_url, expired_at,
+                expires_in_seconds: expires_in_seconds || 900
+            },
         });
     } catch (err) {
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
 }));
 
-app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
+app.post('/api/deposit/qris-dana', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { amount } = req.body;
     if (!amount || amount < 1000) return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
     if (amount > 10000000) return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
@@ -1871,7 +2184,6 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
         const referenceId = await generateUniqueReferenceId();
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
-
         const expiredAt = new Date(Date.now() + QRIS_DANA_EXPIRY_MS);
 
         await pool.query(
@@ -1904,22 +2216,20 @@ app.post('/api/deposit/qris-dana', requireAuth, withDB(async (req, res) => {
 
 app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
-
     try {
         const result = await pool.query(
             'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
-
         if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         let deposit = result.rows[0];
-        if (deposit.status === 'success') return res.json({ status: 'success', deposit });
+        if (deposit.status === 'success') return res.json({ status: 'success', deposit: sanitizeDepositForUser(deposit) });
 
         deposit = await syncDepositStatus(deposit);
-        if (deposit.status === 'success') return res.json({ status: 'success', deposit });
+        if (deposit.status === 'success') return res.json({ status: 'success', deposit: sanitizeDepositForUser(deposit) });
 
-        res.json({ status: 'ok', deposit });
+        res.json({ status: 'ok', deposit: sanitizeDepositForUser(deposit) });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -1928,13 +2238,11 @@ app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res)
 app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
     const { total_amount, fee } = req.body;
-
     try {
         const result = await pool.query(
             'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
-
         if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
@@ -1953,23 +2261,18 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
 
 app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
-
     try {
         const result = await pool.query(
             'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
-
         if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
-        if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit });
+        if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit tidak bisa di-expire', deposit: sanitizeDepositForUser(deposit) });
 
         if (deposit.expires_at && new Date(deposit.expires_at) > new Date()) {
-            return res.status(400).json({
-                error: 'Deposit belum expired. Tunggu sampai waktu habis.',
-                expires_at: deposit.expires_at
-            });
+            return res.status(400).json({ error: 'Deposit belum expired. Tunggu sampai waktu habis.', expires_at: deposit.expires_at });
         }
 
         if (deposit.method === 'qrispy' && deposit.qris_id) {
@@ -1982,7 +2285,7 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
                             .catch(err => console.error('notifyDepositSuccess error:', err.message));
                     }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
-                    return res.json({ message: 'Deposit sudah dibayar', deposit: fresh.rows[0] });
+                    return res.json({ message: 'Deposit sudah dibayar', deposit: sanitizeDepositForUser(fresh.rows[0]) });
                 }
             } catch (err) {}
         }
@@ -2000,7 +2303,7 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
             });
         }
 
-        res.json({ message: 'Deposit expired', deposit: upd.rows[0] });
+        res.json({ message: 'Deposit expired', deposit: sanitizeDepositForUser(upd.rows[0]) });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -2008,18 +2311,15 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
 
 app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
-
     try {
         const result = await pool.query(
             'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
             [referenceId, req.user.id]
         );
-
         if (result.rows.length === 0) return res.status(404).json({ error: 'Deposit tidak ditemukan' });
 
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit nggak bisa dibatalkan' });
-
         if (deposit.expires_at && new Date(deposit.expires_at) < new Date()) {
             return res.status(400).json({ error: 'Deposit sudah kedaluwarsa, tidak bisa dibatalkan' });
         }
@@ -2036,7 +2336,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.status(400).json({
                         error: 'Deposit sudah dibayar, tidak bisa dibatalkan',
-                        deposit: fresh.rows[0]
+                        deposit: sanitizeDepositForUser(fresh.rows[0])
                     });
                 }
             } catch (err) {
@@ -2077,14 +2377,12 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
         let query, countQuery, params, countParams;
 
         if (status) {
-            query = `SELECT * FROM deposits WHERE user_id = $1 AND status = $2 
-                     ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
+            query = `SELECT * FROM deposits WHERE user_id = $1 AND status = $2 ORDER BY created_at DESC LIMIT $3 OFFSET $4`;
             params = [req.user.id, status, limit, offset];
             countQuery = `SELECT COUNT(*) FROM deposits WHERE user_id = $1 AND status = $2`;
             countParams = [req.user.id, status];
         } else {
-            query = `SELECT * FROM deposits WHERE user_id = $1 
-                     ORDER BY created_at DESC LIMIT $2 OFFSET $3`;
+            query = `SELECT * FROM deposits WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`;
             params = [req.user.id, limit, offset];
             countQuery = `SELECT COUNT(*) FROM deposits WHERE user_id = $1`;
             countParams = [req.user.id];
@@ -2099,7 +2397,7 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
         const totalPages = Math.ceil(total / limit);
 
         res.json({
-            deposits: result.rows,
+            deposits: result.rows.map(sanitizeDepositForUser),
             total, page, limit, totalPages,
             hasNext: page < totalPages,
             hasPrev: page > 1,
@@ -2112,17 +2410,14 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
 
 app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     const { reference_ids } = req.body;
-
     if (!Array.isArray(reference_ids) || reference_ids.length === 0) {
         return res.json({ updated: [], count: 0 });
     }
 
     const ids = reference_ids.slice(0, 10);
-
     try {
         const result = await pool.query(
-            `SELECT * FROM deposits 
-             WHERE reference_id = ANY($1) AND user_id = $2 AND status = 'pending'`,
+            `SELECT * FROM deposits WHERE reference_id = ANY($1) AND user_id = $2 AND status = 'pending'`,
             [ids, req.user.id]
         );
 
@@ -2135,7 +2430,7 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
         for (const chunk of chunks) {
             const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
             for (const fresh of results) {
-                if (fresh.status !== 'pending') updated.push(fresh);
+                if (fresh.status !== 'pending') updated.push(sanitizeDepositForUser(fresh));
             }
         }
 
@@ -2146,13 +2441,20 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== WEBHOOK =====
+// ===== WEBHOOK (v14: log semua event) =====
 // ============================================
 app.post('/api/webhook/qrispy', withDB(async (req, res) => {
+    let signatureValid = false;
     try {
         const signature = req.headers['x-qrispy-signature'];
-        if (!signature) return res.status(401).json({ error: 'No signature' });
-        if (!QRISPY_WEBHOOK_SECRET) return res.status(500).json({ error: 'Webhook secret not configured' });
+        if (!signature) {
+            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
+            return res.status(401).json({ error: 'No signature' });
+        }
+        if (!QRISPY_WEBHOOK_SECRET) {
+            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
+            return res.status(500).json({ error: 'Webhook secret not configured' });
+        }
 
         const expectedSignature = crypto
             .createHmac('sha256', QRISPY_WEBHOOK_SECRET)
@@ -2163,27 +2465,34 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
         const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
             return res.status(401).json({ error: 'Invalid signature' });
         }
+        signatureValid = true;
 
-        const { event, data } = req.body;
+        const { event, data } = req.body || {};
 
         if (event === 'payment.received') {
-            const { qris_id, amount, received_amount, payment_reference, paid_at } = data;
+            const { qris_id, amount, received_amount, payment_reference, paid_at } = data || {};
 
             const result = await pool.query(
                 `SELECT * FROM deposits WHERE qris_id = $1 OR reference_id = $2 OR payment_reference = $2 LIMIT 1`,
                 [qris_id, payment_reference]
             );
 
-            if (result.rows.length === 0) return res.json({ status: 'ok', message: 'Deposit not found' });
+            if (result.rows.length === 0) {
+                await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'DEPOSIT_NOT_FOUND' });
+                return res.json({ status: 'ok', message: 'Deposit not found' });
+            }
 
             const deposit = result.rows[0];
             const markResult = await markDepositPaid(deposit, received_amount || amount, paid_at);
 
-            if (markResult.alreadyProcessed) return res.json({ status: 'ok', message: 'Already processed' });
+            if (markResult.alreadyProcessed) {
+                await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ALREADY_PROCESSED', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
+                return res.json({ status: 'ok', message: 'Already processed' });
+            }
 
-            // ===== NOTIF KE TELEGRAM =====
             if (markResult.freshDeposit) {
                 try {
                     await notifyDepositSuccess(
@@ -2197,23 +2506,33 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
                     console.error('❌ Notif deposit error:', err.message);
                 }
             }
+
+            await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'DEPOSIT_MARKED_PAID', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
+        } else {
+            await logWebhookEvent({ source: 'qrispy', eventType: event || 'unknown', signatureValid: true, req, payload: req.body, processed: true, processNote: 'EVENT_IGNORED' });
         }
 
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Webhook error:', err.message);
+        await logWebhookEvent({ source: 'qrispy', signatureValid, req, payload: req.body, processed: false, processNote: 'ERROR: ' + err.message }).catch(() => {});
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
+    let signatureValid = false;
     try {
         if (!WEBHOOK_OTP1_SECRET) {
+            await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
         const signature = req.headers['x-banana-signature'] || req.headers['x-otp1-signature'];
-        if (!signature) return res.status(401).json({ error: 'No signature' });
+        if (!signature) {
+            await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
+            return res.status(401).json({ error: 'No signature' });
+        }
 
         const rawBody = req.rawBody || JSON.stringify(req.body);
         const expectedSig = 'sha256=' + crypto
@@ -2224,8 +2543,10 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         const sigBuffer = Buffer.from(signature);
         const expectedBuffer = Buffer.from(expectedSig);
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+            await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
             return res.status(401).json({ error: 'Invalid signature' });
         }
+        signatureValid = true;
 
         const data = req.body;
         console.log('📥 Webhook OTP1:', JSON.stringify({
@@ -2239,13 +2560,18 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         const fullSms = data.full_sms || data.fullSms || data.message || data.sms || '';
         const otpCode2 = data.otp_code_2 || data.otpCode2 || null;
 
-        if (!providerOrderId) return res.status(400).json({ error: 'Missing order_id' });
+        if (!providerOrderId) {
+            await logWebhookEvent({ source: 'otp1', eventType: 'otp', signatureValid: true, req, payload: req.body, processed: false, processNote: 'MISSING_ORDER_ID' });
+            return res.status(400).json({ error: 'Missing order_id' });
+        }
 
         const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [String(providerOrderId)]);
-        if (orderRes.rows.length === 0) return res.json({ status: 'ok', message: 'Order not found' });
+        if (orderRes.rows.length === 0) {
+            await logWebhookEvent({ source: 'otp1', eventType: 'otp', signatureValid: true, req, payload: req.body, processed: false, processNote: 'ORDER_NOT_FOUND', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.json({ status: 'ok', message: 'Order not found' });
+        }
 
         const order = orderRes.rows[0];
-
         const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
         let revived = false;
 
@@ -2372,7 +2698,6 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             });
         }
 
-        // ===== NOTIF KE TELEGRAM =====
         if (otpCode) {
             try {
                 const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
@@ -2384,9 +2709,12 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             }
         }
 
+        await logWebhookEvent({ source: 'otp1', eventType: 'otp', signatureValid: true, req, payload: req.body, processed: true, processNote: revived ? 'REVIVED' : 'OTP_UPDATED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+
         res.status(200).json({ status: 'ok', message: 'received', revived });
     } catch (err) {
         console.error('Webhook OTP1 error:', err.message);
+        await logWebhookEvent({ source: 'otp1', signatureValid, req, payload: req.body, processed: false, processNote: 'ERROR: ' + err.message }).catch(() => {});
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2394,9 +2722,8 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 // ============================================
 // ===== CEK OTP =====
 // ============================================
-app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
+app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
-
     if (!order_id && !otp_id) return res.status(400).json({ error: 'order_id atau otp_id wajib' });
 
     try {
@@ -2452,8 +2779,7 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
         try {
             const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
-
-            await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
+            await pool.query(`UPDATE orders SET last_checked_at = NOW(), last_synced_at = NOW() WHERE id = $1`, [order.id]);
 
             if (data.status !== order.status || data.otp_code) {
                 await pool.query(
@@ -2486,14 +2812,11 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 
                 if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
                     const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
-                    if (fresh.rows[0]) {
-                        await refundOrder(fresh.rows[0], 'provider_' + data.status);
-                    }
+                    if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_' + data.status);
                 }
 
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
 
-                // ===== NOTIF OTP kalau ada OTP baru =====
                 if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
                     try {
                         await notifyOtpSuccess(fresh.rows[0]);
@@ -2563,13 +2886,12 @@ app.post('/api/cekotp', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CHECK & REFUND =====
+// ===== NOKOS STATS / LOGS / CHECK REFUNDS =====
 // ============================================
-app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
+app.post('/api/nokos/check-refunds', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     try {
         const refunded = await checkAndRefundUserOrders(req.user.id);
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
-
         res.json({
             refunded,
             count: refunded.length,
@@ -2581,24 +2903,21 @@ app.post('/api/nokos/check-refunds', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== ORDERS STATS =====
-// ============================================
 app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     try {
         const [ordersResult, depositsResult] = await Promise.all([
-          pool.query(
-            `SELECT 
-                COUNT(*) as all_count,
-                COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-                COUNT(*) FILTER (WHERE status IN ('success', 'received', 'confirmed')) as success_count,
-                COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
-                COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
-                COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
-             FROM orders WHERE user_id = $1`,
-            [req.user.id]
-          ),
-          pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id])
+            pool.query(
+                `SELECT 
+                    COUNT(*) as all_count,
+                    COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+                    COUNT(*) FILTER (WHERE status IN ('success', 'received', 'confirmed')) as success_count,
+                    COUNT(*) FILTER (WHERE status = 'failed') as failed_count,
+                    COUNT(*) FILTER (WHERE status = 'expired') as expired_count,
+                    COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count
+                 FROM orders WHERE user_id = $1`,
+                [req.user.id]
+            ),
+            pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id])
         ]);
 
         const row = ordersResult.rows[0] || {};
@@ -2619,9 +2938,6 @@ app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== STATUS LOGS =====
-// ============================================
 app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -2665,204 +2981,7 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== CRON =====
-// ============================================
-app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT * FROM orders 
-             WHERE status = 'pending' AND created_at > NOW() - INTERVAL '30 minutes'
-             ORDER BY expired_at ASC NULLS LAST
-             LIMIT 50`
-        );
-
-        let updated = 0, expired = 0, refunded = 0;
-
-        const chunks = [];
-        for (let i = 0; i < result.rows.length; i += 10) {
-            chunks.push(result.rows.slice(i, i + 10));
-        }
-
-        for (const chunk of chunks) {
-            await Promise.all(chunk.map(async (order) => {
-                try {
-                    if (order.expired_at && new Date(order.expired_at) < new Date()) {
-                        const cancelRes = await autoCancelAndRefund(order);
-                        if (cancelRes.refunded) refunded++;
-                        expired++;
-                        return;
-                    }
-
-                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
-
-                    if (data.status !== order.status || data.otp_code) {
-                        await pool.query(
-                            `UPDATE orders 
-                             SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
-                                 received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
-                                 last_checked_at = NOW(), updated_at = NOW() 
-                             WHERE id = $5`,
-                            [data.status, data.otp_code, data.otp_code_2, data.full_sms, order.id]
-                        );
-                        await pool.query(
-                            `UPDATE transactions 
-                             SET status = CASE 
-                                WHEN $1 IN ('received', 'success') THEN 'success' 
-                                WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
-                                ELSE status 
-                             END, otp_code = $2, updated_at = NOW() 
-                             WHERE order_id = $3`,
-                            [data.status, data.otp_code, String(order.order_id)]
-                        );
-
-                        if (data.status !== order.status) {
-                            await logStatusChange({
-                                entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
-                                oldStatus: order.status, newStatus: data.status, reason: 'cron_validate',
-                                metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
-                            });
-                        }
-
-                        if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-                            if (fresh.rows[0]) {
-                                const refundRes = await refundOrder(fresh.rows[0], 'provider_' + data.status);
-                                if (refundRes.refunded) refunded++;
-                            }
-                            expired++;
-                        } else {
-                            updated++;
-
-                            // ===== NOTIF OTP =====
-                            if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-                                if (fresh.rows[0]) {
-                                    try {
-                                        await notifyOtpSuccess(fresh.rows[0]);
-                                    } catch (err) {
-                                        console.error('❌ Notif OTP (cron) error:', err.message);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
-                    }
-                } catch (err) {
-                    console.error(`Validate ${order.order_id}:`, err.message);
-                }
-            }));
-        }
-
-        res.json({ checked: result.rows.length, updated, expired, refunded });
-    } catch (err) {
-        console.error('Auto-validate error:', err.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-app.post('/api/cron/auto-refund-all', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT * FROM orders 
-             WHERE status IN ('cancelled', 'failed', 'expired')
-               AND (refunded_at IS NULL OR refunded_at = 0)
-               AND price > 0
-             LIMIT 100`
-        );
-
-        let refunded = 0, totalAmount = 0;
-
-        const chunks = [];
-        for (let i = 0; i < result.rows.length; i += 10) {
-            chunks.push(result.rows.slice(i, i + 10));
-        }
-
-        for (const chunk of chunks) {
-            const results = await Promise.all(chunk.map(async (order) => {
-                try {
-                    return await refundOrder(order, 'cron_auto_refund_' + order.status);
-                } catch (err) {
-                    console.error(`Refund ${order.order_id}:`, err.message);
-                    return { refunded: false, amount: 0 };
-                }
-            }));
-
-            for (const r of results) {
-                if (r.refunded) {
-                    refunded++;
-                    totalAmount += r.amount;
-                }
-            }
-        }
-
-        res.json({ checked: result.rows.length, refunded, total_amount: totalAmount });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-app.post('/api/cron/expire-pending-deposits', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT * FROM deposits 
-             WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
-             LIMIT 50`
-        );
-
-        let expired = 0, synced = 0;
-
-        const chunks = [];
-        for (let i = 0; i < result.rows.length; i += 10) {
-            chunks.push(result.rows.slice(i, i + 10));
-        }
-
-        for (const chunk of chunks) {
-            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
-            for (const fresh of results) {
-                if (fresh.status === 'success') synced++;
-                else if (fresh.status === 'expired') expired++;
-            }
-        }
-
-        res.json({ checked: result.rows.length, expired, synced });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT * FROM deposits 
-             WHERE method = 'qrispy' AND status = 'pending' AND qris_id IS NOT NULL
-               AND created_at > NOW() - INTERVAL '1 hour'
-             ORDER BY created_at DESC LIMIT 30`
-        );
-
-        let synced = 0, expired = 0;
-
-        const chunks = [];
-        for (let i = 0; i < result.rows.length; i += 5) {
-            chunks.push(result.rows.slice(i, i + 5));
-        }
-
-        for (const chunk of chunks) {
-            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
-            for (const fresh of results) {
-                if (fresh.status === 'success') synced++;
-                else if (fresh.status === 'expired') expired++;
-            }
-        }
-
-        res.json({ checked: result.rows.length, synced, expired });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-// ============================================
-// ===== NOKOS — SERVERS =====
+// ===== NOKOS SERVERS / SERVICES / COUNTRIES / PRICES =====
 // ============================================
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
@@ -2969,9 +3088,9 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — CREATE ORDER =====
+// ===== NOKOS CREATE ORDER =====
 // ============================================
-app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
+app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
     const { id, server, service, country, service_name, country_flag, provider_id, provider_price, operator, icon_code } = req.body;
 
@@ -3176,7 +3295,6 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
             res.json({
                 message: 'Order berhasil!',
                 order: {
-                    order_id: providerOrderId,
                     otp_id: otpId,
                     phone_number: phoneNumber,
                     price_idr: price,
@@ -3217,11 +3335,10 @@ app.post('/api/nokos/order', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS — CHECK ORDER STATUS =====
+// ===== NOKOS CHECK STATUS ORDER =====
 // ============================================
 app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
-
     try {
         const orderRes = await pool.query(
             'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
@@ -3232,8 +3349,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         const order = orderRes.rows[0];
         if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
-                order_id: order.order_id, otp_id: order.otp_id,
-                status: order.status, phone_number: order.phone_number,
+                otp_id: order.otp_id, status: order.status, phone_number: order.phone_number,
                 otp_code: order.otp_code, otp_code_2: order.otp_code_2,
                 full_sms: order.full_sms, price_idr: order.price,
                 service: order.service, service_name: order.service_name,
@@ -3268,20 +3384,14 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 
             if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
-                if (fresh.rows[0]) {
-                    await refundOrder(fresh.rows[0], 'provider_' + data.status);
-                }
+                if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_' + data.status);
             }
 
-            // ===== NOTIF OTP =====
             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
                 if (fresh.rows[0]) {
-                    try {
-                        await notifyOtpSuccess(fresh.rows[0]);
-                    } catch (err) {
-                        console.error('❌ Notif OTP (check status) error:', err.message);
-                    }
+                    try { await notifyOtpSuccess(fresh.rows[0]); }
+                    catch (err) { console.error('❌ Notif OTP (check status) error:', err.message); }
                 }
             }
         }
@@ -3314,12 +3424,9 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== NOKOS — RESEND =====
-// ============================================
-app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res) => {
+// ===== NOKOS RESEND =====
+app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
-
     try {
         const orderRes = await pool.query(
             'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
@@ -3333,12 +3440,12 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
             if (!depositRes.rows.length) return res.status(404).json({ error: 'Data tidak ditemukan' });
             const d = depositRes.rows[0];
             return res.json({
-                order_id: d.reference_id, order_type: 'deposit', otp_id: null,
+                order_type: 'deposit', otp_id: null,
                 status: `deposit_${d.status}`, service: 'Deposit',
                 service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
                 country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA',
                 phone_number: null, otp_code: null, full_sms: null, price: d.amount,
-                qris_id: d.qris_id, qris_url: d.qris_url, qris_string: d.qris_string,
+                qris_id: d.qris_id, qris_url: d.qris_url,
                 total_amount: d.total_amount, fee: d.fee,
                 created_at: d.created_at, updated_at: d.updated_at, expired_at: d.expires_at,
             });
@@ -3349,15 +3456,12 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, withDB(async (req, res
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak perlu resend' });
         }
-
         if (['cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah tidak aktif' });
         }
-
         if (!order.otp_code || order.otp_code.trim() === '') {
             return res.status(400).json({ error: 'Resend hanya bisa setelah OTP pertama masuk' });
         }
-
         if (order.resend_count >= 3) {
             return res.status(400).json({ error: 'Maksimal 3x resend per order' });
         }
@@ -3439,10 +3543,8 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     }
 }));
 
-// ============================================
-// ===== NOKOS — CANCEL ORDER =====
-// ============================================
-app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res) => {
+// ===== NOKOS CANCEL ORDER =====
+app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
         const orderRes = await pool.query(
@@ -3452,11 +3554,9 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
         if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
         const order = orderRes.rows[0];
-
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak bisa dibatalkan' });
         }
-
         if (['cancelled', 'expired', 'refunded'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah tidak aktif' });
         }
@@ -3476,9 +3576,7 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
         });
 
         const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
-        if (fresh.rows[0]) {
-            await refundOrder(fresh.rows[0], 'manual_cancel');
-        }
+        if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'manual_cancel');
 
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
 
@@ -3495,55 +3593,84 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, withDB(async (req, res
     }
 }));
 
-// ============================================
-// ===== NOKOS — LIST ORDERS =====
-// ============================================
+// ===== NOKOS LIST ORDERS =====
 app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const status = String(req.query.status || 'all');
     const offset = (pageNum - 1) * limitNum;
+
     try {
         let orders = [];
         let total = 0;
+
         if (status === 'deposit' || status === 'all') {
             const [rows, count] = await Promise.all([
-                pool.query(`SELECT id, reference_id, method, amount, total_amount, status, qris_id, qris_url, qris_string, expires_at, created_at, updated_at
-                            FROM deposits WHERE user_id = $1 ORDER BY created_at DESC`, [req.user.id]),
+                pool.query(
+                    `SELECT id, reference_id, method, amount, total_amount, status, qris_url, expires_at, created_at, updated_at
+                     FROM deposits WHERE user_id = $1 ORDER BY created_at DESC`,
+                    [req.user.id]
+                ),
                 pool.query('SELECT COUNT(*) FROM deposits WHERE user_id = $1', [req.user.id]),
             ]);
             const mapped = rows.rows.map(d => ({
-                id: `deposit-${d.id}`, order_id: d.reference_id, otp_id: null,
+                order_id: d.reference_id, otp_id: null,
                 order_type: 'deposit', server: null, service: 'Deposit',
                 service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
                 icon_code: d.method === 'qrispy' ? 'qris' : 'dana',
                 country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA', country_flag: null,
                 operator: null, phone_number: null, otp_code: null, otp_code_2: null, full_sms: null,
-                price: d.amount, status: `deposit_${d.status}`, expires_in: d.expires_at ? Math.max(0, Math.floor((new Date(d.expires_at) - Date.now()) / 1000)) : 0,
+                price: d.amount, status: `deposit_${d.status}`,
+                expires_in: d.expires_at ? Math.max(0, Math.floor((new Date(d.expires_at) - Date.now()) / 1000)) : 0,
                 expired_at: d.expires_at, created_at: d.created_at, updated_at: d.updated_at,
             }));
             if (status === 'deposit') { orders = mapped; total = Number(count.rows[0].count); }
             else { orders.push(...mapped); total += Number(count.rows[0].count); }
         }
+
         if (status === 'nokos' || status === 'all') {
             const [rows, count] = await Promise.all([
                 pool.query('SELECT * FROM orders WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]),
                 pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]),
             ]);
-            const mapped = rows.rows.map(o => ({ ...o, order_type: 'nokos', expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0 }));
+            const mapped = rows.rows.map(o => {
+                const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = o;
+                return {
+                    ...rest,
+                    order_id: o.otp_id,
+                    order_type: 'nokos',
+                    expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0,
+                };
+            });
             if (status === 'nokos') { orders = mapped; total = Number(count.rows[0].count); }
             else { orders.push(...mapped); total += Number(count.rows[0].count); }
         }
+
         if (!['all', 'nokos', 'deposit'].includes(status)) {
             const successFilter = status === 'success';
             const statusCondition = successFilter ? "status IN ('success', 'received', 'confirmed')" : 'status = $2';
             const [rows, count] = await Promise.all([
-                pool.query(`SELECT * FROM orders WHERE user_id = $1 AND ${statusCondition} ORDER BY created_at DESC`, successFilter ? [req.user.id] : [req.user.id, status]),
-                pool.query(`SELECT COUNT(*) FROM orders WHERE user_id = $1 AND ${statusCondition}`, successFilter ? [req.user.id] : [req.user.id, status]),
+                pool.query(
+                    `SELECT * FROM orders WHERE user_id = $1 AND ${statusCondition} ORDER BY created_at DESC`,
+                    successFilter ? [req.user.id] : [req.user.id, status]
+                ),
+                pool.query(
+                    `SELECT COUNT(*) FROM orders WHERE user_id = $1 AND ${statusCondition}`,
+                    successFilter ? [req.user.id] : [req.user.id, status]
+                ),
             ]);
-            orders = rows.rows.map(o => ({ ...o, order_type: 'nokos', expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0 }));
+            orders = rows.rows.map(o => {
+                const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = o;
+                return {
+                    ...rest,
+                    order_id: o.otp_id,
+                    order_type: 'nokos',
+                    expires_in: o.expired_at ? Math.max(0, Math.floor((new Date(o.expired_at) - Date.now()) / 1000)) : 0,
+                };
+            });
             total = Number(count.rows[0].count);
         }
+
         orders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         res.json({ orders: orders.slice(offset, offset + limitNum), total, page: pageNum, limit: limitNum });
     } catch (err) {
@@ -3552,10 +3679,8 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== NOKOS — SYNC BATCH =====
-// ============================================
-app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
+// ===== NOKOS SYNC BATCH =====
+app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { order_ids } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
         return res.json({ updated: [], count: 0 });
@@ -3570,7 +3695,6 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
         );
 
         const updated = [];
-
         const chunks = [];
         for (let i = 0; i < result.rows.length; i += 5) {
             chunks.push(result.rows.slice(i, i + 5));
@@ -3606,21 +3730,15 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 
                         if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
                             const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
-                            if (fresh.rows[0]) {
-                                await refundOrder(fresh.rows[0], 'provider_' + data.status);
-                            }
+                            if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_' + data.status);
                         }
 
                         const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
                         if (fresh.rows[0]) updated.push(fresh.rows[0]);
 
-                        // ===== NOTIF OTP =====
                         if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                            try {
-                                await notifyOtpSuccess(fresh.rows[0]);
-                            } catch (err) {
-                                console.error('❌ Notif OTP (sync batch) error:', err.message);
-                            }
+                            try { await notifyOtpSuccess(fresh.rows[0]); }
+                            catch (err) { console.error('❌ Notif OTP (sync batch) error:', err.message); }
                         }
                     }
                 } catch (err) {
@@ -3637,7 +3755,11 @@ app.post('/api/nokos/sync-batch', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== ADMIN API — MIDDLEWARE =====
+// PART 6/6: Admin, Cron, Error Handler, Startup
+// ============================================
+
+// ============================================
+// ===== ADMIN MIDDLEWARE & HELPERS =====
 // ============================================
 const ADMIN_USERNAMES = ['asyrofc'];
 const ADMIN_USER_CODES = ['SRF2667442394'];
@@ -3756,7 +3878,7 @@ async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action
 }
 
 // ============================================
-// ===== ADMIN — STATS =====
+// ===== ADMIN STATS =====
 // ============================================
 app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
@@ -3784,7 +3906,7 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
 }));
 
 // ============================================
-// ===== ADMIN — USERS LIST =====
+// ===== ADMIN USERS LIST =====
 // ============================================
 app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
@@ -3821,7 +3943,7 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
             LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `;
 
-        const countQuery = `SELECT COUNT(*) AS c FROM users ${where ? where.replace(/LIKE \$1/g, 'LIKE $1') : ''}`;
+        const countQuery = `SELECT COUNT(*) AS c FROM users ${where}`;
 
         const [listRes, countRes] = await Promise.all([
             pool.query(listQuery, [...params, limit, offset]),
@@ -3856,7 +3978,7 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
 }));
 
 // ============================================
-// ===== ADMIN — USER DETAIL =====
+// ===== ADMIN USER DETAIL =====
 // ============================================
 app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
@@ -3922,10 +4044,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
         ]);
 
         res.json({
-            user: {
-                ...user,
-                balance: Number(user.balance) || 0,
-            },
+            user: { ...user, balance: Number(user.balance) || 0 },
             stats: {
                 orders: {
                     total: Number(orderStats.rows[0].total) || 0,
@@ -3957,7 +4076,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
 }));
 
 // ============================================
-// ===== ADMIN — EDIT USER BALANCE =====
+// ===== ADMIN EDIT USER BALANCE =====
 // ============================================
 app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
@@ -4032,11 +4151,7 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
 
         res.json({
             message: 'Saldo berhasil diupdate',
-            user: {
-                id: user.id,
-                username: user.username,
-                balance: newBalance,
-            },
+            user: { id: user.id, username: user.username, balance: newBalance },
             old_balance: oldBalance,
             new_balance: newBalance,
         });
@@ -4049,16 +4164,11 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
     }
 }));
 
-// ============================================
-// ===== ADMIN — CHANGE ROLE =====
-// ============================================
+// ===== ADMIN ROLE / STATUS / RESET PASSWORD =====
 app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { role } = req.body;
-
-    if (!['user', 'admin'].includes(role)) {
-        return res.status(400).json({ error: 'Role harus user/admin' });
-    }
+    if (!['user', 'admin'].includes(role)) return res.status(400).json({ error: 'Role harus user/admin' });
 
     try {
         const result = await pool.query(
@@ -4083,16 +4193,10 @@ app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(asyn
     }
 }));
 
-// ============================================
-// ===== ADMIN — CHANGE STATUS (ban/unban) =====
-// ============================================
 app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { status } = req.body;
-
-    if (!['active', 'banned'].includes(status)) {
-        return res.status(400).json({ error: 'Status harus active/banned' });
-    }
+    if (!['active', 'banned'].includes(status)) return res.status(400).json({ error: 'Status harus active/banned' });
 
     try {
         const result = await pool.query(
@@ -4100,6 +4204,10 @@ app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(as
             [status, userId]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        if (status === 'banned') {
+            await revokeAllUserSessions(userId);
+        }
 
         await logAdminAction({
             adminId: req.admin.id,
@@ -4117,24 +4225,20 @@ app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(as
     }
 }));
 
-// ============================================
-// ===== ADMIN — RESET PASSWORD =====
-// ============================================
 app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { new_password } = req.body;
-
-    if (!new_password || new_password.length < 6) {
-        return res.status(400).json({ error: 'Password minimal 6 karakter' });
-    }
+    if (!new_password || new_password.length < 6) return res.status(400).json({ error: 'Password minimal 6 karakter' });
 
     try {
-        const hash = await bcrypt.hash(new_password, 8);
+        const hash = await bcrypt.hash(new_password, 10);
         const result = await pool.query(
             'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2 RETURNING id, username',
             [hash, userId]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await revokeAllUserSessions(userId);
 
         await logAdminAction({
             adminId: req.admin.id,
@@ -4152,7 +4256,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, w
 }));
 
 // ============================================
-// ===== ADMIN — ORDERS LIST =====
+// ===== ADMIN ORDERS LIST =====
 // ============================================
 app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
@@ -4188,9 +4292,7 @@ app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, r
         const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
         const listQuery = `
-            SELECT 
-                o.*,
-                u.username, u.user_code, u.name AS user_name
+            SELECT o.*, u.username, u.user_code, u.name AS user_name
             FROM orders o
             LEFT JOIN users u ON u.id = o.user_id
             ${where}
@@ -4230,9 +4332,7 @@ app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, r
     }
 }));
 
-// ============================================
-// ===== ADMIN — ORDER DETAIL =====
-// ============================================
+// ===== ADMIN ORDER DETAIL =====
 app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const orderId = String(req.params.orderId || '').trim();
 
@@ -4252,8 +4352,7 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
             `SELECT id, old_status, new_status, reason, metadata, created_at
              FROM status_logs
              WHERE entity_type = 'order' AND entity_id = $1
-             ORDER BY created_at DESC
-             LIMIT 100`,
+             ORDER BY created_at DESC LIMIT 100`,
             [orderId]
         );
 
@@ -4273,7 +4372,7 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
 }));
 
 // ============================================
-// ===== ADMIN — UPDATE ORDER STATUS =====
+// ===== ADMIN UPDATE ORDER STATUS =====
 // ============================================
 const ALLOWED_ORDER_STATUSES = [
     'pending', 'success', 'received', 'confirmed',
@@ -4448,7 +4547,7 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
 }));
 
 // ============================================
-// ===== ADMIN — DEPOSITS LIST =====
+// ===== ADMIN DEPOSITS LIST =====
 // ============================================
 app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
@@ -4478,9 +4577,7 @@ app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req,
         const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
         const listQuery = `
-            SELECT 
-                d.*,
-                u.username, u.user_code, u.name AS user_name
+            SELECT d.*, u.username, u.user_code, u.name AS user_name
             FROM deposits d
             LEFT JOIN users u ON u.id = d.user_id
             ${where}
@@ -4522,9 +4619,7 @@ app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req,
     }
 }));
 
-// ============================================
-// ===== ADMIN — DEPOSIT DETAIL =====
-// ============================================
+// ===== ADMIN DEPOSIT DETAIL =====
 app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
 
@@ -4544,8 +4639,7 @@ app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB
             `SELECT id, old_status, new_status, reason, metadata, created_at
              FROM status_logs
              WHERE entity_type = 'deposit' AND entity_id = $1
-             ORDER BY created_at DESC
-             LIMIT 100`,
+             ORDER BY created_at DESC LIMIT 100`,
             [referenceId]
         );
 
@@ -4566,7 +4660,7 @@ app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB
 }));
 
 // ============================================
-// ===== ADMIN — UPDATE DEPOSIT STATUS =====
+// ===== ADMIN UPDATE DEPOSIT STATUS =====
 // ============================================
 const ALLOWED_DEPOSIT_STATUSES = ['pending', 'success', 'cancelled', 'expired', 'failed', 'refunded'];
 
@@ -4714,7 +4808,7 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
 }));
 
 // ============================================
-// ===== ADMIN — APPROVE DEPOSIT (legacy wrapper) =====
+// ===== ADMIN APPROVE DEPOSIT (legacy) =====
 // ============================================
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
@@ -4805,7 +4899,6 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
 
         await client.query('COMMIT');
 
-        // ===== NOTIF DEPOSIT (approve manual) =====
         if (updated.rows[0]) {
             try {
                 const userRes2 = await pool.query(
@@ -4840,7 +4933,7 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
 }));
 
 // ============================================
-// ===== ADMIN — AUDIT LOG =====
+// ===== ADMIN AUDIT LOG =====
 // ============================================
 app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 50, 200);
@@ -4856,21 +4949,13 @@ app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req
                  LIMIT $1 OFFSET $2`,
                 [limit, offset]
             ),
-            pool.query(
-                `SELECT COUNT(*) AS c FROM status_logs WHERE entity_type = 'admin_action'`
-            ),
+            pool.query(`SELECT COUNT(*) AS c FROM status_logs WHERE entity_type = 'admin_action'`),
         ]);
 
         const total = Number(countRes.rows[0].c) || 0;
         const total_pages = Math.ceil(total / limit);
 
-        res.json({
-            logs: listRes.rows,
-            total,
-            page,
-            limit,
-            total_pages,
-        });
+        res.json({ logs: listRes.rows, total, page, limit, total_pages });
     } catch (err) {
         console.error('Admin audit log error:', err.message);
         res.status(500).json({ error: 'Server error' });
@@ -4878,7 +4963,7 @@ app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req
 }));
 
 // ============================================
-// ===== ADMIN — SERVER BALANCE =====
+// ===== ADMIN SERVER BALANCE =====
 // ============================================
 app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
@@ -4894,7 +4979,7 @@ app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async
 }));
 
 // ============================================
-// ===== ADMIN — TEST NOTIF TELEGRAM (BARU v13) =====
+// ===== ADMIN TEST NOTIF =====
 // ============================================
 app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type = 'otp' } = req.body;
@@ -4904,7 +4989,6 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
     }
 
     try {
-        // ===== STATS =====
         if (type === 'stats') {
             const [otpSentCount, otpPendingCount, depositSentCount, depositPendingCount, recentOtp, recentDeposit] = await Promise.all([
                 pool.query(`SELECT COUNT(*) FROM orders WHERE notified_at IS NOT NULL`),
@@ -4935,10 +5019,9 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
             });
         }
 
-        // ===== TEST OTP =====
         if (type === 'otp') {
             const fakeOrder = {
-                id: -1,        // dummy, biar update notified_at skip
+                id: -1,
                 otp_id: `TEST-OTP-${Date.now()}`,
                 order_id: `TEST_ORDER_${Date.now()}`,
                 service_name: 'WhatsApp (TEST)',
@@ -4950,7 +5033,6 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 notified_at: null,
             };
 
-            // Panggil langsung telegramSendMessage, biar gak nyentuh DB
             const displayId = fakeOrder.otp_id;
             const text =
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
@@ -4968,7 +5050,6 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
             return res.json({ sent: true, message_id: msg.message_id, test_id: displayId });
         }
 
-        // ===== TEST DEPOSIT =====
         if (type === 'deposit') {
             const fakeRef = `TEST-DEP-${Date.now()}`;
             const text =
@@ -4995,15 +5076,14 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
 }));
 
 // ============================================
-// ===== ADMIN — BACKFILL NOTIF (BARU v13) =====
-// ===== Kirim notif ke channel buat order/deposit lama yang belum pernah dikirim =====
+// ===== ADMIN BACKFILL NOTIF =====
 // ============================================
 app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const {
-        type = 'all',       // 'otp' | 'deposit' | 'all'
-        days = 30,          // range hari ke belakang
-        limit = 50,         // batch size per call
-        dry_run = false,    // kalau true, cuma hitung, gak kirim
+        type = 'all',
+        days = 30,
+        limit = 50,
+        dry_run = false,
     } = req.body;
 
     if (!['otp', 'deposit', 'all'].includes(type)) {
@@ -5022,27 +5102,20 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
     };
 
     try {
-        // ============ OTP BACKFILL ============
         if (type === 'otp' || type === 'all') {
-            // Ambil order yang:
-            // - status received/success/confirmed
-            // - ada otp_code
-            // - notified_at IS NULL (belum pernah dikirim)
-            // - dalam range hari
-            const otpQuery = `
-                SELECT * FROM orders
-                WHERE status IN ('received', 'success', 'confirmed')
-                  AND otp_code IS NOT NULL
-                  AND TRIM(otp_code) <> ''
-                  AND notified_at IS NULL
-                  AND created_at > NOW() - INTERVAL '${dayNum} days'
-                ORDER BY created_at ASC
-                LIMIT $1
-            `;
-            const otpRes = await pool.query(otpQuery, [limitNum]);
+            const otpRes = await pool.query(
+                `SELECT * FROM orders
+                 WHERE status IN ('received', 'success', 'confirmed')
+                   AND otp_code IS NOT NULL
+                   AND TRIM(otp_code) <> ''
+                   AND notified_at IS NULL
+                   AND created_at > NOW() - INTERVAL '${dayNum} days'
+                 ORDER BY created_at ASC
+                 LIMIT $1`,
+                [limitNum]
+            );
             result.otp.checked = otpRes.rows.length;
 
-            // Count remaining (setelah batch ini)
             const remainingOtp = await pool.query(
                 `SELECT COUNT(*) FROM orders
                  WHERE status IN ('received', 'success', 'confirmed')
@@ -5064,23 +5137,21 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
                         console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
                         result.otp.failed++;
                     }
-                    // Delay kecil biar gak kena rate limit Telegram (30 msg/detik)
                     await new Promise(r => setTimeout(r, 50));
                 }
             }
         }
 
-        // ============ DEPOSIT BACKFILL ============
         if (type === 'deposit' || type === 'all') {
-            const depQuery = `
-                SELECT * FROM deposits
-                WHERE status = 'success'
-                  AND notified_at IS NULL
-                  AND created_at > NOW() - INTERVAL '${dayNum} days'
-                ORDER BY created_at ASC
-                LIMIT $1
-            `;
-            const depRes = await pool.query(depQuery, [limitNum]);
+            const depRes = await pool.query(
+                `SELECT * FROM deposits
+                 WHERE status = 'success'
+                   AND notified_at IS NULL
+                   AND created_at > NOW() - INTERVAL '${dayNum} days'
+                 ORDER BY created_at ASC
+                 LIMIT $1`,
+                [limitNum]
+            );
             result.deposit.checked = depRes.rows.length;
 
             const remainingDep = await pool.query(
@@ -5094,7 +5165,6 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
             if (!dry_run) {
                 for (const deposit of depRes.rows) {
                     try {
-                        // Ambil user data buat caption
                         const userRes = await pool.query(
                             'SELECT username, name, user_code FROM users WHERE id = $1',
                             [deposit.user_id]
@@ -5127,7 +5197,6 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
             message: dry_run ? 'Dry run selesai. Tidak ada notif yang dikirim.' : 'Backfill selesai',
             ...result,
         });
-
     } catch (err) {
         console.error('backfill-notifs error:', err.message);
         res.status(500).json({ error: err.message });
@@ -5135,8 +5204,7 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
 }));
 
 // ============================================
-// ===== ADMIN — RESET NOTIF STATUS (BARU v13) =====
-// ===== Buat test ulang: hapus notified_at dari order/deposit =====
+// ===== ADMIN RESET NOTIF =====
 // ============================================
 app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type, key } = req.body;
@@ -5180,7 +5248,7 @@ app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (
 }));
 
 // ============================================
-// ===== ADMIN — WEBHOOK MONITOR (v2 FIXED) =====
+// ===== ADMIN WEBHOOK MONITOR =====
 // ============================================
 app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 1));
@@ -5193,7 +5261,6 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
         const params = [];
         const whereParts = [];
 
-        // === Filter entity_type ===
         if (type === 'otp') {
             whereParts.push(`sl.entity_type = 'order'`);
         } else if (type === 'deposit') {
@@ -5202,11 +5269,9 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
             whereParts.push(`sl.entity_type IN ('order', 'deposit')`);
         }
 
-        // === Filter waktu (make_interval lebih aman dari interval * param) ===
         params.push(hours);
         whereParts.push(`sl.created_at > NOW() - make_interval(hours => $${params.length}::int)`);
 
-        // === Filter reason / status yang relevan ===
         whereParts.push(`(
             (sl.entity_type = 'order' AND (
                 sl.new_status IN ('received', 'success', 'confirmed', 'refunded', 'cancelled', 'expired', 'failed')
@@ -5216,6 +5281,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
                 OR sl.reason LIKE 'sync_batch%'
                 OR sl.reason LIKE 'check_status%'
                 OR sl.reason LIKE 'provider_%'
+                OR sl.reason = 'auto_sync'
             ))
             OR
             (sl.entity_type = 'deposit' AND (
@@ -5226,7 +5292,6 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
             ))
         )`);
 
-        // === Filter notified / unnotified pakai scalar subquery ===
         if (onlyNotified) {
             whereParts.push(`(
                 (sl.entity_type = 'order' AND (
@@ -5262,8 +5327,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
         const query = `
             SELECT 
                 sl.id, sl.entity_type, sl.entity_id, sl.user_id,
-                sl.old_status, sl.new_status, sl.reason, sl.metadata,
-                sl.created_at,
+                sl.old_status, sl.new_status, sl.reason, sl.metadata, sl.created_at,
                 u.username, u.user_code,
                 o.otp_id AS order_otp_id,
                 o.order_id AS order_provider_id,
@@ -5286,7 +5350,6 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
 
         const result = await pool.query(query, params);
 
-        // === Histogram per jam (WIB) ===
         const statsQuery = `
             SELECT 
                 DATE_TRUNC('hour', created_at AT TIME ZONE 'Asia/Jakarta') AS hour_bucket,
@@ -5319,10 +5382,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
                 reason: r.reason,
                 metadata: r.metadata || null,
                 created_at: r.created_at,
-                user: {
-                    username: r.username || null,
-                    user_code: r.user_code || null,
-                },
+                user: { username: r.username || null, user_code: r.user_code || null },
                 order: r.entity_type === 'order' ? {
                     otp_id: r.order_otp_id,
                     order_id: r.order_provider_id,
@@ -5347,16 +5407,12 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
         });
     } catch (err) {
         console.error('Webhook monitor error:', err.message);
-        console.error('Stack:', err.stack);
-        res.status(500).json({
-            error: 'Server error',
-            detail: err.message, // biar keliatan error aslinya, hapus kalau udah stabil
-        });
+        res.status(500).json({ error: 'Server error', detail: err.message });
     }
 }));
 
 // ============================================
-// ===== ADMIN — KIRIM ULANG NOTIF ORDER =====
+// ===== ADMIN KIRIM ULANG NOTIF ORDER =====
 // ============================================
 app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const otpId = String(req.params.otpId || '').trim();
@@ -5365,17 +5421,13 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
     if (!otpId) return res.status(400).json({ error: 'otp_id wajib' });
 
     try {
-        const result = await pool.query(
-            'SELECT * FROM orders WHERE otp_id = $1 LIMIT 1',
-            [otpId]
-        );
+        const result = await pool.query('SELECT * FROM orders WHERE otp_id = $1 LIMIT 1', [otpId]);
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Order dengan otp_id tersebut tidak ditemukan' });
         }
 
         const order = result.rows[0];
 
-        // Validasi: cuma boleh kirim kalau status sukses & ada OTP
         if (!['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({
                 error: `Order status "${order.status}" tidak bisa dikirim notif. Harus received/success/confirmed.`,
@@ -5385,13 +5437,11 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
             return res.status(400).json({ error: 'Order belum punya OTP code' });
         }
 
-        // Kalau force, reset notified_at dulu
         if (forceResend && order.notified_at) {
             await pool.query('UPDATE orders SET notified_at = NULL WHERE id = $1', [order.id]);
             order.notified_at = null;
         }
 
-        // Kalau udah pernah dikirim & gak force, skip
         if (order.notified_at && !forceResend) {
             return res.status(409).json({
                 error: 'Notif untuk order ini sudah pernah dikirim',
@@ -5402,7 +5452,6 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
 
         const r = await notifyOtpSuccess(order);
 
-        // Log aksi admin
         await logAdminAction({
             adminId: req.admin.id,
             adminUsername: req.admin.username,
@@ -5428,7 +5477,7 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
 }));
 
 // ============================================
-// ===== ADMIN — KIRIM ULANG NOTIF DEPOSIT =====
+// ===== ADMIN KIRIM ULANG NOTIF DEPOSIT =====
 // ============================================
 app.post('/api/admin/notif-deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
@@ -5504,7 +5553,7 @@ app.post('/api/admin/notif-deposit/:referenceId', requireAuth, requireAdminFlex,
 }));
 
 // ============================================
-// ===== ADMIN — BATCH KIRIM NOTIF (BULK) =====
+// ===== ADMIN BATCH KIRIM NOTIF =====
 // ============================================
 app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type, ids } = req.body;
@@ -5561,7 +5610,6 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
             results.push({ id, sent: false, reason: 'ERROR', error: err.message });
         }
 
-        // delay kecil biar gak kena rate limit Telegram
         await new Promise(r => setTimeout(r, 50));
     }
 
@@ -5583,6 +5631,224 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
         failed: failedCount,
         results,
     });
+}));
+
+// ============================================
+// ===== CRON ENDPOINTS =====
+// ============================================
+app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status = 'pending' AND created_at > NOW() - INTERVAL '30 minutes'
+             ORDER BY expired_at ASC NULLS LAST
+             LIMIT 50`
+        );
+
+        let updated = 0, expired = 0, refunded = 0;
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
+        }
+
+        for (const chunk of chunks) {
+            await Promise.all(chunk.map(async (order) => {
+                try {
+                    if (order.expired_at && new Date(order.expired_at) < new Date()) {
+                        const cancelRes = await autoCancelAndRefund(order);
+                        if (cancelRes.refunded) refunded++;
+                        expired++;
+                        return;
+                    }
+
+                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+
+                    if (data.status !== order.status || data.otp_code) {
+                        await pool.query(
+                            `UPDATE orders 
+                             SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, 
+                                 received_at = CASE WHEN $1 IN ('received', 'success') THEN NOW() ELSE received_at END, 
+                                 last_checked_at = NOW(), updated_at = NOW() 
+                             WHERE id = $5`,
+                            [data.status, data.otp_code, data.otp_code_2, data.full_sms, order.id]
+                        );
+                        await pool.query(
+                            `UPDATE transactions 
+                             SET status = CASE 
+                                WHEN $1 IN ('received', 'success') THEN 'success' 
+                                WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' 
+                                ELSE status 
+                             END, otp_code = $2, updated_at = NOW() 
+                             WHERE order_id = $3`,
+                            [data.status, data.otp_code, String(order.order_id)]
+                        );
+
+                        if (data.status !== order.status) {
+                            await logStatusChange({
+                                entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                                oldStatus: order.status, newStatus: data.status, reason: 'cron_validate',
+                                metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
+                            });
+                        }
+
+                        if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
+                            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                            if (fresh.rows[0]) {
+                                const refundRes = await refundOrder(fresh.rows[0], 'provider_' + data.status);
+                                if (refundRes.refunded) refunded++;
+                            }
+                            expired++;
+                        } else {
+                            updated++;
+                            if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                                if (fresh.rows[0]) {
+                                    try { await notifyOtpSuccess(fresh.rows[0]); }
+                                    catch (err) { console.error('❌ Notif OTP (cron) error:', err.message); }
+                                }
+                            }
+                        }
+                    } else {
+                        await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
+                    }
+                } catch (err) {
+                    console.error(`Validate ${order.order_id}:`, err.message);
+                }
+            }));
+        }
+
+        res.json({ checked: result.rows.length, updated, expired, refunded });
+    } catch (err) {
+        console.error('Auto-validate error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/cron/auto-refund-all', requireCron, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status IN ('cancelled', 'failed', 'expired')
+               AND (refunded_at IS NULL OR refunded_at = 0)
+               AND price > 0
+             LIMIT 100`
+        );
+
+        let refunded = 0, totalAmount = 0;
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
+        }
+
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(async (order) => {
+                try {
+                    return await refundOrder(order, 'cron_auto_refund_' + order.status);
+                } catch (err) {
+                    console.error(`Refund ${order.order_id}:`, err.message);
+                    return { refunded: false, amount: 0 };
+                }
+            }));
+
+            for (const r of results) {
+                if (r.refunded) {
+                    refunded++;
+                    totalAmount += r.amount;
+                }
+            }
+        }
+
+        res.json({ checked: result.rows.length, refunded, total_amount: totalAmount });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/cron/expire-pending-deposits', requireCron, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW()
+             LIMIT 50`
+        );
+
+        let expired = 0, synced = 0;
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 10) {
+            chunks.push(result.rows.slice(i, i + 10));
+        }
+
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
+            for (const fresh of results) {
+                if (fresh.status === 'success') synced++;
+                else if (fresh.status === 'expired') expired++;
+            }
+        }
+
+        res.json({ checked: result.rows.length, expired, synced });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE method = 'qrispy' AND status = 'pending' AND qris_id IS NOT NULL
+               AND created_at > NOW() - INTERVAL '1 hour'
+             ORDER BY created_at DESC LIMIT 30`
+        );
+
+        let synced = 0, expired = 0;
+        const chunks = [];
+        for (let i = 0; i < result.rows.length; i += 5) {
+            chunks.push(result.rows.slice(i, i + 5));
+        }
+
+        for (const chunk of chunks) {
+            const results = await Promise.all(chunk.map(d => syncDepositStatus(d).catch(err => d)));
+            for (const fresh of results) {
+                if (fresh.status === 'success') synced++;
+                else if (fresh.status === 'expired') expired++;
+            }
+        }
+
+        res.json({ checked: result.rows.length, synced, expired });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ===== CRON AUTO SYNC ALL =====
+app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
+    try {
+        await autoSyncAll();
+        res.json({ message: 'Auto sync selesai', time: new Date().toISOString() });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ===== CRON SYNC STATS =====
+app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
+    try {
+        const [ordersPending, depositsPending, ordersNotified, depositsNotified] = await Promise.all([
+            pool.query(`SELECT COUNT(*) FROM orders WHERE status = 'pending'`),
+            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'pending'`),
+            pool.query(`SELECT COUNT(*) FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
+            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
+        ]);
+        res.json({
+            pending_orders: Number(ordersPending.rows[0].count),
+            pending_deposits: Number(depositsPending.rows[0].count),
+            unnotified_orders: Number(ordersNotified.rows[0].count),
+            unnotified_deposits: Number(depositsNotified.rows[0].count),
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
 }));
 
 // ============================================
@@ -5609,18 +5875,22 @@ app.use((req, res) => {
 });
 
 // ============================================
-// ===== STARTUP WARMUP =====
+// ===== STARTUP WARMUP + BACKGROUND AUTO SYNC =====
 // ============================================
 (async () => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready');
+        console.log('🚀 Server ready v14');
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
             console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
         } else {
             console.warn('⚠️  Telegram notif belum aktif (env belum di-set)');
         }
+        setInterval(() => {
+            autoSyncAll().catch(err => console.error('Background auto-sync error:', err.message));
+        }, SYNC_INTERVAL_MS);
+        setTimeout(() => { autoSyncAll().catch(() => {}); }, 5000);
     } catch (err) {
         console.error('❌ Startup warmup failed:', err.message);
     }
@@ -5630,6 +5900,8 @@ app.use((req, res) => {
 setInterval(async () => {
     try {
         await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`);
+        await pool.query(`DELETE FROM sessions WHERE expires_at < NOW() - INTERVAL '7 days' OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '7 days')`);
+        await pool.query(`DELETE FROM webhook_events WHERE created_at < NOW() - INTERVAL '90 days'`);
     } catch (err) {}
 }, 60 * 60 * 1000);
 
