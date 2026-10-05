@@ -5805,16 +5805,17 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
                         } else {
                             updated++;
                             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-    if (fresh.rows[0]) {
-        try {
-            const user = await fetchUserForOrder(fresh.rows[0]);
-            await notifyOtpSuccess(fresh.rows[0], user);
-        } catch (err) {
-            console.error('❌ Notif OTP (cron) error:', err.message);
-        }
-    }
-}
+                                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                                if (fresh.rows[0]) {
+                                    try {
+                                        const user = await fetchUserForOrder(fresh.rows[0]);
+                                        await notifyOtpSuccess(fresh.rows[0], user);
+                                    } catch (err) {
+                                        console.error('❌ Notif OTP (cron) error:', err.message);
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
                     }
