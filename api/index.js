@@ -33,7 +33,7 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
-        "connect-src 'self' https://www.google.com https://dibanana.id https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com https://api.telegram.org",
+        "connect-src 'self' https://www.google.com https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com https://api.telegram.org",
         "frame-src https://www.google.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
