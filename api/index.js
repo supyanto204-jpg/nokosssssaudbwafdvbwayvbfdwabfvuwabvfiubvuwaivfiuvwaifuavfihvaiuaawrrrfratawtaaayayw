@@ -3834,13 +3834,14 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
                         if (fresh.rows[0]) updated.push(fresh.rows[0]);
 
                         if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-    try {
-        const user = await fetchUserForOrder(fresh.rows[0]);
-        await notifyOtpSuccess(fresh.rows[0], user);
-    } catch (err) {
-        console.error('❌ Notif OTP (sync batch) error:', err.message);
-    }
-}
+                            try {
+                                const user = await fetchUserForOrder(fresh.rows[0]);
+                                await notifyOtpSuccess(fresh.rows[0], user);
+                            } catch (err) {
+                                console.error('❌ Notif OTP (sync batch) error:', err.message);
+                            }
+                        }
+                    }
                 } catch (err) {
                     console.error(`Sync ${order.order_id}:`, err.message);
                 }
