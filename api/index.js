@@ -504,10 +504,30 @@ async function telegramSendMessage(channelId, text, options = {}) {
 }
 
 /**
+ * Helper: fetch data user berdasarkan order.user_id.
+ * Return { username, user_code, name } atau null kalau gagal.
+ */
+async function fetchUserForOrder(order) {
+    if (!order || !order.user_id) return null;
+    try {
+        const userRes = await pool.query(
+            'SELECT username, name, user_code FROM users WHERE id = $1 LIMIT 1',
+            [order.user_id]
+        );
+        return userRes.rows[0] || null;
+    } catch (err) {
+        console.error('fetchUserForOrder error:', err.message);
+        return null;
+    }
+}
+
+/**
  * Notif OTP sukses. Identifier pakai otp_id (internal), bukan order_id (provider).
  * Guard: skip kalau order.notified_at udah ada isinya.
+ * + Tampilkan User & User ID (kayak notif deposit)
+ * + Inline button "Beli Sekarang" → ke website.
  */
-async function notifyOtpSuccess(order) {
+async function notifyOtpSuccess(order, user = null) {
     const channelId = TELEGRAM_CHANNEL_OTP_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
 
@@ -520,17 +540,27 @@ async function notifyOtpSuccess(order) {
     const text =
         `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
+        (user ? `<u>• User:</u> <b>${escapeHtmlNotif(user.username || user.name || '-')}</b>\n` : '') +
+        (user ? `<u>• User ID:</u> <code>${escapeHtmlNotif(user.user_code || '-')}</code>\n` : '') +
         `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
-        `<u>• Service:</u> <b>${escapeHtmlNotif(order.service_name || order.service || '-')}</b>\n` +
-        `<u>• Country:</u> <b>${escapeHtmlNotif(order.country_name || order.country || '-')}</b>\n` +
+        `<u>• Service:</u> <b>${escapeHtmlNotif(order.service_name || order.service || '-')} - ${escapeHtmlNotif(order.country_name || order.country || '-')}</b>\n` +
         `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(order.phone_number))}</b>\n` +
         `<u>• Kode:</u> <b>${escapeHtmlNotif(order.otp_code || '-')}</b>\n` +
         (order.otp_code_2 ? `<u>• Kode 2:</u> <b>${escapeHtmlNotif(order.otp_code_2)}</b>\n` : '') +
         `<u>• Harga:</u> <b>${toRupiahNotif(order.price)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
+    // ===== Inline button ke website =====
+    const replyMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
+            ]
+        ]
+    };
+
     try {
-        const msg = await telegramSendMessage(channelId, text);
+        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
 
         await pool.query(
             `UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
@@ -548,6 +578,7 @@ async function notifyOtpSuccess(order) {
 /**
  * Notif deposit sukses. Identifier pakai reference_id.
  * Guard: skip kalau deposit.notified_at udah ada isinya.
+ * + Inline button "Beli Sekarang" → ke website URLSync.
  */
 async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
@@ -561,16 +592,23 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         `<b>💰 SUCCESSFUL DEPOSIT</b>\n` +
         `━━━━━━━━━━━━━━━━━━━━━━\n` +
         `<u>• User:</u> <b>${escapeHtmlNotif(user?.username || user?.name || '-')}</b>\n` +
-        `<u>• User Code:</u> <code>${escapeHtmlNotif(user?.user_code || '-')}</code>\n` +
-        `<u>• Reference:</u> <code>${escapeHtmlNotif(deposit.reference_id)}</code>\n` +
-        `<u>• Method:</u> <b>${escapeHtmlNotif(deposit.method || '-')}</b>\n` +
-        `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
-        `<u>• Total Bayar:</u> <b>${toRupiahNotif(totalBayar)}</b>\n` +
-        `<u>• Fee:</u> <b>${toRupiahNotif(fee)}</b>\n` +
+        `<u>• User ID:</u> <code>${escapeHtmlNotif(user?.user_code || '-')}</code>\n` +
+        `<u>• Deposit ID:</u> <code>${escapeHtmlNotif(deposit.reference_id)}</code>\n` +
+        `<u>• Method:</u> <b>QRIS Otomatis</b>\n` +
+        `<u>• Nominal:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
+    // ===== Inline button ke website =====
+    const replyMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
+            ]
+        ]
+    };
+
     try {
-        const msg = await telegramSendMessage(channelId, text);
+        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
 
         await pool.query(
             `UPDATE deposits SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
@@ -1630,11 +1668,12 @@ async function findUserOrder(userId, identifier) {
 // ============================================
 // ===== AUTO SYNC ORDER (v14) =====
 // ============================================
-async function autoSyncOrder(order) {
-    if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
-        if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
-            try { await notifyOtpSuccess(order); } catch (e) {}
-        }
+if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
+    try {
+        const user = await fetchUserForOrder(order);
+        await notifyOtpSuccess(order, user);
+    } catch (e) {}
+}
         return null;
     }
 
@@ -1679,9 +1718,12 @@ async function autoSyncOrder(order) {
             }
 
             const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
-            if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                try { await notifyOtpSuccess(fresh.rows[0]); } catch (e) {}
-            }
+if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+    try {
+        const user = await fetchUserForOrder(fresh.rows[0]);
+        await notifyOtpSuccess(fresh.rows[0], user);
+    } catch (e) {}
+}
             return fresh.rows[0] || null;
         }
         return null;
@@ -1752,10 +1794,12 @@ async function autoSyncAll() {
              ORDER BY created_at ASC LIMIT 10`
         );
         for (const o of unnotifiedOrders.rows) {
-            try { await notifyOtpSuccess(o); } catch (e) {}
-            await new Promise(r => setTimeout(r, 50));
-        }
-
+    try {
+        const user = await fetchUserForOrder(o);
+        await notifyOtpSuccess(o, user);
+    } catch (e) {}
+    await new Promise(r => setTimeout(r, 50));
+}
         // 5. Retry notif deposit yang gagal
         const unnotifiedDeposits = await pool.query(
             `SELECT * FROM deposits 
@@ -2723,16 +2767,16 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         }
 
         if (otpCode) {
-            try {
-                const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-                if (freshOrderRes.rows[0]) {
-                    await notifyOtpSuccess(freshOrderRes.rows[0]);
-                }
-            } catch (err) {
-                console.error('❌ Notif OTP error:', err.message);
-            }
+    try {
+        const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+        if (freshOrderRes.rows[0]) {
+            const user = await fetchUserForOrder(freshOrderRes.rows[0]);
+            await notifyOtpSuccess(freshOrderRes.rows[0], user);
         }
-
+    } catch (err) {
+        console.error('❌ Notif OTP error:', err.message);
+    }
+}
         await logWebhookEvent({ source: 'otp1', eventType: 'otp', signatureValid: true, req, payload: req.body, processed: true, processNote: revived ? 'REVIVED' : 'OTP_UPDATED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
 
         res.status(200).json({ status: 'ok', message: 'received', revived });
@@ -2842,12 +2886,13 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
 
                 if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                    try {
-                        await notifyOtpSuccess(fresh.rows[0]);
-                    } catch (err) {
-                        console.error('❌ Notif OTP (cekotp) error:', err.message);
-                    }
-                }
+    try {
+        const user = await fetchUserForOrder(fresh.rows[0]);
+        await notifyOtpSuccess(fresh.rows[0], user);
+    } catch (err) {
+        console.error('❌ Notif OTP (cekotp) error:', err.message);
+    }
+}
 
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
@@ -3409,14 +3454,16 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             }
 
             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-                if (fresh.rows[0]) {
-                    try { await notifyOtpSuccess(fresh.rows[0]); }
-                    catch (err) { console.error('❌ Notif OTP (check status) error:', err.message); }
-                }
-            }
+    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
+    if (fresh.rows[0]) {
+        try {
+            const user = await fetchUserForOrder(fresh.rows[0]);
+            await notifyOtpSuccess(fresh.rows[0], user);
+        } catch (err) {
+            console.error('❌ Notif OTP (check status) error:', err.message);
         }
-
+    }
+}
         const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
         const o = fresh.rows[0];
 
@@ -3766,10 +3813,13 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
                         if (fresh.rows[0]) updated.push(fresh.rows[0]);
 
                         if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                            try { await notifyOtpSuccess(fresh.rows[0]); }
-                            catch (err) { console.error('❌ Notif OTP (sync batch) error:', err.message); }
-                        }
-                    }
+    try {
+        const user = await fetchUserForOrder(fresh.rows[0]);
+        await notifyOtpSuccess(fresh.rows[0], user);
+    } catch (err) {
+        console.error('❌ Notif OTP (sync batch) error:', err.message);
+    }
+}
                 } catch (err) {
                     console.error(`Sync ${order.order_id}:`, err.message);
                 }
@@ -5157,17 +5207,18 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
 
             if (!dry_run) {
                 for (const order of otpRes.rows) {
-                    try {
-                        const r = await notifyOtpSuccess(order);
-                        if (r.sent) result.otp.sent++;
-                        else if (r.reason === 'ALREADY_NOTIFIED') result.otp.skipped++;
-                        else result.otp.failed++;
-                    } catch (err) {
-                        console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
-                        result.otp.failed++;
-                    }
-                    await new Promise(r => setTimeout(r, 50));
-                }
+    try {
+        const user = await fetchUserForOrder(order);
+        const r = await notifyOtpSuccess(order, user);
+        if (r.sent) result.otp.sent++;
+        else if (r.reason === 'ALREADY_NOTIFIED') result.otp.skipped++;
+        else result.otp.failed++;
+    } catch (err) {
+        console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
+        result.otp.failed++;
+    }
+    await new Promise(r => setTimeout(r, 50));
+}
             }
         }
 
@@ -5479,8 +5530,9 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
             });
         }
 
-        const r = await notifyOtpSuccess(order);
-
+        const user = await fetchUserForOrder(order);
+const r = await notifyOtpSuccess(order, user);
+        
         await logAdminAction({
             adminId: req.admin.id,
             adminUsername: req.admin.username,
@@ -5610,8 +5662,9 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
                     results.push({ id, sent: false, reason: 'INVALID_STATUS_OR_NO_OTP' });
                     continue;
                 }
-                const r = await notifyOtpSuccess(order);
-                results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
+                const user = await fetchUserForOrder(order);
+const r = await notifyOtpSuccess(order, user);
+results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
             } else {
                 const depRes = await pool.query(
                     'SELECT d.*, u.username, u.name AS user_name, u.user_code FROM deposits d LEFT JOIN users u ON u.id = d.user_id WHERE d.reference_id = $1 LIMIT 1',
@@ -5730,13 +5783,16 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
                         } else {
                             updated++;
                             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-                                if (fresh.rows[0]) {
-                                    try { await notifyOtpSuccess(fresh.rows[0]); }
-                                    catch (err) { console.error('❌ Notif OTP (cron) error:', err.message); }
-                                }
-                            }
-                        }
+    const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+    if (fresh.rows[0]) {
+        try {
+            const user = await fetchUserForOrder(fresh.rows[0]);
+            await notifyOtpSuccess(fresh.rows[0], user);
+        } catch (err) {
+            console.error('❌ Notif OTP (cron) error:', err.message);
+        }
+    }
+}
                     } else {
                         await pool.query(`UPDATE orders SET last_checked_at = NOW() WHERE id = $1`, [order.id]);
                     }
