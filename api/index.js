@@ -1668,12 +1668,14 @@ async function findUserOrder(userId, identifier) {
 // ============================================
 // ===== AUTO SYNC ORDER (v14) =====
 // ============================================
-if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
-    try {
-        const user = await fetchUserForOrder(order);
-        await notifyOtpSuccess(order, user);
-    } catch (e) {}
-}
+async function autoSyncOrder(order) {
+    if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
+        if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
+            try {
+                const user = await fetchUserForOrder(order);
+                await notifyOtpSuccess(order, user);
+            } catch (e) {}
+        }
         return null;
     }
 
@@ -1718,12 +1720,12 @@ if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_cod
             }
 
             const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
-if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-    try {
-        const user = await fetchUserForOrder(fresh.rows[0]);
-        await notifyOtpSuccess(fresh.rows[0], user);
-    } catch (e) {}
-}
+            if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
+                try {
+                    const user = await fetchUserForOrder(fresh.rows[0]);
+                    await notifyOtpSuccess(fresh.rows[0], user);
+                } catch (e) {}
+            }
             return fresh.rows[0] || null;
         }
         return null;
@@ -1735,7 +1737,6 @@ if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].inclu
         return null;
     }
 }
-
 // ============================================
 // ===== AUTO SYNC ALL (v14) =====
 // ============================================
