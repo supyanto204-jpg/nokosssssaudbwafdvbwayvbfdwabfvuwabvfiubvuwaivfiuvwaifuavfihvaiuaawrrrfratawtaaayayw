@@ -3455,16 +3455,37 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             }
 
             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-    const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
-    if (fresh.rows[0]) {
-        try {
-            const user = await fetchUserForOrder(fresh.rows[0]);
-            await notifyOtpSuccess(fresh.rows[0], user);
-        } catch (err) {
-            console.error('❌ Notif OTP (check status) error:', err.message);
+                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                if (fresh.rows[0]) {
+                    try {
+                        const user = await fetchUserForOrder(fresh.rows[0]);
+                        await notifyOtpSuccess(fresh.rows[0], user);
+                    } catch (err) {
+                        console.error('❌ Notif OTP (check status) error:', err.message);
+                    }
+                }
+            }
+
+            const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+            const o = fresh.rows[0];
+
+            return res.json({
+                ...data,
+                otp_id: o.otp_id,
+                service: o.service,
+                service_name: o.service_name,
+                icon_code: o.icon_code,
+                country: o.country,
+                country_name: o.country_name,
+                country_flag: o.country_flag,
+                operator: o.operator,
+                refunded_at: o.refunded_at,
+                refunded_amount: o.refunded_amount,
+                refund_reason: o.refund_reason,
+                created_at: o.created_at,
+            });
         }
-    }
-}
+
         const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
         const o = fresh.rows[0];
 
@@ -3492,7 +3513,6 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         });
     }
 }));
-
 // ===== NOKOS RESEND =====
 app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
