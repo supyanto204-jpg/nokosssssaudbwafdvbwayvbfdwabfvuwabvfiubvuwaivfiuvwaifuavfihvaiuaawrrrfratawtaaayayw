@@ -141,9 +141,9 @@ const DIBANANA_BASE = 'https://dibanana.id/api/v1';
 const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
 const SERVER_CONFIG = {
-    ekonomi: { label: 'Server Ekonomi', desc: 'Harga terjangkau, khusus Indonesia', badge: 'EKONOMI', countries: ['id'] },
+    ekonomi: { label: 'Server Ekonomi', desc: 'Harga terjangkau, khusus Indonesia', badge: 'MURAH', countries: ['id'] },
     khusus: { label: 'Server Khusus', desc: 'Semua negara, stok lengkap', badge: 'LENGKAP', countries: null },
-    wa_luar: { label: 'Server WA Luar', desc: 'WhatsApp luar negeri (non-Indonesia)', badge: 'LUAR', countries: null, excludeCountries: ['id'] },
+    wa_luar: { label: 'Server Negara Luar', desc: 'Server luar negeri (non-Indonesia)', badge: 'LUAR', countries: null, excludeCountries: ['id'] },
 };
 
 const VALID_OPERATORS = ['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'];
