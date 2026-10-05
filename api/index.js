@@ -1603,6 +1603,31 @@ async function checkAndRefundUserOrders(userId) {
 }
 
 // ============================================
+// ===== ORDER LOOKUP HELPER (v14 - fix) =====
+// ===== Terima otp_id ATAU order_id provider =====
+// ============================================
+async function findUserOrder(userId, identifier) {
+    if (!identifier) return null;
+    const idStr = String(identifier).trim();
+
+    // Coba by otp_id dulu (karena frontend biasanya pegang otp_id)
+    let result = await pool.query(
+        'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 LIMIT 1',
+        [idStr, userId]
+    );
+    if (result.rows.length > 0) return result.rows[0];
+
+    // Fallback by order_id provider
+    result = await pool.query(
+        'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
+        [idStr, userId]
+    );
+    if (result.rows.length > 0) return result.rows[0];
+
+    return null;
+}
+
+// ============================================
 // ===== AUTO SYNC ORDER (v14) =====
 // ============================================
 async function autoSyncOrder(order) {
@@ -2877,6 +2902,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason,
             });
+            
         }
     } catch (err) {
         console.error('CekOTP error:', err.message);
@@ -3333,19 +3359,14 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     }
 }));
 
-// ============================================
 // ===== NOKOS CHECK STATUS ORDER =====
-// ============================================
 app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        const orderRes = await pool.query(
-            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
-            [String(orderId), req.user.id]
-        );
-        if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
+        // ===== FIX: terima otp_id atau order_id =====
+        const order = await findUserOrder(req.user.id, orderId);
+        if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
-        const order = orderRes.rows[0];
         if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
             return res.json({
                 otp_id: order.otp_id, status: order.status, phone_number: order.phone_number,
@@ -3361,33 +3382,34 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             });
         }
 
-        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(orderId)}`);
+        const providerOrderId = order.order_id;
+        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(providerOrderId)}`);
 
         if (data.status !== order.status || data.otp_code) {
             await pool.query(
                 `UPDATE orders SET status = $1, otp_code = $2, otp_code_2 = $3, full_sms = $4, received_at = CASE WHEN $1 = 'received' THEN NOW() ELSE received_at END, updated_at = NOW() WHERE order_id = $5`,
-                [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(orderId)]
+                [data.status, data.otp_code, data.otp_code_2, data.full_sms, String(providerOrderId)]
             );
             await pool.query(
                 `UPDATE transactions SET status = CASE WHEN $1 = 'received' THEN 'success' WHEN $1 IN ('cancelled', 'expired', 'refunded') THEN 'failed' ELSE status END, otp_code = $2, updated_at = NOW() WHERE order_id = $3`,
-                [data.status, data.otp_code, String(orderId)]
+                [data.status, data.otp_code, String(providerOrderId)]
             );
 
             if (data.status !== order.status) {
                 await logStatusChange({
-                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    entityType: 'order', entityId: String(providerOrderId), userId: order.user_id,
                     oldStatus: order.status, newStatus: data.status, reason: 'check_status',
                     metadata: { otp_code: data.otp_code || null, otp_id: order.otp_id },
                 });
             }
 
             if (['cancelled', 'expired', 'refunded'].includes(data.status)) {
-                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
+                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
                 if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_' + data.status);
             }
 
             if (data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-                const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
+                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
                 if (fresh.rows[0]) {
                     try { await notifyOtpSuccess(fresh.rows[0]); }
                     catch (err) { console.error('❌ Notif OTP (check status) error:', err.message); }
@@ -3395,7 +3417,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             }
         }
 
-        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
+        const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
         const o = fresh.rows[0];
 
         res.json({
@@ -3427,11 +3449,10 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
 app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        const orderRes = await pool.query(
-            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
-            [String(orderId), req.user.id]
-        );
-        if (orderRes.rows.length === 0) {
+        // ===== FIX: terima otp_id atau order_id =====
+        const order = await findUserOrder(req.user.id, orderId);
+        if (!order) {
+            // Fallback: cek deposit by reference_id
             const depositRes = await pool.query(
                 'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
                 [String(orderId), req.user.id]
@@ -3450,8 +3471,6 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
             });
         }
 
-        const order = orderRes.rows[0];
-
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak perlu resend' });
         }
@@ -3465,23 +3484,24 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
             return res.status(400).json({ error: 'Maksimal 3x resend per order' });
         }
 
+        const providerOrderId = order.order_id;
         const data = await dibananaFetch('/resend', {
             method: 'POST',
-            body: JSON.stringify({ order_id: Number(orderId) })
+            body: JSON.stringify({ order_id: Number(providerOrderId) })
         });
 
         await pool.query(
-            'UPDATE orders SET resend_count = resend_count + 1, status = $1, updated_at = NOW() WHERE order_id = $2',
-            [data.status, String(orderId)]
+            'UPDATE orders SET resend_count = resend_count + 1, status = $1, updated_at = NOW() WHERE id = $2',
+            [data.status, order.id]
         );
 
         await logStatusChange({
-            entityType: 'order', entityId: String(orderId), userId: req.user.id,
+            entityType: 'order', entityId: String(providerOrderId), userId: req.user.id,
             oldStatus: order.status, newStatus: data.status || order.status, reason: 'resend_sms',
             metadata: { resend_count: order.resend_count + 1, otp_id: order.otp_id },
         });
 
-        res.json(data);
+        res.json({ ...data, otp_id: order.otp_id });
     } catch (err) {
         const isClientErr = err.status && err.status >= 400 && err.status < 500;
         res.status(isClientErr ? err.status : 500).json({
@@ -3497,10 +3517,18 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-        const found = await client.query(
-            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 FOR UPDATE',
+
+        // ===== FIX: terima otp_id atau order_id =====
+        let found = await client.query(
+            'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 FOR UPDATE',
             [String(orderId), req.user.id]
         );
+        if (!found.rows.length) {
+            found = await client.query(
+                'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 FOR UPDATE',
+                [String(orderId), req.user.id]
+            );
+        }
         if (!found.rows.length) {
             await client.query('ROLLBACK');
             return res.status(404).json({ error: 'Order tidak ditemukan' });
@@ -3543,16 +3571,14 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
 }));
 
 // ===== NOKOS CANCEL ORDER =====
+// ===== NOKOS CANCEL ORDER =====
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        const orderRes = await pool.query(
-            'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
-            [String(orderId), req.user.id]
-        );
-        if (orderRes.rows.length === 0) return res.status(404).json({ error: 'Order tidak ditemukan' });
+        // ===== FIX: terima otp_id atau order_id =====
+        const order = await findUserOrder(req.user.id, orderId);
+        if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
-        const order = orderRes.rows[0];
         if (['received', 'success', 'confirmed'].includes(order.status)) {
             return res.status(400).json({ error: 'Order sudah sukses, tidak bisa dibatalkan' });
         }
@@ -3560,27 +3586,31 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
             return res.status(400).json({ error: 'Order sudah tidak aktif' });
         }
 
+        // Provider tetap butuh order_id asli
+        const providerOrderId = order.order_id;
+
         const data = await dibananaFetch('/cancel', {
             method: 'POST',
-            body: JSON.stringify({ order_id: Number(orderId) })
+            body: JSON.stringify({ order_id: Number(providerOrderId) })
         });
 
-        await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2', ['cancelled', String(orderId)]);
-        await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(orderId)]);
+        await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', ['cancelled', order.id]);
+        await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(providerOrderId)]);
 
         await logStatusChange({
-            entityType: 'order', entityId: String(orderId), userId: req.user.id,
+            entityType: 'order', entityId: String(providerOrderId), userId: req.user.id,
             oldStatus: order.status, newStatus: 'cancelled', reason: 'manual_cancel',
             metadata: { refunded_amount: Number(data.refunded) || Number(order.price) || 0, otp_id: order.otp_id },
         });
 
-        const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [orderId]);
+        const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
         if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'manual_cancel');
 
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
 
         res.json({
             ...data,
+            otp_id: order.otp_id,
             balance: userRes.rows[0] ? Number(userRes.rows[0].balance) : null
         });
     } catch (err) {
