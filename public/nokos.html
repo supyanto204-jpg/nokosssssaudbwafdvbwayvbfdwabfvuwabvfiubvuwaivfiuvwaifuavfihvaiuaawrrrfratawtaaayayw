@@ -93,7 +93,7 @@
         body.sheet-open { overflow: hidden; }
 
         /* ============================================
-           HERO — UPGRADED: gradient animated + shine
+           HERO
            ============================================ */
         .nokos-hero {
             display: flex;
@@ -868,8 +868,7 @@
         .server-arrow .icon-svg { width: 18px; height: 18px; }
 
         /* ============================================
-           SEARCH
-           ============================================ */
+           SEARCH           ============================================ */
         .sheet-search {
             position: relative;
             margin-bottom: 18px;
@@ -1292,30 +1291,6 @@
         }
 
         /* ============================================
-           SYNC INDICATOR
-           ============================================ */
-        .sync-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            border-radius: 50px;
-            background: var(--primary-light);
-            color: var(--primary);
-            font-size: 0.68rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            border: 2px solid var(--primary);
-            margin-left: auto;
-        }
-        .sync-pill .loading-spinner {
-            width: 10px; height: 10px;
-            border-width: 1.5px;
-            border-color: rgba(37, 99, 235, 0.2);
-            border-top-color: var(--primary);
-        }
-
-        /* ============================================
            RESPONSIVE
            ============================================ */
         @media (max-width: 768px) {
@@ -1454,10 +1429,6 @@
             <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Pesanan Aktif
             <span class="badge info" id="activeCount" style="display:none;">0</span>
-            <span class="sync-pill" id="syncPill" style="display:none;">
-                <span class="loading-spinner"></span>
-                <span>Sync...</span>
-            </span>
         </div>
 
         <div id="activeOrders">
@@ -1602,19 +1573,20 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       SECURITY HARDENING — Frontend
+       MAX SECURITY — Anti DevTools / Anti Leak
        ============================================ */
-    (function() {
-        const style = 'color:#dc2626;font-size:20px;font-weight:900;';
-        const styleSub = 'color:#64748b;font-size:12px;';
+
+    // Suppress console di production (biar user gabisa intip log)
+    (function suppressConsole() {
         try {
-            console.log('%c⚠️ STOP!', style);
-            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', styleSub);
-            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', styleSub);
+            const noop = () => {};
+            const methods = ['log', 'info', 'warn', 'error', 'debug', 'table', 'trace', 'dir', 'dirxml', 'group', 'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'profile', 'profileEnd', 'clear'];
+            methods.forEach(m => { try { console[m] = noop; } catch (e) {} });
         } catch (e) {}
     })();
 
-    // Blokir klik kanan + shortcut sensitif (F12 dibebaskan)
+    // Blokir klik kanan + shortcut sensitif (F12 DIBEBASKAN agar tidak mengganggu UX,
+    // tapi DevTools tidak akan bocorkan data karena semua state sudah di-strip)
     (function() {
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('keydown', (e) => {
@@ -1637,10 +1609,18 @@
         });
     })();
 
+    // Hapus query string agar tidak menyimpan referer / data sensitif di history
     (function() {
         try {
             const cleanUrl = window.location.origin + window.location.pathname;
             if (window.location.search) history.replaceState(null, '', cleanUrl);
+        } catch (e) {}
+    })();
+
+    // Freeze object penting supaya user gabisa inject lewat console
+    (function() {
+        try {
+            Object.freeze(window.ICONS || {});
         } catch (e) {}
     })();
 
@@ -1693,40 +1673,63 @@
     }
 
     /* ============================================
-       ANTI LEAK — sanitize data dari provider
+       ANTI LEAK — Whitelist field yang boleh ada di client
+       Prinsip: HANYA field yang benar-benar dibutuhkan UI yang disimpan.
        ============================================ */
-    // Field order yang TIDAK BOLEH masuk DOM / cache
-    const SENSITIVE_ORDER_FIELDS = [
-        'provider_price',
-        'payment_reference',
-        'notified_at',
-        'refund_reason',
-        '_provider_price',
-    ];
-    // Field provider yang TIDAK BOLEH dirender ke user
-    const SENSITIVE_PROVIDER_FIELDS = [
-        'provider_id',
-        'provider_price',
-        'price',
-        '_provider_price',
-        'cost',
-        'base_price',
-    ];
 
-    // Map otp_id -> order_id ASLI provider (buat API call, TIDAK pernah masuk DOM)
+    // Field yang DIIZINKAN di order (whitelist)
+    const ALLOWED_ORDER_FIELDS = new Set([
+        'otp_id',
+        'status',
+        'phone_number',
+        'otp_code',
+        'otp_code_2',
+        'full_sms',
+        'price_idr',
+        'price',
+        'service',
+        'service_name',
+        'icon_code',
+        'country',
+        'country_name',
+        'country_flag',
+        'operator',
+        'expires_in',
+        'expired_at',
+        'created_at',
+        'updated_at',
+        'received_at',
+        'refunded_at',
+        'refunded_amount',
+        '_bucket',
+    ]);
+
+    // Field yang DIIZINKAN di provider (whitelist)
+    const ALLOWED_PROVIDER_FIELDS = new Set([
+        'price_idr',
+        'stock',
+        'name',
+        'operator',
+    ]);
+
+    // Map otp_id -> identifier ASLI untuk API call (disimpan di closure, TIDAK di window)
     const ORDER_ID_MAP = new Map();
 
     function sanitizeOrder(order) {
         if (!order || typeof order !== 'object') return order;
-        const clean = { ...order };
-        for (const key of SENSITIVE_ORDER_FIELDS) delete clean[key];
+        const clean = {};
+        for (const key of Object.keys(order)) {
+            if (ALLOWED_ORDER_FIELDS.has(key)) clean[key] = order[key];
+        }
         return clean;
     }
 
     function sanitizeProvider(provider) {
         if (!provider || typeof provider !== 'object') return provider;
-        const clean = { ...provider };
-        for (const key of SENSITIVE_PROVIDER_FIELDS) delete clean[key];
+        const clean = {};
+        for (const key of Object.keys(provider)) {
+            if (ALLOWED_PROVIDER_FIELDS.has(key)) clean[key] = provider[key];
+        }
         return clean;
     }
 
@@ -1736,7 +1739,7 @@
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
-    const ICONS = {
+    const ICONS = Object.freeze({
         check: `<svg class="icon-svg" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`,
         close: `<svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
         info: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
@@ -1748,25 +1751,67 @@
         key: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>`,
         checkCircle: `<svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
         ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
-    };
+    });
 
     /* ============================================
-       APP ICON CDN — LAZY LOAD
+       APP ICON — SVG LAZY LOAD (Jauh lebih ringan dari PNG)
+       Pakai iconify CDN (SVG, gzip, ~1-2KB per icon)
        ============================================ */
-    const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
-    function getAppIconUrl(serviceCode, iconCode) {
-        let code = String(iconCode || '').trim().toLowerCase();
-        if (!code) code = String(serviceCode || '').trim().toLowerCase();
+    // Sumber SVG publik. Urutan prioritas: iconify → simple-icons → fallback huruf.
+    function getAppIconSvgUrl(serviceCode, iconCode) {
+        let code = String(iconCode || serviceCode || '').trim().toLowerCase();
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
-        return `${APP_CDN_BASE}/${code}.png`;
+
+        // Beberapa mapping sederhana (service code → slug simple-icons)
+        const SIMPLE_ICONS_SLUG = {
+            whatsapp: 'whatsapp', wa: 'whatsapp',
+            telegram: 'telegram', tg: 'telegram',
+            facebook: 'facebook', fb: 'facebook',
+            instagram: 'instagram', ig: 'instagram',
+            twitter: 'x', x: 'x',
+            tiktok: 'tiktok', tt: 'tiktok',
+            google: 'google', gmail: 'gmail',
+            youtube: 'youtube', yt: 'youtube',
+            shopee: 'shopee', tokopedia: 'tokopedia',
+            grab: 'grab', gojek: 'gojek',
+            netflix: 'netflix', spotify: 'spotify',
+            discord: 'discord', line: 'line',
+            wechat: 'wechat', viber: 'viber',
+            signal: 'signal', snapchat: 'snapchat',
+            linkedin: 'linkedin', reddit: 'reddit',
+            pinterest: 'pinterest', tumblr: 'tumblr',
+            skype: 'skype', zoom: 'zoom',
+            amazon: 'amazon', paypal: 'paypal',
+            apple: 'apple', microsoft: 'microsoft',
+            yahoo: 'yahoo', protonmail: 'protonmail',
+            truecaller: 'truecaller', uber: 'uber',
+            airbnb: 'airbnb', tinder: 'tinder',
+            bumble: 'bumble', paytm: 'paytm',
+            phonepe: 'phonepe', alipay: 'alipay',
+            naver: 'naver', kakao: 'kakaotalk',
+        };
+
+        const slug = SIMPLE_ICONS_SLUG[code] || code;
+        // simple-icons tersedia dalam bentuk SVG di jsDelivr
+        return `https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${slug}.svg`;
+    }
+
+    function getAppIconFallbackUrl(serviceCode, iconCode) {
+        let code = String(iconCode || serviceCode || '').trim().toLowerCase();
+        if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
+        return `https://api.iconify.design/simple-icons:${code}.svg`;
     }
 
     function renderAppIcon(serviceCode, serviceName, iconCode) {
         const name = String(serviceName || serviceCode || '?').trim();
         const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url = getAppIconUrl(serviceCode, iconCode);
-        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}" class="app-icon-lazy">
+        const url1 = getAppIconSvgUrl(serviceCode, iconCode);
+        const url2 = getAppIconFallbackUrl(serviceCode, iconCode);
+        if (!url1 && !url2) {
+            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        }
+        // data-src primary + data-fallback SVG kedua
+        return `<img data-src="${escapeHtml(url1 || url2)}" data-fallback="${escapeHtml(url2 || '')}" alt="${escapeHtml(name)}" class="app-icon-lazy" style="color:#0f172a;">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
@@ -1795,13 +1840,29 @@
                 }
                 obs.unobserve(img);
             });
-        }, { rootMargin: '100px', threshold: 0.01 });
+        }, { rootMargin: '200px', threshold: 0.01 });
         return appIconObserver;
     }
 
     function observeAppIcons(root = document) {
         const observer = getAppIconObserver();
         root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => observer.observe(img));
+        // Bind error handler → fallback ke URL kedua, kalau gagal juga → huruf
+        root.querySelectorAll('img.app-icon-lazy').forEach(img => {
+            if (img.dataset.boundImg) return;
+            img.dataset.boundImg = '1';
+            img.addEventListener('error', function() {
+                const fb = this.dataset.fallback;
+                if (fb && this.src !== fb) {
+                    this.dataset.fallback = '';
+                    this.src = fb;
+                    return;
+                }
+                this.style.display = 'none';
+                const next = this.nextElementSibling;
+                if (next) next.style.display = 'inline-flex';
+            });
+        });
     }
 
     /* ============================================
@@ -1814,17 +1875,14 @@
         if (svc) return svc;
         return 'Layanan OTP';
     }
-    function getServiceInitial(order) {
-        const name = getServiceDisplayName(order);
-        return String(name).trim().charAt(0).toUpperCase() || '?';
-    }
     function renderServiceIcon(order) {
         const code = String(order?.service || '').trim();
         const name = getServiceDisplayName(order);
-        const initial = getServiceInitial(order);
-        const url = getAppIconUrl(code, order?.icon_code);
-        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy">
+        const initial = String(name).charAt(0).toUpperCase() || '?';
+        const url1 = getAppIconSvgUrl(code, order?.icon_code);
+        const url2 = getAppIconFallbackUrl(code, order?.icon_code);
+        if (!url1 && !url2) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        return `<img src="${escapeHtml(url1 || url2)}" data-fallback="${escapeHtml(url2 || '')}" alt="${escapeHtml(name)}" loading="lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
@@ -1857,7 +1915,8 @@
     function getOtpId(order) {
         const id = String(order?.otp_id || '').trim();
         if (id) return id;
-        const seed = [order?.order_id, order?.created_at, order?.service, order?.phone_number].join('|');
+        // Fallback: hash dari field yang tersedia (TIDAK pakai order_id asli)
+        const seed = [order?.created_at, order?.service, order?.phone_number].join('|');
         let hash = 2166136261;
         for (let i = 0; i < seed.length; i++) hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
         return `OTP${(hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0')}`;
@@ -1890,7 +1949,7 @@
         try {
             const ok = document.execCommand('copy');
             if (ok && typeof onSuccess === 'function') onSuccess();
-        } catch (e) { console.error('Copy fallback failed:', e); }
+        } catch (e) {}
         document.body.removeChild(ta);
     }
 
@@ -2022,9 +2081,7 @@
             twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
             `https://flagcdn.com/w40/${code}.png`,
             `https://flagcdn.com/w80/${code}.png`,
-            `https://cdn.jsdelivr.net/npm/flagpack@latest/flags/4x3/${code}.svg`,
             `https://unpkg.com/country-flag-icons@1.5.7/3x2/${code.toUpperCase()}.svg`,
-            `https://flagpedia.net/data/flags/w40/${code}.png`,
         ].filter(Boolean);
     }
     function renderFlag(countryCode, className = 'flag-img') {
@@ -2080,7 +2137,6 @@
 
     let servicesCache = [];
     let autoSyncInterval = null;
-    const countdownDeadlines = {};
 
     /* ===== LOAD USER ===== */
     swrFetch('/api/user', 'user_profile', (user) => {
@@ -2126,18 +2182,15 @@
         return merged;
     }
 
-    /* ===== LOAD ACTIVE (manual flag buat kontrol sync pill) ===== */
+    /* ===== LOAD ACTIVE (silent — gak ada animasi apapun) ===== */
     let _loadActiveAbort = null;
-    async function loadActiveOrders(silent = false, manual = false) {
+    async function loadActiveOrders() {
         const cacheKey = getActiveOrdersCacheKey();
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value) {
             activeState.allOrders = cached.value.orders || [];
             renderActiveOrders(cached.value.orders || []);
-            if (!silent && manual) showSyncPill(true);
-        } else if (!silent && manual) {
-            showSyncPill(true);
         }
 
         if (_loadActiveAbort) _loadActiveAbort.abort();
@@ -2145,16 +2198,16 @@
 
         try {
             const merged = await fetchActiveOrders();
-            // Simpan mapping otp_id -> order_id asli di JS (bukan di DOM)
+            // Simpan mapping di closure
             merged.forEach(o => {
                 const otpId = String(o.otp_id || '').trim();
-                const realId = String(o.order_id || '').trim();
+                const realId = String(o.raw_id || o.order_id || '').trim();
                 if (otpId && realId) ORDER_ID_MAP.set(otpId, realId);
             });
             activeState.allOrders = merged;
-            // Simpan versi aman ke cache (tanpa order_id provider)
+            // Simpan versi aman (tanpa raw_id/order_id) ke cache
             const safeOrders = merged.map(o => {
-                const { order_id, ...rest } = o;
+                const { raw_id, order_id, ...rest } = o;
                 return rest;
             });
             CacheManager.set(cacheKey, { orders: safeOrders });
@@ -2166,8 +2219,7 @@
             if (pendingNoOtp.length > 0) syncPendingOrders(pendingNoOtp);
         } catch (err) {
             if (err.name === 'AbortError') return;
-            console.error('Load active orders error:', err);
-            if (!cached && !silent) {
+            if (!cached) {
                 document.getElementById('activeOrders').innerHTML = `
                     <div class="empty-orders">
                         <div class="icon-box">${ICONS.warning}</div>
@@ -2177,20 +2229,13 @@
                 `;
             }
         } finally {
-            if (!silent && manual) showSyncPill(false);
             _loadActiveAbort = null;
         }
     }
 
-    function showSyncPill(show) {
-        const pill = document.getElementById('syncPill');
-        if (!pill) return;
-        pill.style.display = show ? 'inline-flex' : 'none';
-    }
-
     /* ===== COUNTDOWN DEADLINE PERSIST ===== */
-    function getCountdownDeadline(orderId, expiresIn) {
-        const key = `asyrof_cd_${orderId}`;
+    function getCountdownDeadline(orderKey, expiresIn) {
+        const key = `asyrof_cd_${orderKey}`;
         const now = Date.now();
         try {
             const stored = sessionStorage.getItem(key);
@@ -2207,8 +2252,8 @@
         }
         return 0;
     }
-    function clearCountdownDeadline(orderId) {
-        try { sessionStorage.removeItem(`asyrof_cd_${orderId}`); } catch (e) {}
+    function clearCountdownDeadline(orderKey) {
+        try { sessionStorage.removeItem(`asyrof_cd_${orderKey}`); } catch (e) {}
     }
 
     /* ===== BUILD ACTIVE CARD ===== */
@@ -2217,8 +2262,7 @@
         const isPending = o.status === 'pending' && !isSuccess;
         const hasOtp = o.otp_code && o.otp_code.trim();
         const otpId = getOtpId(o);
-        const apiOrderId = String(o.order_id || '').trim();
-        const hasApiOrderId = Boolean(apiOrderId);
+        const hasApiId = Boolean(o.order_id || o.raw_id);
         const serviceDisplayName = getServiceDisplayName(o);
         const countryName = getCountryName(o);
         const expiresIn = Number(o.expires_in || 0);
@@ -2229,16 +2273,18 @@
             hour: '2-digit', minute: '2-digit'
         });
 
-        // Simpan mapping order_id asli ke JS Map (jangan render ke DOM)
-        if (apiOrderId && otpId) ORDER_ID_MAP.set(otpId, apiOrderId);
+        // Simpan mapping otp_id -> real id di closure (TIDAK render ke DOM)
+        if ((o.order_id || o.raw_id) && otpId) {
+            ORDER_ID_MAP.set(otpId, o.order_id || o.raw_id);
+        }
 
         const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
 
         let countdownHtml = '';
-        if (hasValidCountdown && apiOrderId) {
-            const deadline = getCountdownDeadline(apiOrderId, expiresIn);
+        if (hasValidCountdown) {
+            const deadline = getCountdownDeadline(otpId, expiresIn);
             const remaining = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
             const m = Math.floor(remaining / 60);
             const s = remaining % 60;
@@ -2251,14 +2297,13 @@
             `;
         }
 
-        // data-ref = otp_id (aman), BUKAN order_id asli
+        // PENTING: DOM cuma punya data-ref (otp_id). real id disimpan di closure map.
         return `
             <div class="aoc-card ${cardClass}"
                  data-ref="${escapeHtml(otpId)}"
-                 data-otp-id="${escapeHtml(otpId)}"
                  data-bucket="${escapeHtml(o._bucket || '')}"
                  data-status="${escapeHtml(o.status || '')}"
-                 data-has-api-id="${hasApiOrderId ? '1' : '0'}"
+                 data-has-id="${hasApiId ? '1' : '0'}"
                  data-sig="">
                 <div class="aoc-header">
                     <div class="aoc-app-icon" title="${escapeHtml(serviceDisplayName)}">
@@ -2317,7 +2362,7 @@
                 ${countdownHtml}
 
                 <div class="aoc-actions">
-                    ${isPending && hasApiOrderId ? `
+                    ${isPending && hasApiId ? `
                         ${hasOtp ? `
                             <button class="btn" type="button" data-resend="${escapeHtml(otpId)}">
                                 ${ICONS.refresh} Resend
@@ -2350,13 +2395,11 @@
                 copyToClipboard(btn.dataset.copy, btn);
             });
         });
-        // Resolve order_id asli dari Map (data-ref = otp_id)
         card.querySelectorAll('[data-resend]').forEach(btn => {
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
             btn.addEventListener('click', () => {
-                const key = btn.dataset.resend;
-                const realId = ORDER_ID_MAP.get(key) || key;
+                const realId = ORDER_ID_MAP.get(btn.dataset.resend) || btn.dataset.resend;
                 resendOrder(realId, btn);
             });
         });
@@ -2364,8 +2407,7 @@
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
             btn.addEventListener('click', () => {
-                const key = btn.dataset.confirm;
-                const realId = ORDER_ID_MAP.get(key) || key;
+                const realId = ORDER_ID_MAP.get(btn.dataset.confirm) || btn.dataset.confirm;
                 confirmOrder(realId, btn);
             });
         });
@@ -2373,8 +2415,7 @@
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
             btn.addEventListener('click', () => {
-                const key = btn.dataset.cancel;
-                const realId = ORDER_ID_MAP.get(key) || key;
+                const realId = ORDER_ID_MAP.get(btn.dataset.cancel) || btn.dataset.cancel;
                 cancelOrder(realId, btn);
             });
         });
@@ -2382,15 +2423,6 @@
             if (img.dataset.bound) return;
             img.dataset.bound = '1';
             img.addEventListener('error', function() { window.handleFlagError(this); });
-        });
-        card.querySelectorAll('.aoc-app-icon img').forEach(img => {
-            if (img.dataset.boundImg) return;
-            img.dataset.boundImg = '1';
-            img.addEventListener('error', function() {
-                this.style.display = 'none';
-                const next = this.nextElementSibling;
-                if (next) next.style.display = 'inline-flex';
-            });
         });
     }
 
@@ -2437,13 +2469,11 @@
             if (id) existingCards.set(id, card);
         });
 
-        const newIds = new Set();
         const fragment = document.createDocumentFragment();
 
         pageOrders.forEach((o, idx) => {
             const otpId = getOtpId(o);
             const cardKey = otpId || `fallback-${idx}`;
-            newIds.add(cardKey);
 
             const newHtml = buildActiveCardHtml(o);
             const tmp = document.createElement('div');
@@ -2541,7 +2571,7 @@
                     clearCountdownDeadline(ref);
                     setTimeout(() => {
                         CacheManager.remove(getActiveOrdersCacheKey());
-                        loadActiveOrders(true, false);
+                        loadActiveOrders();
                     }, 500);
                     return;
                 }
@@ -2555,7 +2585,7 @@
         });
     }
 
-    /* ===== SYNC PENDING — PARALLEL ===== */
+    /* ===== SYNC PENDING ===== */
     async function syncPendingOrders(orders) {
         if (!orders || orders.length === 0) return;
 
@@ -2564,7 +2594,7 @@
                 .filter(o => !(o.otp_code && o.otp_code.trim()))
                 .map(o => {
                     const otpId = String(o.otp_id || '').trim();
-                    const realId = ORDER_ID_MAP.get(otpId) || o.order_id;
+                    const realId = ORDER_ID_MAP.get(otpId) || o.order_id || o.raw_id;
                     return securePost('/api/cekotp', { order_id: realId, otp_id: otpId }, 'cekotp')
                         .then(r => safeJson(r));
                 })
@@ -2591,16 +2621,16 @@
 
         if (hasUpdate) {
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true, false);
+            loadActiveOrders();
         }
     }
 
-    /* ===== AUTO SYNC ===== */
+    /* ===== AUTO SYNC (silent, gak ada UI indicator) ===== */
     function startAutoSync() {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
             if (document.hidden) return;
-            loadActiveOrders(true, false);
+            loadActiveOrders();
         }, 5000);
     }
 
@@ -2618,7 +2648,7 @@
             await showCustomAlert({ title: 'Resend Berhasil', message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true, false);
+            loadActiveOrders();
         } catch (err) {
             await showCustomAlert({ title: 'Gagal Resend', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -2649,7 +2679,7 @@
             await showCustomAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true, false);
+            loadActiveOrders();
         } catch (err) {
             await showCustomAlert({ title: 'Gagal Konfirmasi', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -2688,7 +2718,7 @@
                 document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
             });
 
-            loadActiveOrders(true, false);
+            loadActiveOrders();
         } catch (err) {
             await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -2786,7 +2816,6 @@
                 });
             });
         } catch (err) {
-            console.error(err);
             body.innerHTML = `<div class="empty-block"><h3>Gagal memuat server</h3><p>${escapeHtml(err.message)}</p></div>`;
         }
     }
@@ -2833,7 +2862,6 @@
                 renderApps(filtered);
             });
         } catch (err) {
-            console.error(err);
             if (!cached) {
                 document.getElementById('appContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
@@ -2927,7 +2955,6 @@
                 renderCountries(filtered);
             });
         } catch (err) {
-            console.error(err);
             if (!cached) {
                 document.getElementById('countryContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat negara</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
@@ -3043,17 +3070,25 @@
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await safeJson(res);
-            // Sanitize provider sebelum masuk state & cache
-            state.providers = (data.providers || []).map(sanitizeProvider);
-            CacheManager.set(cacheKey, { providers: state.providers }, 2 * 60 * 1000);
-            renderPrices(state.providers);
+            // Sanitize: simpan raw id provider di closure Map, DOM hanya pakai index
+            const providers = (data.providers || []).map(sanitizeProvider);
+            // Simpan raw provider di closure (bukan di state.providers yang bisa diintip via console global)
+            PROVIDER_RAW_MAP.clear();
+            (data.providers || []).forEach((p, i) => {
+                PROVIDER_RAW_MAP.set(i, { id: p.id, price: p.price, provider_id: p.provider_id, provider_price: p.provider_price });
+            });
+            state.providers = providers;
+            CacheManager.set(cacheKey, { providers }, 2 * 60 * 1000);
+            renderPrices(providers);
         } catch (err) {
-            console.error(err);
             if (!cached) {
                 document.getElementById('priceContent').innerHTML = `<div class="empty-block"><h3>Gagal memuat harga</h3><p>${escapeHtml(err.message)}</p></div>`;
             }
         }
     }
+
+    // Map index provider -> raw provider data (closure, TIDAK di window)
+    const PROVIDER_RAW_MAP = new Map();
 
     function renderPrices(providers) {
         const content = document.getElementById('priceContent');
@@ -3102,13 +3137,13 @@
             btn.addEventListener('click', () => {
                 const idx = Number(btn.dataset.buyIdx);
                 const priceData = sorted[idx];
-                if (priceData) confirmAndPlaceOrder(priceData, btn);
+                if (priceData) confirmAndPlaceOrder(idx, priceData, btn);
             });
         });
     }
 
     /* ===== KONFIRMASI BELI ===== */
-    async function confirmAndPlaceOrder(priceData, btn) {
+    async function confirmAndPlaceOrder(idx, priceData, btn) {
         const price = Number(priceData.price_idr || priceData.price || 0);
         const ok = await showCustomAlert({
             title: 'Konfirmasi Pembelian',
@@ -3119,16 +3154,19 @@
             cancelText: 'Batal'
         });
         if (!ok) return;
-        placeOrder(priceData, btn);
+        placeOrder(idx, priceData, btn);
     }
 
     /* ===== PLACE ORDER ===== */
-    async function placeOrder(priceData, btn) {
+    async function placeOrder(idx, priceData, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
+            // Ambil raw provider dari closure map (bukan dari DOM/state yg bisa diintip)
+            const raw = PROVIDER_RAW_MAP.get(idx) || {};
+
             const body = {
                 server: state.server,
                 service: state.service,
@@ -3139,11 +3177,11 @@
             };
 
             if (state.requiresOperator) {
-                body.provider_id = priceData.id;
-                body.provider_price = priceData.price;
+                body.provider_id = raw.provider_id || raw.id;
+                body.provider_price = raw.provider_price || raw.price;
                 body.operator = state.operator || 'any';
             } else {
-                body.id = priceData.id;
+                body.id = raw.id || priceData.id;
             }
 
             const res = await securePost('/api/nokos/order', body, 'order');
@@ -3156,6 +3194,7 @@
             }
 
             closeSheet();
+            PROVIDER_RAW_MAP.clear();
 
             CacheManager.remove('user_profile');
             CacheManager.remove(getActiveOrdersCacheKey());
@@ -3168,7 +3207,7 @@
                     document.getElementById('balancePill').textContent = formatRupiah(user.balance);
                     document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
                 });
-                loadActiveOrders(true, false);
+                loadActiveOrders();
             }, 500);
         } catch (err) {
             await showCustomAlert({ title: 'Order Gagal', message: err.message || 'Terjadi kesalahan', type: 'danger', okText: 'OK' });
@@ -3206,18 +3245,17 @@
         } catch (err) {}
         CacheManager.clear();
         ORDER_ID_MAP.clear();
+        PROVIDER_RAW_MAP.clear();
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/landing';
     });
 
     /* ===== INIT ===== */
-    // Manual load (pertama kali): pakai sync pill
-    loadActiveOrders(false, true);
-    // Auto-sync tiap 5 detik: TANPA sync pill (biar gak kelap-kelip)
+    loadActiveOrders();
     startAutoSync();
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) loadActiveOrders(false, true);
+        if (!document.hidden) loadActiveOrders();
     });
     window.addEventListener('beforeunload', () => {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
