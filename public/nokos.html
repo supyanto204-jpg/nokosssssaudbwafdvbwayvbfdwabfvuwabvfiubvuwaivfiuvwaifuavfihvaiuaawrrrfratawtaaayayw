@@ -18,7 +18,6 @@
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
 
-     <!-- 🔒 SECURITY: Anti-FOUC + Anti-iframe + Anti-view-source + DevTools lock (jalan paling awal) -->
     <script>
         // Safety cleanup freeze style dari page sebelumnya
         (function() {
@@ -67,98 +66,10 @@
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
-
-        // 🔒 DevTools LOCK SCREEN
-        (function() {
-            const LOCK_FLAG = 'asyrof_devtools_lock';
-
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                document.documentElement.innerHTML = '<head></head><body></body>';
-
-                function showLockScreen() {
-                    document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
-                            </div>
-                        </div>
-                        <style>
-                            html, body {
-                                margin: 0; padding: 0;
-                                background: #0f172a;
-                                overflow: auto !important;
-                                position: static !important;
-                                height: auto !important;
-                                min-height: 100vh !important;
-                                width: 100% !important;
-                            }
-                            #devtoolsLockScreen {
-                                min-height: 100vh;
-                                width: 100%;
-                                background: #0f172a;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                padding: 24px;
-                                box-sizing: border-box;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                                user-select: none;
-                                -webkit-user-select: none;
-                            }
-                            #devtoolsLockScreen .lock-box {
-                                background: #1e293b;
-                                border: 3px solid #475569;
-                                border-radius: 20px;
-                                padding: 40px 32px;
-                                max-width: 440px;
-                                width: 100%;
-                                text-align: center;
-                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
-                                box-sizing: border-box;
-                            }
-                            #devtoolsLockScreen .lock-icon { font-size: 3rem; margin-bottom: 16px; line-height: 1; }
-                            #devtoolsLockScreen h2 { color: #dc2626; font-size: 1.5rem; font-weight: 800; margin: 0 0 12px; font-family: inherit; }
-                            #devtoolsLockScreen p { color: #cbd5e1; font-size: 0.95rem; line-height: 1.6; margin: 0 0 8px; }
-                            #devtoolsLockScreen .lock-hint { color: #64748b; font-size: 0.78rem; font-family: ui-monospace, monospace; margin-top: 20px; padding-top: 16px; border-top: 1px dashed #334155; }
-                        </style>
-                    `;
-
-                    const THRESHOLD = 200;
-                    setInterval(() => {
-                        const wDiff = window.outerWidth - window.innerWidth;
-                        const hDiff = window.outerHeight - window.innerHeight;
-                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-
-                        if (!stillOpen) {
-                            sessionStorage.removeItem(LOCK_FLAG);
-                            try {
-                                document.body.style.cssText = '';
-                                document.documentElement.style.cssText = '';
-                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                            } catch (e) {}
-                            window.location.reload();
-                        }
-                    }, 500);
-                }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
-                throw new Error('__DEVTOOLS_LOCK__');
-            }
-        })();
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 
-
-    
     <style>
         /* ============================================
            GLOBAL ANTI-SELECT + ANTI-DRAG
@@ -273,7 +184,7 @@
         }
 
         /* ============================================
-           SECTION TITLE — UPGRADED dengan dot pulse
+           SECTION TITLE
            ============================================ */
         .section-title {
             font-size: 0.85rem;
@@ -322,7 +233,7 @@
         }
 
         /* ============================================
-           ACTIVE ORDERS — UPGRADED: hover subtle + shimmer border
+           ACTIVE ORDERS
            ============================================ */
         .active-orders {
             display: grid;
@@ -365,7 +276,6 @@
         .aoc-card.is-expired::before { background: #64748b; }
         .aoc-card.is-cancelled::before { background: var(--danger); }
 
-        /* Shimmer untuk card pending */
         .aoc-card.is-pending::after {
             content: '';
             position: absolute;
@@ -617,7 +527,7 @@
         .empty-orders p { font-size: 0.85rem; margin-bottom: 0; }
 
         /* ============================================
-           CTA — UPGRADED: glow + gradient shift
+           CTA
            ============================================ */
         .cta-wrap {
             text-align: center;
@@ -741,7 +651,7 @@
         .footer-copy strong { color: var(--primary); font-weight: 800; }
 
         /* ============================================
-           BOTTOM SHEET — UPGRADED
+           BOTTOM SHEET
            ============================================ */
         .bottom-sheet-overlay {
             position: fixed;
@@ -874,7 +784,7 @@
         .sheet-back .icon-svg { width: 14px; height: 14px; }
 
         /* ============================================
-           SERVER LIST — UPGRADED hover
+           SERVER LIST
            ============================================ */
         .server-list {
             display: flex;
@@ -1016,7 +926,7 @@
         }
 
         /* ============================================
-           APP GRID — UPGRADED hover scale
+           APP GRID
            ============================================ */
         .app-grid {
             display: grid;
@@ -1070,7 +980,7 @@
         .app-card:hover .app-icon-wrap { transform: scale(1.08) rotate(-3deg); }
 
         /* ============================================
-           TABS — UPGRADED
+           TABS
            ============================================ */
         .sheet-tabs {
             display: flex;
@@ -1106,7 +1016,7 @@
         }
 
         /* ============================================
-           COUNTRY LIST — UPGRADED
+           COUNTRY LIST
            ============================================ */
         .country-list {
             display: flex;
@@ -1163,7 +1073,7 @@
         .country-arrow .icon-svg { width: 18px; height: 18px; }
 
         /* ============================================
-           PRICE LIST — UPGRADED
+           PRICE LIST
            ============================================ */
         .price-list {
             display: flex;
@@ -1313,7 +1223,7 @@
         .empty-block p { font-size: 0.82rem; max-width: 280px; margin: 0 auto; }
 
         /* ============================================
-           SUCCESS MODAL — UPGRADED
+           SUCCESS MODAL
            ============================================ */
         .success-modal { text-align: center; }
         .success-icon {
@@ -1704,11 +1614,11 @@
         } catch (e) {}
     })();
 
+    // Blokir klik kanan + shortcut sensitif (F12 dibebaskan)
     (function() {
         document.addEventListener('contextmenu', (e) => e.preventDefault());
         document.addEventListener('keydown', (e) => {
             const k = e.key;
-            if (k === 'F12') { e.preventDefault(); return false; }
             if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
             if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
         }, true);
@@ -1725,44 +1635,6 @@
             if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
             e.preventDefault();
         });
-    })();
-
-    (function() {
-        const LOCK_FLAG = 'asyrof_devtools_lock';
-        const THRESHOLD_WIDTH = 200;
-        const THRESHOLD_HEIGHT = 200;
-
-        function shouldSkipDetection() {
-            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
-            if (window.innerWidth < 600) return true;
-            return false;
-        }
-
-        function isDevToolsOpen() {
-            if (shouldSkipDetection()) return false;
-            const widthDiff = window.outerWidth - window.innerWidth;
-            const heightDiff = window.outerHeight - window.innerHeight;
-            return widthDiff > THRESHOLD_WIDTH || heightDiff > THRESHOLD_HEIGHT;
-        }
-
-        function startDetection() {
-            setInterval(() => {
-                if (isDevToolsOpen()) {
-                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
-                    try {
-                        document.body.style.cssText = '';
-                        document.documentElement.style.cssText = '';
-                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                    } catch (e) {}
-                    document.body.innerHTML = '';
-                    window.location.reload();
-                }
-            }, 500);
-        }
-
-        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startDetection);
-        else startDetection();
     })();
 
     (function() {
@@ -1818,6 +1690,44 @@
         return String(value ?? '').replace(/[&<>"']/g, ch => ({
             '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
         })[ch]);
+    }
+
+    /* ============================================
+       ANTI LEAK — sanitize data dari provider
+       ============================================ */
+    // Field order yang TIDAK BOLEH masuk DOM / cache
+    const SENSITIVE_ORDER_FIELDS = [
+        'provider_price',
+        'payment_reference',
+        'notified_at',
+        'refund_reason',
+        '_provider_price',
+    ];
+    // Field provider yang TIDAK BOLEH dirender ke user
+    const SENSITIVE_PROVIDER_FIELDS = [
+        'provider_id',
+        'provider_price',
+        'price',
+        '_provider_price',
+        'cost',
+        'base_price',
+    ];
+
+    // Map otp_id -> order_id ASLI provider (buat API call, TIDAK pernah masuk DOM)
+    const ORDER_ID_MAP = new Map();
+
+    function sanitizeOrder(order) {
+        if (!order || typeof order !== 'object') return order;
+        const clean = { ...order };
+        for (const key of SENSITIVE_ORDER_FIELDS) delete clean[key];
+        return clean;
+    }
+
+    function sanitizeProvider(provider) {
+        if (!provider || typeof provider !== 'object') return provider;
+        const clean = { ...provider };
+        for (const key of SENSITIVE_PROVIDER_FIELDS) delete clean[key];
+        return clean;
     }
 
     /* ============================================
@@ -2196,7 +2106,7 @@
         const now = Date.now();
         const FIVE_MIN = 5 * 60 * 1000;
 
-        const pending = (pendingData.orders || []).map(o => ({ ...o, _bucket: 'pending' }));
+        const pending = (pendingData.orders || []).map(o => ({ ...sanitizeOrder(o), _bucket: 'pending' }));
         const recentSuccess = (successData.orders || [])
             .filter(o => {
                 const t = o.updated_at || o.created_at || o.confirmed_at;
@@ -2204,7 +2114,7 @@
                 const ts = new Date(t).getTime();
                 return Number.isFinite(ts) && (now - ts) <= FIVE_MIN;
             })
-            .map(o => ({ ...o, _bucket: 'success' }));
+            .map(o => ({ ...sanitizeOrder(o), _bucket: 'success' }));
 
         const merged = [...pending, ...recentSuccess];
         merged.sort((a, b) => {
@@ -2216,17 +2126,17 @@
         return merged;
     }
 
-    /* ===== LOAD ACTIVE ===== */
+    /* ===== LOAD ACTIVE (manual flag buat kontrol sync pill) ===== */
     let _loadActiveAbort = null;
-    async function loadActiveOrders(silent = false) {
+    async function loadActiveOrders(silent = false, manual = false) {
         const cacheKey = getActiveOrdersCacheKey();
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value) {
             activeState.allOrders = cached.value.orders || [];
             renderActiveOrders(cached.value.orders || []);
-            if (!silent) showSyncPill(true);
-        } else if (!silent) {
+            if (!silent && manual) showSyncPill(true);
+        } else if (!silent && manual) {
             showSyncPill(true);
         }
 
@@ -2235,8 +2145,19 @@
 
         try {
             const merged = await fetchActiveOrders();
+            // Simpan mapping otp_id -> order_id asli di JS (bukan di DOM)
+            merged.forEach(o => {
+                const otpId = String(o.otp_id || '').trim();
+                const realId = String(o.order_id || '').trim();
+                if (otpId && realId) ORDER_ID_MAP.set(otpId, realId);
+            });
             activeState.allOrders = merged;
-            CacheManager.set(cacheKey, { orders: merged });
+            // Simpan versi aman ke cache (tanpa order_id provider)
+            const safeOrders = merged.map(o => {
+                const { order_id, ...rest } = o;
+                return rest;
+            });
+            CacheManager.set(cacheKey, { orders: safeOrders });
             renderActiveOrders(merged);
 
             const pendingNoOtp = merged.filter(o =>
@@ -2256,7 +2177,7 @@
                 `;
             }
         } finally {
-            if (!silent) showSyncPill(false);
+            if (!silent && manual) showSyncPill(false);
             _loadActiveAbort = null;
         }
     }
@@ -2308,6 +2229,9 @@
             hour: '2-digit', minute: '2-digit'
         });
 
+        // Simpan mapping order_id asli ke JS Map (jangan render ke DOM)
+        if (apiOrderId && otpId) ORDER_ID_MAP.set(otpId, apiOrderId);
+
         const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
@@ -2320,19 +2244,21 @@
             const s = remaining % 60;
             const timeText = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
             countdownHtml = `
-                <div class="aoc-countdown" data-order-id="${escapeHtml(apiOrderId)}" data-deadline="${deadline}">
+                <div class="aoc-countdown" data-ref="${escapeHtml(otpId)}" data-deadline="${deadline}">
                     ${ICONS.clock}
                     <span class="countdown-text">${timeText}</span> tersisa
                 </div>
             `;
         }
 
+        // data-ref = otp_id (aman), BUKAN order_id asli
         return `
             <div class="aoc-card ${cardClass}"
-                 data-order-id="${escapeHtml(apiOrderId)}"
+                 data-ref="${escapeHtml(otpId)}"
                  data-otp-id="${escapeHtml(otpId)}"
                  data-bucket="${escapeHtml(o._bucket || '')}"
                  data-status="${escapeHtml(o.status || '')}"
+                 data-has-api-id="${hasApiOrderId ? '1' : '0'}"
                  data-sig="">
                 <div class="aoc-header">
                     <div class="aoc-app-icon" title="${escapeHtml(serviceDisplayName)}">
@@ -2393,14 +2319,14 @@
                 <div class="aoc-actions">
                     ${isPending && hasApiOrderId ? `
                         ${hasOtp ? `
-                            <button class="btn" type="button" data-resend="${escapeHtml(apiOrderId)}">
+                            <button class="btn" type="button" data-resend="${escapeHtml(otpId)}">
                                 ${ICONS.refresh} Resend
                             </button>
-                            <button class="btn btn-primary" type="button" data-confirm="${escapeHtml(apiOrderId)}">
+                            <button class="btn btn-primary" type="button" data-confirm="${escapeHtml(otpId)}">
                                 ${ICONS.checkCircle} Konfirmasi
                             </button>
                         ` : `
-                            <button class="btn btn-danger" type="button" data-cancel="${escapeHtml(apiOrderId)}">
+                            <button class="btn btn-danger" type="button" data-cancel="${escapeHtml(otpId)}">
                                 ${ICONS.ban} Batalkan
                             </button>
                         `}
@@ -2424,20 +2350,33 @@
                 copyToClipboard(btn.dataset.copy, btn);
             });
         });
+        // Resolve order_id asli dari Map (data-ref = otp_id)
         card.querySelectorAll('[data-resend]').forEach(btn => {
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
-            btn.addEventListener('click', () => resendOrder(btn.dataset.resend, btn));
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.resend;
+                const realId = ORDER_ID_MAP.get(key) || key;
+                resendOrder(realId, btn);
+            });
         });
         card.querySelectorAll('[data-confirm]').forEach(btn => {
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
-            btn.addEventListener('click', () => confirmOrder(btn.dataset.confirm, btn));
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.confirm;
+                const realId = ORDER_ID_MAP.get(key) || key;
+                confirmOrder(realId, btn);
+            });
         });
         card.querySelectorAll('[data-cancel]').forEach(btn => {
             if (btn.dataset.bound) return;
             btn.dataset.bound = '1';
-            btn.addEventListener('click', () => cancelOrder(btn.dataset.cancel, btn));
+            btn.addEventListener('click', () => {
+                const key = btn.dataset.cancel;
+                const realId = ORDER_ID_MAP.get(key) || key;
+                cancelOrder(realId, btn);
+            });
         });
         card.querySelectorAll('img[data-sources]').forEach(img => {
             if (img.dataset.bound) return;
@@ -2455,7 +2394,7 @@
         });
     }
 
-    /* ===== RENDER ACTIVE ORDERS — FIXED ===== */
+    /* ===== RENDER ACTIVE ORDERS ===== */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
@@ -2494,7 +2433,7 @@
 
         const existingCards = new Map();
         container.querySelectorAll(':scope > .aoc-card').forEach(card => {
-            const id = card.dataset.orderId;
+            const id = card.dataset.ref;
             if (id) existingCards.set(id, card);
         });
 
@@ -2502,9 +2441,8 @@
         const fragment = document.createDocumentFragment();
 
         pageOrders.forEach((o, idx) => {
-            const apiOrderId = String(o.order_id || '').trim();
-            // FIX: fallback key lebih unik
-            const cardKey = apiOrderId || `fallback-${o.otp_id || o.created_at || idx}`;
+            const otpId = getOtpId(o);
+            const cardKey = otpId || `fallback-${idx}`;
             newIds.add(cardKey);
 
             const newHtml = buildActiveCardHtml(o);
@@ -2524,14 +2462,12 @@
             const oldSig = existing ? existing.dataset.sig || '' : null;
 
             if (existing && oldSig === newSig) {
-                // FIX: reuse tanpa replaceWith
                 fragment.appendChild(existing);
                 existingCards.delete(cardKey);
                 return;
             }
 
             if (existing) {
-                // FIX: remove + clear interval
                 existing.remove();
                 if (activeState.countdownIntervals[cardKey]) {
                     clearInterval(activeState.countdownIntervals[cardKey]);
@@ -2586,7 +2522,7 @@
         activeState.countdownIntervals = {};
 
         document.querySelectorAll('.aoc-countdown').forEach(el => {
-            const orderId = el.dataset.orderId;
+            const ref = el.dataset.ref;
             const deadline = parseInt(el.dataset.deadline || '0', 10);
             const textEl = el.querySelector('.countdown-text');
 
@@ -2601,11 +2537,11 @@
                 if (remaining <= 0) {
                     el.classList.add('expired');
                     if (textEl) textEl.textContent = 'EXPIRED';
-                    if (activeState.countdownIntervals[orderId]) clearInterval(activeState.countdownIntervals[orderId]);
-                    clearCountdownDeadline(orderId);
+                    if (activeState.countdownIntervals[ref]) clearInterval(activeState.countdownIntervals[ref]);
+                    clearCountdownDeadline(ref);
                     setTimeout(() => {
                         CacheManager.remove(getActiveOrdersCacheKey());
-                        loadActiveOrders(true);
+                        loadActiveOrders(true, false);
                     }, 500);
                     return;
                 }
@@ -2615,7 +2551,7 @@
             }
 
             tick();
-            activeState.countdownIntervals[orderId] = setInterval(tick, 1000);
+            activeState.countdownIntervals[ref] = setInterval(tick, 1000);
         });
     }
 
@@ -2626,9 +2562,12 @@
         const results = await Promise.allSettled(
             orders
                 .filter(o => !(o.otp_code && o.otp_code.trim()))
-                .map(o => securePost('/api/cekotp', { order_id: o.order_id, otp_id: o.otp_id }, 'cekotp')
-                    .then(r => safeJson(r))
-                )
+                .map(o => {
+                    const otpId = String(o.otp_id || '').trim();
+                    const realId = ORDER_ID_MAP.get(otpId) || o.order_id;
+                    return securePost('/api/cekotp', { order_id: realId, otp_id: otpId }, 'cekotp')
+                        .then(r => safeJson(r));
+                })
         );
 
         let hasUpdate = false;
@@ -2652,7 +2591,7 @@
 
         if (hasUpdate) {
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true);
+            loadActiveOrders(true, false);
         }
     }
 
@@ -2661,7 +2600,7 @@
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
             if (document.hidden) return;
-            loadActiveOrders(true);
+            loadActiveOrders(true, false);
         }, 5000);
     }
 
@@ -2679,7 +2618,7 @@
             await showCustomAlert({ title: 'Resend Berhasil', message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true);
+            loadActiveOrders(true, false);
         } catch (err) {
             await showCustomAlert({ title: 'Gagal Resend', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -2710,7 +2649,7 @@
             await showCustomAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
 
             CacheManager.remove(getActiveOrdersCacheKey());
-            loadActiveOrders(true);
+            loadActiveOrders(true, false);
         } catch (err) {
             await showCustomAlert({ title: 'Gagal Konfirmasi', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -2749,7 +2688,7 @@
                 document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
             });
 
-            loadActiveOrders(true);
+            loadActiveOrders(true, false);
         } catch (err) {
             await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
             btn.disabled = false;
@@ -3094,7 +3033,7 @@
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value && cached.value.providers) {
-            state.providers = cached.value.providers;
+            state.providers = (cached.value.providers || []).map(sanitizeProvider);
             renderPrices(state.providers);
         }
 
@@ -3104,7 +3043,8 @@
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await safeJson(res);
-            state.providers = data.providers || [];
+            // Sanitize provider sebelum masuk state & cache
+            state.providers = (data.providers || []).map(sanitizeProvider);
             CacheManager.set(cacheKey, { providers: state.providers }, 2 * 60 * 1000);
             renderPrices(state.providers);
         } catch (err) {
@@ -3158,7 +3098,6 @@
             </div>
         `;
 
-        // FIX: pakai index, bukan JSON di attribute
         content.querySelectorAll('[data-buy-idx]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const idx = Number(btn.dataset.buyIdx);
@@ -3229,7 +3168,7 @@
                     document.getElementById('balancePill').textContent = formatRupiah(user.balance);
                     document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
                 });
-                loadActiveOrders(true);
+                loadActiveOrders(true, false);
             }, 500);
         } catch (err) {
             await showCustomAlert({ title: 'Order Gagal', message: err.message || 'Terjadi kesalahan', type: 'danger', okText: 'OK' });
@@ -3266,16 +3205,19 @@
             await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } });
         } catch (err) {}
         CacheManager.clear();
+        ORDER_ID_MAP.clear();
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/landing';
     });
 
     /* ===== INIT ===== */
-    loadActiveOrders();
+    // Manual load (pertama kali): pakai sync pill
+    loadActiveOrders(false, true);
+    // Auto-sync tiap 5 detik: TANPA sync pill (biar gak kelap-kelip)
     startAutoSync();
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) loadActiveOrders(true);
+        if (!document.hidden) loadActiveOrders(false, true);
     });
     window.addEventListener('beforeunload', () => {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
