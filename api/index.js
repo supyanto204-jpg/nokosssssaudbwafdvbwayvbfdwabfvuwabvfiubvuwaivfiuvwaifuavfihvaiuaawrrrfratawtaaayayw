@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL v14)
+// ASYROFOTP - BACKEND API (FULL v14 - WITH PROFIT)
 // PART 1/6: Header, Config, Security, Helpers
 // ============================================
 
@@ -100,7 +100,7 @@ function safeLogBody(body) {
 // ===== RESPONSE SANITIZER (anti-leak) =====
 function sanitizeOrderForUser(order) {
     if (!order) return order;
-    const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = order;
+    const { order_id, user_id, payment_reference, notified_at, refund_reason, provider_price, ...rest } = order;
     return { ...rest, otp_id: rest.otp_id || null };
 }
 
@@ -174,6 +174,34 @@ const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
 const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8000;
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;
+
+// ===== PROFIT CONFIG =====
+const MARKUP_PERCENT = 0.10;            // 10% markup dari harga provider (jual nomor)
+const DEPOSIT_FEE_MIN = 50;             // fee minimum deposit (digabung ke QRISPY)
+const DEPOSIT_FEE_MAX = 100;            // fee maksimum deposit
+const DEPOSIT_FEE_PERCENT = 0.005;      // 0.5% dari nominal (fallback nominal besar)
+
+/**
+ * Hitung fee deposit kita (Rp50-100).
+ * Diskalakan dari nominal biar adil, tapi di-clamp 50-100.
+ * Fee ini DIGABUNG dengan fee gateway → user lihatnya sebagai "Biaya QRIS".
+ */
+function calculateDepositFee(amount) {
+    const a = Number(amount) || 0;
+    if (a <= 0) return DEPOSIT_FEE_MIN;
+    const fee = Math.round(a * DEPOSIT_FEE_PERCENT);
+    return Math.max(DEPOSIT_FEE_MIN, Math.min(DEPOSIT_FEE_MAX, fee));
+}
+
+/**
+ * Hitung harga jual ke user dari harga provider (markup 10%).
+ * Dibulatkan ke atas ke ratusan terdekat biar rapi.
+ */
+function applyMarkup(providerPrice) {
+    const p = Number(providerPrice) || 0;
+    if (p <= 0) return 0;
+    return Math.ceil((p * (1 + MARKUP_PERCENT)) / 100) * 100;
+}
 
 const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
 
@@ -920,6 +948,7 @@ const SCHEMA = {
                 otp_code_2 TEXT,
                 full_sms TEXT,
                 price BIGINT NOT NULL DEFAULT 0,
+                provider_price BIGINT DEFAULT 0,
                 status TEXT DEFAULT 'pending',
                 expires_in INTEGER DEFAULT 0,
                 resend_count INTEGER DEFAULT 0,
@@ -952,6 +981,7 @@ const SCHEMA = {
                 { name: 'otp_code_2', def: 'TEXT' },
                 { name: 'full_sms', def: 'TEXT' },
                 { name: 'price', def: 'BIGINT DEFAULT 0' },
+                { name: 'provider_price', def: 'BIGINT DEFAULT 0' },
                 { name: 'status', def: "TEXT DEFAULT 'pending'" },
                 { name: 'expires_in', def: 'INTEGER DEFAULT 0' },
                 { name: 'resend_count', def: 'INTEGER DEFAULT 0' },
@@ -1321,12 +1351,21 @@ function requireAdmin(req, res, next) {
 // ============================================
 
 // ============================================
-// ===== MARK DEPOSIT PAID =====
+// ===== MARK DEPOSIT PAID (WITH PROFIT FEE) =====
 // ============================================
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const saldoMasuk = Number(deposit.amount);
     const totalBayar = Number(receivedAmount) || Number(deposit.total_amount) || saldoMasuk;
-    const fee = Math.max(0, totalBayar - saldoMasuk);
+
+    // ===== FEE BREAKDOWN =====
+    // gatewayFee = fee asli dari payment gateway (qrispy dll)
+    const gatewayFee = Math.max(0, totalBayar - saldoMasuk);
+    // ourFee = profit kita (Rp50-100), DIGABUNG biar user lihat sebagai "Biaya QRIS"
+    const storedFee = Number(deposit.fee) || 0;
+    const ourFee = storedFee > 0 ? storedFee : calculateDepositFee(saldoMasuk);
+    // total fee yang ditampilkan = gateway + profit kita
+    const fee = gatewayFee + ourFee;
+
     const paidTime = paidAt ? new Date(paidAt) : new Date();
 
     const client = await pool.connect();
@@ -1368,7 +1407,7 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
             `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
              VALUES ($1, $2, $3, $4, $5, $6, $7)`,
             ['deposit', deposit.reference_id, deposit.user_id, deposit.status, 'success', 'payment_received',
-             JSON.stringify({ saldoMasuk, totalBayar, fee, method: deposit.method })]
+             JSON.stringify({ saldoMasuk, totalBayar, fee, gatewayFee, ourFee, method: deposit.method })]
         );
 
         const userRes = await client.query(
@@ -1379,7 +1418,7 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
 
         await client.query('COMMIT');
         committed = true;
-        console.log(`✅ Deposit ${deposit.reference_id} | +${saldoMasuk} | fee ${fee}`);
+        console.log(`✅ Deposit ${deposit.reference_id} | +${saldoMasuk} | gateway=${gatewayFee} | profit=${ourFee} | total_fee=${fee}`);
     } catch (err) {
         if (!committed) await client.query('ROLLBACK').catch(() => {});
         console.error('markDepositPaid error:', err.message);
@@ -1388,7 +1427,7 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
         client.release();
     }
 
-    return { alreadyProcessed: false, saldoMasuk, totalBayar, fee, freshDeposit, userData };
+    return { alreadyProcessed: false, saldoMasuk, totalBayar, fee, gatewayFee, ourFee, freshDeposit, userData };
 }
 
 // ============================================
@@ -1737,6 +1776,7 @@ async function autoSyncOrder(order) {
         return null;
     }
 }
+
 // ============================================
 // ===== AUTO SYNC ALL (v14) =====
 // ============================================
@@ -1795,12 +1835,13 @@ async function autoSyncAll() {
              ORDER BY created_at ASC LIMIT 10`
         );
         for (const o of unnotifiedOrders.rows) {
-    try {
-        const user = await fetchUserForOrder(o);
-        await notifyOtpSuccess(o, user);
-    } catch (e) {}
-    await new Promise(r => setTimeout(r, 50));
-}
+            try {
+                const user = await fetchUserForOrder(o);
+                await notifyOtpSuccess(o, user);
+            } catch (e) {}
+            await new Promise(r => setTimeout(r, 50));
+        }
+
         // 5. Retry notif deposit yang gagal
         const unnotifiedDeposits = await pool.query(
             `SELECT * FROM deposits 
@@ -1860,7 +1901,7 @@ async function logWebhookEvent({
 }
 
 // ============================================
-// PART 5/6: Routes User (Auth, User, Deposit, Webhook, CekOTP, Nokos)
+// PART 5A/6: Routes User (Auth, User, Deposit, Webhook, CekOTP, Nokos)
 // ============================================
 
 // ============================================
@@ -1889,6 +1930,9 @@ app.get('/api/health', withDB(async (req, res) => {
                 poolTotal: pool.totalCount,
                 poolIdle: pool.idleCount,
                 poolWaiting: pool.waitingCount,
+                markupPercent: MARKUP_PERCENT,
+                depositFeeMin: DEPOSIT_FEE_MIN,
+                depositFeeMax: DEPOSIT_FEE_MAX,
             });
         }
         res.json(base);
@@ -2193,6 +2237,7 @@ app.post('/api/deposit/generate-ref', requireAuth, userRateLimit(20, 60 * 1000),
     }
 }));
 
+// ===== QRISPY SAVE (WITH HIDDEN FEE) =====
 app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
@@ -2217,16 +2262,25 @@ app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), 
             });
         }
 
+        // ===== FEE PROFIT KITA (Rp50-100) =====
+        const ourFee = calculateDepositFee(Number(amount));
+
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [req.user.id, reference_id, 'qrispy', Number(amount), Number(amount), 0, 'pending', qris_id, qris_url, reference_id, new Date(expired_at)]
+            [
+                req.user.id, reference_id, 'qrispy',
+                Number(amount),
+                Number(amount) + ourFee,   // total_amount sudah termasuk fee kita
+                ourFee,                    // fee = profit kita (nanti + fee gateway saat paid)
+                'pending', qris_id, qris_url, reference_id, new Date(expired_at)
+            ]
         );
 
         await logStatusChange({
             entityType: 'deposit', entityId: reference_id, userId: req.user.id,
             oldStatus: null, newStatus: 'pending', reason: 'qrispy_created',
-            metadata: { amount: Number(amount), method: 'qrispy', qris_id },
+            metadata: { amount: Number(amount), method: 'qrispy', qris_id, our_fee: ourFee },
         });
 
         res.json({
@@ -2234,10 +2288,14 @@ app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), 
             deposit: {
                 reference_id, method: 'qrispy', amount: Number(amount),
                 qris_id, qris_url, expired_at,
+                total_amount: Number(amount) + ourFee,
+                fee: ourFee,
+                fee_label: 'Biaya QRIS',
                 expires_in_seconds: expires_in_seconds || 900
             },
         });
     } catch (err) {
+        console.error('qrispy-save error:', err.message);
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
 }));
@@ -2249,7 +2307,8 @@ app.post('/api/deposit/qris-dana', requireAuth, userRateLimit(10, 60 * 1000), wi
 
     try {
         const uniqueCode = generateUniqueCode();
-        const totalAmount = Number(amount) + uniqueCode;
+        const ourFee = calculateDepositFee(Number(amount));
+        const totalAmount = Number(amount) + uniqueCode + ourFee;
         const referenceId = await generateUniqueReferenceId();
         const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
         const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
@@ -2258,13 +2317,13 @@ app.post('/api/deposit/qris-dana', requireAuth, userRateLimit(10, 60 * 1000), wi
         await pool.query(
             `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, fee, status, qris_string, qris_url, expires_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode, 'pending', dynamicQRIS, qrImageUrl, expiredAt]
+            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode + ourFee, 'pending', dynamicQRIS, qrImageUrl, expiredAt]
         );
 
         await logStatusChange({
             entityType: 'deposit', entityId: referenceId, userId: req.user.id,
             oldStatus: null, newStatus: 'pending', reason: 'qris_dana_created',
-            metadata: { amount: Number(amount), unique_code: uniqueCode, total_amount: totalAmount },
+            metadata: { amount: Number(amount), unique_code: uniqueCode, total_amount: totalAmount, our_fee: ourFee },
         });
 
         res.json({
@@ -2272,7 +2331,7 @@ app.post('/api/deposit/qris-dana', requireAuth, userRateLimit(10, 60 * 1000), wi
             deposit: {
                 reference_id: referenceId, method: 'qris_dana',
                 amount: Number(amount), unique_code: uniqueCode,
-                total_amount: totalAmount, fee: uniqueCode,
+                total_amount: totalAmount, fee: uniqueCode + ourFee,
                 qris_string: dynamicQRIS, qris_url: qrImageUrl,
                 expired_at: expiredAt.toISOString(),
                 expires_in_seconds: Math.floor(QRIS_DANA_EXPIRY_MS / 1000),
@@ -2317,12 +2376,16 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit sudah diproses' });
 
+        // Pastikan fee minimum tetap ada (profit kita gak hilang)
+        const ourFee = calculateDepositFee(Number(deposit.amount));
+        const finalFee = Math.max(Number(fee), ourFee);
+
         await pool.query(
             `UPDATE deposits SET total_amount = $1, fee = $2, updated_at = NOW() WHERE id = $3`,
-            [Number(total_amount), Number(fee), deposit.id]
+            [Number(total_amount) + ourFee, finalFee, deposit.id]
         );
 
-        res.json({ message: 'Fee updated' });
+        res.json({ message: 'Fee updated', fee: finalFee, our_fee: ourFee });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
@@ -2508,6 +2571,10 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
+// ============================================
+// PART 5B/6: Webhook, CekOTP, Nokos
+// ============================================
 
 // ============================================
 // ===== WEBHOOK (v14: log semua event) =====
@@ -2768,16 +2835,17 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         }
 
         if (otpCode) {
-    try {
-        const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
-        if (freshOrderRes.rows[0]) {
-            const user = await fetchUserForOrder(freshOrderRes.rows[0]);
-            await notifyOtpSuccess(freshOrderRes.rows[0], user);
+            try {
+                const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                if (freshOrderRes.rows[0]) {
+                    const user = await fetchUserForOrder(freshOrderRes.rows[0]);
+                    await notifyOtpSuccess(freshOrderRes.rows[0], user);
+                }
+            } catch (err) {
+                console.error('❌ Notif OTP error:', err.message);
+            }
         }
-    } catch (err) {
-        console.error('❌ Notif OTP error:', err.message);
-    }
-}
+
         await logWebhookEvent({ source: 'otp1', eventType: 'otp', signatureValid: true, req, payload: req.body, processed: true, processNote: revived ? 'REVIVED' : 'OTP_UPDATED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
 
         res.status(200).json({ status: 'ok', message: 'received', revived });
@@ -2887,13 +2955,13 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 const fresh = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [order.order_id]);
 
                 if (fresh.rows[0] && data.otp_code && ['received', 'success', 'confirmed'].includes(data.status)) {
-    try {
-        const user = await fetchUserForOrder(fresh.rows[0]);
-        await notifyOtpSuccess(fresh.rows[0], user);
-    } catch (err) {
-        console.error('❌ Notif OTP (cekotp) error:', err.message);
-    }
-}
+                    try {
+                        const user = await fetchUserForOrder(fresh.rows[0]);
+                        await notifyOtpSuccess(fresh.rows[0], user);
+                    } catch (err) {
+                        console.error('❌ Notif OTP (cekotp) error:', err.message);
+                    }
+                }
 
                 return res.json({
                     order_id: fresh.rows[0].order_id, otp_id: fresh.rows[0].otp_id,
@@ -2948,7 +3016,6 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason,
             });
-            
         }
     } catch (err) {
         console.error('CekOTP error:', err.message);
@@ -3074,7 +3141,15 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
         const rawServices = data.services || [];
         const services = await enrichServicesWithCode(rawServices, server);
 
-        const response = { server, services };
+        // ===== MARKUP 10% kalau ada price_idr =====
+        const markedUp = services.map(s => {
+            if (s.price_idr) {
+                return { ...s, price_idr: applyMarkup(Number(s.price_idr)) };
+            }
+            return s;
+        });
+
+        const response = { server, services: markedUp };
         cacheSet(cacheKey, response, 5 * 60 * 1000);
         res.set('X-Cache', 'MISS');
         res.json(response);
@@ -3130,6 +3205,7 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
     res.json(response);
 }));
 
+// ===== PRICES WITH MARKUP 10% =====
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -3144,7 +3220,19 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 
     try {
         const data = await dibananaFetch(`/prices?server=${encodeURIComponent(server)}&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`);
-        const response = { server, service, country, providers: data.providers || [] };
+
+        // ===== MARKUP 10% (harga jual ke user) =====
+        const providers = (data.providers || []).map(p => {
+            const providerPrice = Number(p.price_idr) || 0;
+            const sellPrice = applyMarkup(providerPrice);
+            return {
+                ...p,
+                price_idr: sellPrice,
+                _provider_price: providerPrice, // internal audit (bisa dihapus kalau mau)
+            };
+        });
+
+        const response = { server, service, country, providers };
         cacheSet(cacheKey, response, 2 * 60 * 1000);
         res.set('X-Cache', 'MISS');
         res.json(response);
@@ -3159,7 +3247,7 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS CREATE ORDER =====
+// ===== NOKOS CREATE ORDER (WITH MARKUP) =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
@@ -3182,7 +3270,8 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     }
 
     let providerOrderId = null;
-    let price = 0;
+    let price = 0;              // harga jual (sudah markup)
+    let providerPrice = 0;      // harga asli dari provider
     let phoneNumber = null;
     let saldoDeducted = false;
     let finalIconCode = String(icon_code || '').trim() || null;
@@ -3195,13 +3284,15 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
         let estimatedPrice = 0;
 
         if (isPremium) {
-            estimatedPrice = Number(provider_price);
+            // user kirim provider_price asli → kita markup sendiri
+            estimatedPrice = applyMarkup(Number(provider_price));
         } else {
             const cacheKey = `prices_${server}_${service}_${country}`;
             const cachedPrices = cacheGet(cacheKey);
             if (cachedPrices && Array.isArray(cachedPrices.providers)) {
                 const match = cachedPrices.providers.find(p => String(p.id) === String(id));
                 if (match && match.price_idr) {
+                    // cache sudah berisi harga yang sudah di-markup
                     estimatedPrice = Number(match.price_idr);
                 }
             }
@@ -3269,8 +3360,11 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
         }
 
         providerOrderId = data.order_id;
-        price = Number(data.price_idr) || 0;
+        providerPrice = Number(data.price_idr) || 0;
+        price = applyMarkup(providerPrice);   // ← HARGA JUAL KE USER (sudah +10%)
         phoneNumber = data.phone_number || null;
+
+        console.log(`💰 Order ${providerOrderId}: provider=${providerPrice}, jual=${price}, profit=${price - providerPrice}`);
 
         if (price <= 0) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
@@ -3304,8 +3398,8 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
             await client.query(
                 `INSERT INTO orders 
-                 (user_id, order_id, otp_id, server, service, service_name, icon_code, country, country_name, country_flag, operator, phone_number, price, status, expires_in, expired_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+                 (user_id, order_id, otp_id, server, service, service_name, icon_code, country, country_name, country_flag, operator, phone_number, price, provider_price, status, expires_in, expired_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                 [
                     req.user.id, String(providerOrderId), otpId, server,
                     service || data.service || null,
@@ -3315,7 +3409,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                     COUNTRY_NAMES[country] || country || null,
                     country_flag || country || null,
                     operator || null,
-                    phoneNumber, price, 'pending', 1200, expiredAt
+                    phoneNumber, price, providerPrice, 'pending', 1200, expiredAt
                 ]
             );
 
@@ -3353,7 +3447,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                 `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
                  VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                 ['order', String(providerOrderId), req.user.id, null, 'pending', 'order_created',
-                 JSON.stringify({ otp_id: otpId, service: service_name || data.service, country: country || data.country, price, phone_number: phoneNumber, server, operator: operator || null, icon_code: finalIconCode })]
+                 JSON.stringify({ otp_id: otpId, service: service_name || data.service, country: country || data.country, price, provider_price: providerPrice, profit: price - providerPrice, phone_number: phoneNumber, server, operator: operator || null, icon_code: finalIconCode })]
             );
 
             await client.query('COMMIT');
@@ -3409,7 +3503,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        // ===== FIX: terima otp_id atau order_id =====
         const order = await findUserOrder(req.user.id, orderId);
         if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
@@ -3513,14 +3606,13 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         });
     }
 }));
+
 // ===== NOKOS RESEND =====
 app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        // ===== FIX: terima otp_id atau order_id =====
         const order = await findUserOrder(req.user.id, orderId);
         if (!order) {
-            // Fallback: cek deposit by reference_id
             const depositRes = await pool.query(
                 'SELECT * FROM deposits WHERE reference_id = $1 AND user_id = $2 LIMIT 1',
                 [String(orderId), req.user.id]
@@ -3586,7 +3678,6 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     try {
         await client.query('BEGIN');
 
-        // ===== FIX: terima otp_id atau order_id =====
         let found = await client.query(
             'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 FOR UPDATE',
             [String(orderId), req.user.id]
@@ -3639,11 +3730,9 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
 }));
 
 // ===== NOKOS CANCEL ORDER =====
-// ===== NOKOS CANCEL ORDER =====
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
-        // ===== FIX: terima otp_id atau order_id =====
         const order = await findUserOrder(req.user.id, orderId);
         if (!order) return res.status(404).json({ error: 'Order tidak ditemukan' });
 
@@ -3654,7 +3743,6 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
             return res.status(400).json({ error: 'Order sudah tidak aktif' });
         }
 
-        // Provider tetap butuh order_id asli
         const providerOrderId = order.order_id;
 
         const data = await dibananaFetch('/cancel', {
@@ -3731,7 +3819,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
                 pool.query('SELECT COUNT(*) FROM orders WHERE user_id = $1', [req.user.id]),
             ]);
             const mapped = rows.rows.map(o => {
-                const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = o;
+                const { order_id, user_id, payment_reference, notified_at, refund_reason, provider_price, ...rest } = o;
                 return {
                     ...rest,
                     order_id: o.otp_id,
@@ -3757,7 +3845,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
                 ),
             ]);
             orders = rows.rows.map(o => {
-                const { order_id, user_id, payment_reference, notified_at, refund_reason, ...rest } = o;
+                const { order_id, user_id, payment_reference, notified_at, refund_reason, provider_price, ...rest } = o;
                 return {
                     ...rest,
                     order_id: o.otp_id,
@@ -3856,7 +3944,7 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
 }));
 
 // ============================================
-// PART 6/6: Admin, Cron, Error Handler, Startup
+// PART 6A/6: Admin, Cron, Error Handler, Startup
 // ============================================
 
 // ============================================
@@ -4007,6 +4095,64 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
 }));
 
 // ============================================
+// ===== ADMIN PROFIT REPORT (NEW) =====
+// ============================================
+app.get('/api/admin/profit', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const days = Math.min(365, Math.max(1, parseInt(req.query.days) || 30));
+
+    try {
+        const [orderProfit, depositProfit] = await Promise.all([
+            pool.query(
+                `SELECT 
+                    COUNT(*) AS total_orders,
+                    COALESCE(SUM(price), 0) AS total_revenue,
+                    COALESCE(SUM(provider_price), 0) AS total_cost,
+                    COALESCE(SUM(price - provider_price), 0) AS total_profit
+                 FROM orders
+                 WHERE status IN ('success', 'received', 'confirmed')
+                   AND created_at > NOW() - make_interval(days => $1::int)`,
+                [days]
+            ),
+            pool.query(
+                `SELECT 
+                    COUNT(*) AS total_deposits,
+                    COALESCE(SUM(fee), 0) AS total_fee,
+                    COALESCE(SUM(amount), 0) AS total_deposit_amount
+                 FROM deposits
+                 WHERE status = 'success'
+                   AND created_at > NOW() - make_interval(days => $1::int)`,
+                [days]
+            ),
+        ]);
+
+        const o = orderProfit.rows[0];
+        const d = depositProfit.rows[0];
+
+        res.json({
+            period_days: days,
+            nokos: {
+                total_orders: Number(o.total_orders),
+                total_revenue: Number(o.total_revenue),
+                total_cost: Number(o.total_cost),
+                total_profit: Number(o.total_profit),
+                margin_percent: Number(o.total_revenue) > 0
+                    ? ((Number(o.total_profit) / Number(o.total_revenue)) * 100).toFixed(2)
+                    : '0.00',
+            },
+            deposit: {
+                total_deposits: Number(d.total_deposits),
+                total_deposit_amount: Number(d.total_deposit_amount),
+                total_fee: Number(d.total_fee),
+            },
+            grand_total_profit: Number(o.total_profit) + Number(d.total_fee),
+        });
+    } catch (err) {
+        console.error('Admin profit error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
 // ===== ADMIN USERS LIST =====
 // ============================================
 app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
@@ -4132,7 +4278,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
         const [recentOrders, recentDeposits] = await Promise.all([
             pool.query(
                 `SELECT order_id, otp_id, service_name, service, icon_code, country, country_name, phone_number,
-                        otp_code, price, status, created_at, refunded_at, refunded_amount
+                        otp_code, price, provider_price, status, created_at, refunded_at, refunded_amount
                  FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
                 [userId]
             ),
@@ -4162,7 +4308,12 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                 },
             },
             balance_logs: balanceLogs.rows,
-            recent_orders: recentOrders.rows.map(o => ({ ...o, price: Number(o.price) || 0 })),
+            recent_orders: recentOrders.rows.map(o => ({
+                ...o,
+                price: Number(o.price) || 0,
+                provider_price: Number(o.provider_price) || 0,
+                profit: (Number(o.price) || 0) - (Number(o.provider_price) || 0),
+            })),
             recent_deposits: recentDeposits.rows.map(d => ({
                 ...d,
                 amount: Number(d.amount) || 0,
@@ -4420,6 +4571,8 @@ app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, r
             orders: listRes.rows.map(o => ({
                 ...o,
                 price: Number(o.price) || 0,
+                provider_price: Number(o.provider_price) || 0,
+                profit: (Number(o.price) || 0) - (Number(o.provider_price) || 0),
                 refunded_amount: o.refunded_amount ? Number(o.refunded_amount) : null,
             })),
             total,
@@ -4461,6 +4614,8 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
             order: {
                 ...o,
                 price: Number(o.price) || 0,
+                provider_price: Number(o.provider_price) || 0,
+                profit: (Number(o.price) || 0) - (Number(o.provider_price) || 0),
                 refunded_amount: o.refunded_amount ? Number(o.refunded_amount) : null,
                 user_balance: Number(o.user_balance) || 0,
             },
@@ -4629,6 +4784,8 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
             order: {
                 ...updatedOrder.rows[0],
                 price: Number(updatedOrder.rows[0].price) || 0,
+                provider_price: Number(updatedOrder.rows[0].provider_price) || 0,
+                profit: (Number(updatedOrder.rows[0].price) || 0) - (Number(updatedOrder.rows[0].provider_price) || 0),
                 refunded_amount: updatedOrder.rows[0].refunded_amount
                     ? Number(updatedOrder.rows[0].refunded_amount)
                     : null,
@@ -5229,18 +5386,18 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
 
             if (!dry_run) {
                 for (const order of otpRes.rows) {
-    try {
-        const user = await fetchUserForOrder(order);
-        const r = await notifyOtpSuccess(order, user);
-        if (r.sent) result.otp.sent++;
-        else if (r.reason === 'ALREADY_NOTIFIED') result.otp.skipped++;
-        else result.otp.failed++;
-    } catch (err) {
-        console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
-        result.otp.failed++;
-    }
-    await new Promise(r => setTimeout(r, 50));
-}
+                    try {
+                        const user = await fetchUserForOrder(order);
+                        const r = await notifyOtpSuccess(order, user);
+                        if (r.sent) result.otp.sent++;
+                        else if (r.reason === 'ALREADY_NOTIFIED') result.otp.skipped++;
+                        else result.otp.failed++;
+                    } catch (err) {
+                        console.error(`Backfill OTP ${order.otp_id} error:`, err.message);
+                        result.otp.failed++;
+                    }
+                    await new Promise(r => setTimeout(r, 50));
+                }
             }
         }
 
@@ -5553,8 +5710,8 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
         }
 
         const user = await fetchUserForOrder(order);
-const r = await notifyOtpSuccess(order, user);
-        
+        const r = await notifyOtpSuccess(order, user);
+
         await logAdminAction({
             adminId: req.admin.id,
             adminUsername: req.admin.username,
@@ -5685,8 +5842,8 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
                     continue;
                 }
                 const user = await fetchUserForOrder(order);
-const r = await notifyOtpSuccess(order, user);
-results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
+                const r = await notifyOtpSuccess(order, user);
+                results.push({ id, sent: r.sent, reason: r.reason, message_id: r.message_id });
             } else {
                 const depRes = await pool.query(
                     'SELECT d.*, u.username, u.name AS user_name, u.user_code FROM deposits d LEFT JOIN users u ON u.id = d.user_id WHERE d.reference_id = $1 LIMIT 1',
@@ -5989,7 +6146,8 @@ app.use((req, res) => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready v14');
+        console.log('🚀 Server ready v14 (WITH PROFIT)');
+        console.log(`💰 Markup nokos: ${MARKUP_PERCENT * 100}% | Fee deposit: Rp${DEPOSIT_FEE_MIN}-${DEPOSIT_FEE_MAX}`);
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
             console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
         } else {
