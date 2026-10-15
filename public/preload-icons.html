@@ -3,10 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="referrer" content="strict-origin-when-cross-origin">
+    <meta name="theme-color" content="#2563eb">
     <meta name="robots" content="noindex, nofollow">
-    <title>Preload Icons — AsyrofOTP</title>
+    <title>Preload Icons - AsyrofOTP</title>
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://assets.cindigital.id">
     <link rel="dns-prefetch" href="https://assets.cindigital.id">
 
@@ -24,16 +28,8 @@
             margin: 0 auto;
             padding: 24px 16px 48px;
         }
-        h1 {
-            font-size: 1.4rem;
-            margin: 0 0 4px;
-            color: #f1f5f9;
-        }
-        .sub {
-            color: #94a3b8;
-            font-size: 0.85rem;
-            margin-bottom: 20px;
-        }
+        h1 { font-size: 1.4rem; margin: 0 0 4px; color: #f1f5f9; }
+        .sub { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
 
         .stats {
             display: grid;
@@ -41,9 +37,7 @@
             gap: 10px;
             margin-bottom: 20px;
         }
-        @media (max-width: 640px) {
-            .stats { grid-template-columns: repeat(2, 1fr); }
-        }
+        @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
         .stat-card {
             background: #1e293b;
             border: 2px solid #334155;
@@ -96,10 +90,7 @@
             transform: translate(1px, 1px);
             box-shadow: 1px 1px 0 rgba(15, 23, 42, 1);
         }
-        button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
         button.danger { background: #dc2626; border-color: #7f1d1d; }
         button.success { background: #16a34a; border-color: #14532d; }
 
@@ -178,11 +169,7 @@
             position: relative;
             overflow: hidden;
         }
-        .icon-cell img {
-            width: 100%; height: 100%;
-            object-fit: contain;
-            display: block;
-        }
+        .icon-cell img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .icon-cell .fallback {
             font-size: 0.9rem;
             font-weight: 800;
@@ -229,8 +216,9 @@
 <div class="wrap">
     <h1>🔧 Preload Icons Cache</h1>
     <p class="sub">
-        Halaman ini mendownload semua icon aplikasi dari CDN dan menyimpannya ke IndexedDB browser.
-        Setelah selesai, halaman lain bisa ambil icon dari cache lokal tanpa download ulang.
+        Halaman ini mendownload semua icon aplikasi dari proxy <code>/api/icon</code>
+        dan menyimpannya ke IndexedDB browser. Setelah selesai, halaman lain
+        bisa ambil icon dari cache lokal tanpa download ulang.
     </p>
 
     <div class="stats">
@@ -269,457 +257,511 @@
 </div>
 
 <script>
-/* ============================================================
-   IndexedDB wrapper untuk cache icon
-   DB: asyrofotp_icons
-   Store: icons (key: code, value: { code, dataUrl, mime, size, ts })
-   ============================================================ */
-const DB_NAME = 'asyrofotp_icons';
-const DB_VERSION = 1;
-const STORE = 'icons';
+    /* ============================================
+       SECURITY — sanitize console & copy
+       ============================================ */
+    (function suppressConsole() {
+        try {
+            const noop = () => {};
+            const methods = ['log', 'info', 'warn', 'error', 'debug', 'table', 'trace', 'dir', 'dirxml', 'group', 'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'profile', 'profileEnd', 'clear'];
+            methods.forEach(m => { try { console[m] = noop; } catch (e) {} });
+        } catch (e) {}
+    })();
 
-let dbPromise = null;
-function openDB() {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (e) => {
-            const db = e.target.result;
-            if (!db.objectStoreNames.contains(STORE)) {
-                db.createObjectStore(STORE, { keyPath: 'code' });
-            }
-        };
-        req.onsuccess = (e) => resolve(e.target.result);
-        req.onerror = (e) => reject(e.target.error);
-    });
-    return dbPromise;
-}
+    (function() {
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            const k = e.key;
+            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        }, true);
+    })();
 
-async function dbGet(code) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readonly');
-        const req = tx.objectStore(STORE).get(code);
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function dbPut(entry) {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readwrite');
-        const req = tx.objectStore(STORE).put(entry);
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function dbGetAll() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readonly');
-        const req = tx.objectStore(STORE).getAll();
-        req.onsuccess = () => resolve(req.result || []);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function dbCount() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readonly');
-        const req = tx.objectStore(STORE).count();
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-    });
-}
-
-async function dbClear() {
-    const db = await openDB();
-    return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, 'readwrite');
-        const req = tx.objectStore(STORE).clear();
-        req.onsuccess = () => resolve();
-        req.onerror = () => reject(req.error);
-    });
-}
-
-/* ============================================================
-   Helper
-   ============================================================ */
-const CDN_BASE = 'https://assets.cindigital.id/apps';
-const LOG_MAX = 300;
-
-const elTotal = document.getElementById('statTotal');
-const elOk = document.getElementById('statOk');
-const elFail = document.getElementById('statFail');
-const elSkip = document.getElementById('statSkip');
-const elLog = document.getElementById('log');
-const elGrid = document.getElementById('iconGrid');
-const elBar = document.getElementById('progressBar');
-const elBarText = document.getElementById('progressText');
-const btnStart = document.getElementById('btnStart');
-const btnClear = document.getElementById('btnClear');
-const btnCheck = document.getElementById('btnCheck');
-const btnExport = document.getElementById('btnExport');
-
-let logCount = 0;
-function log(msg, kind = 'info') {
-    const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
-    const line = document.createElement('div');
-    line.className = 'log-line ' + kind;
-    line.innerHTML = `<span class="log-time">${time}</span>${escapeHtml(msg)}`;
-    elLog.appendChild(line);
-    logCount++;
-    // Batasi jumlah baris log
-    while (elLog.children.length > LOG_MAX) elLog.removeChild(elLog.firstChild);
-    elLog.scrollTop = elLog.scrollHeight;
-}
-
-function escapeHtml(s) {
-    return String(s ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[ch]);
-}
-
-function normalizeCode(s) {
-    return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-}
-
-function fmtBytes(n) {
-    if (!n) return '0 B';
-    if (n < 1024) return n + ' B';
-    if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-    return (n / 1024 / 1024).toFixed(2) + ' MB';
-}
-
-/* ============================================================
-   Ambil daftar service dari API
-   ============================================================ */
-async function fetchAllServices() {
-    const token = localStorage.getItem('access_token');
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-
-    // Coba beberapa server; kalau endpoint /servers ada, pakai itu
-    let servers = ['ekonomi', 'reguler', 'premium'];
-    try {
-        const res = await fetch('/api/nokos/servers', { headers });
-        if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data.servers) && data.servers.length > 0) {
-                servers = data.servers.map(s => s.id).filter(Boolean);
-            }
-        }
-    } catch (e) {
-        log('Gagal ambil daftar server, pakai default: ' + servers.join(', '), 'warn');
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
     }
 
-    const allServices = new Map(); // code -> { code, name, icon_code, server }
-    for (const server of servers) {
+    /* ============================================
+       AUTH — sama seperti halaman lain
+       ============================================ */
+    const token = localStorage.getItem('access_token');
+    if (!token) window.location.href = '/login';
+
+    /* ============================================
+       RECAPTCHA HELPER — sama seperti nokos.html
+       ============================================ */
+    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+
+    function waitForRecaptcha() {
+        return new Promise((resolve) => {
+            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+            let attempts = 0;
+            const timer = setInterval(() => {
+                attempts++;
+                if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(timer); resolve(); }
+                else if (attempts >= 50) { clearInterval(timer); resolve(); }
+            }, 100);
+        });
+    }
+
+    async function getRecaptchaToken(action) {
         try {
-            const res = await fetch(`/api/nokos/services?server=${encodeURIComponent(server)}`, { headers });
-            if (!res.ok) {
-                log(`Server "${server}" gagal (${res.status})`, 'fail');
-                continue;
-            }
-            const data = await res.json();
-            const services = data.services || [];
-            for (const s of services) {
-                const code = normalizeCode(s.icon_code || s.code);
-                if (!code) continue;
-                if (!allServices.has(code)) {
-                    allServices.set(code, {
-                        code,
-                        name: s.name || s.code,
-                        icon_code: s.icon_code || s.code,
-                        server,
-                    });
+            await waitForRecaptcha();
+            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+            return await new Promise((resolve) => {
+                grecaptcha.ready(() => {
+                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action }).then(resolve).catch(() => resolve(null));
+                });
+                setTimeout(() => resolve(null), 8000);
+            });
+        } catch (e) { return null; }
+    }
+
+    async function securePost(url, body = {}, action = 'preload_icons') {
+        const recaptchaToken = await getRecaptchaToken(action);
+        return fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
+        });
+    }
+
+    /* ============================================
+       IndexedDB wrapper untuk cache icon
+       DB: asyrofotp_icons
+       Store: icons (key: code)
+       ============================================ */
+    const DB_NAME = 'asyrofotp_icons';
+    const DB_VERSION = 1;
+    const STORE = 'icons';
+
+    let dbPromise = null;
+    function openDB() {
+        if (dbPromise) return dbPromise;
+        dbPromise = new Promise((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, DB_VERSION);
+            req.onupgradeneeded = (e) => {
+                const db = e.target.result;
+                if (!db.objectStoreNames.contains(STORE)) {
+                    db.createObjectStore(STORE, { keyPath: 'code' });
+                }
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = (e) => reject(e.target.error);
+        });
+        return dbPromise;
+    }
+
+    async function dbGet(code) {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readonly');
+            const req = tx.objectStore(STORE).get(code);
+            req.onsuccess = () => resolve(req.result || null);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function dbPut(entry) {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite');
+            const req = tx.objectStore(STORE).put(entry);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function dbGetAll() {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readonly');
+            const req = tx.objectStore(STORE).getAll();
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function dbCount() {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readonly');
+            const req = tx.objectStore(STORE).count();
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function dbClear() {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction(STORE, 'readwrite');
+            const req = tx.objectStore(STORE).clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    /* ============================================
+       Helper — pakai proxy /api/icon (same-origin)
+       ============================================ */
+    const ICON_BASE = '/api/icon';
+    const LOG_MAX = 300;
+
+    const elTotal = document.getElementById('statTotal');
+    const elOk = document.getElementById('statOk');
+    const elFail = document.getElementById('statFail');
+    const elSkip = document.getElementById('statSkip');
+    const elLog = document.getElementById('log');
+    const elGrid = document.getElementById('iconGrid');
+    const elBar = document.getElementById('progressBar');
+    const elBarText = document.getElementById('progressText');
+    const btnStart = document.getElementById('btnStart');
+    const btnClear = document.getElementById('btnClear');
+    const btnCheck = document.getElementById('btnCheck');
+    const btnExport = document.getElementById('btnExport');
+
+    function log(msg, kind = 'info') {
+        const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
+        const line = document.createElement('div');
+        line.className = 'log-line ' + kind;
+        line.innerHTML = `<span class="log-time">${time}</span>${escapeHtml(msg)}`;
+        elLog.appendChild(line);
+        while (elLog.children.length > LOG_MAX) elLog.removeChild(elLog.firstChild);
+        elLog.scrollTop = elLog.scrollHeight;
+    }
+
+    function normalizeCode(s) {
+        return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    }
+
+    function fmtBytes(n) {
+        if (!n) return '0 B';
+        if (n < 1024) return n + ' B';
+        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
+        return (n / 1024 / 1024).toFixed(2) + ' MB';
+    }
+
+    /* ============================================
+       Ambil daftar service dari API (pakai token)
+       ============================================ */
+    async function fetchAllServices() {
+        const headers = { 'Authorization': `Bearer ${token}` };
+
+        let servers = ['ekonomi', 'reguler', 'premium'];
+        try {
+            const res = await fetch('/api/nokos/servers', { headers });
+            if (res.ok) {
+                const data = await res.json();
+                if (Array.isArray(data.servers) && data.servers.length > 0) {
+                    servers = data.servers.map(s => s.id).filter(Boolean);
                 }
             }
-            log(`Server "${server}" → ${services.length} service`, 'ok');
-        } catch (err) {
-            log(`Server "${server}" error: ${err.message}`, 'fail');
+        } catch (e) {
+            log('Gagal ambil daftar server, pakai default: ' + servers.join(', '), 'warn');
         }
-    }
-    return Array.from(allServices.values());
-}
 
-/* ============================================================
-   Download icon → blob → dataURL → simpan ke IndexedDB
-   ============================================================ */
-async function downloadIcon(code) {
-    const url = `${CDN_BASE}/${code}.png`;
-    const res = await fetch(url, { mode: 'cors', cache: 'force-cache' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const blob = await res.blob();
-    if (!blob || blob.size === 0) throw new Error('Blob kosong');
-
-    const dataUrl = await blobToDataURL(blob);
-    return {
-        code,
-        dataUrl,
-        mime: blob.type || 'image/png',
-        size: blob.size,
-        ts: Date.now(),
-        source: url,
-    };
-}
-
-function blobToDataURL(blob) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-    });
-}
-
-/* ============================================================
-   Render grid icon
-   ============================================================ */
-function renderIconCell(code, name, status, dataUrl) {
-    const cell = document.createElement('div');
-    cell.className = 'icon-cell';
-    cell.title = `${name} (${code})`;
-
-    if (dataUrl) {
-        const img = document.createElement('img');
-        img.src = dataUrl;
-        img.alt = name;
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        cell.appendChild(img);
-    } else {
-        const fb = document.createElement('div');
-        fb.className = 'fallback';
-        fb.textContent = (name || code || '?').charAt(0).toUpperCase();
-        cell.appendChild(fb);
-    }
-
-    if (status) {
-        const badge = document.createElement('div');
-        badge.className = 'badge ' + status;
-        badge.textContent = status === 'ok' ? '✓' : (status === 'fail' ? '✗' : '•');
-        cell.appendChild(badge);
-    }
-
-    const label = document.createElement('div');
-    label.className = 'label';
-    label.textContent = code;
-    cell.appendChild(label);
-
-    elGrid.appendChild(cell);
-    return cell;
-}
-
-/* ============================================================
-   PROSES PRELOAD
-   ============================================================ */
-let isRunning = false;
-
-async function runPreload() {
-    if (isRunning) return;
-    isRunning = true;
-    btnStart.disabled = true;
-    btnClear.disabled = true;
-    btnCheck.disabled = true;
-    btnExport.disabled = true;
-
-    elGrid.innerHTML = '';
-    elLog.innerHTML = '';
-    logCount = 0;
-    log('=== Mulai preload ===', 'info');
-
-    elTotal.textContent = '0';
-    elOk.textContent = '0';
-    elFail.textContent = '0';
-    elSkip.textContent = '0';
-
-    let services = [];
-    try {
-        services = await fetchAllServices();
-    } catch (err) {
-        log('Gagal ambil daftar service: ' + err.message, 'fail');
-        isRunning = false;
-        btnStart.disabled = false;
-        btnClear.disabled = false;
-        btnCheck.disabled = false;
-        btnExport.disabled = false;
-        return;
-    }
-
-    if (services.length === 0) {
-        log('Tidak ada service yang ditemukan dari API.', 'warn');
-        isRunning = false;
-        btnStart.disabled = false;
-        btnClear.disabled = false;
-        btnCheck.disabled = false;
-        btnExport.disabled = false;
-        return;
-    }
-
-    const total = services.length;
-    elTotal.textContent = total;
-    log(`Total ${total} icon akan diproses`, 'info');
-
-    let ok = 0, fail = 0, skip = 0;
-
-    // Concurrent limit biar gak nyiksa network
-    const CONCURRENCY = 5;
-    const queue = [...services];
-    let index = 0;
-
-    async function worker() {
-        while (queue.length > 0) {
-            const s = queue.shift();
-            if (!s) break;
-            const i = ++index;
-            const pct = Math.round((i / total) * 100);
-            elBar.style.width = pct + '%';
-            elBarText.textContent = `${i} / ${total} (${pct}%)`;
-
+        const allServices = new Map();
+        for (const server of servers) {
             try {
-                // Cek dulu di IndexedDB
-                const existing = await dbGet(s.code);
-                if (existing && existing.dataUrl) {
-                    skip++;
-                    elSkip.textContent = skip;
-                    log(`[${i}/${total}] ⏭️ ${s.code} (sudah ada)`, 'warn');
-                    renderIconCell(s.code, s.name, 'skip', existing.dataUrl);
+                const res = await fetch(`/api/nokos/services?server=${encodeURIComponent(server)}`, { headers });
+                if (!res.ok) {
+                    log(`Server "${server}" gagal (${res.status})`, 'fail');
                     continue;
                 }
-
-                // Download
-                const entry = await downloadIcon(s.code);
-                await dbPut(entry);
-                ok++;
-                elOk.textContent = ok;
-                log(`[${i}/${total}] ✅ ${s.code} (${fmtBytes(entry.size)})`, 'ok');
-                renderIconCell(s.code, s.name, 'ok', entry.dataUrl);
+                const data = await res.json();
+                const services = data.services || [];
+                for (const s of services) {
+                    const code = normalizeCode(s.icon_code || s.code);
+                    if (!code) continue;
+                    if (!allServices.has(code)) {
+                        allServices.set(code, {
+                            code,
+                            name: s.name || s.code,
+                            icon_code: s.icon_code || s.code,
+                            server,
+                        });
+                    }
+                }
+                log(`Server "${server}" → ${services.length} service`, 'ok');
             } catch (err) {
-                fail++;
-                elFail.textContent = fail;
-                log(`[${i}/${total}] ❌ ${s.code} — ${err.message}`, 'fail');
-                renderIconCell(s.code, s.name, 'fail', null);
+                log(`Server "${server}" error: ${err.message}`, 'fail');
             }
         }
+        return Array.from(allServices.values());
     }
 
-    const workers = [];
-    for (let w = 0; w < CONCURRENCY; w++) workers.push(worker());
-    await Promise.all(workers);
+    /* ============================================
+       Download icon via proxy /api/icon — same-origin
+       ============================================ */
+    async function downloadIcon(code) {
+        const url = `${ICON_BASE}/${code}.png`;
+        const res = await fetch(url, { cache: 'force-cache' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        if (!blob || blob.size === 0) throw new Error('Blob kosong');
 
-    const pct = 100;
-    elBar.style.width = pct + '%';
-    elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal`;
-
-    log(`=== Selesai ===`, 'info');
-    log(`Tersimpan: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
-
-    if (fail > 0) {
-        log(`💡 ${fail} icon gagal. Coba klik "Mulai Preload" lagi — yang gagal akan dicoba ulang, yang sudah ada akan di-skip.`, 'warn');
+        const dataUrl = await blobToDataURL(blob);
+        return {
+            code,
+            dataUrl,
+            mime: blob.type || 'image/png',
+            size: blob.size,
+            ts: Date.now(),
+            source: url,
+        };
     }
 
-    isRunning = false;
-    btnStart.disabled = false;
-    btnClear.disabled = false;
-    btnCheck.disabled = false;
-    btnExport.disabled = false;
-}
-
-/* ============================================================
-   CEK CACHE
-   ============================================================ */
-async function checkCache() {
-    elLog.innerHTML = '';
-    elGrid.innerHTML = '';
-    log('=== Cek cache ===', 'info');
-
-    const all = await dbGetAll();
-    log(`Total entry di IndexedDB: ${all.length}`, 'info');
-
-    if (all.length === 0) {
-        elLog.insertAdjacentHTML('beforeend', '<div class="empty-state">Belum ada icon tersimpan. Klik "Mulai Preload Semua Icon".</div>');
-        return;
+    function blobToDataURL(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(blob);
+        });
     }
 
-    let totalSize = 0;
-    all.sort((a, b) => a.code.localeCompare(b.code));
-    for (const e of all) {
-        totalSize += e.size || 0;
-        renderIconCell(e.code, e.code, 'ok', e.dataUrl);
-    }
-    log(`Total ukuran: ${fmtBytes(totalSize)}`, 'ok');
+    /* ============================================
+       Render grid icon
+       ============================================ */
+    function renderIconCell(code, name, status, dataUrl) {
+        const cell = document.createElement('div');
+        cell.className = 'icon-cell';
+        cell.title = `${name} (${code})`;
 
-    elTotal.textContent = all.length;
-    elOk.textContent = all.length;
-    elFail.textContent = '0';
-    elSkip.textContent = '0';
-    elBar.style.width = '100%';
-    elBarText.textContent = `${all.length} icon di cache (${fmtBytes(totalSize)})`;
-}
-
-/* ============================================================
-   HAPUS CACHE
-   ============================================================ */
-async function clearCache() {
-    if (!confirm('Hapus semua icon dari IndexedDB?')) return;
-    await dbClear();
-    elGrid.innerHTML = '';
-    elLog.innerHTML = '';
-    log('Cache dihapus.', 'warn');
-    elTotal.textContent = '0';
-    elOk.textContent = '0';
-    elFail.textContent = '0';
-    elSkip.textContent = '0';
-    elBar.style.width = '0%';
-    elBarText.textContent = 'Cache kosong';
-}
-
-/* ============================================================
-   EXPORT JSON (backup, optional)
-   ============================================================ */
-async function exportJson() {
-    const all = await dbGetAll();
-    if (all.length === 0) {
-        alert('Tidak ada data untuk di-export');
-        return;
-    }
-    const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `asyrofotp-icons-${new Date().toISOString().slice(0,10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    log(`Exported ${all.length} icon ke JSON`, 'ok');
-}
-
-/* ============================================================
-   EVENT BINDINGS
-   ============================================================ */
-btnStart.addEventListener('click', runPreload);
-btnCheck.addEventListener('click', checkCache);
-btnClear.addEventListener('click', clearCache);
-btnExport.addEventListener('click', exportJson);
-
-// Auto-check cache saat halaman dibuka
-(async () => {
-    try {
-        const count = await dbCount();
-        if (count > 0) {
-            log(`IndexedDB sudah berisi ${count} icon. Klik "Cek Cache" untuk lihat.`, 'info');
-            elBarText.textContent = `${count} icon tersimpan`;
+        if (dataUrl) {
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = name;
+            img.loading = 'lazy';
+            img.decoding = 'async';
+            cell.appendChild(img);
         } else {
-            log('Cache kosong. Klik "Mulai Preload Semua Icon" untuk mulai.', 'info');
+            const fb = document.createElement('div');
+            fb.className = 'fallback';
+            fb.textContent = (name || code || '?').charAt(0).toUpperCase();
+            cell.appendChild(fb);
         }
-    } catch (e) {
-        log('IndexedDB tidak tersedia: ' + e.message, 'fail');
+
+        if (status) {
+            const badge = document.createElement('div');
+            badge.className = 'badge ' + status;
+            badge.textContent = status === 'ok' ? '✓' : (status === 'fail' ? '✗' : '•');
+            cell.appendChild(badge);
+        }
+
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = code;
+        cell.appendChild(label);
+
+        elGrid.appendChild(cell);
+        return cell;
     }
-})();
+
+    /* ============================================
+       PROSES PRELOAD
+       ============================================ */
+    let isRunning = false;
+
+    async function runPreload() {
+        if (isRunning) return;
+        isRunning = true;
+        btnStart.disabled = true;
+        btnClear.disabled = true;
+        btnCheck.disabled = true;
+        btnExport.disabled = true;
+
+        elGrid.innerHTML = '';
+        elLog.innerHTML = '';
+        log('=== Mulai preload ===', 'info');
+
+        elTotal.textContent = '0';
+        elOk.textContent = '0';
+        elFail.textContent = '0';
+        elSkip.textContent = '0';
+
+        let services = [];
+        try {
+            services = await fetchAllServices();
+        } catch (err) {
+            log('Gagal ambil daftar service: ' + err.message, 'fail');
+            isRunning = false;
+            btnStart.disabled = false;
+            btnClear.disabled = false;
+            btnCheck.disabled = false;
+            btnExport.disabled = false;
+            return;
+        }
+
+        if (services.length === 0) {
+            log('Tidak ada service yang ditemukan dari API.', 'warn');
+            isRunning = false;
+            btnStart.disabled = false;
+            btnClear.disabled = false;
+            btnCheck.disabled = false;
+            btnExport.disabled = false;
+            return;
+        }
+
+        const total = services.length;
+        elTotal.textContent = total;
+        log(`Total ${total} icon akan diproses`, 'info');
+
+        let ok = 0, fail = 0, skip = 0;
+
+        const CONCURRENCY = 5;
+        const queue = [...services];
+        let index = 0;
+
+        async function worker() {
+            while (queue.length > 0) {
+                const s = queue.shift();
+                if (!s) break;
+                const i = ++index;
+                const pct = Math.round((i / total) * 100);
+                elBar.style.width = pct + '%';
+                elBarText.textContent = `${i} / ${total} (${pct}%)`;
+
+                try {
+                    const existing = await dbGet(s.code);
+                    if (existing && existing.dataUrl) {
+                        skip++;
+                        elSkip.textContent = skip;
+                        log(`[${i}/${total}] ⏭️ ${s.code} (sudah ada)`, 'warn');
+                        renderIconCell(s.code, s.name, 'skip', existing.dataUrl);
+                        continue;
+                    }
+
+                    const entry = await downloadIcon(s.code);
+                    await dbPut(entry);
+                    ok++;
+                    elOk.textContent = ok;
+                    log(`[${i}/${total}] ✅ ${s.code} (${fmtBytes(entry.size)})`, 'ok');
+                    renderIconCell(s.code, s.name, 'ok', entry.dataUrl);
+                } catch (err) {
+                    fail++;
+                    elFail.textContent = fail;
+                    log(`[${i}/${total}] ❌ ${s.code} — ${err.message}`, 'fail');
+                    renderIconCell(s.code, s.name, 'fail', null);
+                }
+            }
+        }
+
+        const workers = [];
+        for (let w = 0; w < CONCURRENCY; w++) workers.push(worker());
+        await Promise.all(workers);
+
+        elBar.style.width = '100%';
+        elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal`;
+
+        log(`=== Selesai ===`, 'info');
+        log(`Tersimpan: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
+
+        if (fail > 0) {
+            log(`💡 ${fail} icon gagal. Coba klik "Mulai Preload" lagi — yang gagal akan dicoba ulang, yang sudah ada akan di-skip.`, 'warn');
+        }
+
+        isRunning = false;
+        btnStart.disabled = false;
+        btnClear.disabled = false;
+        btnCheck.disabled = false;
+        btnExport.disabled = false;
+    }
+
+    /* ============================================
+       CEK CACHE
+       ============================================ */
+    async function checkCache() {
+        elLog.innerHTML = '';
+        elGrid.innerHTML = '';
+        log('=== Cek cache ===', 'info');
+
+        const all = await dbGetAll();
+        log(`Total entry di IndexedDB: ${all.length}`, 'info');
+
+        if (all.length === 0) {
+            elLog.insertAdjacentHTML('beforeend', '<div class="empty-state">Belum ada icon tersimpan. Klik "Mulai Preload Semua Icon".</div>');
+            return;
+        }
+
+        let totalSize = 0;
+        all.sort((a, b) => a.code.localeCompare(b.code));
+        for (const e of all) {
+            totalSize += e.size || 0;
+            renderIconCell(e.code, e.code, 'ok', e.dataUrl);
+        }
+        log(`Total ukuran: ${fmtBytes(totalSize)}`, 'ok');
+
+        elTotal.textContent = all.length;
+        elOk.textContent = all.length;
+        elFail.textContent = '0';
+        elSkip.textContent = '0';
+        elBar.style.width = '100%';
+        elBarText.textContent = `${all.length} icon di cache (${fmtBytes(totalSize)})`;
+    }
+
+    /* ============================================
+       HAPUS CACHE
+       ============================================ */
+    async function clearCache() {
+        if (!confirm('Hapus semua icon dari IndexedDB?')) return;
+        await dbClear();
+        elGrid.innerHTML = '';
+        elLog.innerHTML = '';
+        log('Cache dihapus.', 'warn');
+        elTotal.textContent = '0';
+        elOk.textContent = '0';
+        elFail.textContent = '0';
+        elSkip.textContent = '0';
+        elBar.style.width = '0%';
+        elBarText.textContent = 'Cache kosong';
+    }
+
+    /* ============================================
+       EXPORT JSON
+       ============================================ */
+    async function exportJson() {
+        const all = await dbGetAll();
+        if (all.length === 0) {
+            alert('Tidak ada data untuk di-export');
+            return;
+        }
+        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `asyrofotp-icons-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        log(`Exported ${all.length} icon ke JSON`, 'ok');
+    }
+
+    /* ============================================
+       EVENT BINDINGS
+       ============================================ */
+    btnStart.addEventListener('click', runPreload);
+    btnCheck.addEventListener('click', checkCache);
+    btnClear.addEventListener('click', clearCache);
+    btnExport.addEventListener('click', exportJson);
+
+    (async () => {
+        try {
+            const count = await dbCount();
+            if (count > 0) {
+                log(`IndexedDB sudah berisi ${count} icon. Klik "Cek Cache" untuk lihat.`, 'info');
+                elBarText.textContent = `${count} icon tersimpan`;
+            } else {
+                log('Cache kosong. Klik "Mulai Preload Semua Icon" untuk mulai.', 'info');
+            }
+        } catch (e) {
+            log('IndexedDB tidak tersedia: ' + e.message, 'fail');
+        }
+    })();
 </script>
 
 </body>
