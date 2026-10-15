@@ -114,9 +114,9 @@ function sanitizeDepositForUser(dep) {
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
-    max: 25,
-    min: 2,
-    idleTimeoutMillis: 30000,
+    max: 5,
+    min: 0,
+    idleTimeoutMillis: 10000,
     connectionTimeoutMillis: 5000,
     statement_timeout: 15000,
     query_timeout: 15000,
