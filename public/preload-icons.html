@@ -2,19 +2,10 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="theme-color" content="#2563eb">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Provider — AsyrofOTP</title>
     <meta name="robots" content="noindex, nofollow">
-    <title>Preload Icons - AsyrofOTP</title>
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-
-    <!-- 🚀 BOOSTER: preconnect + dns-prefetch ke CDN -->
-    <link rel="preconnect" href="https://assets.cindigital.id" crossorigin>
-    <link rel="dns-prefetch" href="https://assets.cindigital.id">
+    <link rel="preconnect" href="https://assets.cindigital.id">
 
     <style>
         * { box-sizing: border-box; }
@@ -23,854 +14,637 @@
             min-height: 100vh;
             background: #0f172a;
             color: #e2e8f0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
         }
-        .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
-        h1 { font-size: 1.4rem; margin: 0 0 4px; color: #f1f5f9; }
-        .sub { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px 16px 60px;
+        }
+        h1 {
+            font-size: 1.3rem;
+            color: #f1f5f9;
+            margin: 0 0 4px;
+        }
+        .sub {
+            color: #94a3b8;
+            font-size: 0.82rem;
+            margin-bottom: 20px;
+        }
         .sub code {
             background: #1e293b;
             padding: 2px 6px;
             border-radius: 4px;
             color: #60a5fa;
-            font-size: 0.8rem;
         }
-
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
-        .stat-card {
+        .panel {
             background: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            padding: 12px 14px;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 16px;
+            margin-bottom: 16px;
         }
-        .stat-label {
-            font-size: 0.68rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: #94a3b8;
-            font-family: ui-monospace, monospace;
+        .panel h2 {
+            font-size: 0.95rem;
+            margin: 0 0 12px;
+            color: #e2e8f0;
+            font-family: system-ui, sans-serif;
             font-weight: 700;
-            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .stat-value {
-            font-size: 1.3rem;
-            font-weight: 800;
-            font-family: ui-monospace, monospace;
-            color: #f1f5f9;
+        .panel h2 .tag {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 50px;
+            background: #334155;
+            color: #cbd5e1;
+            font-weight: 600;
         }
-        .stat-value.ok { color: #4ade80; }
-        .stat-value.fail { color: #f87171; }
-        .stat-value.skip { color: #fbbf24; }
-        .stat-value.speed { color: #60a5fa; }
 
-        .actions {
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            font-size: 0.7rem;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 6px;
+            color: #e2e8f0;
+            font-family: inherit;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        input:focus, select:focus { border-color: #3b82f6; }
+        input::placeholder { color: #475569; }
+
+        .btn-row {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
-            margin-bottom: 20px;
-            align-items: center;
+            margin-top: 8px;
         }
         button {
+            padding: 8px 16px;
             background: #2563eb;
             color: white;
-            border: 2px solid #1e3a8a;
-            border-radius: 10px;
-            padding: 10px 18px;
-            font-weight: 700;
-            font-size: 0.85rem;
-            cursor: pointer;
-            font-family: inherit;
-            transition: transform .15s, box-shadow .15s;
-            box-shadow: 3px 3px 0 rgba(15, 23, 42, 1);
-        }
-        button:hover:not(:disabled) {
-            transform: translate(-1px, -1px);
-            box-shadow: 4px 4px 0 rgba(15, 23, 42, 1);
-        }
-        button:active:not(:disabled) {
-            transform: translate(1px, 1px);
-            box-shadow: 1px 1px 0 rgba(15, 23, 42, 1);
-        }
-        button:disabled { opacity: 0.5; cursor: not-allowed; }
-        button.danger { background: #dc2626; border-color: #7f1d1d; }
-        button.success { background: #16a34a; border-color: #14532d; }
-
-        .speed-ctrl {
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            margin-left: auto;
-            background: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 10px;
-            padding: 6px 12px;
-            font-size: 0.78rem;
-            font-family: ui-monospace, monospace;
-            color: #94a3b8;
-        }
-        .speed-ctrl select {
-            background: #0f172a;
-            color: #f1f5f9;
-            border: 1.5px solid #334155;
+            border: 1px solid #1e3a8a;
             border-radius: 6px;
-            padding: 4px 8px;
-            font-family: inherit;
+            font-family: system-ui, sans-serif;
             font-weight: 700;
+            font-size: 0.82rem;
             cursor: pointer;
+            transition: background .15s;
         }
+        button:hover { background: #1d4ed8; }
+        button:active { transform: scale(.98); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        button.green { background: #16a34a; border-color: #14532d; }
+        button.green:hover { background: #15803d; }
+        button.gray { background: #475569; border-color: #334155; }
+        button.gray:hover { background: #64748b; }
+        button.red { background: #dc2626; border-color: #7f1d1d; }
+        button.red:hover { background: #b91c1c; }
 
-        .progress-wrap {
-            background: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 10px;
-            height: 28px;
-            overflow: hidden;
-            margin-bottom: 20px;
+        .output {
+            background: #020617;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: inherit;
+            font-size: 0.75rem;
+            line-height: 1.55;
+            max-height: 400px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+            color: #cbd5e1;
             position: relative;
         }
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
-            background-size: 200% 100%;
-            animation: gradientShift 3s linear infinite;
-            width: 0%;
-            transition: width .25s ease;
+        .output.empty {
+            color: #475569;
+            text-align: center;
+            padding: 24px;
         }
-        @keyframes gradientShift {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
+        .output .key { color: #60a5fa; }
+        .output .string { color: #4ade80; }
+        .output .number { color: #fbbf24; }
+        .output .boolean { color: #f472b6; }
+        .output .null { color: #64748b; }
+        .output .highlight {
+            background: #1e3a5f;
+            padding: 1px 4px;
+            border-radius: 3px;
         }
-        .progress-text {
+
+        .copy-btn {
             position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: ui-monospace, monospace;
-            font-weight: 800;
-            font-size: 0.78rem;
-            color: white;
-            text-shadow: 0 1px 2px rgba(0,0,0,.5);
+            top: 8px;
+            right: 8px;
+            padding: 4px 10px;
+            font-size: 0.7rem;
+            background: #334155;
+            border: 1px solid #475569;
+            border-radius: 5px;
+            color: #cbd5e1;
+            cursor: pointer;
         }
+        .copy-btn:hover { background: #475569; }
+
+        .status-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-bottom: 8px;
+        }
+        .status-badge {
+            padding: 2px 8px;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.7rem;
+        }
+        .status-badge.ok { background: #166534; color: #bbf7d0; }
+        .status-badge.err { background: #7f1d1d; color: #fecaca; }
+        .status-badge.load { background: #1e40af; color: #bfdbfe; }
 
         .log {
             background: #020617;
-            border: 2px solid #1e293b;
-            border-radius: 10px;
-            padding: 12px 14px;
-            font-family: ui-monospace, monospace;
-            font-size: 0.75rem;
-            line-height: 1.6;
-            max-height: 300px;
+            border: 1px solid #1e293b;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.72rem;
+            max-height: 250px;
             overflow-y: auto;
-            color: #cbd5e1;
+            line-height: 1.5;
         }
         .log-line { padding: 1px 0; }
-        .log-line.ok { color: #4ade80; }
-        .log-line.fail { color: #f87171; }
         .log-line.info { color: #60a5fa; }
+        .log-line.ok { color: #4ade80; }
+        .log-line.err { color: #f87171; }
         .log-line.warn { color: #fbbf24; }
-        .log-time { color: #64748b; margin-right: 8px; }
+        .log-time { color: #475569; margin-right: 8px; }
 
-        .icon-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
-            gap: 6px;
-            margin-top: 16px;
-            padding: 14px;
-            background: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 12px;
-        }
-        .icon-cell {
-            aspect-ratio: 1;
-            background: #0f172a;
-            border: 1.5px solid #334155;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 5px;
-            position: relative;
-            overflow: hidden;
-        }
-        .icon-cell img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .icon-cell .fallback {
-            font-size: 0.85rem;
-            font-weight: 800;
+        .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 800px) { .row-2 { grid-template-columns: 1fr; } }
+
+        .hint {
+            font-size: 0.72rem;
             color: #64748b;
-            font-family: ui-monospace, monospace;
-            text-transform: uppercase;
+            margin-top: 8px;
+            line-height: 1.5;
         }
-        .icon-cell .badge {
-            position: absolute;
-            top: 2px; right: 2px;
-            font-size: 0.5rem;
-            padding: 1px 4px;
-            border-radius: 4px;
-            font-weight: 800;
-            font-family: ui-monospace, monospace;
-        }
-        .icon-cell .badge.ok { background: #16a34a; color: white; }
-        .icon-cell .badge.fail { background: #dc2626; color: white; }
-        .icon-cell .badge.skip { background: #ca8a04; color: white; }
-        .icon-cell .label {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,.65);
-            color: white;
-            font-size: 0.5rem;
-            text-align: center;
-            padding: 2px;
-            font-family: ui-monospace, monospace;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: #94a3b8;
-            font-size: 0.85rem;
+        .hint code {
+            background: #1e293b;
+            padding: 1px 5px;
+            border-radius: 3px;
+            color: #60a5fa;
         }
     </style>
 </head>
 <body>
 
 <div class="wrap">
-    <h1>🔧 Preload Icons Cache</h1>
+    <h1>🔍 Debug Provider — dibanana</h1>
     <p class="sub">
-        Halaman ini memuat semua icon dari <code>assets.cindigital.id</code> lewat tag
-        <code>&lt;img&gt;</code> (tidak kena CORS) dan menyimpan URL-nya ke IndexedDB.
-        Browser akan cache icon otomatis saat pertama kali load.
+        Halaman ini buat lihat <b>full response</b> dari provider via backend.
+        Fokus di <code>/prices</code> dan <code>/order</code> untuk bandingin harga.
     </p>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="stat-label">Total</div>
-            <div class="stat-value" id="statTotal">0</div>
+    <!-- AUTH -->
+    <div class="panel">
+        <h2>🔑 Auth <span class="tag">Step 0</span></h2>
+        <div class="form-grid">
+            <div>
+                <label>Access Token (JWT)</label>
+                <input type="text" id="authToken" placeholder="Paste access_token di sini..." autocomplete="off">
+            </div>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Berhasil</div>
-            <div class="stat-value ok" id="statOk">0</div>
+        <div class="btn-row">
+            <button class="gray" id="btnLoadToken">📥 Load dari localStorage</button>
+            <button class="gray" id="btnFetchUser">👤 Test /api/user</button>
         </div>
-        <div class="stat-card">
-            <div class="stat-label">Gagal</div>
-            <div class="stat-value fail" id="statFail">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Sudah Ada</div>
-            <div class="stat-value skip" id="statSkip">0</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Kecepatan</div>
-            <div class="stat-value speed" id="statSpeed">0/s</div>
+        <div class="hint">
+            Token diambil dari <code>localStorage.getItem('access_token')</code>.
+            Kalau belum login di tab lain, klik "Load dari localStorage" dulu.
         </div>
     </div>
 
-    <div class="actions">
-        <button id="btnStart" type="button">🚀 Preload Semua Icon</button>
-        <button id="btnClear" type="button" class="danger">🗑️ Hapus Cache</button>
-        <button id="btnCheck" type="button" class="success">🔍 Cek Cache</button>
-        <button id="btnExport" type="button">📤 Export JSON</button>
-
-        <div class="speed-ctrl">
-            <span>Speed:</span>
-            <select id="speedSelect">
-                <option value="5">5 paralel</option>
-                <option value="10" selected>10 paralel ⚡</option>
-                <option value="20">20 paralel 🔥</option>
-                <option value="30">30 paralel 💥</option>
-            </select>
+    <!-- PRICES -->
+    <div class="panel">
+        <h2>💲 Test /api/nokos/prices <span class="tag">Step 1</span></h2>
+        <div class="form-grid">
+            <div>
+                <label>Server</label>
+                <select id="pServer">
+                    <option value="ekonomi" selected>ekonomi</option>
+                    <option value="khusus">khusus</option>
+                    <option value="wa_luar">wa_luar</option>
+                </select>
+            </div>
+            <div>
+                <label>Service</label>
+                <input type="text" id="pService" value="wa" placeholder="wa, telegram, dll">
+            </div>
+            <div>
+                <label>Country</label>
+                <input type="text" id="pCountry" value="id" placeholder="id, us, dll">
+            </div>
         </div>
+        <div class="btn-row">
+            <button class="green" id="btnGetPrices">💲 GET /prices</button>
+            <button class="gray" id="btnGetPricesNoCache">🔄 GET /prices (bypass cache)</button>
+        </div>
+        <div class="status-row" id="pricesStatus" style="display:none;">
+            <span class="status-badge" id="pricesStatusBadge">—</span>
+            <span id="pricesStatusText"></span>
+        </div>
+        <div class="output empty" id="pricesOutput" style="margin-top:8px;">Klik "GET /prices" untuk mulai.</div>
     </div>
 
-    <div class="progress-wrap">
-        <div class="progress-bar" id="progressBar"></div>
-        <div class="progress-text" id="progressText">Siap — belum mulai</div>
+    <!-- ORDER PREVIEW -->
+    <div class="panel">
+        <h2>🔎 Test /api/nokos/order/preview <span class="tag">Step 2 (opsional)</span></h2>
+        <div class="form-grid">
+            <div>
+                <label>Provider ID (dari /prices)</label>
+                <input type="text" id="prevId" placeholder="eyJ... atau id provider">
+            </div>
+            <div>
+                <label>Server</label>
+                <select id="prevServer">
+                    <option value="ekonomi" selected>ekonomi</option>
+                    <option value="khusus">khusus</option>
+                    <option value="wa_luar">wa_luar</option>
+                </select>
+            </div>
+            <div>
+                <label>Service</label>
+                <input type="text" id="prevService" value="wa">
+            </div>
+            <div>
+                <label>Country</label>
+                <input type="text" id="prevCountry" value="id">
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="green" id="btnPreview">🔎 POST /order/preview</button>
+        </div>
+        <div class="status-row" id="prevStatus" style="display:none;">
+            <span class="status-badge" id="prevStatusBadge">—</span>
+            <span id="prevStatusText"></span>
+        </div>
+        <div class="output empty" id="prevOutput" style="margin-top:8px;">Klik "POST /order/preview" untuk cek harga.</div>
     </div>
 
-    <div class="log" id="log"></div>
-    <div id="iconGrid" class="icon-grid"></div>
+    <!-- ORDER -->
+    <div class="panel">
+        <h2>🛒 Test /api/nokos/order <span class="tag">Step 3 (⚠️ real charge!)</span></h2>
+        <div class="form-grid">
+            <div>
+                <label>Provider ID</label>
+                <input type="text" id="ordId" placeholder="eyJ...">
+            </div>
+            <div>
+                <label>Server</label>
+                <select id="ordServer">
+                    <option value="ekonomi" selected>ekonomi</option>
+                    <option value="khusus">khusus</option>
+                    <option value="wa_luar">wa_luar</option>
+                </select>
+            </div>
+            <div>
+                <label>Service</label>
+                <input type="text" id="ordService" value="wa">
+            </div>
+            <div>
+                <label>Country</label>
+                <input type="text" id="ordCountry" value="id">
+            </div>
+            <div>
+                <label>Expected Price (harga user lihat)</label>
+                <input type="text" id="ordExpectedPrice" placeholder="436">
+            </div>
+        </div>
+        <div class="btn-row">
+            <button class="red" id="btnOrder">🛒 POST /order (REAL!)</button>
+        </div>
+        <div class="hint">
+            ⚠️ <b>Hati-hati:</b> tombol ini beneran order ke provider & potong saldo. Hanya pakai kalau kamu siap.
+        </div>
+        <div class="status-row" id="ordStatus" style="display:none;">
+            <span class="status-badge" id="ordStatusBadge">—</span>
+            <span id="ordStatusText"></span>
+        </div>
+        <div class="output empty" id="ordOutput" style="margin-top:8px;">Belum ada order.</div>
+    </div>
+
+    <!-- FULL LOG -->
+    <div class="panel">
+        <h2>📜 Log</h2>
+        <div class="log" id="log"></div>
+    </div>
 </div>
 
 <script>
     /* ============================================
-       SECURITY
+       UTIL
        ============================================ */
-    (function suppressConsole() {
-        try {
-            const noop = () => {};
-            const methods = ['log', 'info', 'warn', 'error', 'debug', 'table', 'trace', 'dir', 'dirxml', 'group', 'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'profile', 'profileEnd', 'clear'];
-            methods.forEach(m => { try { console[m] = noop; } catch (e) {} });
-        } catch (e) {}
-    })();
-
-    (function() {
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('keydown', (e) => {
-            const k = e.key;
-            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
-            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
-        }, true);
-    })();
-
-    function escapeHtml(value) {
-        return String(value ?? '').replace(/[&<>"']/g, ch => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        })[ch]);
-    }
-
-    /* ============================================
-       AUTH
-       ============================================ */
-    const token = localStorage.getItem('access_token');
-    if (!token) window.location.href = '/login';
-
-    /* ============================================
-       RECAPTCHA HELPER
-       ============================================ */
-    const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
-
-    function waitForRecaptcha() {
-        return new Promise((resolve) => {
-            if (window.grecaptcha && window.grecaptcha.execute) return resolve();
-            let attempts = 0;
-            const timer = setInterval(() => {
-                attempts++;
-                if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(timer); resolve(); }
-                else if (attempts >= 50) { clearInterval(timer); resolve(); }
-            }, 100);
-        });
-    }
-
-    async function getRecaptchaToken(action) {
-        try {
-            await waitForRecaptcha();
-            if (!window.grecaptcha || !window.grecaptcha.execute) return null;
-            return await new Promise((resolve) => {
-                grecaptcha.ready(() => {
-                    grecaptcha.execute(RECAPTCHA_SITE_KEY, { action }).then(resolve).catch(() => resolve(null));
-                });
-                setTimeout(() => resolve(null), 8000);
-            });
-        } catch (e) { return null; }
-    }
-
-    async function securePost(url, body = {}, action = 'preload_icons') {
-        const recaptchaToken = await getRecaptchaToken(action);
-        return fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify({ ...body, recaptcha_token: recaptchaToken })
-        });
-    }
-
-    /* ============================================
-       IndexedDB wrapper
-       ============================================ */
-    const DB_NAME = 'asyrofotp_icons';
-    const DB_VERSION = 1;
-    const STORE = 'icons';
-
-    let dbPromise = null;
-    function openDB() {
-        if (dbPromise) return dbPromise;
-        dbPromise = new Promise((resolve, reject) => {
-            const req = indexedDB.open(DB_NAME, DB_VERSION);
-            req.onupgradeneeded = (e) => {
-                const db = e.target.result;
-                if (!db.objectStoreNames.contains(STORE)) {
-                    db.createObjectStore(STORE, { keyPath: 'code' });
-                }
-            };
-            req.onsuccess = (e) => resolve(e.target.result);
-            req.onerror = (e) => reject(e.target.error);
-        });
-        return dbPromise;
-    }
-
-    async function dbGet(code) {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readonly');
-            const req = tx.objectStore(STORE).get(code);
-            req.onsuccess = () => resolve(req.result || null);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function dbPutMany(entries) {
-        if (!entries || entries.length === 0) return;
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readwrite');
-            const store = tx.objectStore(STORE);
-            for (const e of entries) store.put(e);
-            tx.oncomplete = () => resolve();
-            tx.onerror = () => reject(tx.error);
-        });
-    }
-
-    async function dbGetAll() {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readonly');
-            const req = tx.objectStore(STORE).getAll();
-            req.onsuccess = () => resolve(req.result || []);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function dbCount() {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readonly');
-            const req = tx.objectStore(STORE).count();
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    async function dbClear() {
-        const db = await openDB();
-        return new Promise((resolve, reject) => {
-            const tx = db.transaction(STORE, 'readwrite');
-            const req = tx.objectStore(STORE).clear();
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
-        });
-    }
-
-    /* ============================================
-       ICON — langsung ke CDN, tanpa proxy
-       ============================================ */
-    const CDN_BASE = 'https://assets.cindigital.id/apps';
-
-    const LOG_MAX = 300;
-    const elTotal = document.getElementById('statTotal');
-    const elOk = document.getElementById('statOk');
-    const elFail = document.getElementById('statFail');
-    const elSkip = document.getElementById('statSkip');
-    const elSpeed = document.getElementById('statSpeed');
-    const elLog = document.getElementById('log');
-    const elGrid = document.getElementById('iconGrid');
-    const elBar = document.getElementById('progressBar');
-    const elBarText = document.getElementById('progressText');
-    const btnStart = document.getElementById('btnStart');
-    const btnClear = document.getElementById('btnClear');
-    const btnCheck = document.getElementById('btnCheck');
-    const btnExport = document.getElementById('btnExport');
-    const speedSelect = document.getElementById('speedSelect');
+    const $ = (id) => document.getElementById(id);
 
     function log(msg, kind = 'info') {
         const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
         const line = document.createElement('div');
         line.className = 'log-line ' + kind;
         line.innerHTML = `<span class="log-time">${time}</span>${escapeHtml(msg)}`;
-        elLog.appendChild(line);
-        while (elLog.children.length > LOG_MAX) elLog.removeChild(elLog.firstChild);
-        elLog.scrollTop = elLog.scrollHeight;
+        $('log').appendChild(line);
+        $('log').scrollTop = $('log').scrollHeight;
     }
 
-    function normalizeCode(s) {
-        return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        })[ch]);
     }
 
-    /* ============================================
-       Ambil daftar service dari API
-       ============================================ */
-    async function fetchAllServices() {
-        const headers = { 'Authorization': `Bearer ${token}` };
-
-        let servers = ['ekonomi', 'reguler', 'premium'];
-        try {
-            const res = await fetch('/api/nokos/servers', { headers });
-            if (res.ok) {
-                const data = await res.json();
-                if (Array.isArray(data.servers) && data.servers.length > 0) {
-                    servers = data.servers.map(s => s.id).filter(Boolean);
-                }
-            }
-        } catch (e) {
-            log('Gagal ambil daftar server, pakai default: ' + servers.join(', '), 'warn');
+    function syntaxHighlight(json) {
+        if (typeof json !== 'string') {
+            json = JSON.stringify(json, null, 2);
         }
-
-        const allServices = new Map();
-        await Promise.all(servers.map(async (server) => {
-            try {
-                const res = await fetch(`/api/nokos/services?server=${encodeURIComponent(server)}`, { headers });
-                if (!res.ok) {
-                    log(`Server "${server}" gagal (${res.status})`, 'fail');
-                    return;
-                }
-                const data = await res.json();
-                const services = data.services || [];
-                for (const s of services) {
-                    const code = normalizeCode(s.icon_code || s.code);
-                    if (!code) continue;
-                    if (!allServices.has(code)) {
-                        allServices.set(code, {
-                            code,
-                            name: s.name || s.code,
-                            icon_code: s.icon_code || s.code,
-                            server,
-                        });
-                    }
-                }
-                log(`Server "${server}" → ${services.length} service`, 'ok');
-            } catch (err) {
-                log(`Server "${server}" error: ${err.message}`, 'fail');
-            }
-        }));
-        return Array.from(allServices.values());
+        json = escapeHtml(json);
+        return json
+            .replace(/&quot;([^&]*?)&quot;(\s*:)/g, '<span class="key">&quot;$1&quot;</span>$2')
+            .replace(/:(\s*)&quot;([^&]*?)&quot;/g, ':$1<span class="string">&quot;$2&quot;</span>')
+            .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="number">$1</span>')
+            .replace(/:\s*(true|false)/g, ': <span class="boolean">$1</span>')
+            .replace(/:\s*(null)/g, ': <span class="null">$1</span>');
     }
 
-    /* ============================================
-       Icon loader — pakai <img>, simpan URL saja
-       ============================================ */
-    function loadImage(url) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve({
-                width: img.naturalWidth,
-                height: img.naturalHeight,
-                url,
-            });
-            img.onerror = () => reject(new Error('load failed'));
-            img.src = url;
-        });
-    }
-
-    async function preloadIcon(code, retries = 1) {
-        const url = `${CDN_BASE}/${code}.png`;
-        try {
-            const info = await loadImage(url);
-            return {
-                code,
-                url,
-                width: info.width,
-                height: info.height,
-                ts: Date.now(),
-            };
-        } catch (err) {
-            if (retries > 0) {
-                // Retry instan — tanpa delay
-                return preloadIcon(code, retries - 1);
-            }
-            throw err;
-        }
-    }
-
-    /* ============================================
-       Render — batch per 20 cell biar gak nge-lag
-       ============================================ */
-    let renderQueue = [];
-    let renderScheduled = false;
-
-    function queueRender(cellData) {
-        renderQueue.push(cellData);
-        if (renderScheduled) return;
-        renderScheduled = true;
-        requestAnimationFrame(() => {
-            const batch = renderQueue.splice(0, 50);
-            const frag = document.createDocumentFragment();
-            for (const c of batch) {
-                frag.appendChild(buildCell(c));
-            }
-            elGrid.appendChild(frag);
-            renderScheduled = false;
-            if (renderQueue.length > 0) queueRender([]);
-        });
-    }
-
-    function buildCell({ code, name, status, url }) {
-        const cell = document.createElement('div');
-        cell.className = 'icon-cell';
-        cell.title = `${name} (${code})`;
-
-        if (url) {
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = name;
-            img.loading = 'lazy';
-            img.decoding = 'async';
-            img.onerror = () => {
-                img.style.display = 'none';
-                if (!cell.querySelector('.fallback')) {
-                    const fb = document.createElement('div');
-                    fb.className = 'fallback';
-                    fb.textContent = (name || code || '?').charAt(0).toUpperCase();
-                    cell.appendChild(fb);
-                }
-            };
-            cell.appendChild(img);
+    function setOutput(elId, data, isError = false) {
+        const el = $(elId);
+        el.classList.remove('empty');
+        let html;
+        if (typeof data === 'string') {
+            html = escapeHtml(data);
         } else {
-            const fb = document.createElement('div');
-            fb.className = 'fallback';
-            fb.textContent = (name || code || '?').charAt(0).toUpperCase();
-            cell.appendChild(fb);
+            html = syntaxHighlight(data);
         }
+        el.innerHTML = html + '<button class="copy-btn" data-copy-target="' + elId + '">Copy</button>';
+    }
 
-        if (status) {
-            const badge = document.createElement('div');
-            badge.className = 'badge ' + status;
-            badge.textContent = status === 'ok' ? '✓' : (status === 'fail' ? '✗' : '•');
-            cell.appendChild(badge);
-        }
+    function setStatus(elId, badgeId, textId, status, text) {
+        const wrap = $(elId);
+        wrap.style.display = 'flex';
+        const badge = $(badgeId);
+        badge.className = 'status-badge ' + status;
+        badge.textContent = status === 'ok' ? 'OK' : status === 'err' ? 'ERR' : '...';
+        $(textId).textContent = text || '';
+    }
 
-        const label = document.createElement('div');
-        label.className = 'label';
-        label.textContent = code;
-        cell.appendChild(label);
+    // Copy button
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('[data-copy-target]');
+        if (!btn) return;
+        const target = $(btn.dataset.copyTarget);
+        if (!target) return;
+        const text = target.textContent.replace(/^Copy$/, '').trim();
+        navigator.clipboard.writeText(text).then(() => {
+            const orig = btn.textContent;
+            btn.textContent = '✓ Copied';
+            setTimeout(() => btn.textContent = orig, 1200);
+        }).catch(() => {});
+    });
 
-        return cell;
+    function getToken() {
+        const manual = $('authToken').value.trim();
+        if (manual) return manual;
+        return localStorage.getItem('access_token') || '';
+    }
+
+    async function apiFetch(url, options = {}) {
+        const token = getToken();
+        if (!token) throw new Error('Token kosong. Isi access_token dulu.');
+
+        const headers = {
+            ...(options.headers || {}),
+            'Authorization': `Bearer ${token}`,
+        };
+        if (options.body) headers['Content-Type'] = 'application/json';
+
+        const res = await fetch(url, { ...options, headers });
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch (e) { data = text; }
+        return { ok: res.ok, status: res.status, data, raw: text };
     }
 
     /* ============================================
-       PROSES PRELOAD — pakai queue + N worker paralel
+       AUTH
        ============================================ */
-    let isRunning = false;
+    $('btnLoadToken').addEventListener('click', () => {
+        const t = localStorage.getItem('access_token');
+        if (!t) {
+            log('❌ Tidak ada access_token di localStorage', 'err');
+            return;
+        }
+        $('authToken').value = t;
+        log('✅ Token di-load dari localStorage (' + t.slice(0, 20) + '...)', 'ok');
+    });
 
-    async function runPreload() {
-        if (isRunning) return;
-        isRunning = true;
-        btnStart.disabled = true;
-        btnClear.disabled = true;
-        btnCheck.disabled = true;
-        btnExport.disabled = true;
-        speedSelect.disabled = true;
-
-        elGrid.innerHTML = '';
-        elLog.innerHTML = '';
-        renderQueue = [];
-        log('=== Mulai preload ===', 'info');
-
-        elTotal.textContent = '0';
-        elOk.textContent = '0';
-        elFail.textContent = '0';
-        elSkip.textContent = '0';
-        elSpeed.textContent = '0/s';
-
-        const startTime = Date.now();
-
-        let services = [];
+    $('btnFetchUser').addEventListener('click', async () => {
         try {
-            services = await fetchAllServices();
+            log('→ GET /api/user');
+            const r = await apiFetch('/api/user');
+            log(`← ${r.status} ${r.ok ? 'OK' : 'ERR'}`, r.ok ? 'ok' : 'err');
+            setOutput('pricesOutput', r.data, !r.ok);
         } catch (err) {
-            log('Gagal ambil daftar service: ' + err.message, 'fail');
-            isRunning = false;
-            btnStart.disabled = false;
-            btnClear.disabled = false;
-            btnCheck.disabled = false;
-            btnExport.disabled = false;
-            speedSelect.disabled = false;
-            return;
+            log('❌ ' + err.message, 'err');
         }
-
-        if (services.length === 0) {
-            log('Tidak ada service yang ditemukan dari API.', 'warn');
-            isRunning = false;
-            btnStart.disabled = false;
-            btnClear.disabled = false;
-            btnCheck.disabled = false;
-            btnExport.disabled = false;
-            speedSelect.disabled = false;
-            return;
-        }
-
-        const total = services.length;
-        elTotal.textContent = total;
-
-        // Ambil concurrency dari dropdown
-        const CONCURRENCY = parseInt(speedSelect.value, 10) || 10;
-        log(`Total ${total} icon akan diproses (${CONCURRENCY} paralel)`, 'info');
-
-        let ok = 0, fail = 0, skip = 0, processed = 0;
-        const dbBatch = [];
-
-        // Update speed counter tiap 500ms
-        const speedTimer = setInterval(() => {
-            const elapsed = (Date.now() - startTime) / 1000;
-            const rate = elapsed > 0 ? (processed / elapsed) : 0;
-            elSpeed.textContent = rate.toFixed(1) + '/s';
-        }, 500);
-
-        // Queue simple — pakai index, bukan shift (lebih cepat untuk array besar)
-        const queue = [...services];
-        let queueIndex = 0;
-
-        async function worker(workerId) {
-            while (queueIndex < queue.length) {
-                const myIndex = queueIndex++;
-                const s = queue[myIndex];
-                if (!s) break;
-
-                try {
-                    const existing = await dbGet(s.code);
-                    if (existing && existing.url) {
-                        skip++;
-                        processed++;
-                        elSkip.textContent = skip;
-                        queueRender({ code: s.code, name: s.name, status: 'skip', url: existing.url });
-                        continue;
-                    }
-
-                    const entry = await preloadIcon(s.code, 1);
-                    dbBatch.push(entry);
-                    ok++;
-                    processed++;
-                    elOk.textContent = ok;
-                    queueRender({ code: s.code, name: s.name, status: 'ok', url: entry.url });
-
-                    // Flush DB tiap 50 entry
-                    if (dbBatch.length >= 50) {
-                        const toSave = dbBatch.splice(0, 50);
-                        dbPutMany(toSave).catch(() => {});
-                    }
-                } catch (err) {
-                    fail++;
-                    processed++;
-                    elFail.textContent = fail;
-                    queueRender({ code: s.code, name: s.name, status: 'fail', url: null });
-                }
-
-                // Update progress tiap 10
-                if (processed % 10 === 0) {
-                    const pct = Math.round((processed / total) * 100);
-                    elBar.style.width = pct + '%';
-                    elBarText.textContent = `${processed} / ${total} (${pct}%)`;
-                }
-            }
-        }
-
-        // Jalankan N worker paralel
-        const workers = [];
-        for (let w = 0; w < CONCURRENCY; w++) workers.push(worker(w));
-        await Promise.all(workers);
-
-        clearInterval(speedTimer);
-
-        // Flush sisa DB batch
-        if (dbBatch.length > 0) {
-            await dbPutMany(dbBatch.splice(0, dbBatch.length)).catch(() => {});
-        }
-
-        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-        const avgRate = (processed / elapsed).toFixed(1);
-
-        elBar.style.width = '100%';
-        elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal (${elapsed}s)`;
-
-        log(`=== Selesai dalam ${elapsed}s (${avgRate}/s) ===`, 'info');
-        log(`Berhasil: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
-
-        if (fail > 0) {
-            log(`💡 ${fail} icon gagal. Klik "Preload" lagi untuk coba ulang.`, 'warn');
-        }
-
-        isRunning = false;
-        btnStart.disabled = false;
-        btnClear.disabled = false;
-        btnCheck.disabled = false;
-        btnExport.disabled = false;
-        speedSelect.disabled = false;
-    }
+    });
 
     /* ============================================
-       CEK CACHE
+       PRICES
        ============================================ */
-    async function checkCache() {
-        elLog.innerHTML = '';
-        elGrid.innerHTML = '';
-        log('=== Cek cache ===', 'info');
+    async function doGetPrices(bypass) {
+        $('btnGetPrices').disabled = true;
+        $('btnGetPricesNoCache').disabled = true;
+        setStatus('pricesStatus', 'pricesStatusBadge', 'pricesStatusText', 'load', 'Loading...');
 
-        const all = await dbGetAll();
-        log(`Total entry di IndexedDB: ${all.length}`, 'info');
+        const server = $('pServer').value;
+        const service = $('pService').value.trim();
+        const country = $('pCountry').value.trim();
+        let url = `/api/nokos/prices?server=${encodeURIComponent(server)}&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`;
+        if (bypass) url += `&_t=${Date.now()}`;
 
-        if (all.length === 0) {
-            elLog.insertAdjacentHTML('beforeend', '<div class="empty-state">Belum ada icon tersimpan. Klik "Preload Semua Icon".</div>');
-            return;
-        }
+        log(`→ GET ${url}`, 'info');
 
-        all.sort((a, b) => a.code.localeCompare(b.code));
-        for (const e of all) {
-            queueRender({ code: e.code, name: e.code, status: 'ok', url: e.url });
-        }
-
-        elTotal.textContent = all.length;
-        elOk.textContent = all.length;
-        elFail.textContent = '0';
-        elSkip.textContent = '0';
-        elBar.style.width = '100%';
-        elBarText.textContent = `${all.length} icon di cache`;
-    }
-
-    /* ============================================
-       HAPUS CACHE
-       ============================================ */
-    async function clearCache() {
-        if (!confirm('Hapus semua icon dari IndexedDB?')) return;
-        await dbClear();
-        elGrid.innerHTML = '';
-        elLog.innerHTML = '';
-        log('Cache dihapus.', 'warn');
-        elTotal.textContent = '0';
-        elOk.textContent = '0';
-        elFail.textContent = '0';
-        elSkip.textContent = '0';
-        elSpeed.textContent = '0/s';
-        elBar.style.width = '0%';
-        elBarText.textContent = 'Cache kosong';
-    }
-
-    /* ============================================
-       EXPORT JSON
-       ============================================ */
-    async function exportJson() {
-        const all = await dbGetAll();
-        if (all.length === 0) {
-            alert('Tidak ada data untuk di-export');
-            return;
-        }
-        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `asyrofotp-icons-${new Date().toISOString().slice(0,10)}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        log(`Exported ${all.length} icon ke JSON`, 'ok');
-    }
-
-    /* ============================================
-       EVENTS
-       ============================================ */
-    btnStart.addEventListener('click', runPreload);
-    btnCheck.addEventListener('click', checkCache);
-    btnClear.addEventListener('click', clearCache);
-    btnExport.addEventListener('click', exportJson);
-
-    (async () => {
         try {
-            const count = await dbCount();
-            if (count > 0) {
-                log(`IndexedDB sudah berisi ${count} icon URL. Klik "Cek Cache" untuk lihat.`, 'info');
-                elBarText.textContent = `${count} icon tersimpan`;
-            } else {
-                log('Cache kosong. Klik "Preload Semua Icon" untuk mulai.', 'info');
+            const r = await apiFetch(url);
+            log(`← ${r.status} ${r.ok ? 'OK' : 'ERR'} (${r.raw.length} bytes)`, r.ok ? 'ok' : 'err');
+
+            setStatus('pricesStatus', 'pricesStatusBadge', 'pricesStatusText',
+                r.ok ? 'ok' : 'err',
+                `HTTP ${r.status} — ${r.raw.length} bytes`);
+
+            setOutput('pricesOutput', r.data, !r.ok);
+
+            // Analisis kalau providers ada
+            if (r.ok && r.data && Array.isArray(r.data.providers) && r.data.providers.length > 0) {
+                log(`📊 Analisis ${r.data.providers.length} provider:`, 'info');
+                r.data.providers.slice(0, 5).forEach((p, i) => {
+                    const price = Number(p.price) || 0;
+                    const priceIdr = Number(p.price_idr) || 0;
+                    const hargaJual = Number(p.harga_jual) || 0;
+                    const kursImplisit = price > 0 ? (priceIdr / price) : 0;
+                    log(`  [${i}] id=${String(p.id).slice(0, 20)}...`, 'info');
+                    log(`      price=${price} (USD)`, 'info');
+                    log(`      price_idr=${priceIdr}`, 'info');
+                    log(`      harga_jual=${hargaJual}`, 'info');
+                    log(`      kurs_implisit=${kursImplisit.toFixed(2)} (dari price_idr/price)`, 'warn');
+                });
+
+                // Cek apakah ada field ekstra yang mungkin terlewat
+                const sample = r.data.providers[0];
+                const allKeys = Object.keys(sample);
+                log(`🔍 Semua field di provider[0]: ${allKeys.join(', ')}`, 'warn');
             }
-        } catch (e) {
-            log('IndexedDB tidak tersedia: ' + e.message, 'fail');
+        } catch (err) {
+            log('❌ ' + err.message, 'err');
+            setStatus('pricesStatus', 'pricesStatusBadge', 'pricesStatusText', 'err', err.message);
+            setOutput('pricesOutput', { error: err.message });
+        } finally {
+            $('btnGetPrices').disabled = false;
+            $('btnGetPricesNoCache').disabled = false;
+        }
+    }
+
+    $('btnGetPrices').addEventListener('click', () => doGetPrices(false));
+    $('btnGetPricesNoCache').addEventListener('click', () => doGetPrices(true));
+
+    /* ============================================
+       PREVIEW
+       ============================================ */
+    $('btnPreview').addEventListener('click', async () => {
+        $('btnPreview').disabled = true;
+        setStatus('prevStatus', 'prevStatusBadge', 'prevStatusText', 'load', 'Loading...');
+
+        const body = {
+            id: $('prevId').value.trim(),
+            server: $('prevServer').value,
+            service: $('prevService').value.trim(),
+            country: $('prevCountry').value.trim(),
+        };
+
+        if (!body.id) {
+            log('❌ Provider ID kosong', 'err');
+            $('btnPreview').disabled = false;
+            return;
+        }
+
+        log(`→ POST /api/nokos/order/preview { id: "${body.id.slice(0,20)}...", server: "${body.server}" }`, 'info');
+
+        try {
+            const r = await apiFetch('/api/nokos/order/preview', {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+
+            log(`← ${r.status} ${r.ok ? 'OK' : 'ERR'}`, r.ok ? 'ok' : 'err');
+            setStatus('prevStatus', 'prevStatusBadge', 'prevStatusText',
+                r.ok ? 'ok' : 'err', `HTTP ${r.status}`);
+            setOutput('prevOutput', r.data, !r.ok);
+
+            if (r.ok && r.data) {
+                log(`💡 Preview: price_idr=${r.data.price_idr}, user_balance=${r.data.user_balance}, sufficient=${r.data.sufficient_balance}`, 'ok');
+            }
+        } catch (err) {
+            log('❌ ' + err.message, 'err');
+            setStatus('prevStatus', 'prevStatusBadge', 'prevStatusText', 'err', err.message);
+            setOutput('prevOutput', { error: err.message });
+        } finally {
+            $('btnPreview').disabled = false;
+        }
+    });
+
+    /* ============================================
+       ORDER
+       ============================================ */
+    $('btnOrder').addEventListener('click', async () => {
+        if (!confirm('⚠️ Ini akan ORDER REAL ke provider & potong saldo. Lanjut?')) return;
+        $('btnOrder').disabled = true;
+        setStatus('ordStatus', 'ordStatusBadge', 'ordStatusText', 'load', 'Loading...');
+
+        const body = {
+            id: $('ordId').value.trim(),
+            server: $('ordServer').value,
+            service: $('ordService').value.trim(),
+            country: $('ordCountry').value.trim(),
+        };
+
+        const expected = $('ordExpectedPrice').value.trim();
+        if (expected) body.expected_price = Number(expected);
+
+        if (!body.id) {
+            log('❌ Provider ID kosong', 'err');
+            $('btnOrder').disabled = false;
+            return;
+        }
+
+        log(`→ POST /api/nokos/order { id: "${body.id.slice(0,20)}...", expected_price: ${body.expected_price || '-'} }`, 'warn');
+
+        const t0 = performance.now();
+        try {
+            const r = await apiFetch('/api/nokos/order', {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+            const dt = (performance.now() - t0).toFixed(0);
+
+            log(`← ${r.status} ${r.ok ? 'OK' : 'ERR'} (${dt}ms)`, r.ok ? 'ok' : 'err');
+            setStatus('ordStatus', 'ordStatusBadge', 'ordStatusText',
+                r.ok ? 'ok' : 'err', `HTTP ${r.status} — ${dt}ms`);
+            setOutput('ordOutput', r.data, !r.ok);
+
+            if (r.ok && r.data && r.data.order) {
+                log(`🎯 Order: otp_id=${r.data.order.otp_id}, phone=${r.data.order.phone_number}, price=${r.data.order.price_idr}`, 'ok');
+                log(`💰 Balance setelah order: ${r.data.balance}`, 'ok');
+            }
+        } catch (err) {
+            log('❌ ' + err.message, 'err');
+            setStatus('ordStatus', 'ordStatusBadge', 'ordStatusText', 'err', err.message);
+            setOutput('ordOutput', { error: err.message });
+        } finally {
+            $('btnOrder').disabled = false;
+        }
+    });
+
+    /* ============================================
+       INIT
+       ============================================ */
+    (async () => {
+        log('🚀 Debug provider siap', 'ok');
+        const t = localStorage.getItem('access_token');
+        if (t) {
+            $('authToken').value = t;
+            log('✓ Token ditemukan di localStorage', 'ok');
+            log('  Klik "GET /prices" untuk lihat harga provider', 'info');
+        } else {
+            log('⚠️ Token belum ada. Login dulu atau paste manual di kolom atas.', 'warn');
         }
     })();
 </script>
