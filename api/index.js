@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL v15 - PURE 10% MARKUP)
+// ASYROFOTP - BACKEND API (FULL v16 - PRICE LOCK)
 // PART 1/6: Header, Config, Security, Helpers
 // ============================================
 
@@ -251,15 +251,13 @@ const PROVIDER_TIMEOUT_MS = 8000;
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
 // ===== PROFIT CONFIG =====
-const MARKUP_PERCENT = 0.10;            // 10% markup PURE dari harga provider (jual nomor)
-const DEPOSIT_FEE_MIN = 50;             // fee minimum deposit (digabung ke QRISPY)
-const DEPOSIT_FEE_MAX = 100;            // fee maksimum deposit
-const DEPOSIT_FEE_PERCENT = 0.005;      // 0.5% dari nominal (fallback nominal besar)
+const MARKUP_PERCENT = 0.10;
+const DEPOSIT_FEE_MIN = 50;
+const DEPOSIT_FEE_MAX = 100;
+const DEPOSIT_FEE_PERCENT = 0.005;
 
 /**
  * Hitung fee deposit kita (Rp50-100).
- * Diskalakan dari nominal biar adil, tapi di-clamp 50-100.
- * Fee ini DIGABUNG dengan fee gateway → user lihatnya sebagai "Biaya QRIS".
  */
 function calculateDepositFee(amount) {
     const a = Number(amount) || 0;
@@ -272,27 +270,8 @@ function calculateDepositFee(amount) {
  * ============================================
  * MARKUP 10% PURE — NO BUG, NO TAMBAHAN
  * ============================================
- * Hitung harga jual ke user dari harga provider.
- * 
- * ATURAN:
- *   - Markup TEPAT 10% (bukan 10.01%, bukan 14%)
- *   - NO ceil ke ratusan (yang bikin markup membengkak)
- *   - Cuma dibulatkan ke RUPIAH PENUH (Math.round)
- * 
- * CONTOH:
- *   Provider 1000   -> 1100    (markup 10.00%)
- *   Provider 3270   -> 3597    (markup 10.00%)
- *   Provider 3545   -> 3900    (markup 10.01% - pembulatan 0.5 rupiah)
- *   Provider 1050   -> 1155    (markup 10.00%)
- *   Provider 12345  -> 13580   (markup 10.00% - pembulatan 0.5 rupiah)
- *   Provider 9999   -> 10999   (markup 10.00% - pembulatan 0.1 rupiah)
- * 
- * MAX DEVIASI: 0.5 rupiah dari markup 10% ideal.
- * 
- * GUARANTEE:
- *   - price > providerPrice (selalu profit)
- *   - price = round(providerPrice * 1.10)
- *   - NO markup tersembunyi
+ * price = round(providerPrice * 1.10)
+ * Max deviasi 0.5 rupiah dari markup 10% ideal.
  */
 function applyMarkup(providerPrice) {
     const p = Number(providerPrice) || 0;
@@ -319,6 +298,42 @@ setInterval(() => {
     const now = Date.now();
     for (const [k, v] of cache.entries()) if (now > v.expiresAt) cache.delete(k);
 }, 5 * 60 * 1000);
+
+// ============================================
+// ===== PRICE LOCK CACHE (PERSISTENT — NO TTL) =====
+// ============================================
+// Simpan harga JUAL final per provider ID.
+// Cache TIDAK expired otomatis — cuma DIGANTI saat /prices dipanggil ulang.
+// Artinya: harga yang di-lock = harga terakhir yang user lihat di list.
+//
+// Kenapa? Biar user BAYAR PERSIS sesuai harga di list. Gak ada selisih.
+// Kalau user refresh list → lock update → harga baru.
+//
+// Eviction: FIFO max 10.000 entry (biar gak numpuk selamanya).
+const PRICE_LOCK_MAX_SIZE = 10000;
+const priceLockCache = new Map();
+
+function setPriceLock(providerId, sellPrice, providerPrice, meta = {}) {
+    if (!providerId || !sellPrice) return;
+    const key = String(providerId);
+    if (priceLockCache.size >= PRICE_LOCK_MAX_SIZE && !priceLockCache.has(key)) {
+        const firstKey = priceLockCache.keys().next().value;
+        if (firstKey !== undefined) priceLockCache.delete(firstKey);
+    }
+    priceLockCache.set(key, {
+        price_idr: Number(sellPrice),
+        provider_price: Number(providerPrice) || 0,
+        locked_at: Date.now(),
+        server: meta.server || null,
+        service: meta.service || null,
+        country: meta.country || null,
+    });
+}
+
+function getPriceLock(providerId) {
+    if (!providerId) return null;
+    return priceLockCache.get(String(providerId)) || null;
+}
 
 // ============================================
 // ===== SERVICE NAME → ICON CODE MAPPING =====
@@ -634,7 +649,6 @@ async function telegramSendMessage(channelId, text, options = {}) {
 
 /**
  * Helper: fetch data user berdasarkan order.user_id.
- * Return { username, user_code, name } atau null kalau gagal.
  */
 async function fetchUserForOrder(order) {
     if (!order || !order.user_id) return null;
@@ -651,10 +665,7 @@ async function fetchUserForOrder(order) {
 }
 
 /**
- * Notif OTP sukses. Identifier pakai otp_id (internal), bukan order_id (provider).
- * Guard: skip kalau order.notified_at udah ada isinya.
- * + Tampilkan User & User ID (kayak notif deposit)
- * + Inline button "Beli Sekarang" → ke website.
+ * Notif OTP sukses. Identifier pakai otp_id.
  */
 async function notifyOtpSuccess(order, user = null) {
     const channelId = TELEGRAM_CHANNEL_OTP_ID;
@@ -679,7 +690,6 @@ async function notifyOtpSuccess(order, user = null) {
         `<u>• Harga:</u> <b>${toRupiahNotif(order.price)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
-    // ===== Inline button ke website =====
     const replyMarkup = {
         inline_keyboard: [
             [
@@ -706,8 +716,6 @@ async function notifyOtpSuccess(order, user = null) {
 
 /**
  * Notif deposit sukses. Identifier pakai reference_id.
- * Guard: skip kalau deposit.notified_at udah ada isinya.
- * + Inline button "Beli Sekarang" → ke website URLSync.
  */
 async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
@@ -727,7 +735,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         `<u>• Nominal:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
-    // ===== Inline button ke website =====
     const replyMarkup = {
         inline_keyboard: [
             [
@@ -928,7 +935,7 @@ async function blacklistToken(jti, expiresAt) {
 }
 
 // ============================================
-// ===== SESSION HELPERS (v15) =====
+// ===== SESSION HELPERS =====
 // ============================================
 function hashRefreshToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
@@ -1259,7 +1266,7 @@ const SCHEMA = {
 };
 
 // ============================================
-// ===== ENSURE SCHEMA (v15) =====
+// ===== ENSURE SCHEMA (v16) =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -1271,7 +1278,7 @@ async function ensureSchema() {
     schemaPromise = (async () => {
         const start = Date.now();
         try {
-            console.log('🔧 Ensuring schema v15...');
+            console.log('🔧 Ensuring schema v16...');
 
             await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
                 if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
@@ -1381,7 +1388,7 @@ async function ensureSchema() {
             `).catch(() => {});
 
             schemaEnsured = true;
-            console.log(`✅ Schema v15 ensured in ${Date.now() - start}ms`);
+            console.log(`✅ Schema v16 ensured in ${Date.now() - start}ms`);
         } catch (err) {
             console.error('❌ Ensure schema failed:', err.message);
             schemaPromise = null;
@@ -1789,14 +1796,14 @@ async function checkAndRefundUserOrders(userId) {
 }
 
 // ============================================
-// ===== ORDER LOOKUP HELPER (v15) =====
+// ===== ORDER LOOKUP HELPER =====
 // ===== Terima otp_id ATAU order_id provider =====
 // ============================================
 async function findUserOrder(userId, identifier) {
     if (!identifier) return null;
     const idStr = String(identifier).trim();
 
-    // Coba by otp_id dulu (karena frontend biasanya pegang otp_id)
+    // Coba by otp_id dulu
     let result = await pool.query(
         'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 LIMIT 1',
         [idStr, userId]
@@ -1814,7 +1821,7 @@ async function findUserOrder(userId, identifier) {
 }
 
 // ============================================
-// ===== AUTO SYNC ORDER (v15) =====
+// ===== AUTO SYNC ORDER =====
 // ============================================
 async function autoSyncOrder(order) {
     if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
@@ -1887,7 +1894,7 @@ async function autoSyncOrder(order) {
 }
 
 // ============================================
-// ===== AUTO SYNC ALL (v15) =====
+// ===== AUTO SYNC ALL =====
 // ============================================
 let autoSyncRunning = false;
 
@@ -1979,7 +1986,7 @@ async function autoSyncAll() {
 }
 
 // ============================================
-// ===== WEBHOOK LOGGER (v15) =====
+// ===== WEBHOOK LOGGER =====
 // ============================================
 async function logWebhookEvent({
     source, eventType, signatureValid, req, payload, processed,
@@ -2028,6 +2035,7 @@ app.get('/api/health', withDB(async (req, res) => {
         const base = { status: 'ok', time: result.rows[0].time };
         if (wantsDetail) {
             Object.assign(base, {
+                version: 'v16-price-lock',
                 hasDibananaKey: !!DIBANANA_API_KEY,
                 hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
                 hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
@@ -2046,6 +2054,8 @@ app.get('/api/health', withDB(async (req, res) => {
                 markupPercent: MARKUP_PERCENT,
                 depositFeeMin: DEPOSIT_FEE_MIN,
                 depositFeeMax: DEPOSIT_FEE_MAX,
+                priceLockSize: priceLockCache.size,
+                priceLockMax: PRICE_LOCK_MAX_SIZE,
             });
         }
         res.json(base);
@@ -2384,8 +2394,8 @@ app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), 
             [
                 req.user.id, reference_id, 'qrispy',
                 Number(amount),
-                Number(amount) + ourFee,   // total_amount sudah termasuk fee kita
-                ourFee,                    // fee = profit kita (nanti + fee gateway saat paid)
+                Number(amount) + ourFee,
+                ourFee,
                 'pending', qris_id, qris_url, reference_id, new Date(expired_at)
             ]
         );
@@ -2489,7 +2499,6 @@ app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req,
         const deposit = result.rows[0];
         if (deposit.status !== 'pending') return res.status(400).json({ error: 'Deposit sudah diproses' });
 
-        // Pastikan fee minimum tetap ada (profit kita gak hilang)
         const ourFee = calculateDepositFee(Number(deposit.amount));
         const finalFee = Math.max(Number(fee), ourFee);
 
@@ -2686,7 +2695,7 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== WEBHOOK (v15: log semua event) =====
+// ===== WEBHOOK QRISPY =====
 // ============================================
 app.post('/api/webhook/qrispy', withDB(async (req, res) => {
     let signatureValid = false;
@@ -2765,6 +2774,9 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
     }
 }));
 
+// ============================================
+// ===== WEBHOOK OTP1 =====
+// ============================================
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -2970,7 +2982,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 // ============================================
 
 // ============================================
-// PART 5B/6: CekOTP, Nokos Routes (Prices, Preview, Order)
+// PART 5B/6: CekOTP, Nokos Routes (PRICE LOCK)
 // ============================================
 
 // ============================================
@@ -3236,7 +3248,7 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== NOKOS SERVERS / SERVICES / COUNTRIES / PRICES =====
+// ===== NOKOS SERVERS / SERVICES / COUNTRIES =====
 // ============================================
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
@@ -3258,7 +3270,6 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
         const rawServices = data.services || [];
         const services = await enrichServicesWithCode(rawServices, server);
 
-        // ===== MARKUP 10% PURE kalau ada price_idr =====
         const markedUp = services.map(s => {
             if (s.price_idr) {
                 return { ...s, price_idr: applyMarkup(Number(s.price_idr)) };
@@ -3323,7 +3334,7 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== PRICES WITH PURE 10% MARKUP =====
+// ===== PRICES WITH PRICE LOCK ⭐ =====
 // ============================================
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
@@ -3340,16 +3351,24 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     try {
         const data = await dibananaFetch(`/prices?server=${encodeURIComponent(server)}&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`);
 
-        // ===== MARKUP 10% PURE =====
-        // price_idr = harga JUAL (yang user lihat di list) = provider × 1.10
-        // _provider_price = harga ASLI provider (buat estimasi saldo internal)
+        // ===== MARKUP 10% PURE + KUNCI HARGA JUAL =====
+        // price_idr = harga JUAL (yang user lihat di list)
+        // setPriceLock() → simpan harga jual ke lock cache by provider ID
+        //                   biar /order nanti pakai harga SAMA PERSIS
         const providers = (data.providers || []).map(p => {
             const providerPrice = Number(p.price_idr) || 0;
             const sellPrice = applyMarkup(providerPrice);
+
+            // ===== KUNCI HARGA JUAL ke cache by provider ID =====
+            const providerId = String(p.id || p.provider_id || '').trim();
+            if (providerId && sellPrice > 0) {
+                setPriceLock(providerId, sellPrice, providerPrice, { server, service, country });
+            }
+
             return {
                 ...p,
-                price_idr: sellPrice,           // harga jual (sudah +10% pure)
-                _provider_price: providerPrice, // harga asli (JANGAN ditampilkan ke frontend)
+                price_idr: sellPrice,
+                _provider_price: providerPrice,
             };
         });
 
@@ -3368,11 +3387,7 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== ⭐ NOKOS ORDER PREVIEW (ENDPOINT BARU) ⭐ =====
-// ============================================
-// Wajib dipanggil frontend SEBELUM /api/nokos/order
-// Biar user lihat harga FINAL (real-time, bukan cache)
-// → NO MISMATCH antara harga list vs harga tagihan
+// ===== ⭐ NOKOS ORDER PREVIEW (PRICE LOCK) ⭐ =====
 // ============================================
 app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { id, server, service, country, provider_id, provider_price, operator } = req.body;
@@ -3386,47 +3401,63 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
 
     try {
         let providerPrice = 0;
+        let sellPrice = 0;
+        let source = 'unknown';
 
         if (isPremium) {
-            // Premium: frontend kirim provider_price asli
             providerPrice = Number(provider_price) || 0;
             if (providerPrice <= 0) {
                 return res.status(400).json({ error: 'provider_price tidak valid' });
             }
+            sellPrice = applyMarkup(providerPrice);
+            source = 'premium_input';
         } else {
-            // Non-premium: ambil harga TERBARU dari provider (real-time, NO cache)
-            if (!service || !country) {
-                return res.status(400).json({ error: 'service dan country wajib' });
+            if (!id) {
+                return res.status(400).json({ error: 'ID provider wajib' });
             }
-            const params = new URLSearchParams({ server, service, country });
-            const data = await dibananaFetch(`/prices?${params.toString()}`);
-            const match = (data.providers || []).find(p => String(p.id) === String(id));
-            if (!match) {
-                return res.status(404).json({ error: 'Provider tidak ditemukan / stok habis', code: 'PROVIDER_NOT_FOUND' });
-            }
-            providerPrice = Number(match.price_idr) || 0;
-            if (providerPrice <= 0) {
-                return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
+
+            // ===== CEK LOCK CACHE DULU =====
+            const locked = getPriceLock(id);
+            if (locked && locked.price_idr > 0) {
+                providerPrice = locked.provider_price;
+                sellPrice = locked.price_idr;
+                source = 'locked';
+            } else {
+                if (!service || !country) {
+                    return res.status(400).json({ error: 'service dan country wajib' });
+                }
+                const params = new URLSearchParams({ server, service, country });
+                const data = await dibananaFetch(`/prices?${params.toString()}`);
+                const match = (data.providers || []).find(p => String(p.id) === String(id));
+                if (!match) {
+                    return res.status(404).json({ error: 'Provider tidak ditemukan / stok habis', code: 'PROVIDER_NOT_FOUND' });
+                }
+                providerPrice = Number(match.price_idr) || 0;
+                if (providerPrice <= 0) {
+                    return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
+                }
+                sellPrice = applyMarkup(providerPrice);
+                setPriceLock(id, sellPrice, providerPrice, { server, service, country });
+                source = 'fallback_fresh';
             }
         }
 
-        const price = applyMarkup(providerPrice);
-        const profit = price - providerPrice;
+        const profit = sellPrice - providerPrice;
 
-        // ===== Cek saldo user (informasi saja, bukan block) =====
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         const userBalance = userRes.rows[0] ? Number(userRes.rows[0].balance) : 0;
-        const sufficient = userBalance >= price;
+        const sufficient = userBalance >= sellPrice;
 
-        console.log(`🔍 Preview: provider=${providerPrice}, jual=${price}, profit=${profit}, user_balance=${userBalance}, cukup=${sufficient}`);
+        console.log(`🔍 Preview [${source}]: provider=${providerPrice}, jual=${sellPrice}, profit=${profit}, user_balance=${userBalance}, cukup=${sufficient}`);
 
         res.json({
             ok: true,
             provider_id: id || provider_id || null,
-            price_idr: price,
+            price_idr: sellPrice,
             markup_percent: MARKUP_PERCENT * 100,
             user_balance: userBalance,
             sufficient_balance: sufficient,
+            source,
             note: 'Harga real-time. Konfirmasi sebelum order.',
         });
     } catch (err) {
@@ -3440,14 +3471,14 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
 }));
 
 // ============================================
-// ===== NOKOS CREATE ORDER (PURE 10% MARKUP) =====
+// ===== NOKOS CREATE ORDER (PRICE LOCK) ⭐ =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
     const {
         id, server, service, country, service_name, country_flag,
         provider_id, provider_price, operator, icon_code,
-        expected_price // ← optional, dari /order/preview
+        expected_price
     } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -3467,15 +3498,15 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     }
 
     let providerOrderId = null;
-    let price = 0;              // harga jual (sudah markup pure 10%)
-    let providerPrice = 0;      // harga asli dari provider
+    let price = 0;
+    let providerPrice = 0;
     let phoneNumber = null;
     let saldoDeducted = false;
     let finalIconCode = String(icon_code || '').trim() || null;
+    let lockedPrice = null;
+    let usedLock = false;
 
     try {
-        // ===== CEK SALDO USER: cuma filter kasar (harus > 0) =====
-        // Harga final ditentukan setelah provider response, biar gak ada mismatch.
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
         const userBalanceAtStart = Number(userRes.rows[0].balance);
@@ -3522,23 +3553,48 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
         providerPrice = Number(data.price_idr) || 0;
         phoneNumber = data.phone_number || null;
 
-        // ===== VALIDASI HARGA PROVIDER =====
         if (providerPrice <= 0) {
             console.error(`❌ Provider kasih harga invalid: ${data.price_idr}`);
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ===== HARGA JUAL = PROVIDER × 1.10 (PURE 10%) =====
-        price = applyMarkup(providerPrice);
+        // ===== AMBIL HARGA JUAL DARI LOCK CACHE =====
+        const lockKey = String(id || provider_id || '').trim();
+        if (lockKey) {
+            const locked = getPriceLock(lockKey);
+            if (locked && locked.price_idr > 0) {
+                lockedPrice = locked.price_idr;
+            }
+        }
+
+        if (lockedPrice) {
+            price = lockedPrice;
+            usedLock = true;
+
+            // ===== GUARD: provider harga > lock → rugi, CANCEL =====
+            if (providerPrice > lockedPrice) {
+                console.warn(`⚠️ RUGI: provider=${providerPrice} > locked=${lockedPrice}. Cancel order.`);
+                try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+                return res.status(409).json({
+                    error: 'Harga provider naik. Silakan coba provider lain.',
+                    code: 'PROVIDER_PRICE_JUMPED',
+                    provider_price: providerPrice,
+                    locked: lockedPrice,
+                });
+            }
+        } else {
+            price = applyMarkup(providerPrice);
+        }
+
         const profit = price - providerPrice;
 
-        console.log(`💰 Order ${providerOrderId}: provider=${providerPrice}, jual=${price}, profit=${profit} (${((price / providerPrice - 1) * 100).toFixed(2)}%)`);
+        console.log(`💰 Order ${providerOrderId}: provider=${providerPrice}, jual=${price}, profit=${profit} (${((price / providerPrice - 1) * 100).toFixed(2)}%) ${usedLock ? '[LOCKED]' : '[FALLBACK]'}`);
 
-        // ===== GUARD: harga berubah >5% dari yang user lihat di preview =====
-        if (expected_price && Number(expected_price) > 0) {
+        // ===== Guard expected_price (cuma kalau TIDAK pakai lock) =====
+        if (!usedLock && expected_price && Number(expected_price) > 0) {
             const diff = Math.abs(price - Number(expected_price));
-            const tolerance = Number(expected_price) * 0.05; // 5%
+            const tolerance = Number(expected_price) * 0.01;
             if (diff > tolerance) {
                 console.warn(`⚠️ Price changed: expected=${expected_price}, actual=${price}, diff=${diff}`);
                 try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
@@ -3552,7 +3608,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             }
         }
 
-        // ===== Cek saldo user cukup atau tidak =====
         if (userBalanceAtStart < price) {
             try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
             return res.status(400).json({
@@ -3563,7 +3618,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
         }
 
-        // ===== Icon code fallback =====
         if (!finalIconCode && service_name) {
             try {
                 const codeMap = await getServiceCodeMap();
@@ -3641,6 +3695,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                      server,
                      operator: operator || null,
                      icon_code: finalIconCode,
+                     price_source: usedLock ? 'locked' : 'fallback',
                  })]
             );
 
@@ -3668,6 +3723,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                     expired_at: expiredAt.toISOString(),
                 },
                 balance: newBalance,
+                price_source: usedLock ? 'locked' : 'fallback',
             });
 
             console.log(`⏱️ Order ${providerOrderId} in ${Date.now() - startTime}ms`);
@@ -4285,6 +4341,8 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
             total_balance: Number(balanceRes.rows[0].total) || 0,
             pending_deposits: Number(pendingDepositsRes.rows[0].c) || 0,
             pending_orders: Number(pendingOrdersRes.rows[0].c) || 0,
+            price_lock_size: priceLockCache.size,
+            price_lock_max: PRICE_LOCK_MAX_SIZE,
         });
     } catch (err) {
         console.error('Admin stats error:', err.message);
@@ -4293,7 +4351,7 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
 }));
 
 // ============================================
-// ===== ADMIN PROFIT REPORT (PURE 10% MARKUP) =====
+// ===== ADMIN PROFIT REPORT =====
 // ============================================
 app.get('/api/admin/profit', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const days = Math.min(365, Math.max(1, parseInt(req.query.days) || 30));
@@ -4347,6 +4405,45 @@ app.get('/api/admin/profit', requireAuth, requireAdminFlex, withDB(async (req, r
         });
     } catch (err) {
         console.error('Admin profit error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// ============================================
+// ===== ADMIN PRICE LOCK MONITOR =====
+// ============================================
+app.get('/api/admin/price-locks', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit) || 100));
+
+    try {
+        const entries = [];
+        let count = 0;
+        for (const [key, val] of priceLockCache.entries()) {
+            count++;
+            if (entries.length < limit) {
+                entries.push({
+                    provider_id: key,
+                    price_idr: val.price_idr,
+                    provider_price: val.provider_price,
+                    profit: val.price_idr - val.provider_price,
+                    locked_at: val.locked_at,
+                    server: val.server,
+                    service: val.service,
+                    country: val.country,
+                });
+            }
+        }
+
+        // Sort by locked_at DESC
+        entries.sort((a, b) => b.locked_at - a.locked_at);
+
+        res.json({
+            total: count,
+            max: PRICE_LOCK_MAX_SIZE,
+            entries,
+        });
+    } catch (err) {
+        console.error('Admin price-locks error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -5475,6 +5572,10 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                     channel_otp: TELEGRAM_CHANNEL_OTP_ID || null,
                     channel_deposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null,
                 },
+                price_lock: {
+                    size: priceLockCache.size,
+                    max: PRICE_LOCK_MAX_SIZE,
+                },
             });
         }
 
@@ -6311,6 +6412,8 @@ app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
             pending_deposits: Number(depositsPending.rows[0].count),
             unnotified_orders: Number(ordersNotified.rows[0].count),
             unnotified_deposits: Number(depositsNotified.rows[0].count),
+            price_lock_size: priceLockCache.size,
+            price_lock_max: PRICE_LOCK_MAX_SIZE,
         });
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
@@ -6347,9 +6450,10 @@ app.use((req, res) => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready v15 (PURE 10% MARKUP)');
+        console.log('🚀 Server ready v16 (PRICE LOCK)');
         console.log(`💰 Markup nokos: ${MARKUP_PERCENT * 100}% PURE (round to rupiah)`);
         console.log(`💰 Fee deposit: Rp${DEPOSIT_FEE_MIN}-${DEPOSIT_FEE_MAX}`);
+        console.log(`🔒 Price lock: persistent (no TTL), max ${PRICE_LOCK_MAX_SIZE} entries`);
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
             console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
         } else {
@@ -6372,6 +6476,5 @@ setInterval(async () => {
         await pool.query(`DELETE FROM webhook_events WHERE created_at < NOW() - INTERVAL '90 days'`);
     } catch (err) {}
 }, 60 * 60 * 1000);
-
 
 module.exports = app;
