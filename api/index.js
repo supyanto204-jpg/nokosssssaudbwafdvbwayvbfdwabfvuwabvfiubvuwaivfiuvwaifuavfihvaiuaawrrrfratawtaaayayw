@@ -503,18 +503,10 @@ function formatWaktuJakarta() {
     });
 }
 
-// ============================================
-// ===== TELEGRAM SEND (v14.1 — granular return) =====
-// ============================================
-// Return:
-//   { ok: true, message_id }
-//   { ok: false, error, error_code?, retry_after?, ambiguous }
-// ambiguous = true → timeout / network error, kita TIDAK tahu pesan terkirim atau tidak
 async function telegramSendMessage(channelId, text, options = {}) {
     if (!TELEGRAM_BOT_TOKEN || !channelId) {
-        return { ok: false, error: 'NOT_CONFIGURED', ambiguous: false };
+        throw new Error('Telegram notif belum dikonfigurasi');
     }
-
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
 
@@ -531,31 +523,9 @@ async function telegramSendMessage(channelId, text, options = {}) {
             }),
             signal: controller.signal,
         });
-
-        let data;
-        try {
-            data = await res.json();
-        } catch (parseErr) {
-            return { ok: false, error: `HTTP_${res.status}_NON_JSON`, ambiguous: false };
-        }
-
-        if (!data.ok) {
-            return {
-                ok: false,
-                error: data.description || 'TG_ERROR',
-                error_code: data.error_code || null,
-                retry_after: data.parameters?.retry_after || null,
-                ambiguous: false,
-            };
-        }
-
-        return { ok: true, message_id: data.result.message_id };
-    } catch (err) {
-        return {
-            ok: false,
-            error: err.name === 'AbortError' ? 'TIMEOUT' : (err.message || 'NETWORK_ERROR'),
-            ambiguous: true,
-        };
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.description || 'Telegram API error');
+        return data.result;
     } finally {
         clearTimeout(timeout);
     }
@@ -585,32 +555,12 @@ async function fetchUserForOrder(order) {
  * + Tampilkan User & User ID (kayak notif deposit)
  * + Inline button "Beli Sekarang" → ke website.
  */
-// ============================================
-// ===== NOTIF OTP SUKSES (v14.1 — atomic claim) =====
-// ============================================
-// Guard anti-double:
-//   1. Atomic claim dulu (UPDATE notified_at = NOW() WHERE notified_at IS NULL).
-//      Kalau rowCount = 0 → ada proses lain yang sudah claim → skip.
-//   2. Baru kirim Telegram.
-//   3. Kalau kirim gagal → reset notified_at = NULL biar bisa retry.
-// ============================================
 async function notifyOtpSuccess(order, user = null) {
     const channelId = TELEGRAM_CHANNEL_OTP_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
 
-    // ===== ATOMIC CLAIM =====
-    const claim = await pool.query(
-        `UPDATE orders SET notified_at = NOW()
-         WHERE id = $1 AND notified_at IS NULL
-         RETURNING id`,
-        [order.id]
-    ).catch(err => {
-        console.error('notifyOtpSuccess claim error:', err.message);
-        return { rowCount: 0 };
-    });
-
-    if (claim.rowCount === 0) {
-        return { sent: false, reason: 'ALREADY_CLAIMED' };
+    if (order.notified_at) {
+        return { sent: false, reason: 'ALREADY_NOTIFIED' };
     }
 
     const displayId = order.otp_id || order.order_id || '-';
@@ -628,27 +578,29 @@ async function notifyOtpSuccess(order, user = null) {
         `<u>• Harga:</u> <b>${toRupiahNotif(order.price)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
+    // ===== Inline button ke website =====
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
+            [
+                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
+            ]
         ]
     };
 
-    const result = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
+    try {
+        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
 
-    if (!result.ok) {
-        // Kirim gagal (timeout / network / API error) → reset biar bisa retry
         await pool.query(
-            `UPDATE orders SET notified_at = NULL WHERE id = $1`,
+            `UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
             [order.id]
-        ).catch(err => console.error('Reset notified_at (otp) error:', err.message));
+        ).catch(err => console.error('Update notified_at (otp) error:', err.message));
 
-        console.error(`❌ Notif OTP [${displayId}] gagal: ${result.error}${result.ambiguous ? ' (ambiguous)' : ''}`);
-        return { sent: false, reason: 'SEND_ERROR', error: result.error, ambiguous: !!result.ambiguous };
+        console.log(`✅ Notif OTP [${displayId}] sent, msg_id=${msg.message_id}`);
+        return { sent: true, message_id: msg.message_id };
+    } catch (err) {
+        console.error(`❌ Notif OTP [${displayId}] error:`, err.message);
+        return { sent: false, reason: 'SEND_ERROR', error: err.message };
     }
-
-    console.log(`✅ Notif OTP [${displayId}] sent, msg_id=${result.message_id}`);
-    return { sent: true, message_id: result.message_id };
 }
 
 /**
@@ -656,29 +608,12 @@ async function notifyOtpSuccess(order, user = null) {
  * Guard: skip kalau deposit.notified_at udah ada isinya.
  * + Inline button "Beli Sekarang" → ke website URLSync.
  */
-// ============================================
-// ===== NOTIF DEPOSIT SUKSES (v14.1 — atomic claim) =====
-// ============================================
-// Parameter `unique_id` DIHAPUS (tidak dipakai di caller mana pun).
-// Guard anti-double sama seperti notifyOtpSuccess.
-// ============================================
-async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user) {
+async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
 
-    // ===== ATOMIC CLAIM =====
-    const claim = await pool.query(
-        `UPDATE deposits SET notified_at = NOW()
-         WHERE id = $1 AND notified_at IS NULL
-         RETURNING id`,
-        [deposit.id]
-    ).catch(err => {
-        console.error('notifyDepositSuccess claim error:', err.message);
-        return { rowCount: 0 };
-    });
-
-    if (claim.rowCount === 0) {
-        return { sent: false, reason: 'ALREADY_CLAIMED' };
+    if (deposit.notified_at) {
+        return { sent: false, reason: 'ALREADY_NOTIFIED' };
     }
 
     const text =
@@ -691,27 +626,29 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user) 
         `<u>• Nominal:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
         `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
 
+    // ===== Inline button ke website =====
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
+            [
+                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
+            ]
         ]
     };
 
-    const result = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
+    try {
+        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
 
-    if (!result.ok) {
-        // Kirim gagal → reset biar bisa retry
         await pool.query(
-            `UPDATE deposits SET notified_at = NULL WHERE id = $1`,
+            `UPDATE deposits SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
             [deposit.id]
-        ).catch(err => console.error('Reset notified_at (deposit) error:', err.message));
+        ).catch(err => console.error('Update notified_at (deposit) error:', err.message));
 
-        console.error(`❌ Notif deposit [${deposit.reference_id}] gagal: ${result.error}${result.ambiguous ? ' (ambiguous)' : ''}`);
-        return { sent: false, reason: 'SEND_ERROR', error: result.error, ambiguous: !!result.ambiguous };
+        console.log(`✅ Notif deposit [${deposit.reference_id}] sent, msg_id=${msg.message_id}`);
+        return { sent: true, message_id: msg.message_id };
+    } catch (err) {
+        console.error(`❌ Notif deposit [${deposit.reference_id}] error:`, err.message);
+        return { sent: false, reason: 'SEND_ERROR', error: err.message };
     }
-
-    console.log(`✅ Notif deposit [${deposit.reference_id}] sent, msg_id=${result.message_id}`);
-    return { sent: true, message_id: result.message_id };
 }
 
 // ============================================
@@ -931,779 +868,6 @@ async function revokeAllUserSessions(userId, exceptSessionId = null) {
         await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE user_id = $1`, [userId]);
     }
 }
-
-let autoSyncRunning = false;
-
-async function autoSyncAll() {
-    if (autoSyncRunning) return { skipped: true };
-    autoSyncRunning = true;
-
-    const stats = {
-        started_at: new Date().toISOString(),
-        orders_synced: 0, orders_expired: 0, orders_refunded: 0, orders_stuck_fixed: 0,
-        deposits_synced: 0, deposits_expired: 0, deposits_stuck_fixed: 0,
-        notif_otp_retried: 0, notif_otp_sent: 0,
-        notif_deposit_retried: 0, notif_deposit_sent: 0,
-        refunds_processed: 0, errors: [],
-    };
-
-    try {
-        try {
-            const r = await pool.query(
-                `SELECT * FROM orders WHERE status = 'pending'
-                   AND created_at > NOW() - INTERVAL '30 minutes'
-                   AND (last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '30 seconds')
-                 ORDER BY created_at ASC LIMIT 40`
-            );
-            for (let i = 0; i < r.rows.length; i += 8) {
-                await Promise.all(r.rows.slice(i, i + 8).map(async (o) => {
-                    try { const f = await autoSyncOrder(o); if (f) stats.orders_synced++; }
-                    catch (err) { stats.errors.push(`syncOrder ${o.order_id}: ${err.message}`); }
-                }));
-            }
-        } catch (err) { stats.errors.push(`pendingOrders: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM orders WHERE status = 'pending' AND expired_at < NOW()
-                 ORDER BY expired_at ASC LIMIT 20`
-            );
-            for (const o of r.rows) {
-                try {
-                    const res = await autoCancelAndRefund(o);
-                    stats.orders_expired++;
-                    if (res.refunded) stats.orders_refunded++;
-                } catch (err) { stats.errors.push(`expireOrder ${o.order_id}: ${err.message}`); }
-            }
-        } catch (err) { stats.errors.push(`expiredOrders: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM deposits WHERE status = 'pending'
-                   AND created_at > NOW() - INTERVAL '2 hours'
-                   AND (last_synced_at IS NULL OR last_synced_at < NOW() - INTERVAL '60 seconds')
-                 ORDER BY created_at ASC LIMIT 20`
-            );
-            for (let i = 0; i < r.rows.length; i += 5) {
-                await Promise.all(r.rows.slice(i, i + 5).map(async (d) => {
-                    try { const f = await syncDepositStatus(d); if (f && f.status !== 'pending') stats.deposits_synced++; }
-                    catch (err) { stats.errors.push(`syncDeposit ${d.reference_id}: ${err.message}`); }
-                }));
-            }
-        } catch (err) { stats.errors.push(`pendingDeposits: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM deposits WHERE status = 'pending' AND expires_at < NOW()
-                   AND created_at > NOW() - INTERVAL '1 day' ORDER BY expires_at ASC LIMIT 20`
-            );
-            for (const d of r.rows) {
-                try { const f = await syncDepositStatus(d); if (f && f.status === 'expired') stats.deposits_expired++; }
-                catch (err) { stats.errors.push(`expireDeposit ${d.reference_id}: ${err.message}`); }
-            }
-        } catch (err) { stats.errors.push(`expiredDeposits: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM orders WHERE status IN ('received','success','confirmed')
-                   AND otp_code IS NOT NULL AND TRIM(otp_code) <> ''
-                   AND notified_at IS NULL AND created_at > NOW() - INTERVAL '7 days'
-                 ORDER BY created_at ASC LIMIT 10`
-            );
-            for (const o of r.rows) {
-                stats.notif_otp_retried++;
-                try {
-                    const user = await fetchUserForOrder(o);
-                    const res = await notifyOtpSuccess(o, user);
-                    if (res.sent) stats.notif_otp_sent++;
-                } catch (err) { stats.errors.push(`notifOtp ${o.otp_id}: ${err.message}`); }
-                await new Promise(res => setTimeout(res, 50));
-            }
-        } catch (err) { stats.errors.push(`unnotifiedOrders: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM deposits WHERE status = 'success' AND notified_at IS NULL
-                   AND created_at > NOW() - INTERVAL '7 days' ORDER BY created_at ASC LIMIT 10`
-            );
-            for (const d of r.rows) {
-                stats.notif_deposit_retried++;
-                try {
-                    const u = await pool.query('SELECT username, name, user_code FROM users WHERE id = $1', [d.user_id]);
-                    const res = await notifyDepositSuccess(d, Number(d.amount) || 0,
-                        Number(d.total_amount) || Number(d.amount) || 0, Number(d.fee) || 0, u.rows[0] || null);
-                    if (res.sent) stats.notif_deposit_sent++;
-                } catch (err) { stats.errors.push(`notifDeposit ${d.reference_id}: ${err.message}`); }
-                await new Promise(res => setTimeout(res, 50));
-            }
-        } catch (err) { stats.errors.push(`unnotifiedDeposits: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM orders WHERE status = 'received'
-                   AND (otp_code IS NULL OR TRIM(otp_code) = '')
-                   AND created_at < NOW() - INTERVAL '5 minutes' LIMIT 20`
-            );
-            for (const o of r.rows) {
-                try {
-                    await pool.query(`UPDATE orders SET status = 'failed', updated_at = NOW() WHERE id = $1`, [o.id]);
-                    await pool.query(`UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`, [String(o.order_id)]);
-                    await logStatusChange({ entityType: 'order', entityId: String(o.order_id), userId: o.user_id,
-                        oldStatus: 'received', newStatus: 'failed', reason: 'auto_fix_stuck_no_otp',
-                        metadata: { otp_id: o.otp_id } });
-                    const f = await pool.query('SELECT * FROM orders WHERE id = $1', [o.id]);
-                    if (f.rows[0]) await refundOrder(f.rows[0], 'auto_fix_stuck_no_otp');
-                    stats.orders_stuck_fixed++;
-                } catch (err) { stats.errors.push(`stuckOrder ${o.order_id}: ${err.message}`); }
-            }
-        } catch (err) { stats.errors.push(`stuckOrders: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM deposits WHERE status = 'pending' AND expires_at IS NULL
-                   AND created_at < NOW() - INTERVAL '5 minutes' LIMIT 20`
-            );
-            for (const d of r.rows) {
-                try {
-                    const exp = new Date(new Date(d.created_at).getTime() + 30 * 60 * 1000);
-                    await pool.query(`UPDATE deposits SET expires_at = $1, updated_at = NOW() WHERE id = $2`, [exp, d.id]);
-                    await logStatusChange({ entityType: 'deposit', entityId: d.reference_id, userId: d.user_id,
-                        oldStatus: 'pending', newStatus: 'pending', reason: 'auto_fix_missing_expiry',
-                        metadata: { new_expires_at: exp.toISOString() } });
-                    stats.deposits_stuck_fixed++;
-                } catch (err) { stats.errors.push(`stuckDeposit ${d.reference_id}: ${err.message}`); }
-            }
-        } catch (err) { stats.errors.push(`stuckDeposits: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT * FROM orders WHERE status IN ('cancelled','failed','expired')
-                   AND (refunded_at IS NULL OR refunded_at = 0) AND price > 0
-                 ORDER BY created_at ASC LIMIT 20`
-            );
-            for (const o of r.rows) {
-                try { const res = await refundOrder(o, 'auto_sync_refund_' + o.status); if (res.refunded) stats.refunds_processed++; }
-                catch (err) { stats.errors.push(`refund ${o.order_id}: ${err.message}`); }
-            }
-        } catch (err) { stats.errors.push(`needRefund: ${err.message}`); }
-
-        const hasActivity = stats.orders_synced || stats.orders_expired || stats.orders_refunded ||
-            stats.orders_stuck_fixed || stats.deposits_synced || stats.deposits_expired ||
-            stats.deposits_stuck_fixed || stats.notif_otp_sent || stats.notif_deposit_sent ||
-            stats.refunds_processed || stats.errors.length;
-
-        if (hasActivity) {
-            try { await sendAutoSyncSummary(stats); }
-            catch (err) { console.error('Kirim ringkasan autoSync gagal:', err.message); }
-        }
-
-        stats.finished_at = new Date().toISOString();
-        stats.duration_ms = new Date(stats.finished_at) - new Date(stats.started_at);
-        console.log('✅ autoSyncAll selesai:', JSON.stringify({ ...stats, errors: stats.errors.length }));
-        return stats;
-    } catch (err) {
-        console.error('autoSyncAll fatal:', err.message);
-        stats.errors.push(`FATAL: ${err.message}`);
-        return stats;
-    } finally {
-        autoSyncRunning = false;
-    }
-}
-
-async function auditDatabase() {
-    const result = { started_at: new Date().toISOString(), checks: [], auto_fixed: 0, alerts: 0, errors: [] };
-    const addCheck = (name, count, action, detail = null) => {
-        result.checks.push({ name, count, action, detail });
-        if (action === 'auto_fix') result.auto_fixed += count;
-        if (action === 'alert') result.alerts += count;
-    };
-
-    try {
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM orders WHERE status IN ('received','success','confirmed') AND (otp_code IS NULL OR TRIM(otp_code) = '')`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('order_success_no_otp', c, 'alert', 'Order sukses tanpa OTP');
-        } catch (err) { result.errors.push(`c1: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT id, order_id, otp_id, refunded_amount FROM orders WHERE status IN ('received','success','confirmed') AND refunded_at IS NOT NULL AND refunded_at > 0 LIMIT 50`);
-            if (r.rows.length > 0) {
-                for (const o of r.rows) {
-                    await pool.query(`UPDATE orders SET refunded_at = NULL, refunded_amount = NULL, refund_reason = NULL, updated_at = NOW() WHERE id = $1`, [o.id]);
-                    await logStatusChange({ entityType: 'order', entityId: String(o.order_id), userId: null,
-                        oldStatus: 'success_with_refund', newStatus: 'success', reason: 'audit_clear_refund_on_success',
-                        metadata: { otp_id: o.otp_id, old_refunded_amount: o.refunded_amount } });
-                }
-                addCheck('order_success_with_refund', r.rows.length, 'auto_fix', 'Hapus refunded_at di order sukses');
-            }
-        } catch (err) { result.errors.push(`c2: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM orders WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() - INTERVAL '1 hour'`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('order_pending_stuck', c, 'alert', 'Order pending nyangkut');
-        } catch (err) { result.errors.push(`c3: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT id FROM orders WHERE otp_id IS NULL LIMIT 50`);
-            if (r.rows.length > 0) {
-                for (const o of r.rows) {
-                    const newOtpId = await generateOtpReferenceId();
-                    await pool.query(`UPDATE orders SET otp_id = $1, updated_at = NOW() WHERE id = $2`, [newOtpId, o.id]);
-                }
-                addCheck('order_missing_otp_id', r.rows.length, 'auto_fix', 'Generate otp_id');
-            }
-        } catch (err) { result.errors.push(`c4: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT t.id AS t_id, t.order_id, o.status AS o_status
-                 FROM transactions t JOIN orders o ON o.order_id = t.order_id
-                 WHERE t.status != (CASE WHEN o.status IN ('received','success','confirmed') THEN 'success'
-                    WHEN o.status IN ('cancelled','expired','failed','refunded') THEN 'failed' ELSE 'pending' END)
-                 LIMIT 50`
-            );
-            if (r.rows.length > 0) {
-                for (const row of r.rows) {
-                    const ns = ['received','success','confirmed'].includes(row.o_status) ? 'success'
-                        : ['cancelled','expired','failed','refunded'].includes(row.o_status) ? 'failed' : 'pending';
-                    await pool.query(`UPDATE transactions SET status = $1, updated_at = NOW() WHERE id = $2`, [ns, row.t_id]);
-                }
-                addCheck('transaction_status_mismatch', r.rows.length, 'auto_fix', 'Sync transactions.status');
-            }
-        } catch (err) { result.errors.push(`c5: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT id FROM deposits WHERE status = 'success' AND paid_at IS NULL LIMIT 50`);
-            if (r.rows.length > 0) {
-                for (const d of r.rows) {
-                    await pool.query(`UPDATE deposits SET paid_at = updated_at, updated_at = NOW() WHERE id = $1`, [d.id]);
-                }
-                addCheck('deposit_success_no_paid_at', r.rows.length, 'auto_fix', 'Isi paid_at');
-            }
-        } catch (err) { result.errors.push(`c6: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM deposits WHERE status = 'success' AND total_amount IS NOT NULL AND total_amount < amount`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('deposit_total_lt_amount', c, 'alert', 'total_amount < amount');
-        } catch (err) { result.errors.push(`c7: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM deposits WHERE method = 'qrispy' AND status = 'pending' AND qris_id IS NULL`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('deposit_pending_no_qris_id', c, 'alert', 'qrispy pending tanpa qris_id');
-        } catch (err) { result.errors.push(`c8: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM deposits WHERE status = 'pending' AND expires_at IS NULL`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('deposit_pending_no_expiry', c, 'alert', 'pending tanpa expires_at');
-        } catch (err) { result.errors.push(`c9: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT id, username, balance FROM users WHERE balance < 0 LIMIT 50`);
-            if (r.rows.length > 0) {
-                addCheck('user_negative_balance', r.rows.length, 'alert',
-                    r.rows.slice(0, 5).map(u => `${u.username}(${u.balance})`).join(', '));
-            }
-        } catch (err) { result.errors.push(`c10: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT id FROM users WHERE user_code IS NULL LIMIT 50`);
-            if (r.rows.length > 0) {
-                for (const u of r.rows) {
-                    const codeRes = await pool.query(`SELECT generate_user_code() AS code`);
-                    await pool.query(`UPDATE users SET user_code = $1, updated_at = NOW() WHERE id = $2`, [codeRes.rows[0].code, u.id]);
-                }
-                addCheck('user_missing_code', r.rows.length, 'auto_fix', 'Generate user_code');
-            }
-        } catch (err) { result.errors.push(`c11: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT o.* FROM orders o LEFT JOIN transactions t ON t.order_id = o.order_id
-                 WHERE o.status IN ('received','success','confirmed') AND t.id IS NULL LIMIT 20`
-            );
-            if (r.rows.length > 0) {
-                for (const o of r.rows) {
-                    await pool.query(
-                        `INSERT INTO transactions (user_id, order_id, service_name, country, country_flag, phone_number, otp_code, status, price)
-                         VALUES ($1, $2, $3, $4, $5, $6, $7, 'success', $8)`,
-                        [o.user_id, o.order_id, o.service_name, o.country, o.country_flag, o.phone_number, o.otp_code, o.price]
-                    );
-                }
-                addCheck('order_success_no_transaction', r.rows.length, 'auto_fix', 'Insert transactions hilang');
-            }
-        } catch (err) { result.errors.push(`c12: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT COUNT(*) AS c FROM orders o WHERE o.refunded_at IS NOT NULL AND o.refunded_at > 0
-                 AND NOT EXISTS (SELECT 1 FROM status_logs sl WHERE sl.entity_type = 'order'
-                    AND sl.entity_id = o.order_id AND sl.new_status = 'refunded')`
-            );
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('order_refund_no_log', c, 'alert', 'Refund tanpa log');
-        } catch (err) { result.errors.push(`c13: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`UPDATE sessions SET revoked_at = NOW() WHERE revoked_at IS NULL AND expires_at < NOW() RETURNING id`);
-            if (r.rowCount > 0) addCheck('session_expired_not_revoked', r.rowCount, 'auto_fix', 'Revoke session expired');
-        } catch (err) { result.errors.push(`c14: ${err.message}`); }
-
-        try {
-            const r = await pool.query(`SELECT COUNT(*) AS c FROM orders WHERE status = 'received' AND received_at < NOW() - INTERVAL '24 hours'`);
-            const c = Number(r.rows[0].c);
-            if (c > 0) addCheck('order_received_old', c, 'alert', 'received > 24 jam belum confirmed');
-        } catch (err) { result.errors.push(`c15: ${err.message}`); }
-
-        result.finished_at = new Date().toISOString();
-        result.duration_ms = new Date(result.finished_at) - new Date(result.started_at);
-
-        if (result.auto_fixed > 0 || result.alerts > 0 || result.errors.length > 0) {
-            try { await sendAuditSummary(result); }
-            catch (err) { console.error('Kirim ringkasan audit gagal:', err.message); }
-        }
-
-        console.log('✅ auditDatabase:', JSON.stringify({ auto_fixed: result.auto_fixed, alerts: result.alerts, errors: result.errors.length }));
-        return result;
-    } catch (err) {
-        console.error('auditDatabase fatal:', err.message);
-        result.errors.push(`FATAL: ${err.message}`);
-        return result;
-    }
-}
-
-async function healthCheck() {
-    const result = { started_at: new Date().toISOString(), issues: [], info: {} };
-
-    try {
-        const envChecks = {
-            JWT_SECRET: !!process.env.JWT_SECRET,
-            CRON_SECRET: !!process.env.CRON_SECRET,
-            DATABASE_URL: !!process.env.DATABASE_URL,
-            API_SERVER_EKONOMI: !!DIBANANA_API_KEY,
-            PW_WEBHOOK: !!QRISPY_WEBHOOK_SECRET,
-            WEBHOOK_OTP1: !!WEBHOOK_OTP1_SECRET,
-            TELEGRAM_BOT_TOKEN: !!TELEGRAM_BOT_TOKEN,
-            TELEGRAM_CHANNEL_ID: !!TELEGRAM_CHANNEL_ID,
-        };
-        result.info.env = envChecks;
-        for (const [k, v] of Object.entries(envChecks)) {
-            if (!v) result.issues.push(`ENV ${k} kosong`);
-        }
-
-        result.info.pool = { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount };
-        if (pool.waitingCount > 5) result.issues.push(`DB pool waiting: ${pool.waitingCount}`);
-        if (pool.totalCount >= 23) result.issues.push(`DB pool hampir penuh: ${pool.totalCount}/25`);
-
-        result.info.schemaEnsured = schemaEnsured;
-        if (!schemaEnsured) result.issues.push('Schema belum di-ensure');
-
-        try {
-            const bal = await getProviderBalance();
-            result.info.provider_balance = bal;
-            if (bal.ok && bal.balance < 50000) result.issues.push(`Provider balance rendah: Rp${bal.balance}`);
-            if (!bal.ok) result.issues.push(`Provider balance gagal: ${bal.error}`);
-        } catch (err) { result.issues.push(`Provider balance error: ${err.message}`); }
-
-        try {
-            const [o, d] = await Promise.all([
-                pool.query(`SELECT COUNT(*) AS c FROM orders WHERE status = 'pending' AND created_at < NOW() - INTERVAL '1 hour'`),
-                pool.query(`SELECT COUNT(*) AS c FROM deposits WHERE status = 'pending' AND created_at < NOW() - INTERVAL '1 hour'`),
-            ]);
-            result.info.stuck_orders = Number(o.rows[0].c);
-            result.info.stuck_deposits = Number(d.rows[0].c);
-            if (result.info.stuck_orders > 20) result.issues.push(`Order pending stuck: ${result.info.stuck_orders}`);
-            if (result.info.stuck_deposits > 20) result.issues.push(`Deposit pending stuck: ${result.info.stuck_deposits}`);
-        } catch (err) { result.issues.push(`Stuck count error: ${err.message}`); }
-
-        try {
-            const [o, d] = await Promise.all([
-                pool.query(`SELECT COUNT(*) AS c FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
-                pool.query(`SELECT COUNT(*) AS c FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
-            ]);
-            result.info.unnotified_orders = Number(o.rows[0].c);
-            result.info.unnotified_deposits = Number(d.rows[0].c);
-            if (result.info.unnotified_orders > 50) result.issues.push(`Notif OTP pending: ${result.info.unnotified_orders}`);
-            if (result.info.unnotified_deposits > 50) result.issues.push(`Notif deposit pending: ${result.info.unnotified_deposits}`);
-        } catch (err) { result.issues.push(`Unnotified count error: ${err.message}`); }
-
-        try {
-            const r = await pool.query(
-                `SELECT COUNT(*) AS c FROM webhook_events WHERE signature_valid = FALSE AND created_at > NOW() - INTERVAL '1 hour'`
-            );
-            result.info.webhook_invalid_1h = Number(r.rows[0].c);
-            if (result.info.webhook_invalid_1h > 20) result.issues.push(`Webhook signature invalid: ${result.info.webhook_invalid_1h}/jam`);
-        } catch (err) { /* tabel mungkin belum ada */ }
-
-        result.finished_at = new Date().toISOString();
-        result.duration_ms = new Date(result.finished_at) - new Date(result.started_at);
-
-        if (result.issues.length > 0) {
-            try { await sendHealthAlert(result); }
-            catch (err) { console.error('Kirim health alert gagal:', err.message); }
-        }
-
-        console.log('✅ healthCheck:', JSON.stringify({ issues: result.issues.length }));
-        return result;
-    } catch (err) {
-        console.error('healthCheck fatal:', err.message);
-        result.issues.push(`FATAL: ${err.message}`);
-        return result;
-    }
-}
-
-// ============================================
-// ===== MONITOR TELEGRAM HELPERS =====
-// ============================================
-const TELEGRAM_MONITOR_TOKEN = process.env.TELEGRAM_MONITOR_TOKEN || '8942918417:AAEuMHB6jdn2NIv6FjjYZ-nXIIUH_qeeX8E';
-const TELEGRAM_MONITOR_CHAT_ID = process.env.TELEGRAM_MONITOR_CHAT_ID || '8182530431';
-
-async function sendMonitorMessage(text, options = {}) {
-    if (!TELEGRAM_MONITOR_TOKEN || TELEGRAM_MONITOR_TOKEN.startsWith('GANTI_')) {
-        console.warn('Monitor token belum di-set, skip kirim');
-        return { ok: false, error: 'NOT_CONFIGURED' };
-    }
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
-    try {
-        const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_MONITOR_TOKEN}/sendMessage`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                chat_id: TELEGRAM_MONITOR_CHAT_ID,
-                text,
-                parse_mode: 'HTML',
-                disable_web_page_preview: true,
-                ...options,
-            }),
-            signal: controller.signal,
-        });
-        const data = await res.json();
-        if (!data.ok) return { ok: false, error: data.description };
-        return { ok: true, message_id: data.result.message_id };
-    } catch (err) {
-        return { ok: false, error: err.name === 'AbortError' ? 'TIMEOUT' : err.message };
-    } finally { clearTimeout(timeout); }
-}
-
-function fmtRp(n) {
-    if (isNaN(n) || n == null) n = 0;
-    return 'Rp' + Number(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-}
-
-function fmtTime() {
-    return new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-}
-
-function fmtDuration(ms) {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms/1000).toFixed(1)}s`;
-    return `${(ms/60000).toFixed(1)}m`;
-}
-
-async function sendAutoSyncSummary(stats) {
-    const lines = [
-        `<b>🔄 AUTO SYNC REPORT</b>`,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
-        `<u>• Waktu:</u> <code>${fmtTime()}</code>`,
-        `<u>• Durasi:</u> <code>${fmtDuration(stats.duration_ms || 0)}</code>`,
-        ``,
-        `<b>📦 Order:</b>`,
-        `  • Synced: <b>${stats.orders_synced}</b>`,
-        `  • Expired: <b>${stats.orders_expired}</b>`,
-        `  • Refunded: <b>${stats.orders_refunded}</b>`,
-        `  • Stuck fixed: <b>${stats.orders_stuck_fixed}</b>`,
-        ``,
-        `<b>💰 Deposit:</b>`,
-        `  • Synced: <b>${stats.deposits_synced}</b>`,
-        `  • Expired: <b>${stats.deposits_expired}</b>`,
-        `  • Stuck fixed: <b>${stats.deposits_stuck_fixed}</b>`,
-        ``,
-        `<b>📨 Notif:</b>`,
-        `  • OTP sent: <b>${stats.notif_otp_sent}</b>/${stats.notif_otp_retried}`,
-        `  • Deposit sent: <b>${stats.notif_deposit_sent}</b>/${stats.notif_deposit_retried}`,
-        ``,
-        `<b>💸 Refund:</b> <b>${stats.refunds_processed}</b>`,
-    ];
-    if (stats.errors.length > 0) {
-        lines.push(``);
-        lines.push(`<b>⚠️ Errors:</b> <b>${stats.errors.length}</b>`);
-        for (const e of stats.errors.slice(0, 5)) {
-            lines.push(`  • <code>${escapeHtmlNotif(e).substring(0, 120)}</code>`);
-        }
-    }
-    return sendMonitorMessage(lines.join('\n'));
-}
-
-async function sendAuditSummary(result) {
-    const lines = [
-        `<b>🔍 AUDIT DATABASE REPORT</b>`,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
-        `<u>• Waktu:</u> <code>${fmtTime()}</code>`,
-        `<u>• Durasi:</u> <code>${fmtDuration(result.duration_ms || 0)}</code>`,
-        `<u>• Auto-fixed:</u> <b>${result.auto_fixed}</b>`,
-        `<u>• Alerts:</u> <b>${result.alerts}</b>`,
-    ];
-    if (result.checks.length > 0) {
-        lines.push(``);
-        lines.push(`<b>📋 Detail:</b>`);
-        for (const c of result.checks.slice(0, 20)) {
-            const icon = c.action === 'auto_fix' ? '🔧' : '⚠️';
-            lines.push(`${icon} <b>${escapeHtmlNotif(c.name)}</b>: ${c.count}${c.detail ? ` — <i>${escapeHtmlNotif(c.detail)}</i>` : ''}`);
-        }
-    }
-    if (result.errors.length > 0) {
-        lines.push(``);
-        lines.push(`<b>❌ Errors:</b> <b>${result.errors.length}</b>`);
-        for (const e of result.errors.slice(0, 5)) {
-            lines.push(`  • <code>${escapeHtmlNotif(e).substring(0, 120)}</code>`);
-        }
-    }
-    return sendMonitorMessage(lines.join('\n'));
-}
-
-async function sendHealthAlert(result) {
-    const lines = [
-        `<b>🚨 HEALTH CHECK ALERT</b>`,
-        `━━━━━━━━━━━━━━━━━━━━━━`,
-        `<u>• Waktu:</u> <code>${fmtTime()}</code>`,
-        `<u>• Issues:</u> <b>${result.issues.length}</b>`,
-        ``,
-        `<b>⚠️ Masalah:</b>`,
-    ];
-    for (const issue of result.issues.slice(0, 20)) {
-        lines.push(`  • <code>${escapeHtmlNotif(issue).substring(0, 150)}</code>`);
-    }
-    if (result.info.provider_balance) {
-        lines.push(``);
-        lines.push(`<b>ℹ️ Info:</b>`);
-        lines.push(`  • Provider balance: <b>${result.info.provider_balance.ok ? fmtRp(result.info.provider_balance.balance) : 'ERROR'}</b>`);
-        lines.push(`  • DB pool: ${result.info.pool?.total || 0}/${result.info.pool?.idle || 0}/${result.info.pool?.waiting || 0}`);
-        lines.push(`  • Stuck order: <b>${result.info.stuck_orders || 0}</b> | stuck deposit: <b>${result.info.stuck_deposits || 0}</b>`);
-        lines.push(`  • Unnotified: OTP <b>${result.info.unnotified_orders || 0}</b> | Deposit <b>${result.info.unnotified_deposits || 0}</b>`);
-    }
-    return sendMonitorMessage(lines.join('\n'));
-}
-
-// ============================================
-// ===== EVENT LOGGER KE MONITOR =====
-// ============================================
-// Kirim event penting ke Telegram monitor (private chat).
-// Cuma event penting: user daftar, deposit sukses, order sukses, refund, admin action.
-// TIDAK kirim: login, logout, ganti nama, view dashboard, dll (biar tidak spam).
-// ============================================
-
-async function logEvent({ type, title, data = {}, icon = '📌' }) {
-    try {
-        const lines = [
-            `<b>${icon} ${escapeHtmlNotif(title)}</b>`,
-            `━━━━━━━━━━━━━━━━━━━━━━`,
-        ];
-
-        for (const [key, value] of Object.entries(data)) {
-            if (value === null || value === undefined || value === '') continue;
-            const label = key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-            lines.push(`<u>• ${escapeHtmlNotif(label)}:</u> <b>${escapeHtmlNotif(String(value))}</b>`);
-        }
-
-        lines.push(`<u>• Waktu:</u> <code>${fmtTime()}</code>`);
-
-        await sendMonitorMessage(lines.join('\n'));
-    } catch (err) {
-        console.error('logEvent error:', err.message);
-    }
-}
-
-// ============================================
-// ===== HELPER: EVENT SPESIFIK =====
-// ============================================
-
-async function logUserRegistered(user) {
-    return logEvent({
-        type: 'user_registered',
-        icon: '🆕',
-        title: 'USER BARU DAFTAR',
-        data: {
-            username: user.username,
-            name: user.name,
-            user_code: user.user_code,
-        },
-    });
-}
-
-async function logDepositSuccess(deposit, user, saldoMasuk, totalBayar, fee) {
-    return logEvent({
-        type: 'deposit_success',
-        icon: '💰',
-        title: 'DEPOSIT SUKSES',
-        data: {
-            user: user?.username || '-',
-            user_code: user?.user_code || '-',
-            deposit_id: deposit.reference_id,
-            method: deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA',
-            nominal: fmtRp(saldoMasuk),
-            total_bayar: fmtRp(totalBayar),
-            fee: fmtRp(fee),
-        },
-    });
-}
-
-async function logOrderSuccess(order, user) {
-    const profit = (Number(order.price) || 0) - (Number(order.provider_price) || 0);
-    return logEvent({
-        type: 'order_success',
-        icon: '✅',
-        title: 'ORDER SUKSES',
-        data: {
-            user: user?.username || '-',
-            user_code: user?.user_code || '-',
-            otp_id: order.otp_id,
-            service: order.service_name || order.service || '-',
-            country: order.country_name || order.country || '-',
-            phone: censorPhoneNotif(order.phone_number),
-            harga: fmtRp(order.price),
-            profit: fmtRp(profit),
-        },
-    });
-}
-
-async function logRefund(order, amount, reason, user) {
-    return logEvent({
-        type: 'refund',
-        icon: '💸',
-        title: 'REFUND',
-        data: {
-            user: user?.username || '-',
-            user_code: user?.user_code || '-',
-            otp_id: order.otp_id,
-            order_id: order.order_id,
-            amount: fmtRp(amount),
-            reason: reason || '-',
-        },
-    });
-}
-
-async function logAdminActionEvent(admin, action, targetType, targetId, metadata = {}) {
-    return logEvent({
-        type: 'admin_action',
-        icon: '🛡️',
-        title: 'ADMIN ACTION',
-        data: {
-            admin: admin?.username || '-',
-            action: action,
-            target: `${targetType}:${targetId}`,
-            ...metadata,
-        },
-    });
-}
-
-async function logError(source, error, context = {}) {
-    return logEvent({
-        type: 'error',
-        icon: '🚨',
-        title: `ERROR: ${source}`,
-        data: {
-            error: String(error).substring(0, 200),
-            ...context,
-        },
-    });
-}
-
-// ============================================
-// ===== CRON: AUDIT DATABASE =====
-// ============================================
-app.post('/api/cron/audit-db', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await auditDatabase();
-        res.json({
-            message: 'Audit selesai',
-            auto_fixed: result.auto_fixed,
-            alerts: result.alerts,
-            errors: result.errors.length,
-            duration_ms: result.duration_ms,
-        });
-    } catch (err) {
-        console.error('Cron audit-db error:', err.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-// ============================================
-// ===== CRON: HEALTH CHECK =====
-// ============================================
-app.post('/api/cron/health-check', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await healthCheck();
-        res.json({
-            message: 'Health check selesai',
-            issues: result.issues.length,
-            issues_detail: result.issues,
-            info: result.info,
-            duration_ms: result.duration_ms,
-        });
-    } catch (err) {
-        console.error('Cron health-check error:', err.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-// ============================================
-// ===== CRON: FULL AUTO FIX (autoSync + audit + health) =====
-// ============================================
-app.post('/api/cron/full-auto-fix', requireCron, withDB(async (req, res) => {
-    try {
-        const syncResult = await autoSyncAll();
-        const auditResult = await auditDatabase();
-        const healthResult = await healthCheck();
-        res.json({
-            message: 'Full auto fix selesai',
-            auto_sync: {
-                orders_synced: syncResult.orders_synced,
-                orders_expired: syncResult.orders_expired,
-                orders_refunded: syncResult.orders_refunded,
-                deposits_synced: syncResult.deposits_synced,
-                deposits_expired: syncResult.deposits_expired,
-                notif_otp_sent: syncResult.notif_otp_sent,
-                notif_deposit_sent: syncResult.notif_deposit_sent,
-                errors: syncResult.errors.length,
-            },
-            audit: {
-                auto_fixed: auditResult.auto_fixed,
-                alerts: auditResult.alerts,
-                errors: auditResult.errors.length,
-            },
-            health: {
-                issues: healthResult.issues.length,
-            },
-        });
-    } catch (err) {
-        console.error('Cron full-auto-fix error:', err.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
-
-// ============================================
-// ===== CRON: MONITOR TEST =====
-// ============================================
-app.post('/api/cron/monitor-test', requireCron, withDB(async (req, res) => {
-    try {
-        const result = await sendMonitorMessage(
-            `<b>🧪 MONITOR TEST</b>\n` +
-            `━━━━━━━━━━━━━━━━━━━━━━\n` +
-            `<u>• Waktu:</u> <code>${fmtTime()}</code>\n` +
-            `<u>• Status:</u> <b>✅ Berhasil</b>\n` +
-            `<u>• Chat ID:</u> <code>${TELEGRAM_MONITOR_CHAT_ID}</code>`
-        );
-        if (!result.ok) return res.status(500).json({ error: result.error });
-        res.json({ message: 'Test terkirim', message_id: result.message_id });
-    } catch (err) {
-        console.error('Cron monitor-test error:', err.message);
-        res.status(500).json({ error: 'Server error' });
-    }
-}));
 
 // ============================================
 // PART 3/6: SCHEMA, ensureSchema, withDB, Middleware Auth
