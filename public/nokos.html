@@ -199,7 +199,6 @@
         .app-icon-wrap img {
             width: 100%; height: 100%;
             object-fit: contain; display: block;
-            /* Optimasi: cegah layout shift & percepat render */
             content-visibility: auto;
             image-rendering: -webkit-optimize-contrast;
         }
@@ -210,11 +209,7 @@
             text-transform: uppercase;
         }
 
-        /* ============================================
-           ACTIVE ORDERS
-           ============================================ */
         #activeOrders {
-            /* Prevent collapse saat refresh */
             min-height: 0;
         }
         .active-orders {
@@ -1581,8 +1576,20 @@
         'received_at', 'refunded_at', 'refunded_amount', '_bucket',
     ]);
 
+    /* ============================================
+       FIX BUG: Provider fields harus lengkap
+       Sebelumnya cuma ['price_idr','stock','name','operator']
+       → id dibuang → order salah provider
+       ============================================ */
     const ALLOWED_PROVIDER_FIELDS = new Set([
-        'price_idr', 'stock', 'name', 'operator',
+        'id',              // ← CRITICAL: id provider (dipakai backend /order)
+        'provider_id',     // ← buat premium server
+        'provider_price',  // ← buat premium server (harga asli)
+        'price_idr',       // ← harga jual (sudah markup 10%)
+        'price',           // ← fallback kalau backend kirim 'price'
+        'stock',
+        'name',
+        'operator',
     ]);
 
     const ORDER_ID_MAP = new Map();
@@ -1624,7 +1631,6 @@
 
     /* ============================================
        APP ICON — assets.cindigital.id
-       Optimasi: image cache + lazy load + dedup in-flight
        ============================================ */
     const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
 
@@ -1634,14 +1640,10 @@
         return `${APP_CDN_BASE}/${code}.png`;
     }
 
-    // Cache status icon: url -> 'ok' | 'fail' | 'loading'
     const ICON_STATUS = new Map();
-    // Set url yang sedang di-preload via Image()
     const ICON_PRELOADING = new Set();
-    // Batas max concurrent preload biar gak nyiksa network
     const MAX_CONCURRENT_PRELOAD = 6;
     let activePreloadCount = 0;
-    // Queue url yang nunggu preload
     const ICON_PRELOAD_QUEUE = [];
 
     function processIconPreloadQueue() {
@@ -1680,7 +1682,6 @@
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
 
-        // Kalau icon sudah pernah gagal, langsung pakai fallback (gak usah coba lagi)
         if (ICON_STATUS.get(url) === 'fail') {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
@@ -1725,7 +1726,6 @@
             if (img.dataset.boundImg) return;
             img.dataset.boundImg = '1';
             img.addEventListener('load', function() {
-                // Mark as ok supaya render berikut gak perlu lazy
                 if (this.src) ICON_STATUS.set(this.src, 'ok');
             });
             img.addEventListener('error', function() {
@@ -1757,7 +1757,6 @@
         if (ICON_STATUS.get(url) === 'fail') {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
-        // Untuk icon di card order, pakai preload queue biar browser cache
         preloadIcon(url);
         return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" decoding="async">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
@@ -2003,15 +2002,19 @@
         totalPages: 1,
         allOrders: [],
         countdownIntervals: {},
-        /** Flag: pernah render card minimal 1x — biar empty state gak kedip */
         hasRenderedOnce: false,
-        /** Flag: fetch pertama udah selesai */
         initialLoadDone: false,
     };
 
     let servicesCache = [];
     let autoSyncInterval = null;
     let otpCheckInterval = null;
+
+    /* ============================================
+       FIX BUG: PROVIDER_RAW_MAP pindah ke atas (hindari TDZ)
+       & key by ID provider (bukan index — index bocor saat sort)
+       ============================================ */
+    const PROVIDER_RAW_MAP = new Map();
 
     swrFetch('/api/user', 'user_profile', (user) => {
         if (!user) return;
@@ -2088,12 +2091,8 @@
             CacheManager.set(cacheKey, { orders: safeOrders });
             renderActiveOrders(merged);
             activeState.initialLoadDone = true;
-
-            // Cek OTP HANYA kalau ada pending tanpa OTP — dan itu di-handle interval terpisah
-            // (bukan di sini) biar gak brutal
         } catch (err) {
             if (err.name === 'AbortError') return;
-            // Jangan render empty state kalau belum pernah load berhasil
             if (!cached && !activeState.initialLoadDone) {
                 document.getElementById('activeOrders').innerHTML = `
                     <div class="empty-orders">
@@ -2297,10 +2296,6 @@
         });
     }
 
-    /* ============================================
-       RENDER ACTIVE ORDERS
-       FIX: Jangan render empty state selama fetch pertama belum selesai
-       ============================================ */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
@@ -2308,16 +2303,11 @@
 
         const hasOrders = orders && orders.length > 0;
 
-        // ⬇️ FIX UTAMA: kalau kosong DAN fetch pertama belum selesai, JANGAN render empty state
-        // Biar gak kedip-kedip pas auto-refresh
         if (!hasOrders) {
-            // Kalau belum pernah render sekali pun dan fetch belum selesai → skip dulu
             if (!activeState.initialLoadDone && !activeState.hasRenderedOnce) {
-                // Biarkan kosong (nggak render apa-apa), cegah empty state muncul sebelum data datang
                 return;
             }
 
-            // Baru render empty state kalau memang sudah dipastikan kosong
             container.className = '';
             container.innerHTML = `
                 <div class="empty-orders">
@@ -2333,7 +2323,6 @@
             return;
         }
 
-        // Ada order → render card
         activeState.hasRenderedOnce = true;
 
         if (countEl) {
@@ -2472,12 +2461,7 @@
         });
     }
 
-    /* ============================================
-       SYNC PENDING OTP — 15 DETIK, bukan tiap 5 detik
-       Cek OTP cuma kalau ada pending tanpa OTP
-       ============================================ */
     async function syncPendingOrders() {
-        // Ambil pending tanpa OTP dari state terkini
         const pendingNoOtp = activeState.allOrders.filter(o =>
             o._bucket === 'pending' && o.status === 'pending' && !(o.otp_code && o.otp_code.trim())
         );
@@ -2517,12 +2501,6 @@
         }
     }
 
-    /* ============================================
-       AUTO SYNC
-       - Dashboard list: 5 detik (sesuai request)
-       - Cek OTP: 15 detik (terpisah, biar gak brutal)
-       - Skip total kalau tab hidden
-       ============================================ */
     function startAutoSync() {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         autoSyncInterval = setInterval(() => {
@@ -2773,7 +2751,6 @@
             return;
         }
 
-        // Preload icon visible di awal — batasi biar gak nyiksa
         const visible = services.slice(0, 12);
         visible.forEach(s => {
             const url = getAppIconUrl(s.code, s.icon_code);
@@ -2961,7 +2938,7 @@
         const cached = CacheManager.get(cacheKey);
 
         if (cached && cached.value && cached.value.providers) {
-            state.providers = (cached.value.providers || []).map(sanitizeProvider);
+            state.providers = cached.value.providers;
             renderPrices(state.providers);
         }
 
@@ -2971,11 +2948,30 @@
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await safeJson(res);
-            const providers = (data.providers || []).map(sanitizeProvider);
+
+            // ===== FIX: sanitize TAPI simpan id, price, provider_id, provider_price =====
+            const rawProviders = data.providers || [];
+
+            // Bersihkan PROVIDER_RAW_MAP & isi ulang keyed by provider ID (bukan index)
             PROVIDER_RAW_MAP.clear();
-            (data.providers || []).forEach((p, i) => {
-                PROVIDER_RAW_MAP.set(i, { id: p.id, price: p.price, provider_id: p.provider_id, provider_price: p.provider_price });
+            rawProviders.forEach(p => {
+                const pid = String(p.id || p.provider_id || '').trim();
+                if (pid) {
+                    PROVIDER_RAW_MAP.set(pid, {
+                        id: p.id,
+                        provider_id: p.provider_id,
+                        provider_price: p.provider_price,
+                        price: p.price,
+                    });
+                }
             });
+
+            // Sanitize untuk display, tetap simpan id sebagai `_pid` biar gak bocor ke UI
+            const providers = rawProviders.map(p => ({
+                ...sanitizeProvider(p),
+                _pid: String(p.id || p.provider_id || '').trim(),
+            }));
+
             state.providers = providers;
             CacheManager.set(cacheKey, { providers }, 2 * 60 * 1000);
             renderPrices(providers);
@@ -2985,8 +2981,6 @@
             }
         }
     }
-
-    const PROVIDER_RAW_MAP = new Map();
 
     function renderPrices(providers) {
         const content = document.getElementById('priceContent');
@@ -3020,7 +3014,7 @@
                             </div>
                             <div class="price-right">
                                 <div class="price-amount">${formatRupiah(p.price_idr)}</div>
-                                <button class="btn btn-primary btn-sm" type="button" data-buy-idx="${i}" ${stock === 0 ? 'disabled' : ''}>
+                                <button class="btn btn-primary btn-sm" type="button" data-buy-pid="${escapeHtml(p._pid || '')}" ${stock === 0 ? 'disabled' : ''}>
                                     <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                                     ORDER
                                 </button>
@@ -3031,16 +3025,17 @@
             </div>
         `;
 
-        content.querySelectorAll('[data-buy-idx]').forEach(btn => {
+        content.querySelectorAll('[data-buy-pid]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const idx = Number(btn.dataset.buyIdx);
-                const priceData = sorted[idx];
-                if (priceData) confirmAndPlaceOrder(idx, priceData, btn);
+                const pid = btn.dataset.buyPid;
+                // Cari pakai _pid (ID provider), BUKAN index — aman walau list di-sort
+                const priceData = sorted.find(p => String(p._pid) === String(pid));
+                if (priceData) confirmAndPlaceOrder(pid, priceData, btn);
             });
         });
     }
 
-    async function confirmAndPlaceOrder(idx, priceData, btn) {
+    async function confirmAndPlaceOrder(pid, priceData, btn) {
         const price = Number(priceData.price_idr || priceData.price || 0);
         const ok = await showCustomAlert({
             title: 'Konfirmasi Pembelian',
@@ -3051,16 +3046,17 @@
             cancelText: 'Batal'
         });
         if (!ok) return;
-        placeOrder(idx, priceData, btn);
+        placeOrder(pid, priceData, btn);
     }
 
-    async function placeOrder(idx, priceData, btn) {
+    async function placeOrder(pid, priceData, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
 
         try {
-            const raw = PROVIDER_RAW_MAP.get(idx) || {};
+            const raw = PROVIDER_RAW_MAP.get(pid) || {};
+            const expectedPrice = Number(priceData.price_idr || priceData.price || 0);
 
             const body = {
                 server: state.server,
@@ -3069,6 +3065,7 @@
                 service_name: state.serviceName,
                 country_flag: state.country,
                 icon_code: state.iconCode,
+                expected_price: expectedPrice, // ← Guard anti mismatch harga
             };
 
             if (state.requiresOperator) {
@@ -3076,13 +3073,16 @@
                 body.provider_price = raw.provider_price || raw.price;
                 body.operator = state.operator || 'any';
             } else {
-                body.id = raw.id || priceData.id;
+                body.id = raw.id || pid;
             }
 
             const res = await securePost('/api/nokos/order', body, 'order');
             const data = await safeJson(res);
             if (!res.ok) {
                 const code = data.code || '';
+                if (code === 'PRICE_CHANGED') {
+                    throw new Error(`Harga berubah jadi ${formatRupiah(data.actual)}. Silakan pilih ulang.`);
+                }
                 if (code === 'INSUFFICIENT_USER_BALANCE') throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
                 if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') throw new Error('Server sedang sibuk, coba lagi nanti.');
                 throw new Error(data.error || 'Order gagal');
@@ -3152,7 +3152,6 @@
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
             loadActiveOrders();
-            // Cek OTP saat balik ke tab
             syncPendingOrders();
         }
     });
