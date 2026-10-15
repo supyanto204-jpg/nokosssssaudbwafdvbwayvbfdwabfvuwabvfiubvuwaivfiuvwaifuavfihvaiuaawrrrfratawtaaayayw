@@ -23,13 +23,16 @@
             color: #e2e8f0;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
         }
-        .wrap {
-            max-width: 960px;
-            margin: 0 auto;
-            padding: 24px 16px 48px;
-        }
+        .wrap { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
         h1 { font-size: 1.4rem; margin: 0 0 4px; color: #f1f5f9; }
         .sub { color: #94a3b8; font-size: 0.85rem; margin-bottom: 20px; }
+        .sub code {
+            background: #1e293b;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #60a5fa;
+            font-size: 0.8rem;
+        }
 
         .stats {
             display: grid;
@@ -216,9 +219,9 @@
 <div class="wrap">
     <h1>🔧 Preload Icons Cache</h1>
     <p class="sub">
-        Halaman ini mendownload semua icon aplikasi dari proxy <code>/api/icon</code>
-        dan menyimpannya ke IndexedDB browser. Setelah selesai, halaman lain
-        bisa ambil icon dari cache lokal tanpa download ulang.
+        Halaman ini memuat semua icon dari <code>assets.cindigital.id</code> lewat tag
+        <code>&lt;img&gt;</code> (tidak kena CORS) dan menyimpan URL-nya ke IndexedDB.
+        Browser akan cache icon otomatis saat pertama kali load.
     </p>
 
     <div class="stats">
@@ -227,7 +230,7 @@
             <div class="stat-value" id="statTotal">0</div>
         </div>
         <div class="stat-card">
-            <div class="stat-label">Tersimpan</div>
+            <div class="stat-label">Berhasil</div>
             <div class="stat-value ok" id="statOk">0</div>
         </div>
         <div class="stat-card">
@@ -241,7 +244,7 @@
     </div>
 
     <div class="actions">
-        <button id="btnStart" type="button">🚀 Mulai Preload Semua Icon</button>
+        <button id="btnStart" type="button">🚀 Preload Semua Icon</button>
         <button id="btnClear" type="button" class="danger">🗑️ Hapus Cache</button>
         <button id="btnCheck" type="button" class="success">🔍 Cek Cache</button>
         <button id="btnExport" type="button">📤 Export JSON</button>
@@ -258,7 +261,7 @@
 
 <script>
     /* ============================================
-       SECURITY — sanitize console & copy
+       SECURITY — sanitize console & shortcut
        ============================================ */
     (function suppressConsole() {
         try {
@@ -284,7 +287,7 @@
     }
 
     /* ============================================
-       AUTH — sama seperti halaman lain
+       AUTH — sama seperti nokos.html
        ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
@@ -329,9 +332,7 @@
     }
 
     /* ============================================
-       IndexedDB wrapper untuk cache icon
-       DB: asyrofotp_icons
-       Store: icons (key: code)
+       IndexedDB wrapper
        ============================================ */
     const DB_NAME = 'asyrofotp_icons';
     const DB_VERSION = 1;
@@ -405,11 +406,12 @@
     }
 
     /* ============================================
-       Helper — pakai proxy /api/icon (same-origin)
+       ICON SOURCE — langsung ke CDN, TANPA PROXY
+       SAMA SEPERTI nokos.html — pakai <img>, bukan fetch
        ============================================ */
-    const ICON_BASE = '/api/icon';
-    const LOG_MAX = 300;
+    const CDN_BASE = 'https://assets.cindigital.id/apps';
 
+    const LOG_MAX = 300;
     const elTotal = document.getElementById('statTotal');
     const elOk = document.getElementById('statOk');
     const elFail = document.getElementById('statFail');
@@ -445,7 +447,7 @@
     }
 
     /* ============================================
-       Ambil daftar service dari API (pakai token)
+       Ambil daftar service dari API (sama seperti nokos.html)
        ============================================ */
     async function fetchAllServices() {
         const headers = { 'Authorization': `Bearer ${token}` };
@@ -494,49 +496,61 @@
     }
 
     /* ============================================
-       Download icon via proxy /api/icon — same-origin
+       "Download" icon = load via <img>, simpan URL saja
+       Browser yang otomatis cache gambar-nya
        ============================================ */
-    async function downloadIcon(code) {
-        const url = `${ICON_BASE}/${code}.png`;
-        const res = await fetch(url, { cache: 'force-cache' });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        if (!blob || blob.size === 0) throw new Error('Blob kosong');
-
-        const dataUrl = await blobToDataURL(blob);
-        return {
-            code,
-            dataUrl,
-            mime: blob.type || 'image/png',
-            size: blob.size,
-            ts: Date.now(),
-            source: url,
-        };
+    function loadImage(url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                url,
+            });
+            img.onerror = () => reject(new Error('Image load failed'));
+            img.src = url;
+        });
     }
 
-    function blobToDataURL(blob) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = () => reject(reader.error);
-            reader.readAsDataURL(blob);
-        });
+    async function preloadIcon(code) {
+        const url = `${CDN_BASE}/${code}.png`;
+
+        // Load via <img> — tidak kena CORS
+        const info = await loadImage(url);
+
+        // Simpan URL saja (bukan blob). Browser sudah cache gambar-nya.
+        return {
+            code,
+            url,
+            width: info.width,
+            height: info.height,
+            ts: Date.now(),
+        };
     }
 
     /* ============================================
        Render grid icon
        ============================================ */
-    function renderIconCell(code, name, status, dataUrl) {
+    function renderIconCell(code, name, status, url) {
         const cell = document.createElement('div');
         cell.className = 'icon-cell';
         cell.title = `${name} (${code})`;
 
-        if (dataUrl) {
+        if (url) {
             const img = document.createElement('img');
-            img.src = dataUrl;
+            img.src = url;
             img.alt = name;
             img.loading = 'lazy';
             img.decoding = 'async';
+            img.onerror = () => {
+                img.style.display = 'none';
+                if (!cell.querySelector('.fallback')) {
+                    const fb = document.createElement('div');
+                    fb.className = 'fallback';
+                    fb.textContent = (name || code || '?').charAt(0).toUpperCase();
+                    cell.appendChild(fb);
+                }
+            };
             cell.appendChild(img);
         } else {
             const fb = document.createElement('div');
@@ -612,7 +626,7 @@
 
         let ok = 0, fail = 0, skip = 0;
 
-        const CONCURRENCY = 5;
+        const CONCURRENCY = 4;
         const queue = [...services];
         let index = 0;
 
@@ -627,20 +641,20 @@
 
                 try {
                     const existing = await dbGet(s.code);
-                    if (existing && existing.dataUrl) {
+                    if (existing && existing.url) {
                         skip++;
                         elSkip.textContent = skip;
                         log(`[${i}/${total}] ⏭️ ${s.code} (sudah ada)`, 'warn');
-                        renderIconCell(s.code, s.name, 'skip', existing.dataUrl);
+                        renderIconCell(s.code, s.name, 'skip', existing.url);
                         continue;
                     }
 
-                    const entry = await downloadIcon(s.code);
+                    const entry = await preloadIcon(s.code);
                     await dbPut(entry);
                     ok++;
                     elOk.textContent = ok;
-                    log(`[${i}/${total}] ✅ ${s.code} (${fmtBytes(entry.size)})`, 'ok');
-                    renderIconCell(s.code, s.name, 'ok', entry.dataUrl);
+                    log(`[${i}/${total}] ✅ ${s.code} (${entry.width}×${entry.height})`, 'ok');
+                    renderIconCell(s.code, s.name, 'ok', entry.url);
                 } catch (err) {
                     fail++;
                     elFail.textContent = fail;
@@ -658,10 +672,10 @@
         elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal`;
 
         log(`=== Selesai ===`, 'info');
-        log(`Tersimpan: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
+        log(`Berhasil: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
 
         if (fail > 0) {
-            log(`💡 ${fail} icon gagal. Coba klik "Mulai Preload" lagi — yang gagal akan dicoba ulang, yang sudah ada akan di-skip.`, 'warn');
+            log(`💡 ${fail} icon gagal. Klik "Preload" lagi untuk coba ulang yang gagal.`, 'warn');
         }
 
         isRunning = false;
@@ -683,24 +697,21 @@
         log(`Total entry di IndexedDB: ${all.length}`, 'info');
 
         if (all.length === 0) {
-            elLog.insertAdjacentHTML('beforeend', '<div class="empty-state">Belum ada icon tersimpan. Klik "Mulai Preload Semua Icon".</div>');
+            elLog.insertAdjacentHTML('beforeend', '<div class="empty-state">Belum ada icon tersimpan. Klik "Preload Semua Icon".</div>');
             return;
         }
 
-        let totalSize = 0;
         all.sort((a, b) => a.code.localeCompare(b.code));
         for (const e of all) {
-            totalSize += e.size || 0;
-            renderIconCell(e.code, e.code, 'ok', e.dataUrl);
+            renderIconCell(e.code, e.code, 'ok', e.url);
         }
-        log(`Total ukuran: ${fmtBytes(totalSize)}`, 'ok');
 
         elTotal.textContent = all.length;
         elOk.textContent = all.length;
         elFail.textContent = '0';
         elSkip.textContent = '0';
         elBar.style.width = '100%';
-        elBarText.textContent = `${all.length} icon di cache (${fmtBytes(totalSize)})`;
+        elBarText.textContent = `${all.length} icon di cache`;
     }
 
     /* ============================================
@@ -721,7 +732,7 @@
     }
 
     /* ============================================
-       EXPORT JSON
+       EXPORT JSON — hasil bisa disimpan ke repo GitHub
        ============================================ */
     async function exportJson() {
         const all = await dbGetAll();
@@ -738,11 +749,11 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        log(`Exported ${all.length} icon ke JSON`, 'ok');
+        log(`Exported ${all.length} icon ke JSON (URL only)`, 'ok');
     }
 
     /* ============================================
-       EVENT BINDINGS
+       EVENTS
        ============================================ */
     btnStart.addEventListener('click', runPreload);
     btnCheck.addEventListener('click', checkCache);
@@ -753,10 +764,10 @@
         try {
             const count = await dbCount();
             if (count > 0) {
-                log(`IndexedDB sudah berisi ${count} icon. Klik "Cek Cache" untuk lihat.`, 'info');
+                log(`IndexedDB sudah berisi ${count} icon URL. Klik "Cek Cache" untuk lihat.`, 'info');
                 elBarText.textContent = `${count} icon tersimpan`;
             } else {
-                log('Cache kosong. Klik "Mulai Preload Semua Icon" untuk mulai.', 'info');
+                log('Cache kosong. Klik "Preload Semua Icon" untuk mulai.', 'info');
             }
         } catch (e) {
             log('IndexedDB tidak tersedia: ' + e.message, 'fail');
