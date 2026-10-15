@@ -6298,4 +6298,79 @@ setInterval(async () => {
     } catch (err) {}
 }, 60 * 60 * 1000);
 
+/* ============================================
+   ICON PROXY — assets.cindigital.id
+   ============================================ */
+const ICON_CDN_BASE = 'https://assets.cindigital.id/apps';
+const ICON_CACHE = new Map();
+const ICON_TTL = 7 * 24 * 60 * 60 * 1000;
+
+async function fetchIconWithRetry(url, retries = 3) {
+    let lastErr;
+    for (let i = 0; i < retries; i++) {
+        try {
+            const res = await fetch(url, {
+                headers: {
+                    'User-Agent': 'AsyrofOTP/1.0',
+                    'Accept': 'image/png,image/*;q=0.8,*/*;q=0.5',
+                },
+            });
+            if (res.status >= 500 && i < retries - 1) {
+                await new Promise(r => setTimeout(r, 800 * (i + 1)));
+                continue;
+            }
+            return res;
+        } catch (err) {
+            lastErr = err;
+            if (i < retries - 1) {
+                await new Promise(r => setTimeout(r, 800 * (i + 1)));
+                continue;
+            }
+            throw err;
+        }
+    }
+    throw lastErr || new Error('Icon fetch failed');
+}
+
+app.get('/api/icon/:code', async (req, res) => {
+    const raw = String(req.params.code || '').trim().toLowerCase();
+    const code = raw.replace(/\.png$/, '').replace(/[^a-z0-9_-]/g, '');
+
+    if (!code || code.length > 64) {
+        return res.status(400).json({ error: 'Invalid icon code' });
+    }
+
+    const cached = ICON_CACHE.get(code);
+    if (cached && (Date.now() - cached.ts) < ICON_TTL) {
+        res.set('Content-Type', cached.mime);
+        res.set('Cache-Control', 'public, max-age=604800, immutable');
+        return res.send(cached.buffer);
+    }
+
+    try {
+        const upstream = await fetchIconWithRetry(`${ICON_CDN_BASE}/${code}.png`, 3);
+
+        if (!upstream.ok) {
+            if (upstream.status === 404) {
+                return res.status(404).json({ error: 'Icon not found', code });
+            }
+            return res.status(upstream.status).json({ error: 'Upstream error', code });
+        }
+
+        const buffer = Buffer.from(await upstream.arrayBuffer());
+        if (!buffer || buffer.length === 0) {
+            return res.status(502).json({ error: 'Empty icon response', code });
+        }
+
+        const mime = upstream.headers.get('content-type') || 'image/png';
+        ICON_CACHE.set(code, { buffer, mime, ts: Date.now() });
+
+        res.set('Content-Type', mime);
+        res.set('Cache-Control', 'public, max-age=604800, immutable');
+        res.send(buffer);
+    } catch (err) {
+        return res.status(502).json({ error: 'Failed to fetch icon', code });
+    }
+});
+
 module.exports = app;
