@@ -11,7 +11,9 @@
     <link rel="icon" type="image/svg+xml" href="/icon.svg">
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-    <link rel="preconnect" href="https://assets.cindigital.id">
+
+    <!-- 🚀 BOOSTER: preconnect + dns-prefetch ke CDN -->
+    <link rel="preconnect" href="https://assets.cindigital.id" crossorigin>
     <link rel="dns-prefetch" href="https://assets.cindigital.id">
 
     <style>
@@ -36,11 +38,11 @@
 
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 10px;
             margin-bottom: 20px;
         }
-        @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 720px) { .stats { grid-template-columns: repeat(2, 1fr); } }
         .stat-card {
             background: #1e293b;
             border: 2px solid #334155;
@@ -65,12 +67,14 @@
         .stat-value.ok { color: #4ade80; }
         .stat-value.fail { color: #f87171; }
         .stat-value.skip { color: #fbbf24; }
+        .stat-value.speed { color: #60a5fa; }
 
         .actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
             margin-bottom: 20px;
+            align-items: center;
         }
         button {
             background: #2563eb;
@@ -97,6 +101,30 @@
         button.danger { background: #dc2626; border-color: #7f1d1d; }
         button.success { background: #16a34a; border-color: #14532d; }
 
+        .speed-ctrl {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-left: auto;
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 10px;
+            padding: 6px 12px;
+            font-size: 0.78rem;
+            font-family: ui-monospace, monospace;
+            color: #94a3b8;
+        }
+        .speed-ctrl select {
+            background: #0f172a;
+            color: #f1f5f9;
+            border: 1.5px solid #334155;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
         .progress-wrap {
             background: #1e293b;
             border: 2px solid #334155;
@@ -112,7 +140,7 @@
             background-size: 200% 100%;
             animation: gradientShift 3s linear infinite;
             width: 0%;
-            transition: width .3s ease;
+            transition: width .25s ease;
         }
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
@@ -139,7 +167,7 @@
             font-family: ui-monospace, monospace;
             font-size: 0.75rem;
             line-height: 1.6;
-            max-height: 400px;
+            max-height: 300px;
             overflow-y: auto;
             color: #cbd5e1;
         }
@@ -152,8 +180,8 @@
 
         .icon-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 8px;
+            grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+            gap: 6px;
             margin-top: 16px;
             padding: 14px;
             background: #1e293b;
@@ -168,13 +196,13 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 6px;
+            padding: 5px;
             position: relative;
             overflow: hidden;
         }
         .icon-cell img { width: 100%; height: 100%; object-fit: contain; display: block; }
         .icon-cell .fallback {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             font-weight: 800;
             color: #64748b;
             font-family: ui-monospace, monospace;
@@ -197,7 +225,7 @@
             bottom: 0; left: 0; right: 0;
             background: rgba(0,0,0,.65);
             color: white;
-            font-size: 0.55rem;
+            font-size: 0.5rem;
             text-align: center;
             padding: 2px;
             font-family: ui-monospace, monospace;
@@ -241,6 +269,10 @@
             <div class="stat-label">Sudah Ada</div>
             <div class="stat-value skip" id="statSkip">0</div>
         </div>
+        <div class="stat-card">
+            <div class="stat-label">Kecepatan</div>
+            <div class="stat-value speed" id="statSpeed">0/s</div>
+        </div>
     </div>
 
     <div class="actions">
@@ -248,6 +280,16 @@
         <button id="btnClear" type="button" class="danger">🗑️ Hapus Cache</button>
         <button id="btnCheck" type="button" class="success">🔍 Cek Cache</button>
         <button id="btnExport" type="button">📤 Export JSON</button>
+
+        <div class="speed-ctrl">
+            <span>Speed:</span>
+            <select id="speedSelect">
+                <option value="5">5 paralel</option>
+                <option value="10" selected>10 paralel ⚡</option>
+                <option value="20">20 paralel 🔥</option>
+                <option value="30">30 paralel 💥</option>
+            </select>
+        </div>
     </div>
 
     <div class="progress-wrap">
@@ -261,7 +303,7 @@
 
 <script>
     /* ============================================
-       SECURITY — sanitize console & shortcut
+       SECURITY
        ============================================ */
     (function suppressConsole() {
         try {
@@ -287,13 +329,13 @@
     }
 
     /* ============================================
-       AUTH — sama seperti nokos.html
+       AUTH
        ============================================ */
     const token = localStorage.getItem('access_token');
     if (!token) window.location.href = '/login';
 
     /* ============================================
-       RECAPTCHA HELPER — sama seperti nokos.html
+       RECAPTCHA HELPER
        ============================================ */
     const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
@@ -365,13 +407,15 @@
         });
     }
 
-    async function dbPut(entry) {
+    async function dbPutMany(entries) {
+        if (!entries || entries.length === 0) return;
         const db = await openDB();
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readwrite');
-            const req = tx.objectStore(STORE).put(entry);
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
+            const store = tx.objectStore(STORE);
+            for (const e of entries) store.put(e);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
         });
     }
 
@@ -406,8 +450,7 @@
     }
 
     /* ============================================
-       ICON SOURCE — langsung ke CDN, TANPA PROXY
-       SAMA SEPERTI nokos.html — pakai <img>, bukan fetch
+       ICON — langsung ke CDN, tanpa proxy
        ============================================ */
     const CDN_BASE = 'https://assets.cindigital.id/apps';
 
@@ -416,6 +459,7 @@
     const elOk = document.getElementById('statOk');
     const elFail = document.getElementById('statFail');
     const elSkip = document.getElementById('statSkip');
+    const elSpeed = document.getElementById('statSpeed');
     const elLog = document.getElementById('log');
     const elGrid = document.getElementById('iconGrid');
     const elBar = document.getElementById('progressBar');
@@ -424,6 +468,7 @@
     const btnClear = document.getElementById('btnClear');
     const btnCheck = document.getElementById('btnCheck');
     const btnExport = document.getElementById('btnExport');
+    const speedSelect = document.getElementById('speedSelect');
 
     function log(msg, kind = 'info') {
         const time = new Date().toLocaleTimeString('id-ID', { hour12: false });
@@ -439,15 +484,8 @@
         return String(s || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     }
 
-    function fmtBytes(n) {
-        if (!n) return '0 B';
-        if (n < 1024) return n + ' B';
-        if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
-        return (n / 1024 / 1024).toFixed(2) + ' MB';
-    }
-
     /* ============================================
-       Ambil daftar service dari API (sama seperti nokos.html)
+       Ambil daftar service dari API
        ============================================ */
     async function fetchAllServices() {
         const headers = { 'Authorization': `Bearer ${token}` };
@@ -466,12 +504,12 @@
         }
 
         const allServices = new Map();
-        for (const server of servers) {
+        await Promise.all(servers.map(async (server) => {
             try {
                 const res = await fetch(`/api/nokos/services?server=${encodeURIComponent(server)}`, { headers });
                 if (!res.ok) {
                     log(`Server "${server}" gagal (${res.status})`, 'fail');
-                    continue;
+                    return;
                 }
                 const data = await res.json();
                 const services = data.services || [];
@@ -491,13 +529,12 @@
             } catch (err) {
                 log(`Server "${server}" error: ${err.message}`, 'fail');
             }
-        }
+        }));
         return Array.from(allServices.values());
     }
 
     /* ============================================
-       "Download" icon = load via <img>, simpan URL saja
-       Browser yang otomatis cache gambar-nya
+       Icon loader — pakai <img>, simpan URL saja
        ============================================ */
     function loadImage(url) {
         return new Promise((resolve, reject) => {
@@ -507,31 +544,54 @@
                 height: img.naturalHeight,
                 url,
             });
-            img.onerror = () => reject(new Error('Image load failed'));
+            img.onerror = () => reject(new Error('load failed'));
             img.src = url;
         });
     }
 
-    async function preloadIcon(code) {
+    async function preloadIcon(code, retries = 1) {
         const url = `${CDN_BASE}/${code}.png`;
-
-        // Load via <img> — tidak kena CORS
-        const info = await loadImage(url);
-
-        // Simpan URL saja (bukan blob). Browser sudah cache gambar-nya.
-        return {
-            code,
-            url,
-            width: info.width,
-            height: info.height,
-            ts: Date.now(),
-        };
+        try {
+            const info = await loadImage(url);
+            return {
+                code,
+                url,
+                width: info.width,
+                height: info.height,
+                ts: Date.now(),
+            };
+        } catch (err) {
+            if (retries > 0) {
+                // Retry instan — tanpa delay
+                return preloadIcon(code, retries - 1);
+            }
+            throw err;
+        }
     }
 
     /* ============================================
-       Render grid icon
+       Render — batch per 20 cell biar gak nge-lag
        ============================================ */
-    function renderIconCell(code, name, status, url) {
+    let renderQueue = [];
+    let renderScheduled = false;
+
+    function queueRender(cellData) {
+        renderQueue.push(cellData);
+        if (renderScheduled) return;
+        renderScheduled = true;
+        requestAnimationFrame(() => {
+            const batch = renderQueue.splice(0, 50);
+            const frag = document.createDocumentFragment();
+            for (const c of batch) {
+                frag.appendChild(buildCell(c));
+            }
+            elGrid.appendChild(frag);
+            renderScheduled = false;
+            if (renderQueue.length > 0) queueRender([]);
+        });
+    }
+
+    function buildCell({ code, name, status, url }) {
         const cell = document.createElement('div');
         cell.className = 'icon-cell';
         cell.title = `${name} (${code})`;
@@ -571,12 +631,11 @@
         label.textContent = code;
         cell.appendChild(label);
 
-        elGrid.appendChild(cell);
         return cell;
     }
 
     /* ============================================
-       PROSES PRELOAD
+       PROSES PRELOAD — pakai queue + N worker paralel
        ============================================ */
     let isRunning = false;
 
@@ -587,15 +646,20 @@
         btnClear.disabled = true;
         btnCheck.disabled = true;
         btnExport.disabled = true;
+        speedSelect.disabled = true;
 
         elGrid.innerHTML = '';
         elLog.innerHTML = '';
+        renderQueue = [];
         log('=== Mulai preload ===', 'info');
 
         elTotal.textContent = '0';
         elOk.textContent = '0';
         elFail.textContent = '0';
         elSkip.textContent = '0';
+        elSpeed.textContent = '0/s';
+
+        const startTime = Date.now();
 
         let services = [];
         try {
@@ -607,6 +671,7 @@
             btnClear.disabled = false;
             btnCheck.disabled = false;
             btnExport.disabled = false;
+            speedSelect.disabled = false;
             return;
         }
 
@@ -617,65 +682,98 @@
             btnClear.disabled = false;
             btnCheck.disabled = false;
             btnExport.disabled = false;
+            speedSelect.disabled = false;
             return;
         }
 
         const total = services.length;
         elTotal.textContent = total;
-        log(`Total ${total} icon akan diproses`, 'info');
 
-        let ok = 0, fail = 0, skip = 0;
+        // Ambil concurrency dari dropdown
+        const CONCURRENCY = parseInt(speedSelect.value, 10) || 10;
+        log(`Total ${total} icon akan diproses (${CONCURRENCY} paralel)`, 'info');
 
-        const CONCURRENCY = 4;
+        let ok = 0, fail = 0, skip = 0, processed = 0;
+        const dbBatch = [];
+
+        // Update speed counter tiap 500ms
+        const speedTimer = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            const rate = elapsed > 0 ? (processed / elapsed) : 0;
+            elSpeed.textContent = rate.toFixed(1) + '/s';
+        }, 500);
+
+        // Queue simple — pakai index, bukan shift (lebih cepat untuk array besar)
         const queue = [...services];
-        let index = 0;
+        let queueIndex = 0;
 
-        async function worker() {
-            while (queue.length > 0) {
-                const s = queue.shift();
+        async function worker(workerId) {
+            while (queueIndex < queue.length) {
+                const myIndex = queueIndex++;
+                const s = queue[myIndex];
                 if (!s) break;
-                const i = ++index;
-                const pct = Math.round((i / total) * 100);
-                elBar.style.width = pct + '%';
-                elBarText.textContent = `${i} / ${total} (${pct}%)`;
 
                 try {
                     const existing = await dbGet(s.code);
                     if (existing && existing.url) {
                         skip++;
+                        processed++;
                         elSkip.textContent = skip;
-                        log(`[${i}/${total}] ⏭️ ${s.code} (sudah ada)`, 'warn');
-                        renderIconCell(s.code, s.name, 'skip', existing.url);
+                        queueRender({ code: s.code, name: s.name, status: 'skip', url: existing.url });
                         continue;
                     }
 
-                    const entry = await preloadIcon(s.code);
-                    await dbPut(entry);
+                    const entry = await preloadIcon(s.code, 1);
+                    dbBatch.push(entry);
                     ok++;
+                    processed++;
                     elOk.textContent = ok;
-                    log(`[${i}/${total}] ✅ ${s.code} (${entry.width}×${entry.height})`, 'ok');
-                    renderIconCell(s.code, s.name, 'ok', entry.url);
+                    queueRender({ code: s.code, name: s.name, status: 'ok', url: entry.url });
+
+                    // Flush DB tiap 50 entry
+                    if (dbBatch.length >= 50) {
+                        const toSave = dbBatch.splice(0, 50);
+                        dbPutMany(toSave).catch(() => {});
+                    }
                 } catch (err) {
                     fail++;
+                    processed++;
                     elFail.textContent = fail;
-                    log(`[${i}/${total}] ❌ ${s.code} — ${err.message}`, 'fail');
-                    renderIconCell(s.code, s.name, 'fail', null);
+                    queueRender({ code: s.code, name: s.name, status: 'fail', url: null });
+                }
+
+                // Update progress tiap 10
+                if (processed % 10 === 0) {
+                    const pct = Math.round((processed / total) * 100);
+                    elBar.style.width = pct + '%';
+                    elBarText.textContent = `${processed} / ${total} (${pct}%)`;
                 }
             }
         }
 
+        // Jalankan N worker paralel
         const workers = [];
-        for (let w = 0; w < CONCURRENCY; w++) workers.push(worker());
+        for (let w = 0; w < CONCURRENCY; w++) workers.push(worker(w));
         await Promise.all(workers);
 
-        elBar.style.width = '100%';
-        elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal`;
+        clearInterval(speedTimer);
 
-        log(`=== Selesai ===`, 'info');
+        // Flush sisa DB batch
+        if (dbBatch.length > 0) {
+            await dbPutMany(dbBatch.splice(0, dbBatch.length)).catch(() => {});
+        }
+
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        const avgRate = (processed / elapsed).toFixed(1);
+
+        elBar.style.width = '100%';
+        elBarText.textContent = `Selesai — ${ok} ok, ${skip} skip, ${fail} gagal (${elapsed}s)`;
+
+        log(`=== Selesai dalam ${elapsed}s (${avgRate}/s) ===`, 'info');
         log(`Berhasil: ${ok} | Sudah ada: ${skip} | Gagal: ${fail}`, ok > 0 ? 'ok' : 'info');
 
         if (fail > 0) {
-            log(`💡 ${fail} icon gagal. Klik "Preload" lagi untuk coba ulang yang gagal.`, 'warn');
+            log(`💡 ${fail} icon gagal. Klik "Preload" lagi untuk coba ulang.`, 'warn');
         }
 
         isRunning = false;
@@ -683,6 +781,7 @@
         btnClear.disabled = false;
         btnCheck.disabled = false;
         btnExport.disabled = false;
+        speedSelect.disabled = false;
     }
 
     /* ============================================
@@ -703,7 +802,7 @@
 
         all.sort((a, b) => a.code.localeCompare(b.code));
         for (const e of all) {
-            renderIconCell(e.code, e.code, 'ok', e.url);
+            queueRender({ code: e.code, name: e.code, status: 'ok', url: e.url });
         }
 
         elTotal.textContent = all.length;
@@ -727,12 +826,13 @@
         elOk.textContent = '0';
         elFail.textContent = '0';
         elSkip.textContent = '0';
+        elSpeed.textContent = '0/s';
         elBar.style.width = '0%';
         elBarText.textContent = 'Cache kosong';
     }
 
     /* ============================================
-       EXPORT JSON — hasil bisa disimpan ke repo GitHub
+       EXPORT JSON
        ============================================ */
     async function exportJson() {
         const all = await dbGetAll();
@@ -749,7 +849,7 @@
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        log(`Exported ${all.length} icon ke JSON (URL only)`, 'ok');
+        log(`Exported ${all.length} icon ke JSON`, 'ok');
     }
 
     /* ============================================
