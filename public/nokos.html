@@ -170,17 +170,9 @@
             0% { transform: translateX(-100%) rotate(45deg); }
             100% { transform: translateX(100%) rotate(45deg); }
         }
-        @keyframes pulseGlow {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(37,99,235,.4); }
-            50% { box-shadow: 0 0 0 8px rgba(37,99,235,0); }
-        }
         @keyframes floatY {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-4px); }
-        }
-        @keyframes borderFlow {
-            0% { background-position: 0% 50%; }
-            100% { background-position: 200% 50%; }
         }
 
         /* ============================================
@@ -220,11 +212,6 @@
             box-shadow: var(--shadow-hard-sm);
         }
         .app-icon-wrap img { width: 100%; height: 100%; object-fit: contain; display: block; }
-        .app-icon-wrap img.app-icon-lazy:not([src]),
-        .app-icon-wrap img.app-icon-lazy[src=""] {
-            background: var(--bg-light);
-            border-radius: 4px;
-        }
         .app-icon-wrap .icon-fallback {
             font-size: 0.7rem; font-weight: 900;
             color: var(--text-dark);
@@ -255,11 +242,6 @@
             display: flex;
             flex-direction: column;
             min-width: 0;
-            animation: cardFadeIn .35s cubic-bezier(.2,.8,.2,1) both;
-        }
-        @keyframes cardFadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
         }
         .aoc-card:hover {
             box-shadow: var(--shadow-hard);
@@ -283,8 +265,6 @@
             border-radius: inherit;
             pointer-events: none;
             background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.08) 50%, transparent 100%);
-            background-size: 200% 100%;
-            animation: borderFlow 3s linear infinite;
         }
 
         .aoc-header {
@@ -367,7 +347,6 @@
             gap: 10px;
             position: relative;
             overflow: hidden;
-            animation: pulseGlow 2.4s ease-in-out infinite;
         }
         [data-theme="dark"] .aoc-otp {
             background: rgba(16, 185, 129, 0.15);
@@ -379,7 +358,6 @@
             top: -50%; left: -50%;
             width: 200%; height: 200%;
             background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.25) 50%, transparent 60%);
-            animation: shine 4s infinite;
             pointer-events: none;
         }
         .aoc-otp-icon {
@@ -458,7 +436,6 @@
             left: 0; top: 0; bottom: 0;
             width: 3px;
             background: currentColor;
-            animation: pulseGlow 1.5s ease-in-out infinite;
         }
         .aoc-countdown.expired {
             background: linear-gradient(135deg, #334155, #475569);
@@ -868,7 +845,8 @@
         .server-arrow .icon-svg { width: 18px; height: 18px; }
 
         /* ============================================
-           SEARCH           ============================================ */
+           SEARCH
+           ============================================ */
         .sheet-search {
             position: relative;
             margin-bottom: 18px;
@@ -904,7 +882,6 @@
             border-radius: var(--radius-sm);
             margin-bottom: 18px;
             box-shadow: var(--shadow-hard-sm);
-            animation: cardFadeIn .3s ease both;
         }
         .app-selected-card .app-icon-wrap {
             width: 36px;
@@ -1091,7 +1068,6 @@
             transition: transform .2s ease, box-shadow .2s ease, border-color .2s;
             position: relative;
             overflow: hidden;
-            animation: cardFadeIn .3s ease both;
         }
         .price-item:hover {
             transform: translateY(-2px);
@@ -1754,64 +1730,24 @@
     });
 
     /* ============================================
-       APP ICON — SVG LAZY LOAD (Jauh lebih ringan dari PNG)
-       Pakai iconify CDN (SVG, gzip, ~1-2KB per icon)
+       APP ICON — assets.cindigital.id (sama dengan Dashboard)
        ============================================ */
-    // Sumber SVG publik. Urutan prioritas: iconify → simple-icons → fallback huruf.
-    function getAppIconSvgUrl(serviceCode, iconCode) {
-        let code = String(iconCode || serviceCode || '').trim().toLowerCase();
+    const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
+
+    function getAppIconUrl(serviceCode, iconCode) {
+        const code = String(iconCode || serviceCode || '').trim().toLowerCase();
         if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
-
-        // Beberapa mapping sederhana (service code → slug simple-icons)
-        const SIMPLE_ICONS_SLUG = {
-            whatsapp: 'whatsapp', wa: 'whatsapp',
-            telegram: 'telegram', tg: 'telegram',
-            facebook: 'facebook', fb: 'facebook',
-            instagram: 'instagram', ig: 'instagram',
-            twitter: 'x', x: 'x',
-            tiktok: 'tiktok', tt: 'tiktok',
-            google: 'google', gmail: 'gmail',
-            youtube: 'youtube', yt: 'youtube',
-            shopee: 'shopee', tokopedia: 'tokopedia',
-            grab: 'grab', gojek: 'gojek',
-            netflix: 'netflix', spotify: 'spotify',
-            discord: 'discord', line: 'line',
-            wechat: 'wechat', viber: 'viber',
-            signal: 'signal', snapchat: 'snapchat',
-            linkedin: 'linkedin', reddit: 'reddit',
-            pinterest: 'pinterest', tumblr: 'tumblr',
-            skype: 'skype', zoom: 'zoom',
-            amazon: 'amazon', paypal: 'paypal',
-            apple: 'apple', microsoft: 'microsoft',
-            yahoo: 'yahoo', protonmail: 'protonmail',
-            truecaller: 'truecaller', uber: 'uber',
-            airbnb: 'airbnb', tinder: 'tinder',
-            bumble: 'bumble', paytm: 'paytm',
-            phonepe: 'phonepe', alipay: 'alipay',
-            naver: 'naver', kakao: 'kakaotalk',
-        };
-
-        const slug = SIMPLE_ICONS_SLUG[code] || code;
-        // simple-icons tersedia dalam bentuk SVG di jsDelivr
-        return `https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/${slug}.svg`;
-    }
-
-    function getAppIconFallbackUrl(serviceCode, iconCode) {
-        let code = String(iconCode || serviceCode || '').trim().toLowerCase();
-        if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
-        return `https://api.iconify.design/simple-icons:${code}.svg`;
+        return `${APP_CDN_BASE}/${code}.png`;
     }
 
     function renderAppIcon(serviceCode, serviceName, iconCode) {
         const name = String(serviceName || serviceCode || '?').trim();
         const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url1 = getAppIconSvgUrl(serviceCode, iconCode);
-        const url2 = getAppIconFallbackUrl(serviceCode, iconCode);
-        if (!url1 && !url2) {
+        const url = getAppIconUrl(serviceCode, iconCode);
+        if (!url) {
             return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
         }
-        // data-src primary + data-fallback SVG kedua
-        return `<img data-src="${escapeHtml(url1 || url2)}" data-fallback="${escapeHtml(url2 || '')}" alt="${escapeHtml(name)}" class="app-icon-lazy" style="color:#0f172a;">
+        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}" class="app-icon-lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
@@ -1847,17 +1783,11 @@
     function observeAppIcons(root = document) {
         const observer = getAppIconObserver();
         root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => observer.observe(img));
-        // Bind error handler → fallback ke URL kedua, kalau gagal juga → huruf
+        // Bind error handler → fallback ke huruf
         root.querySelectorAll('img.app-icon-lazy').forEach(img => {
             if (img.dataset.boundImg) return;
             img.dataset.boundImg = '1';
             img.addEventListener('error', function() {
-                const fb = this.dataset.fallback;
-                if (fb && this.src !== fb) {
-                    this.dataset.fallback = '';
-                    this.src = fb;
-                    return;
-                }
                 this.style.display = 'none';
                 const next = this.nextElementSibling;
                 if (next) next.style.display = 'inline-flex';
@@ -1879,10 +1809,9 @@
         const code = String(order?.service || '').trim();
         const name = getServiceDisplayName(order);
         const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url1 = getAppIconSvgUrl(code, order?.icon_code);
-        const url2 = getAppIconFallbackUrl(code, order?.icon_code);
-        if (!url1 && !url2) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        return `<img src="${escapeHtml(url1 || url2)}" data-fallback="${escapeHtml(url2 || '')}" alt="${escapeHtml(name)}" loading="lazy">
+        const url = getAppIconUrl(code, order?.icon_code);
+        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
+        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy">
                 <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
     }
 
