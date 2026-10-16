@@ -13,34 +13,22 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://assets.cindigital.id">
-    <link rel="dns-prefetch" href="https://assets.cindigital.id">
     <link rel="stylesheet" href="/css/core.css">
     <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/nokos.css">
 
     <script>
         (function() {
             try {
                 document.documentElement.style.overflow = '';
                 document.documentElement.style.overflowY = '';
-                document.documentElement.style.height = '';
-                document.documentElement.style.position = '';
-                document.documentElement.style.top = '';
-
                 const cleanupBody = () => {
                     if (!document.body) return;
                     document.body.style.overflow = '';
-                    document.body.style.overflowY = '';
                     document.body.style.position = '';
-                    document.body.style.top = '';
-                    document.body.style.left = '';
-                    document.body.style.right = '';
-                    document.body.style.width = '';
-                    document.body.style.height = '';
                     document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
                 };
-
                 if (document.body) cleanupBody();
                 else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
             } catch (e) {}
@@ -48,7 +36,7 @@
 
         (function() {
             if (window.location.protocol === 'view-source:') {
-                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
+                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1></div></body>';
                 throw new Error('__VIEW_SOURCE_BLOCKED__');
             }
         })();
@@ -61,1185 +49,11 @@
 
         if (window.top !== window.self) {
             try { window.top.location = window.self.location; } catch (e) {}
-            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
+            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1></div></body>';
         }
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
-
-    <style>
-        .dashboard-layout, .dashboard-layout * {
-            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
-            -webkit-touch-callout: none;
-            -webkit-user-drag: none; -khtml-user-drag: none; -moz-user-drag: none; -o-user-drag: none;
-        }
-        .dashboard-layout input, .dashboard-layout textarea, .dashboard-layout select, .dashboard-layout code, .dashboard-layout [contenteditable="true"] {
-            -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text;
-            -webkit-touch-callout: default;
-        }
-        .dashboard-layout img, .dashboard-layout svg {
-            -webkit-user-drag: none; -khtml-user-drag: none; user-drag: none;
-        }
-        .dashboard-layout a img, .dashboard-layout a svg, .dashboard-layout button img, .dashboard-layout button svg {
-            pointer-events: auto;
-        }
-
-        body.sheet-open { overflow: hidden; }
-
-        .nokos-hero {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 24px;
-            flex-wrap: wrap;
-            position: relative;
-        }
-
-        .nokos-hero-icon {
-            width: 64px;
-            height: 64px;
-            border-radius: 20px;
-            background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
-            background-size: 300% 300%;
-            animation: gradientShift 6s ease infinite;
-            border: 2.5px solid var(--border-dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            box-shadow: var(--shadow-hard);
-            flex-shrink: 0;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nokos-hero-icon::before {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
-            animation: shine 3.5s infinite;
-        }
-
-        .nokos-hero-icon .icon-svg {
-            width: 32px;
-            height: 32px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .nokos-hero-text { flex: 1; min-width: 0; }
-
-        .nokos-hero-text h1 {
-            font-size: 1.9rem;
-            font-weight: 900;
-            font-family: var(--font-display);
-            letter-spacing: -0.02em;
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            background: linear-gradient(135deg, var(--primary), var(--purple), var(--primary));
-            background-size: 200% 200%;
-            animation: gradientShift 5s ease infinite;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .nokos-hero-text p {
-            color: var(--text-gray);
-            font-size: 0.88rem;
-            max-width: 560px;
-            line-height: 1.5;
-        }
-
-        @keyframes gradientShift {
-            0%, 100% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-        }
-        @keyframes shine {
-            0% { transform: translateX(-100%) rotate(45deg); }
-            100% { transform: translateX(100%) rotate(45deg); }
-        }
-        @keyframes floatY {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-4px); }
-        }
-
-        .section-title {
-            font-size: 0.85rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-            color: var(--text-gray);
-            margin-bottom: 14px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        .section-title .icon-svg {
-            width: 16px;
-            height: 16px;
-            color: var(--primary);
-        }
-
-        .app-icon-wrap {
-            width: 32px; height: 32px;
-            border-radius: 9px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            overflow: hidden;
-            padding: 3px;
-            box-shadow: var(--shadow-hard-sm);
-        }
-        .app-icon-wrap img {
-            width: 100%; height: 100%;
-            object-fit: contain; display: block;
-            content-visibility: auto;
-            image-rendering: -webkit-optimize-contrast;
-        }
-        .app-icon-wrap .icon-fallback {
-            font-size: 0.7rem; font-weight: 900;
-            color: var(--text-dark);
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-        }
-
-        #activeOrders {
-            min-height: 0;
-        }
-        .active-orders {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 8px;
-        }
-        @media (max-width: 720px) { .active-orders { grid-template-columns: 1fr; } }
-
-        .aoc-card {
-            background: var(--bg-card);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-hard-sm);
-            padding: 16px;
-            transition: box-shadow .25s ease, border-color .25s ease, transform .25s ease;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-        }
-        .aoc-card:hover {
-            box-shadow: var(--shadow-hard);
-            transform: translateY(-2px);
-        }
-        .aoc-card::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0;
-            width: 4px; height: 100%;
-            background: var(--warning);
-        }
-        .aoc-card.is-success::before { background: var(--success); }
-        .aoc-card.is-expired::before { background: #64748b; }
-        .aoc-card.is-cancelled::before { background: var(--danger); }
-
-        .aoc-card.is-pending::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            pointer-events: none;
-            background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.08) 50%, transparent 100%);
-        }
-
-        .aoc-header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px dashed var(--border);
-            flex-wrap: wrap;
-        }
-        .aoc-app-icon {
-            width: 38px; height: 38px;
-            border-radius: 10px;
-            border: 2px solid var(--border-dark);
-            background: var(--bg-white);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            overflow: hidden;
-            padding: 4px;
-            box-shadow: var(--shadow-hard-sm);
-        }
-        .aoc-app-icon img {
-            width: 100%; height: 100%;
-            object-fit: contain; display: block;
-            content-visibility: auto;
-        }
-        .aoc-app-icon .icon-fallback {
-            font-size: 0.8rem; font-weight: 900;
-            color: var(--text-dark);
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-        }
-        .aoc-title-wrap { flex: 1; min-width: 0; }
-        .aoc-title {
-            font-weight: 800;
-            font-size: 0.9rem;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 2px;
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        }
-        .aoc-ref {
-            font-size: 0.68rem;
-            font-family: var(--font-mono);
-            color: var(--text-gray);
-            word-break: break-all;
-        }
-        .aoc-ref .otp-id { color: var(--primary); font-weight: 800; }
-
-        .aoc-body {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-        .aoc-field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        .aoc-field-label {
-            font-size: 0.62rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--text-gray);
-        }
-        .aoc-field-value {
-            font-weight: 700;
-            font-size: 0.8rem;
-            font-family: var(--font-mono);
-            color: var(--text-dark);
-            word-break: break-all;
-            display: flex; align-items: center; gap: 4px;
-        }
-        .aoc-field-value.price { color: var(--primary); }
-
-        .aoc-otp {
-            background: var(--success-light);
-            border: 2px solid var(--success-dark);
-            border-radius: 10px;
-            padding: 10px 12px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        [data-theme="dark"] .aoc-otp {
-            background: rgba(16, 185, 129, 0.15);
-            border-color: var(--success);
-        }
-        .aoc-otp::before {
-            content: '';
-            position: absolute;
-            top: -50%; left: -50%;
-            width: 200%; height: 200%;
-            background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.25) 50%, transparent 60%);
-            pointer-events: none;
-        }
-        .aoc-otp-icon {
-            width: 32px; height: 32px;
-            border-radius: 8px;
-            background: var(--success);
-            color: white;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            border: 2px solid var(--border-dark);
-            position: relative; z-index: 1;
-        }
-        .aoc-otp-icon .icon-svg { width: 16px; height: 16px; }
-        .aoc-otp-info { flex: 1; min-width: 0; position: relative; z-index: 1; }
-        .aoc-otp-label {
-            font-size: 0.6rem; font-weight: 700;
-            font-family: var(--font-mono);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--success-dark);
-            margin-bottom: 1px;
-        }
-        [data-theme="dark"] .aoc-otp-label { color: var(--success); }
-        .aoc-otp-value {
-            font-size: 1.15rem;
-            font-weight: 900;
-            font-family: var(--font-mono);
-            color: var(--success-dark);
-            letter-spacing: 0.12em;
-            word-break: break-all;
-        }
-        [data-theme="dark"] .aoc-otp-value { color: var(--success); }
-        .aoc-otp-copy {
-            width: 32px; height: 32px;
-            border-radius: 8px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background-color .2s, color .2s, transform .2s;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-            position: relative; z-index: 1;
-        }
-        .aoc-otp-copy:hover { background: var(--success); color: white; transform: scale(1.05); }
-        .aoc-otp-copy:active { transform: scale(.95); }
-        .aoc-otp-copy .icon-svg { width: 15px; height: 15px; }
-
-        .aoc-countdown {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            border-radius: 50px;
-            background: var(--warning-light);
-            border: 1.5px solid var(--warning-dark);
-            font-family: var(--font-mono);
-            font-weight: 800;
-            font-size: 0.7rem;
-            color: var(--warning-dark);
-            margin-bottom: 10px;
-            align-self: flex-start;
-            position: relative;
-            overflow: hidden;
-        }
-        [data-theme="dark"] .aoc-countdown {
-            background: rgba(251, 191, 36, 0.15);
-            color: var(--warning);
-            border-color: var(--warning);
-        }
-        .aoc-countdown::after {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: currentColor;
-        }
-        .aoc-countdown.expired {
-            background: linear-gradient(135deg, #334155, #475569);
-            color: white;
-            border-color: var(--text-dark);
-        }
-        .aoc-countdown .icon-svg { width: 12px; height: 12px; }
-
-        .aoc-actions {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-top: auto;
-        }
-        .aoc-actions .btn {
-            flex: 1;
-            min-width: 90px;
-            font-size: 0.72rem;
-            padding: 7px 10px;
-            transition: background-color var(--transition), border-color var(--transition), color var(--transition), transform .15s;
-        }
-        .aoc-actions .btn:hover { transform: translateY(-1px); }
-        .aoc-actions .btn:active { transform: translateY(0); }
-        .aoc-actions .btn .icon-svg { width: 13px; height: 13px; }
-
-        .active-orders-pagination {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            margin: 4px 0 24px;
-            flex-wrap: wrap;
-        }
-
-        .empty-orders {
-            text-align: center;
-            padding: 48px 20px;
-            background: var(--bg-card);
-            border: 2px dashed var(--border);
-            border-radius: var(--radius);
-            color: var(--text-gray);
-            margin-bottom: 24px;
-            grid-column: 1 / -1;
-        }
-        .empty-orders .icon-box {
-            width: 64px; height: 64px;
-            margin: 0 auto 14px;
-            border-radius: 18px;
-            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary);
-            box-shadow: var(--shadow-hard-sm);
-            animation: floatY 3s ease-in-out infinite;
-        }
-        .empty-orders .icon-box .icon-svg { width: 28px; height: 28px; }
-        .empty-orders h3 {
-            font-size: 1rem; font-weight: 800;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 4px;
-        }
-        .empty-orders p { font-size: 0.85rem; margin-bottom: 0; }
-
-        .cta-wrap {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-        .btn-cta {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: 10px;
-            padding: 16px 36px;
-            border-radius: 50px;
-            background: linear-gradient(135deg, var(--primary), var(--purple), var(--primary-dark), var(--primary));
-            background-size: 300% 300%;
-            animation: gradientShift 5s ease infinite;
-            color: white;
-            font-family: var(--font-display);
-            font-weight: 800;
-            font-size: 1rem;
-            letter-spacing: 0.02em;
-            text-transform: uppercase;
-            border: 2px solid var(--border-dark);
-            box-shadow: var(--shadow-hard);
-            cursor: pointer;
-            transition: transform .2s ease, box-shadow .2s ease;
-            position: relative;
-            overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .btn-cta::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-            animation: shine 3s infinite;
-        }
-        .btn-cta:hover {
-            transform: translate(-3px, -3px);
-            box-shadow: var(--shadow-hard-lg), 0 0 24px rgba(124,58,237,.4);
-        }
-        .btn-cta:active { transform: translate(1px, 1px); box-shadow: 2px 2px 0px rgba(15, 23, 42, 1); }
-        .btn-cta .icon-svg { width: 20px; height: 20px; position: relative; z-index: 1; }
-        .btn-cta span { position: relative; z-index: 1; }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            padding: 20px;
-            background: var(--bg-card);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-hard-sm);
-        }
-        .feature-item {
-            display: flex;
-            gap: 10px;
-            align-items: flex-start;
-            transition: transform .25s ease;
-        }
-        .feature-item:hover { transform: translateY(-2px); }
-        .feature-item .feature-icon {
-            width: 32px; height: 32px;
-            border-radius: 9px;
-            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary);
-            flex-shrink: 0;
-        }
-        .feature-item .feature-icon .icon-svg { width: 16px; height: 16px; }
-        .feature-item h4 {
-            font-size: 0.88rem;
-            font-weight: 800;
-            font-family: var(--font-display);
-            margin-bottom: 4px;
-            color: var(--text-dark);
-        }
-        .feature-item p {
-            font-size: 0.78rem;
-            color: var(--text-gray);
-            line-height: 1.5;
-        }
-
-        .site-footer {
-            margin-top: 40px;
-            padding: 24px 20px;
-            border-top: 2px dashed var(--border);
-            text-align: center;
-        }
-        .footer-links {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin-bottom: 12px;
-        }
-        .footer-links a {
-            color: var(--text-gray);
-            text-decoration: none;
-            font-size: 0.82rem;
-            font-weight: 600;
-            transition: color var(--transition);
-            -webkit-tap-highlight-color: transparent;
-        }
-        .footer-links a:hover { color: var(--primary); }
-        .footer-copy {
-            font-size: 0.75rem;
-            color: var(--text-light);
-            font-family: var(--font-mono);
-            letter-spacing: 0.02em;
-        }
-        .footer-copy strong { color: var(--primary); font-weight: 800; }
-
-        .bottom-sheet-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            z-index: 99999;
-            display: none;
-            align-items: flex-end;
-            justify-content: center;
-            padding: 0;
-        }
-        .bottom-sheet-overlay.active {
-            display: flex;
-            animation: fadeIn 0.22s var(--ease);
-        }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-        .bottom-sheet {
-            background: var(--bg-card);
-            width: 100%;
-            max-width: 560px;
-            height: auto;
-            max-height: 85vh;
-            border-top-left-radius: 24px;
-            border-top-right-radius: 24px;
-            border: 2px solid var(--border-dark);
-            border-bottom: none;
-            box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.2);
-            display: flex;
-            flex-direction: column;
-            animation: slideUp 0.4s cubic-bezier(.2,.9,.3,1.1);
-            overflow: hidden;
-            position: relative;
-        }
-        .bottom-sheet::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0; right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--purple), var(--primary));
-            background-size: 200% 100%;
-            animation: gradientShift 3s linear infinite;
-            z-index: 1;
-        }
-        @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .sheet-handle {
-            width: 40px; height: 4px;
-            background: var(--border);
-            border-radius: 50px;
-            margin: 12px auto 8px;
-            flex-shrink: 0;
-        }
-        .sheet-header {
-            padding: 0 20px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-            gap: 12px;
-        }
-        .sheet-header-left { flex: 1; min-width: 0; }
-        .sheet-step {
-            font-size: 0.72rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            color: var(--text-gray);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 2px;
-        }
-        .sheet-title {
-            font-size: 1.05rem;
-            font-weight: 800;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            letter-spacing: -0.01em;
-        }
-        .sheet-balance { text-align: right; flex-shrink: 0; }
-        .sheet-balance .label {
-            font-size: 0.68rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            color: var(--text-gray);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-        .sheet-balance .amount {
-            font-size: 0.95rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            color: var(--primary);
-        }
-        .sheet-body {
-            flex: 1;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding: 20px;
-            -webkit-overflow-scrolling: touch;
-        }
-        .sheet-body::-webkit-scrollbar { width: 6px; }
-        .sheet-body::-webkit-scrollbar-track { background: transparent; }
-        .sheet-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-        .sheet-back {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            border-radius: 50px;
-            background: var(--bg-light);
-            border: 2px solid var(--border-dark);
-            color: var(--text-dark);
-            font-family: var(--font-body);
-            font-weight: 700;
-            font-size: 0.78rem;
-            cursor: pointer;
-            transition: background-color .2s, box-shadow .2s, transform .15s;
-            margin-bottom: 16px;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .sheet-back:hover { box-shadow: var(--shadow-hard-sm); background: var(--bg-white); }
-        .sheet-back:active { transform: scale(.97); }
-        .sheet-back .icon-svg { width: 14px; height: 14px; }
-
-        .server-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .server-card {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 16px 18px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-hard-sm);
-            cursor: pointer;
-            transition: background-color .2s, transform .15s, box-shadow .2s;
-            text-align: left;
-            font-family: inherit;
-            position: relative;
-            overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .server-card::before {
-            content: '';
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 3px;
-            background: linear-gradient(180deg, var(--primary), var(--purple));
-            opacity: 0;
-            transition: opacity .2s;
-        }
-        .server-card:hover {
-            background: var(--bg-hover);
-            transform: translateX(2px);
-            box-shadow: var(--shadow-hard);
-        }
-        .server-card:hover::before { opacity: 1; }
-        .server-card:active { transform: scale(.99); }
-
-        .server-icon {
-            width: 40px; height: 40px;
-            border-radius: 11px;
-            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary);
-            flex-shrink: 0;
-            transition: transform .25s ease;
-        }
-        .server-card:hover .server-icon { transform: rotate(-6deg) scale(1.05); }
-        .server-icon .icon-svg { width: 20px; height: 20px; }
-
-        .server-info { flex: 1; min-width: 0; }
-        .server-title {
-            font-weight: 800;
-            font-size: 0.95rem;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 2px;
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        }
-        .server-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 50px;
-            font-size: 0.62rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            color: white;
-            border: 1.5px solid var(--border-dark);
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-        .server-desc { font-size: 0.78rem; color: var(--text-gray); }
-        .server-arrow { color: var(--text-light); flex-shrink: 0; transition: transform .25s; }
-        .server-card:hover .server-arrow { transform: translateX(4px); color: var(--primary); }
-        .server-arrow .icon-svg { width: 18px; height: 18px; }
-
-        .sheet-search {
-            position: relative;
-            margin-bottom: 18px;
-        }
-        .sheet-search .icon-svg {
-            position: absolute;
-            left: 14px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-gray);
-            width: 18px;
-            height: 18px;
-            pointer-events: none;
-            transition: color .2s;
-        }
-        .sheet-search:focus-within .icon-svg { color: var(--primary); }
-        .sheet-search input {
-            padding-left: 42px;
-            transition: border-color .2s, box-shadow .2s;
-        }
-        .sheet-search input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-light);
-        }
-
-        .app-selected-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 14px;
-            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            margin-bottom: 18px;
-            box-shadow: var(--shadow-hard-sm);
-        }
-        .app-selected-card .app-icon-wrap {
-            width: 36px;
-            height: 36px;
-            padding: 4px;
-        }
-        .app-selected-card .info { flex: 1; min-width: 0; }
-        .app-selected-card .name {
-            font-weight: 800;
-            font-family: var(--font-display);
-            font-size: 0.9rem;
-            color: var(--text-dark);
-        }
-        .app-selected-card .sub {
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-family: var(--font-mono);
-        }
-
-        .app-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .app-card {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 14px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            box-shadow: var(--shadow-hard-sm);
-            cursor: pointer;
-            transition: background-color .2s, border-color .2s, transform .15s, box-shadow .2s;
-            font-family: inherit;
-            text-align: left;
-            min-height: 60px;
-            position: relative;
-            overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .app-card:hover {
-            background: var(--bg-hover);
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-hard);
-        }
-        .app-card:active { transform: translateY(0) scale(.98); }
-        .app-card .name {
-            font-size: 0.88rem;
-            font-weight: 700;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            line-height: 1.3;
-            position: relative;
-            z-index: 1;
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            transition: color .2s;
-        }
-        .app-card:hover .name { color: var(--primary); }
-        .app-card .app-icon-wrap { transition: transform .25s ease; }
-        .app-card:hover .app-icon-wrap { transform: scale(1.08) rotate(-3deg); }
-
-        .sheet-tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 16px;
-            background: var(--bg-light);
-            padding: 4px;
-            border-radius: 50px;
-            border: 2px solid var(--border-dark);
-        }
-        .sheet-tab {
-            flex: 1;
-            padding: 8px 14px;
-            border-radius: 50px;
-            font-size: 0.78rem;
-            font-weight: 700;
-            font-family: var(--font-body);
-            color: var(--text-gray);
-            border: none;
-            background: none;
-            cursor: pointer;
-            transition: background-color .2s, color .2s, box-shadow .2s;
-            white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .sheet-tab:active { transform: none; }
-        .sheet-tab.active {
-            background: var(--bg-white);
-            color: var(--primary);
-            box-shadow: var(--shadow-hard-sm);
-            border: 2px solid var(--border-dark);
-        }
-
-        .country-list {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .country-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 16px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            box-shadow: var(--shadow-hard-sm);
-            cursor: pointer;
-            transition: background-color .2s, transform .15s, box-shadow .2s;
-            font-family: inherit;
-            text-align: left;
-            width: 100%;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .country-item:hover {
-            background: var(--bg-hover);
-            transform: translateX(3px);
-            box-shadow: var(--shadow-hard);
-        }
-        .country-item:active { transform: translateX(0) scale(.99); }
-
-        .country-flag {
-            width: 32px; height: 24px;
-            flex-shrink: 0;
-            display: flex; align-items: center; justify-content: center;
-            transition: transform .25s;
-        }
-        .country-item:hover .country-flag { transform: scale(1.15); }
-        .country-flag .flag-img { width: 32px; height: 24px; }
-        .country-info { flex: 1; min-width: 0; }
-        .country-name {
-            font-weight: 800;
-            font-size: 0.88rem;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 2px;
-        }
-        .country-meta {
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-family: var(--font-mono);
-        }
-        .country-arrow { color: var(--text-light); flex-shrink: 0; transition: transform .25s; }
-        .country-item:hover .country-arrow { transform: translateX(4px); color: var(--primary); }
-        .country-arrow .icon-svg { width: 18px; height: 18px; }
-
-        .price-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .price-item {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 16px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius);
-            box-shadow: var(--shadow-hard-sm);
-            transition: transform .2s ease, box-shadow .2s ease, border-color .2s;
-            position: relative;
-            overflow: hidden;
-        }
-        .price-item:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-hard);
-            border-color: var(--primary);
-        }
-        .price-item:active { transform: translateY(0); }
-
-        .price-stock-icon {
-            width: 40px; height: 40px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, var(--primary-light), var(--purple-light));
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary);
-            flex-shrink: 0;
-        }
-        .price-stock-icon .icon-svg { width: 18px; height: 18px; }
-        .price-info { flex: 1; min-width: 0; }
-        .price-title {
-            font-weight: 800;
-            font-size: 0.88rem;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 4px;
-            display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
-        }
-        .price-stock {
-            display: inline-flex;
-            align-items: center;
-            padding: 2px 8px;
-            border-radius: 50px;
-            font-size: 0.68rem;
-            font-weight: 700;
-            font-family: var(--font-mono);
-            border: 1.5px solid var(--border-dark);
-            background: var(--success-light);
-            color: var(--success-dark);
-        }
-        .price-stock.low { background: var(--warning-light); color: var(--warning-dark); }
-        .price-stock.out { background: var(--danger-light); color: var(--danger-dark); }
-        .price-meta {
-            font-size: 0.72rem;
-            color: var(--text-gray);
-            font-family: var(--font-mono);
-        }
-        .price-right { text-align: right; flex-shrink: 0; }
-        .price-amount {
-            font-size: 1rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            color: var(--primary);
-            margin-bottom: 6px;
-            letter-spacing: -0.02em;
-        }
-
-        .operator-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-        .operator-item {
-            padding: 12px 14px;
-            background: var(--bg-white);
-            border: 2px solid var(--border-dark);
-            border-radius: var(--radius-sm);
-            box-shadow: var(--shadow-hard-sm);
-            cursor: pointer;
-            transition: background-color .2s, color .2s, transform .15s, box-shadow .2s;
-            font-family: inherit;
-            font-weight: 700;
-            font-size: 0.82rem;
-            text-align: center;
-            color: var(--text-dark);
-            text-transform: capitalize;
-            -webkit-tap-highlight-color: transparent;
-            touch-action: manipulation;
-        }
-        .operator-item:hover { background: var(--bg-hover); transform: translateY(-1px); }
-        .operator-item:active { transform: translateY(0); }
-        .operator-item.active {
-            background: linear-gradient(135deg, var(--primary), var(--purple));
-            color: white;
-            box-shadow: var(--shadow-hard);
-        }
-
-        .loading-block {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 48px 20px;
-            gap: 14px;
-            color: var(--text-gray);
-        }
-        .loading-block .loading-spinner { width: 36px; height: 36px; border-width: 3px; }
-
-        .empty-block {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--text-gray);
-        }
-        .empty-block .icon-box {
-            width: 60px; height: 60px;
-            margin: 0 auto 14px;
-            border-radius: 16px;
-            background: var(--primary-light);
-            border: 2px solid var(--border-dark);
-            display: flex; align-items: center; justify-content: center;
-            color: var(--primary);
-            box-shadow: var(--shadow-hard-sm);
-        }
-        .empty-block .icon-box .icon-svg { width: 26px; height: 26px; }
-        .empty-block h3 {
-            font-size: 0.95rem;
-            font-weight: 800;
-            font-family: var(--font-display);
-            color: var(--text-dark);
-            margin-bottom: 4px;
-        }
-        .empty-block p { font-size: 0.82rem; max-width: 280px; margin: 0 auto; }
-
-        .success-modal { text-align: center; }
-        .success-icon {
-            width: 72px; height: 72px;
-            border-radius: 50%;
-            background: var(--success-light);
-            border: 3px solid var(--border-dark);
-            color: var(--success);
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 20px;
-            box-shadow: var(--shadow-hard);
-            animation: successPop .5s cubic-bezier(.2,.9,.3,1.4) both;
-        }
-        @keyframes successPop {
-            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
-            100% { transform: scale(1) rotate(0); opacity: 1; }
-        }
-        .success-icon .icon-svg { width: 36px; height: 36px; }
-
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(6px);
-            -webkit-backdrop-filter: blur(6px);
-            z-index: 999999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .modal-overlay.active { display: flex; animation: fadeIn .2s ease; }
-        .modal-overlay .modal {
-            position: relative;
-            top: auto; left: auto;
-            transform: none;
-            margin: 0;
-        }
-
-        .flag-img {
-            width: 32px; height: 24px;
-            border-radius: 4px;
-            border: 1.5px solid var(--border-dark);
-            box-shadow: 1px 1px 0px rgba(15, 23, 42, 0.15);
-            object-fit: cover;
-            display: block;
-            flex-shrink: 0;
-            background: var(--bg-light);
-        }
-        .country-inline {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .country-inline .flag-img {
-            width: 20px; height: 15px;
-            border-radius: 3px;
-            border: 1px solid var(--border-dark);
-            box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
-        }
-
-        @media (max-width: 768px) {
-            .features-grid { grid-template-columns: 1fr; }
-            .nokos-hero-text h1 { font-size: 1.4rem; }
-            .nokos-hero-icon { width: 52px; height: 52px; }
-            .nokos-hero-icon .icon-svg { width: 26px; height: 26px; }
-            .bottom-sheet { max-height: 90vh; }
-            .btn-cta { padding: 14px 24px; font-size: 0.88rem; width: 100%; }
-            .footer-links { gap: 14px; }
-            .footer-links a { font-size: 0.78rem; }
-        }
-        @media (max-width: 480px) {
-            .nokos-hero-text h1 { font-size: 1.2rem; }
-            .features-grid { padding: 14px; gap: 12px; }
-            .feature-item { gap: 8px; }
-        }
-
-        @media print {
-            body { display: none !important; visibility: hidden !important; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            *, *::before, *::after {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-    </style>
 </head>
 <body>
 
@@ -1426,7 +240,6 @@
             </div>
             <h2>Order Berhasil!</h2>
             <p style="color:var(--text-gray);font-size:0.9rem;margin-top:8px;">Nomor kamu sudah siap. Tunggu OTP masuk ya.</p>
-
             <div style="display:flex;gap:10px;margin-top:24px;">
                 <a href="/inbox" class="btn btn-primary btn-block">
                     <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
@@ -1480,7 +293,7 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       MAX SECURITY — Anti DevTools / Anti Leak
+       SECURITY LAYER
        ============================================ */
     (function suppressConsole() {
         try {
@@ -1490,41 +303,29 @@
         } catch (e) {}
     })();
 
-    (function() {
-        document.addEventListener('contextmenu', (e) => e.preventDefault());
-        document.addEventListener('keydown', (e) => {
-            const k = e.key;
-            if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
-            if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
-        }, true);
-    })();
-
-    (function() {
-        document.addEventListener('copy', (e) => {
-            const target = e.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-            e.preventDefault();
-        });
-        document.addEventListener('cut', (e) => {
-            const target = e.target;
-            if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-            e.preventDefault();
-        });
-    })();
-
-    (function() {
-        try {
-            const cleanUrl = window.location.origin + window.location.pathname;
-            if (window.location.search) history.replaceState(null, '', cleanUrl);
-        } catch (e) {}
-    })();
-
-    (function() {
-        try { Object.freeze(window.ICONS || {}); } catch (e) {}
-    })();
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
+    document.addEventListener('keydown', (e) => {
+        const k = e.key;
+        if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
+        if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+    }, true);
+    document.addEventListener('copy', (e) => {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        e.preventDefault();
+    });
+    document.addEventListener('cut', (e) => {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        e.preventDefault();
+    });
+    try {
+        const cleanUrl = window.location.origin + window.location.pathname;
+        if (window.location.search) history.replaceState(null, '', cleanUrl);
+    } catch (e) {}
 
     /* ============================================
-       RECAPTCHA HELPER
+       RECAPTCHA
        ============================================ */
     const RECAPTCHA_SITE_KEY = '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
@@ -1539,7 +340,6 @@
             }, 100);
         });
     }
-
     async function getRecaptchaToken(action) {
         try {
             await waitForRecaptcha();
@@ -1552,7 +352,6 @@
             });
         } catch (e) { return null; }
     }
-
     async function securePost(url, body = {}, action = 'nokos') {
         const recaptchaToken = await getRecaptchaToken(action);
         return fetch(url, {
@@ -1570,45 +369,29 @@
 
     const ALLOWED_ORDER_FIELDS = new Set([
         'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
-        'price_idr', 'price', 'service', 'service_name', 'icon_code',
+        'price_idr', 'price', 'service', 'service_name',
         'country', 'country_name', 'country_flag', 'operator',
         'expires_in', 'expired_at', 'created_at', 'updated_at',
         'received_at', 'refunded_at', 'refunded_amount', '_bucket',
     ]);
-
-    /* ============================================
-       FIX BUG: Provider fields harus lengkap
-       Sebelumnya cuma ['price_idr','stock','name','operator']
-       → id dibuang → order salah provider
-       ============================================ */
     const ALLOWED_PROVIDER_FIELDS = new Set([
-        'id',              // ← CRITICAL: id provider (dipakai backend /order)
-        'provider_id',     // ← buat premium server
-        'provider_price',  // ← buat premium server (harga asli)
-        'price_idr',       // ← harga jual (sudah markup 10%)
-        'price',           // ← fallback kalau backend kirim 'price'
-        'stock',
-        'name',
-        'operator',
+        'id', 'provider_id', 'provider_price', 'price_idr', 'price',
+        'stock', 'name', 'operator',
     ]);
 
     const ORDER_ID_MAP = new Map();
+    const PROVIDER_RAW_MAP = new Map();
 
     function sanitizeOrder(order) {
         if (!order || typeof order !== 'object') return order;
         const clean = {};
-        for (const key of Object.keys(order)) {
-            if (ALLOWED_ORDER_FIELDS.has(key)) clean[key] = order[key];
-        }
+        for (const key of Object.keys(order)) if (ALLOWED_ORDER_FIELDS.has(key)) clean[key] = order[key];
         return clean;
     }
-
     function sanitizeProvider(provider) {
         if (!provider || typeof provider !== 'object') return provider;
         const clean = {};
-        for (const key of Object.keys(provider)) {
-            if (ALLOWED_PROVIDER_FIELDS.has(key)) clean[key] = provider[key];
-        }
+        for (const key of Object.keys(provider)) if (ALLOWED_PROVIDER_FIELDS.has(key)) clean[key] = provider[key];
         return clean;
     }
 
@@ -1629,139 +412,9 @@
         ban: `<svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
     });
 
-    /* ============================================
-       APP ICON — assets.cindigital.id
-       ============================================ */
-    const APP_CDN_BASE = 'https://assets.cindigital.id/apps';
-
-    function getAppIconUrl(serviceCode, iconCode) {
-        const code = String(iconCode || serviceCode || '').trim().toLowerCase();
-        if (!code || !/^[a-z0-9_-]+$/.test(code)) return null;
-        return `${APP_CDN_BASE}/${code}.png`;
-    }
-
-    const ICON_STATUS = new Map();
-    const ICON_PRELOADING = new Set();
-    const MAX_CONCURRENT_PRELOAD = 6;
-    let activePreloadCount = 0;
-    const ICON_PRELOAD_QUEUE = [];
-
-    function processIconPreloadQueue() {
-        while (activePreloadCount < MAX_CONCURRENT_PRELOAD && ICON_PRELOAD_QUEUE.length > 0) {
-            const url = ICON_PRELOAD_QUEUE.shift();
-            if (ICON_STATUS.has(url)) continue;
-            activePreloadCount++;
-            const img = new Image();
-            img.decoding = 'async';
-            img.onload = () => {
-                ICON_STATUS.set(url, 'ok');
-                activePreloadCount--;
-                processIconPreloadQueue();
-            };
-            img.onerror = () => {
-                ICON_STATUS.set(url, 'fail');
-                activePreloadCount--;
-                processIconPreloadQueue();
-            };
-            ICON_STATUS.set(url, 'loading');
-            img.src = url;
-        }
-    }
-
-    function preloadIcon(url) {
-        if (!url || ICON_STATUS.has(url)) return;
-        ICON_PRELOAD_QUEUE.push(url);
-        processIconPreloadQueue();
-    }
-
-    function renderAppIcon(serviceCode, serviceName, iconCode) {
-        const name = String(serviceName || serviceCode || '?').trim();
-        const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url = getAppIconUrl(serviceCode, iconCode);
-        if (!url) {
-            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        }
-
-        if (ICON_STATUS.get(url) === 'fail') {
-            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        }
-
-        return `<img data-src="${escapeHtml(url)}" alt="${escapeHtml(name)}" class="app-icon-lazy" loading="lazy" decoding="async">
-                <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
-    }
-
-    let appIconObserver = null;
-    function getAppIconObserver() {
-        if (appIconObserver) return appIconObserver;
-        if (!('IntersectionObserver' in window)) {
-            appIconObserver = {
-                observe(el) {
-                    const img = el.matches('img.app-icon-lazy') ? el : el.querySelector('img.app-icon-lazy');
-                    if (img && img.dataset.src) {
-                        img.src = img.dataset.src;
-                        img.removeAttribute('data-src');
-                    }
-                }
-            };
-            return appIconObserver;
-        }
-        appIconObserver = new IntersectionObserver((entries, obs) => {
-            entries.forEach(entry => {
-                if (!entry.isIntersecting) return;
-                const img = entry.target;
-                if (img.dataset.src) {
-                    img.src = img.dataset.src;
-                    img.removeAttribute('data-src');
-                }
-                obs.unobserve(img);
-            });
-        }, { rootMargin: '300px', threshold: 0.01 });
-        return appIconObserver;
-    }
-
-    function observeAppIcons(root = document) {
-        const observer = getAppIconObserver();
-        root.querySelectorAll('img.app-icon-lazy[data-src]').forEach(img => observer.observe(img));
-        root.querySelectorAll('img.app-icon-lazy').forEach(img => {
-            if (img.dataset.boundImg) return;
-            img.dataset.boundImg = '1';
-            img.addEventListener('load', function() {
-                if (this.src) ICON_STATUS.set(this.src, 'ok');
-            });
-            img.addEventListener('error', function() {
-                const url = this.src || this.dataset.src;
-                if (url) ICON_STATUS.set(url, 'fail');
-                this.style.display = 'none';
-                const next = this.nextElementSibling;
-                if (next) next.style.display = 'inline-flex';
-            });
-        });
-    }
-
-    /* ============================================
-       HELPERS
-       ============================================ */
     function getServiceDisplayName(order) {
-        const name = String(order?.service_name || '').trim();
-        if (name) return name;
-        const svc = String(order?.service || '').trim();
-        if (svc) return svc;
-        return 'Layanan OTP';
+        return String(order?.service_name || order?.service || 'Layanan OTP').trim();
     }
-    function renderServiceIcon(order) {
-        const code = String(order?.service || '').trim();
-        const name = getServiceDisplayName(order);
-        const initial = String(name).charAt(0).toUpperCase() || '?';
-        const url = getAppIconUrl(code, order?.icon_code);
-        if (!url) return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        if (ICON_STATUS.get(url) === 'fail') {
-            return `<span class="icon-fallback">${escapeHtml(initial)}</span>`;
-        }
-        preloadIcon(url);
-        return `<img src="${escapeHtml(url)}" alt="${escapeHtml(name)}" loading="lazy" decoding="async">
-                <span class="icon-fallback" style="display:none;">${escapeHtml(initial)}</span>`;
-    }
-
     function getCountryName(order) {
         const names = {
             id:'Indonesia', ru:'Rusia', us:'Amerika Serikat', my:'Malaysia', vn:'Vietnam',
@@ -1787,7 +440,6 @@
         }
         return supplied || 'Negara tidak diketahui';
     }
-
     function getOtpId(order) {
         const id = String(order?.otp_id || '').trim();
         if (id) return id;
@@ -1806,9 +458,7 @@
         };
         if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
             navigator.clipboard.writeText(text).then(onSuccess).catch(() => fallbackCopy(text, onSuccess));
-        } else {
-            fallbackCopy(text, onSuccess);
-        }
+        } else fallbackCopy(text, onSuccess);
     }
     function fallbackCopy(text, onSuccess) {
         const ta = document.createElement('textarea');
@@ -1876,9 +526,7 @@
     (function initCollapse() {
         const sidebar = document.getElementById('sidebar');
         const collapseBtn = document.getElementById('collapseBtn');
-        if (!sidebar || !collapseBtn) return;
-        if (window.innerWidth <= 768) return;
-
+        if (!sidebar || !collapseBtn || window.innerWidth <= 768) return;
         const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
         if (isCollapsed) {
             sidebar.classList.add('collapsed');
@@ -1897,17 +545,14 @@
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
         if (!mobileToggle || !sidebar) return;
-
         let isOpen = false;
-
         function openSidebar() {
             if (isOpen) return;
             isOpen = true;
             sidebar.classList.add('open');
             if (sidebarOverlay) sidebarOverlay.classList.add('active');
             document.body.classList.add('sidebar-open');
-            const scrollY = window.scrollY;
-            document.body.style.top = `-${scrollY}px`;
+            document.body.style.top = `-${window.scrollY}px`;
         }
         function closeSidebar() {
             if (!isOpen) return;
@@ -1932,10 +577,6 @@
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isOpen) closeSidebar();
         });
-        window.addEventListener('pageshow', () => {
-            document.body.style.top = '';
-            document.body.classList.remove('sidebar-open');
-        });
     })();
 
     function countryCodeToTwemoji(countryCode) {
@@ -1951,7 +592,6 @@
             twemoji ? `https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/${twemoji}.svg` : null,
             `https://flagcdn.com/w40/${code}.png`,
             `https://flagcdn.com/w80/${code}.png`,
-            `https://unpkg.com/country-flag-icons@1.5.7/3x2/${code.toUpperCase()}.svg`,
         ].filter(Boolean);
     }
     function renderFlag(countryCode, className = 'flag-img') {
@@ -1965,8 +605,8 @@
     window.handleFlagError = function(imgEl) {
         try {
             const sources = JSON.parse(imgEl.dataset.sources || '[]');
-            const currentIdx = parseInt(imgEl.dataset.sourceIdx || '0', 10);
-            const nextIdx = currentIdx + 1;
+            const idx = parseInt(imgEl.dataset.sourceIdx || '0', 10);
+            const nextIdx = idx + 1;
             if (nextIdx < sources.length) {
                 imgEl.dataset.sourceIdx = nextIdx.toString();
                 imgEl.src = sources[nextIdx];
@@ -1988,7 +628,6 @@
         requiresOperator: false,
         service: null,
         serviceName: null,
-        iconCode: null,
         country: null,
         countryName: null,
         operator: 'any',
@@ -2009,22 +648,28 @@
     let servicesCache = [];
     let autoSyncInterval = null;
     let otpCheckInterval = null;
+    let profileSyncInterval = null;
 
     /* ============================================
-       FIX BUG: PROVIDER_RAW_MAP pindah ke atas (hindari TDZ)
-       & key by ID provider (bukan index — index bocor saat sort)
+       PROFILE AUTO-SYNC
        ============================================ */
-    const PROVIDER_RAW_MAP = new Map();
+    async function loadProfile() {
+        try {
+            const res = await fetch('/api/user', { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) return;
+            const user = await res.json();
+            if (!user) return;
+            document.getElementById('userName').textContent = user.name || user.username;
+            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+            document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
+            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+            document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
+        } catch (err) {}
+    }
 
-    swrFetch('/api/user', 'user_profile', (user) => {
-        if (!user) return;
-        document.getElementById('userName').textContent = user.name || user.username;
-        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-        document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
-        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-        document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
-    });
-
+    /* ============================================
+       AUTO-REQUEST ACTIVE ORDERS
+       ============================================ */
     function getActiveOrdersCacheKey() { return 'nokos_active_orders'; }
 
     async function fetchActiveOrders() {
@@ -2130,7 +775,10 @@
         try { sessionStorage.removeItem(`asyrof_cd_${orderKey}`); } catch (e) {}
     }
 
-    function buildActiveCardHtml(o) {
+    /* ============================================
+       BUILD CARD — NOMOR URUT (TANPA ICON)
+       ============================================ */
+    function buildActiveCardHtml(o, cardIndex) {
         const isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
         const isPending = o.status === 'pending' && !isSuccess;
         const hasOtp = o.otp_code && o.otp_code.trim();
@@ -2153,6 +801,8 @@
         const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
+
+        const displayNumber = String(cardIndex + 1).padStart(2, '0');
 
         let countdownHtml = '';
         if (hasValidCountdown) {
@@ -2177,9 +827,7 @@
                  data-has-id="${hasApiId ? '1' : '0'}"
                  data-sig="">
                 <div class="aoc-header">
-                    <div class="aoc-app-icon" title="${escapeHtml(serviceDisplayName)}">
-                        ${renderServiceIcon(o)}
-                    </div>
+                    <div class="aoc-card-number">${displayNumber}</div>
                     <div class="aoc-title-wrap">
                         <div class="aoc-title">
                             ${escapeHtml(serviceDisplayName)}
@@ -2304,10 +952,7 @@
         const hasOrders = orders && orders.length > 0;
 
         if (!hasOrders) {
-            if (!activeState.initialLoadDone && !activeState.hasRenderedOnce) {
-                return;
-            }
-
+            if (!activeState.initialLoadDone && !activeState.hasRenderedOnce) return;
             container.className = '';
             container.innerHTML = `
                 <div class="empty-orders">
@@ -2351,8 +996,9 @@
         pageOrders.forEach((o, idx) => {
             const otpId = getOtpId(o);
             const cardKey = otpId || `fallback-${idx}`;
+            const globalIndex = start + idx;
 
-            const newHtml = buildActiveCardHtml(o);
+            const newHtml = buildActiveCardHtml(o, globalIndex);
             const tmp = document.createElement('div');
             tmp.innerHTML = newHtml.trim();
             const newCard = tmp.firstElementChild;
@@ -2471,8 +1117,7 @@
             pendingNoOtp.map(o => {
                 const otpId = String(o.otp_id || '').trim();
                 const realId = ORDER_ID_MAP.get(otpId) || o.order_id || o.raw_id;
-                return securePost('/api/cekotp', { order_id: realId, otp_id: otpId }, 'cekotp')
-                    .then(r => safeJson(r));
+                return securePost('/api/cekotp', { order_id: realId, otp_id: otpId }, 'cekotp').then(r => safeJson(r));
             })
         );
 
@@ -2485,12 +1130,7 @@
                 hasUpdate = true;
                 if (data.otp_code) {
                     CacheManager.remove('user_profile');
-                    swrFetch('/api/user', 'user_profile', (user) => {
-                        if (!user) return;
-                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-                        document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
-                    });
+                    loadProfile();
                 }
             }
         }
@@ -2512,21 +1152,24 @@
         otpCheckInterval = setInterval(() => {
             if (document.hidden) return;
             syncPendingOrders();
-        }, 15000);
+        }, 10000);
+
+        if (profileSyncInterval) clearInterval(profileSyncInterval);
+        profileSyncInterval = setInterval(() => {
+            if (document.hidden) return;
+            loadProfile();
+        }, 30000);
     }
 
     async function resendOrder(orderId, btn) {
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
-
         try {
             const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/resend`, {}, 'resend');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal resend');
-
             await showCustomAlert({ title: 'Resend Berhasil', message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.', type: 'success' });
-
             CacheManager.remove(getActiveOrdersCacheKey());
             loadActiveOrders();
         } catch (err) {
@@ -2545,18 +1188,14 @@
             showCancel: true
         });
         if (!ok) return;
-
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
-
         try {
             const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/confirm`, {}, 'confirm');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
-
             await showCustomAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
-
             CacheManager.remove(getActiveOrdersCacheKey());
             loadActiveOrders();
         } catch (err) {
@@ -2575,27 +1214,17 @@
             showCancel: true
         });
         if (!ok) return;
-
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
-
         try {
             const res = await securePost(`/api/nokos/order/${encodeURIComponent(orderId)}/cancel`, {}, 'cancel');
             const data = await safeJson(res);
             if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
-
             await showCustomAlert({ title: 'Dibatalkan', message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.', type: 'success' });
-
             CacheManager.remove('user_profile');
             CacheManager.remove(getActiveOrdersCacheKey());
-            swrFetch('/api/user', 'user_profile', (user) => {
-                if (!user) return;
-                document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-                document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-                document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
-            });
-
+            loadProfile();
             loadActiveOrders();
         } catch (err) {
             await showCustomAlert({ title: 'Gagal', message: err.message, type: 'danger' });
@@ -2627,7 +1256,6 @@
         const stepEl = document.getElementById('sheetStep');
         const titleEl = document.getElementById('sheetTitle');
         body.scrollTop = 0;
-
         if (step === 1) {
             stepEl.textContent = 'Langkah 1 · Pilih Server';
             titleEl.textContent = 'Mau pakai server yang mana?';
@@ -2650,16 +1278,13 @@
     async function renderServerStep() {
         const body = document.getElementById('sheetBody');
         body.innerHTML = `<div class="loading-block"><span class="loading-spinner"></span><span>Memuat server...</span></div>`;
-
         try {
             const res = await fetch('/api/nokos/servers', { headers: { 'Authorization': `Bearer ${token}` } });
             const data = await safeJson(res);
-
             if (!data.servers || data.servers.length === 0) {
                 body.innerHTML = `<div class="empty-block"><h3>Belum ada server</h3><p>Coba lagi nanti.</p></div>`;
                 return;
             }
-
             body.innerHTML = `
                 <div class="server-list">
                     ${data.servers.map(s => `
@@ -2679,7 +1304,6 @@
                     `).join('')}
                 </div>
             `;
-
             body.querySelectorAll('.server-card').forEach(card => {
                 card.addEventListener('click', () => {
                     state.server = card.dataset.server;
@@ -2708,12 +1332,10 @@
             </div>
             <div id="appContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat aplikasi...</span></div></div>
         `;
-
         document.getElementById('backBtn').addEventListener('click', () => goToStep(1));
 
         const cacheKey = `services_${state.server}`;
         const cached = CacheManager.get(cacheKey);
-
         if (cached && cached.value && cached.value.services) {
             servicesCache = cached.value.services;
             renderApps(servicesCache);
@@ -2727,7 +1349,6 @@
             servicesCache = data.services || [];
             CacheManager.set(cacheKey, { services: servicesCache });
             renderApps(servicesCache);
-
             document.getElementById('appSearch').addEventListener('input', (e) => {
                 const q = e.target.value.toLowerCase().trim();
                 const filtered = servicesCache.filter(s =>
@@ -2745,44 +1366,34 @@
     function renderApps(services) {
         const content = document.getElementById('appContent');
         if (!content) return;
-
         if (!services || services.length === 0) {
             content.innerHTML = `<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Server ini belum punya aplikasi tersedia.</p></div>`;
             return;
         }
-
-        const visible = services.slice(0, 12);
-        visible.forEach(s => {
-            const url = getAppIconUrl(s.code, s.icon_code);
-            if (url) preloadIcon(url);
-        });
-
         content.innerHTML = `
             <div class="app-grid">
-                ${services.map(s => `
-                    <button class="app-card" type="button"
-                            data-service="${escapeHtml(s.code)}"
-                            data-name="${escapeHtml(s.name)}"
-                            data-icon-code="${escapeHtml(s.icon_code || '')}">
-                        <div class="app-icon-wrap">${renderAppIcon(s.code, s.name, s.icon_code)}</div>
-                        <div class="name">${escapeHtml(s.name)}</div>
-                    </button>
-                `).join('')}
+                ${services.map((s, idx) => {
+                    const num = String(idx + 1).padStart(2, '0');
+                    return `
+                        <button class="app-card" type="button"
+                                data-service="${escapeHtml(s.code)}"
+                                data-name="${escapeHtml(s.name)}">
+                            <div class="app-list-number">${num}</div>
+                            <div class="name">${escapeHtml(s.name)}</div>
+                        </button>
+                    `;
+                }).join('')}
             </div>
         `;
-
         content.querySelectorAll('.app-card').forEach(btn => {
             btn.addEventListener('click', () => {
                 state.service = btn.dataset.service;
                 state.serviceName = btn.dataset.name;
-                state.iconCode = btn.dataset.iconCode || null;
                 state.country = null;
                 state.operator = 'any';
                 goToStep(3);
             });
         });
-
-        observeAppIcons(content);
     }
 
     async function renderCountryStep() {
@@ -2793,7 +1404,7 @@
                 Ganti Aplikasi
             </button>
             <div class="app-selected-card">
-                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName, state.iconCode)}</div>
+                <div class="app-list-number">✓</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">Aplikasi yang dipilih</div>
@@ -2805,13 +1416,10 @@
             </div>
             <div id="countryContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat negara...</span></div></div>
         `;
-
         document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
-        observeAppIcons(body);
 
         const cacheKey = `countries_${state.server}_${state.service}`;
         const cached = CacheManager.get(cacheKey);
-
         if (cached && cached.value && cached.value.countries) {
             renderCountries(cached.value.countries);
         }
@@ -2822,10 +1430,8 @@
             });
             const data = await safeJson(res);
             const countries = data.countries || [];
-
             CacheManager.set(cacheKey, { countries });
             renderCountries(countries);
-
             document.getElementById('countrySearch').addEventListener('input', (e) => {
                 const q = e.target.value.toLowerCase().trim();
                 const filtered = countries.filter(c =>
@@ -2843,12 +1449,10 @@
     function renderCountries(countries) {
         const content = document.getElementById('countryContent');
         if (!content) return;
-
         if (!countries || countries.length === 0) {
             content.innerHTML = `<div class="empty-block"><h3>Belum ada negara</h3><p>Server ini belum punya negara tersedia.</p></div>`;
             return;
         }
-
         content.innerHTML = `
             <div class="country-list">
                 ${countries.map(c => `
@@ -2865,7 +1469,6 @@
                 `).join('')}
             </div>
         `;
-
         content.querySelectorAll('.country-item').forEach(item => {
             item.addEventListener('click', () => {
                 state.country = item.dataset.country;
@@ -2873,6 +1476,9 @@
                 state.operator = 'any';
                 goToStep(4);
             });
+        });
+        content.querySelectorAll('img[data-sources]').forEach(img => {
+            img.addEventListener('error', function() { window.handleFlagError(this); });
         });
     }
 
@@ -2884,7 +1490,7 @@
                 Ganti Negara
             </button>
             <div class="app-selected-card">
-                <div class="app-icon-wrap">${renderAppIcon(state.service, state.serviceName, state.iconCode)}</div>
+                <div class="app-list-number">✓</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">
@@ -2892,38 +1498,13 @@
                     </div>
                 </div>
             </div>
-
-            ${state.requiresOperator ? `
-                <div class="section-title" style="margin-bottom:10px;">Pilih Operator</div>
-                <div class="operator-grid" id="operatorGrid">
-                    ${['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'].map(op => `
-                        <button class="operator-item ${op === 'any' ? 'active' : ''}" type="button" data-op="${op}">
-                            ${op === 'any' ? 'Any' : op}
-                        </button>
-                    `).join('')}
-                </div>
-            ` : ''}
-
             <div class="sheet-tabs">
                 <button class="sheet-tab active" type="button" data-filter="sukses">Paling Sukses</button>
                 <button class="sheet-tab" type="button" data-filter="murah">Termurah</button>
             </div>
-
             <div id="priceContent"><div class="loading-block"><span class="loading-spinner"></span><span>Memuat harga...</span></div></div>
         `;
-
         document.getElementById('backBtn').addEventListener('click', () => goToStep(3));
-        observeAppIcons(body);
-
-        if (state.requiresOperator) {
-            document.getElementById('operatorGrid').addEventListener('click', (e) => {
-                const btn = e.target.closest('.operator-item');
-                if (!btn) return;
-                document.querySelectorAll('.operator-item').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                state.operator = btn.dataset.op;
-            });
-        }
 
         document.querySelectorAll('.sheet-tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -2936,7 +1517,6 @@
 
         const cacheKey = `prices_${state.server}_${state.service}_${state.country}`;
         const cached = CacheManager.get(cacheKey);
-
         if (cached && cached.value && cached.value.providers) {
             state.providers = cached.value.providers;
             renderPrices(state.providers);
@@ -2948,11 +1528,8 @@
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );
             const data = await safeJson(res);
-
-            // ===== FIX: sanitize TAPI simpan id, price, provider_id, provider_price =====
             const rawProviders = data.providers || [];
 
-            // Bersihkan PROVIDER_RAW_MAP & isi ulang keyed by provider ID (bukan index)
             PROVIDER_RAW_MAP.clear();
             rawProviders.forEach(p => {
                 const pid = String(p.id || p.provider_id || '').trim();
@@ -2966,7 +1543,6 @@
                 }
             });
 
-            // Sanitize untuk display, tetap simpan id sebagai `_pid` biar gak bocor ke UI
             const providers = rawProviders.map(p => ({
                 ...sanitizeProvider(p),
                 _pid: String(p.id || p.provider_id || '').trim(),
@@ -2985,12 +1561,10 @@
     function renderPrices(providers) {
         const content = document.getElementById('priceContent');
         if (!content) return;
-
         if (!providers || providers.length === 0) {
             content.innerHTML = `<div class="empty-block"><h3>Stok habis</h3><p>Belum ada stok tersedia untuk kombinasi ini.</p></div>`;
             return;
         }
-
         let sorted = [...providers];
         if (state.filter === 'murah') sorted.sort((a, b) => a.price_idr - b.price_idr);
         else sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
@@ -3000,17 +1574,16 @@
                 ${sorted.map((p, i) => {
                     const stock = p.stock || 0;
                     const stockClass = stock < 50 ? 'low' : (stock === 0 ? 'out' : '');
+                    const num = String(i + 1).padStart(2, '0');
                     return `
                         <div class="price-item">
-                            <div class="price-stock-icon">
-                                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                            </div>
+                            <div class="app-list-number">${num}</div>
                             <div class="price-info">
                                 <div class="price-title">
                                     Opsi ${i + 1}
                                     <span class="price-stock ${stockClass}">${stock} stok</span>
                                 </div>
-                                <div class="price-meta">${escapeHtml(state.countryName || '')}${state.operator !== 'any' && state.requiresOperator ? ` · ${escapeHtml(state.operator)}` : ''}</div>
+                                <div class="price-meta">${escapeHtml(state.countryName || '')}</div>
                             </div>
                             <div class="price-right">
                                 <div class="price-amount">${formatRupiah(p.price_idr)}</div>
@@ -3024,11 +1597,9 @@
                 }).join('')}
             </div>
         `;
-
         content.querySelectorAll('[data-buy-pid]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const pid = btn.dataset.buyPid;
-                // Cari pakai _pid (ID provider), BUKAN index — aman walau list di-sort
                 const priceData = sorted.find(p => String(p._pid) === String(pid));
                 if (priceData) confirmAndPlaceOrder(pid, priceData, btn);
             });
@@ -3053,21 +1624,17 @@
         const original = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span>';
-
         try {
             const raw = PROVIDER_RAW_MAP.get(pid) || {};
             const expectedPrice = Number(priceData.price_idr || priceData.price || 0);
-
             const body = {
                 server: state.server,
                 service: state.service,
                 country: state.country,
                 service_name: state.serviceName,
                 country_flag: state.country,
-                icon_code: state.iconCode,
-                expected_price: expectedPrice, // ← Guard anti mismatch harga
+                expected_price: expectedPrice,
             };
-
             if (state.requiresOperator) {
                 body.provider_id = raw.provider_id || raw.id;
                 body.provider_price = raw.provider_price || raw.price;
@@ -3075,33 +1642,22 @@
             } else {
                 body.id = raw.id || pid;
             }
-
             const res = await securePost('/api/nokos/order', body, 'order');
             const data = await safeJson(res);
             if (!res.ok) {
                 const code = data.code || '';
-                if (code === 'PRICE_CHANGED') {
-                    throw new Error(`Harga berubah jadi ${formatRupiah(data.actual)}. Silakan pilih ulang.`);
-                }
+                if (code === 'PRICE_CHANGED') throw new Error(`Harga berubah jadi ${formatRupiah(data.actual)}. Silakan pilih ulang.`);
                 if (code === 'INSUFFICIENT_USER_BALANCE') throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
                 if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') throw new Error('Server sedang sibuk, coba lagi nanti.');
                 throw new Error(data.error || 'Order gagal');
             }
-
             closeSheet();
             PROVIDER_RAW_MAP.clear();
-
             CacheManager.remove('user_profile');
             CacheManager.remove(getActiveOrdersCacheKey());
             document.getElementById('modalSuccess').classList.add('active');
-
             setTimeout(() => {
-                swrFetch('/api/user', 'user_profile', (user) => {
-                    if (!user) return;
-                    document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-                    document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-                    document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
-                });
+                loadProfile();
                 loadActiveOrders();
             }, 500);
         } catch (err) {
@@ -3139,18 +1695,25 @@
         CacheManager.clear();
         ORDER_ID_MAP.clear();
         PROVIDER_RAW_MAP.clear();
-        ICON_STATUS.clear();
-        ICON_PRELOAD_QUEUE.length = 0;
         localStorage.removeItem('access_token');
         localStorage.removeItem('user');
         window.location.href = '/landing';
     });
 
-    /* ===== INIT ===== */
-    loadActiveOrders();
-    startAutoSync();
+    /* ============================================
+       INIT — AUTO REQUEST
+       ============================================ */
+    (async () => {
+        await Promise.allSettled([
+            loadProfile(),
+            loadActiveOrders(),
+        ]);
+        startAutoSync();
+    })();
+
     document.addEventListener('visibilitychange', () => {
         if (!document.hidden) {
+            loadProfile();
             loadActiveOrders();
             syncPendingOrders();
         }
@@ -3158,6 +1721,7 @@
     window.addEventListener('beforeunload', () => {
         if (autoSyncInterval) clearInterval(autoSyncInterval);
         if (otpCheckInterval) clearInterval(otpCheckInterval);
+        if (profileSyncInterval) clearInterval(profileSyncInterval);
         Object.values(activeState.countdownIntervals).forEach(clearInterval);
         if (_loadActiveAbort) _loadActiveAbort.abort();
     });
