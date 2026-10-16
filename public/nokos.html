@@ -367,16 +367,20 @@
         })[ch]);
     }
 
+    /* ============================================
+       SANITIZER — semua field yang dibutuhkan frontend
+       ============================================ */
     const ALLOWED_ORDER_FIELDS = new Set([
         'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
         'price_idr', 'price', 'service', 'service_name',
-        'country', 'country_name', 'country_flag', 'operator',
+        'country', 'country_name', 'country_flag', 'operator', 'server',
         'expires_in', 'expired_at', 'created_at', 'updated_at',
         'received_at', 'refunded_at', 'refunded_amount', '_bucket',
     ]);
     const ALLOWED_PROVIDER_FIELDS = new Set([
         'id', 'provider_id', 'provider_price', 'price_idr', 'price',
-        'stock', 'name', 'operator',
+        'stock', 'available', 'active', 'name', 'operator',
+        'product_id', 'catalog_product_id', 'operator_id', 'operator_name',
     ]);
 
     const ORDER_ID_MAP = new Map();
@@ -659,11 +663,16 @@
             if (!res.ok) return;
             const user = await res.json();
             if (!user) return;
-            document.getElementById('userName').textContent = user.name || user.username;
-            document.getElementById('userBalance').textContent = formatRupiah(user.balance);
-            document.getElementById('userInitial').textContent = getInitial(user.name || user.username);
-            document.getElementById('balancePill').textContent = formatRupiah(user.balance);
-            document.getElementById('sheetBalance').textContent = formatRupiah(user.balance);
+            const nameEl = document.getElementById('userName');
+            const balanceEl = document.getElementById('userBalance');
+            const initialEl = document.getElementById('userInitial');
+            const pillEl = document.getElementById('balancePill');
+            const sheetEl = document.getElementById('sheetBalance');
+            if (nameEl) nameEl.textContent = user.name || user.username;
+            if (balanceEl) balanceEl.textContent = formatRupiah(user.balance);
+            if (initialEl) initialEl.textContent = getInitial(user.name || user.username);
+            if (pillEl) pillEl.textContent = formatRupiah(user.balance);
+            if (sheetEl) sheetEl.textContent = formatRupiah(user.balance);
         } catch (err) {}
     }
 
@@ -739,13 +748,16 @@
         } catch (err) {
             if (err.name === 'AbortError') return;
             if (!cached && !activeState.initialLoadDone) {
-                document.getElementById('activeOrders').innerHTML = `
-                    <div class="empty-orders">
-                        <div class="icon-box">${ICONS.warning}</div>
-                        <h3>Gagal memuat pesanan</h3>
-                        <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
-                    </div>
-                `;
+                const container = document.getElementById('activeOrders');
+                if (container) {
+                    container.innerHTML = `
+                        <div class="empty-orders">
+                            <div class="icon-box">${ICONS.warning}</div>
+                            <h3>Gagal memuat pesanan</h3>
+                            <p>${escapeHtml(err.message || 'Coba refresh halaman')}</p>
+                        </div>
+                    `;
+                }
             }
         } finally {
             _loadActiveAbort = null;
@@ -944,15 +956,19 @@
         });
     }
 
+    /* ============================================
+       RENDER ACTIVE ORDERS — empty state SELALU tampil
+       kalau tidak ada pesanan (hilang begitu ada pesanan)
+       ============================================ */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
         const countEl = document.getElementById('activeCount');
         const pagEl = document.getElementById('activeOrdersPagination');
+        if (!container) return;
 
         const hasOrders = orders && orders.length > 0;
 
         if (!hasOrders) {
-            if (!activeState.initialLoadDone && !activeState.hasRenderedOnce) return;
             container.className = '';
             container.innerHTML = `
                 <div class="empty-orders">
@@ -1561,19 +1577,22 @@
     function renderPrices(providers) {
         const content = document.getElementById('priceContent');
         if (!content) return;
-        if (!providers || providers.length === 0) {
+
+        let list = (providers || []).filter(p => p.active !== false);
+        if (list.length === 0) {
             content.innerHTML = `<div class="empty-block"><h3>Stok habis</h3><p>Belum ada stok tersedia untuk kombinasi ini.</p></div>`;
             return;
         }
-        let sorted = [...providers];
+
+        let sorted = [...list];
         if (state.filter === 'murah') sorted.sort((a, b) => a.price_idr - b.price_idr);
         else sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
 
         content.innerHTML = `
             <div class="price-list">
                 ${sorted.map((p, i) => {
-                    const stock = p.stock || 0;
-                    const stockClass = stock < 50 ? 'low' : (stock === 0 ? 'out' : '');
+                    const stock = Number(p.stock) || Number(p.available) || 0;
+                    const stockClass = stock === 0 ? 'out' : (stock < 50 ? 'low' : '');
                     const num = String(i + 1).padStart(2, '0');
                     return `
                         <div class="price-item">
@@ -1701,8 +1720,10 @@
     });
 
     /* ============================================
-       INIT — AUTO REQUEST
+       INIT — empty state SEKARANG, request paralel
        ============================================ */
+    renderActiveOrders([]);
+
     (async () => {
         await Promise.allSettled([
             loadProfile(),
