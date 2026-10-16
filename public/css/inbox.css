@@ -1,6 +1,6 @@
 /* ============================================
    INBOX.CSS — Halaman Inbox
-   v2 — inisial app, UI tidak kaku
+   v3 — inisial app, UI hidup, DevTools friendly
    ============================================ */
 
 /* ===== ANTI-SELECT ===== */
@@ -40,7 +40,22 @@
     pointer-events: auto;
 }
 
-/* ===== HERO — lebih lembut ===== */
+/* ===== NOISE TEXTURE BACKGROUND (subtle) ===== */
+.dashboard-layout::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.035;
+    background-image:
+        radial-gradient(circle at 25% 25%, var(--primary) 1px, transparent 1px),
+        radial-gradient(circle at 75% 75%, var(--purple) 1px, transparent 1px);
+    background-size: 32px 32px, 32px 32px;
+}
+[data-theme="dark"] .dashboard-layout::before { opacity: 0.06; }
+
+/* ===== HERO ===== */
 .inbox-hero {
     display: flex;
     align-items: center;
@@ -145,7 +160,7 @@
 .inbox-section-tag {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 9px 16px;
     margin-bottom: 20px;
     border: 2px dashed var(--border-dark);
@@ -156,6 +171,21 @@
     font-weight: 700;
     font-family: var(--font-mono);
     box-shadow: var(--shadow-hard-sm);
+}
+.inbox-section-tag::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 0 var(--success);
+    animation: tagPulse 2s infinite;
+    flex-shrink: 0;
+}
+@keyframes tagPulse {
+    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 .inbox-section-tag .icon-svg {
     color: var(--primary);
@@ -179,7 +209,18 @@
     transition: box-shadow var(--transition), transform var(--transition);
     position: relative;
     overflow: hidden;
+    animation: cardEnter 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
 }
+.orders-list > .order-card:nth-child(1) { animation-delay: 0.02s; }
+.orders-list > .order-card:nth-child(2) { animation-delay: 0.06s; }
+.orders-list > .order-card:nth-child(3) { animation-delay: 0.10s; }
+.orders-list > .order-card:nth-child(4) { animation-delay: 0.14s; }
+.orders-list > .order-card:nth-child(5) { animation-delay: 0.18s; }
+@keyframes cardEnter {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .order-card:hover {
     box-shadow: var(--shadow-hard);
     transform: translateY(-2px);
@@ -200,6 +241,25 @@
 .order-card.cancelled::before { background: linear-gradient(180deg, var(--danger), #b91c1c); }
 .order-card.refunded::before { background: linear-gradient(180deg, var(--purple), #6d28d9); }
 
+.order-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 60px;
+    height: 60px;
+    background: radial-gradient(circle at top right, currentColor 0%, transparent 70%);
+    opacity: 0.04;
+    pointer-events: none;
+    border-top-right-radius: inherit;
+}
+.order-card.success::after { color: var(--success); }
+.order-card.pending::after { color: var(--warning); }
+.order-card.expired::after { color: #64748b; }
+.order-card.failed::after,
+.order-card.cancelled::after { color: var(--danger); }
+.order-card.refunded::after { color: var(--purple); }
+
 [data-theme="dark"] .order-card.expired::before { background: #94a3b8; }
 
 /* ===== HEADER ===== */
@@ -209,16 +269,20 @@
     gap: 12px;
     margin-bottom: 14px;
     padding-bottom: 14px;
+    padding-left: 4px;
+    padding-right: 4px;
     border-bottom: 2px dashed var(--border);
     flex-wrap: wrap;
 }
 
-/* ===== INISIAL APP — kotak gradient ===== */
+/* ===== INISIAL APP ===== */
 .order-app-icon {
     width: 46px;
     height: 46px;
     border-radius: 13px;
-    background: linear-gradient(135deg, var(--purple), var(--primary-dark));
+    background: linear-gradient(135deg, var(--purple) 0%, var(--primary) 100%);
+    background-size: 200% 200%;
+    animation: iconGradient 6s ease infinite;
     border: 2.5px solid var(--border-dark);
     display: flex;
     align-items: center;
@@ -233,6 +297,10 @@
     position: relative;
     overflow: hidden;
     transition: transform var(--transition);
+}
+@keyframes iconGradient {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 .order-card:hover .order-app-icon {
     transform: scale(1.05) rotate(-3deg);
@@ -1119,10 +1187,7 @@
    RESPONSIVE
    ============================================ */
 @media (max-width: 768px) {
-    .inbox-hero {
-        padding: 16px;
-        gap: 14px;
-    }
+    .inbox-hero { padding: 16px; gap: 14px; }
     .inbox-hero-text h1 { font-size: 1.4rem; }
     .inbox-hero-icon { width: 50px; height: 50px; }
     .inbox-hero-icon .icon-svg { width: 24px; height: 24px; }
