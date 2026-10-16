@@ -1,6 +1,6 @@
 /* ============================================
    INBOX.CSS — Halaman Inbox
-   v3 — inisial app, UI hidup, DevTools friendly
+   v4 — NO animation di card (fix kelap-kelip)
    ============================================ */
 
 /* ===== ANTI-SELECT ===== */
@@ -40,7 +40,7 @@
     pointer-events: auto;
 }
 
-/* ===== NOISE TEXTURE BACKGROUND (subtle) ===== */
+/* ===== NOISE TEXTURE BACKGROUND (subtle, static) ===== */
 .dashboard-layout::before {
     content: '';
     position: fixed;
@@ -55,7 +55,7 @@
 }
 [data-theme="dark"] .dashboard-layout::before { opacity: 0.06; }
 
-/* ===== HERO ===== */
+/* ===== HERO (animasi tetap boleh, tidak di-refresh terus) ===== */
 .inbox-hero {
     display: flex;
     align-items: center;
@@ -95,11 +95,6 @@
     flex-shrink: 0;
     position: relative;
     z-index: 1;
-    animation: inboxFloat 4s ease-in-out infinite;
-}
-@keyframes inboxFloat {
-    0%, 100% { transform: translateY(0) rotate(-2deg); }
-    50% { transform: translateY(-5px) rotate(2deg); }
 }
 .inbox-hero-icon .icon-svg { width: 28px; height: 28px; }
 .inbox-hero-text { flex: 1; min-width: 0; position: relative; z-index: 1; }
@@ -110,16 +105,10 @@
     letter-spacing: -0.02em;
     margin-bottom: 4px;
     text-transform: uppercase;
-    background: linear-gradient(135deg, var(--purple), var(--primary), var(--purple));
-    background-size: 200% 200%;
-    animation: inboxGradient 5s ease infinite;
+    background: linear-gradient(135deg, var(--purple), var(--primary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-}
-@keyframes inboxGradient {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
 }
 .inbox-hero-text p {
     color: var(--text-gray);
@@ -128,7 +117,7 @@
     line-height: 1.5;
 }
 
-/* ===== SYNC INDICATOR ===== */
+/* ===== SYNC INDICATOR (pulse tetap, ini di luar card) ===== */
 .sync-indicator {
     display: inline-flex;
     align-items: center;
@@ -142,11 +131,6 @@
     font-family: var(--font-mono);
     border: 2px solid var(--primary);
     margin-bottom: 16px;
-    animation: syncPulse 2s ease-in-out infinite;
-}
-@keyframes syncPulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
 }
 .sync-indicator .loading-spinner {
     width: 12px;
@@ -178,14 +162,7 @@
     height: 8px;
     border-radius: 50%;
     background: var(--success);
-    box-shadow: 0 0 0 0 var(--success);
-    animation: tagPulse 2s infinite;
     flex-shrink: 0;
-}
-@keyframes tagPulse {
-    0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
-    70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 .inbox-section-tag .icon-svg {
     color: var(--primary);
@@ -200,6 +177,9 @@
     gap: 14px;
 }
 
+/* ============================================
+   ORDER CARD — NO ANIMASI (anti kelap-kelip)
+   ============================================ */
 .order-card {
     background: var(--bg-card);
     border: 2px solid var(--border-dark);
@@ -209,18 +189,8 @@
     transition: box-shadow var(--transition), transform var(--transition);
     position: relative;
     overflow: hidden;
-    animation: cardEnter 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+    /* ❌ TIDAK ADA animation */
 }
-.orders-list > .order-card:nth-child(1) { animation-delay: 0.02s; }
-.orders-list > .order-card:nth-child(2) { animation-delay: 0.06s; }
-.orders-list > .order-card:nth-child(3) { animation-delay: 0.10s; }
-.orders-list > .order-card:nth-child(4) { animation-delay: 0.14s; }
-.orders-list > .order-card:nth-child(5) { animation-delay: 0.18s; }
-@keyframes cardEnter {
-    from { opacity: 0; transform: translateY(12px) scale(0.98); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 .order-card:hover {
     box-shadow: var(--shadow-hard);
     transform: translateY(-2px);
@@ -275,14 +245,12 @@
     flex-wrap: wrap;
 }
 
-/* ===== INISIAL APP ===== */
+/* ===== INISIAL APP — NO ANIMASI ===== */
 .order-app-icon {
     width: 46px;
     height: 46px;
     border-radius: 13px;
     background: linear-gradient(135deg, var(--purple) 0%, var(--primary) 100%);
-    background-size: 200% 200%;
-    animation: iconGradient 6s ease infinite;
     border: 2.5px solid var(--border-dark);
     display: flex;
     align-items: center;
@@ -297,28 +265,13 @@
     position: relative;
     overflow: hidden;
     transition: transform var(--transition);
-}
-@keyframes iconGradient {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    /* ❌ TIDAK ADA animation iconGradient */
 }
 .order-card:hover .order-app-icon {
     transform: scale(1.05) rotate(-3deg);
 }
-.order-app-icon::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-    animation: inboxShine 3.5s infinite;
-}
-@keyframes inboxShine {
-    0% { left: -100%; }
-    100% { left: 100%; }
-}
+/* ❌ HAPUS .order-app-icon::after shine animation */
+
 .order-app-icon .icon-fallback {
     font-size: 1.35rem;
     font-weight: 900;
@@ -357,7 +310,7 @@
 }
 .order-status-badge { flex-shrink: 0; }
 
-/* ===== COUNTDOWN ===== */
+/* ===== COUNTDOWN (NO animasi, hanya warna) ===== */
 .order-countdown {
     display: inline-flex;
     align-items: center;
@@ -372,21 +325,7 @@
     color: var(--warning-dark);
     margin-top: 6px;
     position: relative;
-    overflow: hidden;
-}
-.order-countdown::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 3px;
-    background: currentColor;
-    animation: countdownBar 1s linear infinite;
-}
-@keyframes countdownBar {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    /* ❌ TIDAK ADA animation */
 }
 [data-theme="dark"] .order-countdown {
     background: rgba(251, 191, 36, 0.15);
@@ -494,7 +433,7 @@
 .copy-inline .icon-svg { width: 13px; height: 13px; }
 .copy-inline.copied { color: var(--success); }
 
-/* ===== OTP BOX ===== */
+/* ===== OTP BOX — NO animasi ===== */
 .otp-box {
     background: var(--success-light);
     border: 2px solid var(--success-dark);
@@ -515,21 +454,8 @@
     background: rgba(16, 185, 129, 0.15);
     border-color: var(--success);
 }
-.otp-box::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: linear-gradient(45deg, transparent 40%, rgba(255,255,255,.2) 50%, transparent 60%);
-    pointer-events: none;
-    animation: otpShine 4s infinite;
-}
-@keyframes otpShine {
-    0% { transform: translateX(-100%) rotate(45deg); }
-    100% { transform: translateX(100%) rotate(45deg); }
-}
+/* ❌ HAPUS .otp-box::before shine animation */
+
 .otp-icon {
     width: 42px;
     height: 42px;
@@ -576,7 +502,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color var(--transition), color var(--transition), transform .15s;
+    transition: background-color var(--transition), color var(--transition);
     flex-shrink: 0;
     position: relative;
     z-index: 1;
@@ -586,9 +512,7 @@
 .otp-copy:hover {
     background: var(--success);
     color: white;
-    transform: scale(1.05);
 }
-.otp-copy:active { transform: scale(0.95); }
 .otp-copy .icon-svg { width: 18px; height: 18px; }
 
 /* ===== SMS BOX ===== */
@@ -737,11 +661,6 @@
     justify-content: center;
     color: var(--primary);
     box-shadow: var(--shadow-hard-sm);
-    animation: emptyFloat 3s ease-in-out infinite;
-}
-@keyframes emptyFloat {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
 }
 .empty-inbox .icon-box .icon-svg { width: 32px; height: 32px; }
 .empty-inbox h3 {
@@ -860,7 +779,7 @@
 }
 
 /* ============================================
-   DETAIL MODAL
+   DETAIL MODAL (NO animasi di overlay)
    ============================================ */
 .detail-modal-overlay {
     position: fixed;
@@ -876,11 +795,7 @@
 }
 .detail-modal-overlay.active {
     display: flex;
-    animation: overlayReveal .22s ease-out both;
-}
-@keyframes overlayReveal {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    /* ❌ TIDAK ADA animation overlayReveal */
 }
 .detail-modal {
     background: var(--bg-card);
@@ -892,11 +807,7 @@
     max-height: 90vh;
     overflow-y: auto;
     position: relative;
-    animation: modalReveal .3s cubic-bezier(.2,.8,.2,1) both;
-}
-@keyframes modalReveal {
-    from { opacity: 0; transform: translateY(18px) scale(.96); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    /* ❌ TIDAK ADA animation modalReveal */
 }
 
 .detail-modal-header {
@@ -929,16 +840,7 @@
     position: relative;
     overflow: hidden;
 }
-.detail-modal-app::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
-    animation: inboxShine 3.5s infinite;
-}
+/* ❌ HAPUS .detail-modal-app::after shine */
 .detail-modal-app .icon-fallback {
     font-size: 1.5rem;
     font-weight: 900;
@@ -980,7 +882,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s, color 0.15s, border-color 0.15s, transform .15s;
+    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
     flex-shrink: 0;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
@@ -989,7 +891,6 @@
     background: var(--danger);
     color: white;
     border-color: var(--danger);
-    transform: rotate(90deg);
 }
 .detail-modal-close .icon-svg { width: 16px; height: 16px; }
 
@@ -1087,14 +988,13 @@
     font-size: 0.72rem;
     font-weight: 800;
     cursor: pointer;
-    transition: background-color 0.15s, transform .15s;
+    transition: background-color 0.15s;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     box-shadow: var(--shadow-hard-sm);
 }
 .detail-otp-highlight .copy-btn:hover {
     background: var(--success-dark);
-    transform: translateY(-1px);
 }
 .detail-otp-highlight .copy-btn .icon-svg { width: 12px; height: 12px; }
 
