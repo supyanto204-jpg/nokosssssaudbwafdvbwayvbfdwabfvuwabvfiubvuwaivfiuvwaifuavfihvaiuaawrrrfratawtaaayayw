@@ -3786,34 +3786,38 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
             });
             const products = await premiumFetch(`/catalog/products?${params.toString()}`);
 
-            providers = (products || []).map(p => {
-                const providerPrice = premiumMoneyToIdr(p.price);
-                const sellPrice = applyMarkup(providerPrice);
-                const providerId = String(p.id || p.product_id || '').trim();
+            providers = (products || [])
+    .filter(p => p.active !== false)  // ← skip product yang inactive
+    .map(p => {
+        const providerPrice = premiumMoneyToIdr(p.price);
+        const sellPrice = applyMarkup(providerPrice);
+        const providerId = String(p.id || p.product_id || '').trim();
+        const stockVal = Number(p.available) || 0;  // ← SMSCode pakai "available"
 
-                if (providerId && sellPrice > 0) {
-                    setPriceLock(providerId, sellPrice, providerPrice, {
-                        server, service, country, provider: 'premium',
-                        product_id: providerId,
-                        catalog_product_id: p.catalog_product_id || null,
-                        operator_id: p.operator_id || null,
-                    });
-                }
-
-                return {
-                    id: providerId,
-                    provider_id: providerId,
-                    product_id: providerId,
-                    catalog_product_id: p.catalog_product_id || null,
-                    operator_id: p.operator_id || null,
-                    operator_name: p.operator_name || null,
-                    name: p.name || `${serviceObj.name} ${countryObj.name}`,
-                    available: Number(p.available) || 0,
-                    active: p.active !== false,
-                    price_idr: sellPrice,
-                    _provider_price: providerPrice,
-                };
+        if (providerId && sellPrice > 0) {
+            setPriceLock(providerId, sellPrice, providerPrice, {
+                server, service, country, provider: 'premium',
+                product_id: providerId,
+                catalog_product_id: p.catalog_product_id || null,
+                operator_id: p.operator_id || null,
             });
+        }
+
+        return {
+            id: providerId,
+            provider_id: providerId,
+            product_id: providerId,
+            catalog_product_id: p.catalog_product_id || null,
+            operator_id: p.operator_id || null,
+            operator_name: p.operator_name || null,
+            name: p.name || `${serviceObj.name} ${countryObj.name}`,
+            available: stockVal,
+            stock: stockVal,              // ← FRONTEND EXPECT 'stock'
+            active: p.active !== false,
+            price_idr: sellPrice,
+            _provider_price: providerPrice,
+        };
+    });
         }
 
         const response = { server, service, country, providers };
