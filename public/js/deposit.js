@@ -1008,3 +1008,638 @@
             modal.classList.remove('active');
             if (!document.querySelector('.modal-overlay.active')) {
                 document.body.classList.remove('modal-open');
+            }
+        }
+    }
+
+    /* ============================================
+       SUCCESS
+       ============================================ */
+    function showSuccess(deposit) {
+        stopPolling();
+        stopCountdown();
+        clearState();
+
+        const saldoMasuk = Number(deposit.amount);
+        const isManual = deposit.method === 'qris_dana';
+        let totalBayar, fee;
+
+        if (isManual) {
+            fee = Number(deposit.unique_code) || Number(deposit.fee) || 0;
+            totalBayar = Number(deposit.total_amount) || (saldoMasuk + fee);
+        } else {
+            totalBayar = Number(deposit.total_amount) || Number(state.deposit?.total_amount) || saldoMasuk;
+            fee = Number(deposit.fee) || Number(state.deposit?.fee) || Math.max(0, totalBayar - saldoMasuk);
+        }
+
+        document.getElementById('modalPaymentContent').innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Deposit Berhasil</div>
+                <button class="modal-close" type="button" data-modal-close>
+                    ${ICONS.close}
+                </button>
+            </div>
+            <div style="text-align:center;padding:20px 0;">
+                <div class="success-icon">${ICONS.check}</div>
+                <h2 style="font-family:var(--font-display);font-size:1.4rem;font-weight:800;margin-bottom:8px;">Deposit Berhasil!</h2>
+                <p style="color:var(--text-gray);font-size:0.9rem;margin-bottom:20px;">
+                    Saldo <strong style="color:var(--primary);font-family:var(--font-mono);">${formatRupiah(saldoMasuk)}</strong> udah masuk ke akun kamu.
+                </p>
+
+                <div class="detail-list" style="text-align:left;">
+                    <div class="detail-row">
+                        <span class="detail-label">Reference ID</span>
+                        <span class="detail-value">${deposit.reference_id || '—'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Metode</span>
+                        <span class="detail-value">${deposit.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Total Bayar</span>
+                        <span class="detail-value">${formatRupiah(totalBayar)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Fee</span>
+                        <span class="detail-value warning">${formatRupiah(fee)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Saldo Masuk</span>
+                        <span class="detail-value success">${formatRupiah(saldoMasuk)}</span>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-block" id="btnSelesai" type="button" style="margin-top:16px;">
+                    ${ICONS.check}
+                    Selesai
+                </button>
+            </div>
+        `;
+        openModal('modalPayment');
+
+        document.getElementById('btnSelesai').addEventListener('click', () => {
+            closeModal('modalPayment');
+            location.reload();
+        });
+
+        CacheManagerRemove('user_profile');
+        invalidateHistoryCache();
+        loadHistory(state.historyPage);
+
+        setTimeout(() => {
+            swrFetch('/api/user', 'user_profile', (user) => {
+                if (!user) return;
+                document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                document.getElementById('saldoSekarang').textContent = formatRupiah(user.balance);
+            });
+        }, 500);
+    }
+
+    /* ============================================
+       HISTORY
+       ============================================ */
+    function getHistoryCacheKey(page) {
+        return `deposit_history_p${page}_l${state.historyLimit}`;
+    }
+
+    function invalidateHistoryCache() {
+        Object.keys(localStorage)
+            .filter(k => k.startsWith('asyrofotp_cache_deposit_history_'))
+            .forEach(k => localStorage.removeItem(k));
+    }
+
+    async function loadHistory(page = 1) {
+        state.historyPage = page;
+        const container = document.getElementById('historyList');
+        const cacheKey = getHistoryCacheKey(page);
+
+        const cached = CacheManagerGet(cacheKey);
+        if (cached && cached.value) {
+            renderHistory(cached.value, page);
+            if (cached.value.deposits && cached.value.deposits.length > 0) {
+                markHistoryUpdating(true);
+            }
+        } else {
+            renderHistorySkeleton();
+        }
+
+        try {
+            const res = await fetch(`/api/deposit/history?page=${page}&limit=${state.historyLimit}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await safeJson(res);
+
+            if (!data.deposits) {
+                renderHistoryEmpty();
+                return;
+            }
+
+            CacheManagerSet(cacheKey, data);
+            renderHistory(data, page);
+
+            const pendingIds = data.deposits
+                .filter(d => d.status === 'pending')
+                .map(d => d.reference_id);
+
+            if (pendingIds.length > 0) {
+                syncVisibleDeposits(pendingIds, page);
+            }
+        } catch (err) {
+            console.error('Load history error:', err);
+            if (!cached) {
+                container.innerHTML = `
+                    <div class="empty-block">
+                        <div class="icon-box">${ICONS.warning}</div>
+                        <h3>Gagal memuat riwayat</h3>
+                        <p>${err.message || 'Coba refresh halaman'}</p>
+                    </div>
+                `;
+            }
+        } finally {
+            markHistoryUpdating(false);
+        }
+    }
+
+    function renderHistory(data, page) {
+        const container = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+
+        if (!data.deposits || data.deposits.length === 0) {
+            renderHistoryEmpty();
+            return;
+        }
+
+        const statusMap = {
+            success: { class: 'success', label: 'Berhasil', icon: ICONS.check },
+            pending: { class: 'pending', label: 'Pending', icon: ICONS.clock },
+            failed: { class: 'failed', label: 'Gagal', icon: ICONS.close },
+            cancelled: { class: 'cancelled', label: 'Dibatalkan', icon: ICONS.close },
+            expired: { class: 'expired', label: 'Expired', icon: ICONS.clock },
+        };
+
+        const now = Date.now();
+        container.innerHTML = `<div class="history-list">` + data.deposits.map(d => {
+            const s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
+            const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA';
+
+            const created = new Date(d.created_at).getTime();
+            const diff = Math.floor((now - created) / 1000);
+            let relativeTime = '';
+            if (diff < 60) relativeTime = `${diff}s lalu`;
+            else if (diff < 3600) relativeTime = `${Math.floor(diff/60)}m lalu`;
+            else if (diff < 86400) relativeTime = `${Math.floor(diff/3600)}j lalu`;
+            else relativeTime = `${Math.floor(diff/86400)}h lalu`;
+
+            const badgeClass = s.class === 'success' ? 'success' : s.class === 'pending' ? 'warning' : (s.class === 'expired' ? 'gray' : 'danger');
+            return `
+                <button class="history-card ${s.class}" type="button" data-deposit='${JSON.stringify(d).replace(/'/g, "&apos;")}' data-ref="${d.reference_id}">
+                    <div class="history-icon ${s.class}">${s.icon}</div>
+                    <div class="history-info">
+                        <div class="history-title">${methodLabel}</div>
+                        <div class="history-meta">${relativeTime} · ${d.reference_id || '—'}</div>
+                    </div>
+                    <div class="history-right">
+                        <div class="history-amount">${formatRupiah(d.total_amount || d.amount)}</div>
+                        <span class="badge ${badgeClass}">${s.label}</span>
+                    </div>
+                </button>
+            `;
+        }).join('') + `</div>`;
+
+        if (data.totalPages > 1) {
+            paginationEl.style.display = 'flex';
+            paginationEl.innerHTML = `
+                <button class="page-btn" type="button" data-page="${page - 1}" ${!data.hasPrev ? 'disabled' : ''}>
+                    ${ICONS.arrowLeft}
+                    Prev
+                </button>
+                <span class="page-info">Halaman ${data.page} dari ${data.totalPages}</span>
+                <button class="page-btn" type="button" data-page="${page + 1}" ${!data.hasNext ? 'disabled' : ''}>
+                    Next
+                    ${ICONS.arrowRight}
+                </button>
+            `;
+
+            paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const p = Number(btn.dataset.page);
+                    if (p >= 1 && p <= data.totalPages) {
+                        loadHistory(p);
+                        const histSection = document.querySelector('.history-section');
+                        if (histSection) {
+                            window.scrollTo({ top: histSection.offsetTop - 100, behavior: 'smooth' });
+                        }
+                    }
+                });
+            });
+        } else {
+            paginationEl.style.display = 'none';
+        }
+
+        container.querySelectorAll('.history-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const deposit = JSON.parse(card.dataset.deposit.replace(/&apos;/g, "'"));
+                showDetailModal(deposit);
+            });
+        });
+    }
+
+    function renderHistorySkeleton() {
+        const container = document.getElementById('historyList');
+        container.innerHTML = `
+            <div class="history-list">
+                ${Array(3).fill(0).map(() => `
+                    <div class="history-card skeleton-card">
+                        <div class="history-icon" style="background: var(--bg-light); border-color: var(--border);">
+                            <span class="loading-spinner loading-spinner-sm"></span>
+                        </div>
+                        <div class="history-info">
+                            <div class="skeleton" style="height: 14px; width: 60%; margin-bottom: 6px;"></div>
+                            <div class="skeleton" style="height: 11px; width: 80%;"></div>
+                        </div>
+                        <div class="history-right">
+                            <div class="skeleton" style="height: 14px; width: 70px; margin-bottom: 6px;"></div>
+                            <div class="skeleton" style="height: 18px; width: 60px; border-radius: 50px;"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function renderHistoryEmpty() {
+        const container = document.getElementById('historyList');
+        const paginationEl = document.getElementById('pagination');
+        container.innerHTML = `
+            <div class="empty-block">
+                <div class="icon-box">${ICONS.wallet}</div>
+                <h3>Belum ada riwayat deposit</h3>
+                <p>Deposit pertama kamu bakal muncul di sini.</p>
+            </div>
+        `;
+        paginationEl.style.display = 'none';
+    }
+
+    function markHistoryUpdating(isUpdating) {
+        const section = document.querySelector('.history-section');
+        if (!section) return;
+
+        let indicator = section.querySelector('.history-updating');
+        if (isUpdating) {
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.className = 'history-updating';
+                indicator.innerHTML = '<span class="loading-spinner loading-spinner-sm"></span> Sync...';
+                section.querySelector('.section-label').appendChild(indicator);
+            }
+        } else {
+            if (indicator) indicator.remove();
+        }
+    }
+
+    async function syncVisibleDeposits(referenceIds, page) {
+        if (!referenceIds || referenceIds.length === 0) return;
+
+        try {
+            const res = await securePost('/api/deposit/sync-batch', {
+                reference_ids: referenceIds
+            }, 'deposit_sync');
+
+            const data = await safeJson(res);
+            if (!data.updated || data.updated.length === 0) return;
+
+            const cacheKey = getHistoryCacheKey(page);
+            const cached = CacheManagerGet(cacheKey);
+
+            if (cached && cached.value && cached.value.deposits) {
+                const updatedMap = new Map(data.updated.map(d => [d.reference_id, d]));
+                cached.value.deposits = cached.value.deposits.map(d =>
+                    updatedMap.get(d.reference_id) || d
+                );
+                CacheManagerSet(cacheKey, cached.value);
+                renderHistory(cached.value, page);
+
+                const hasSuccess = data.updated.some(d => d.status === 'success');
+                if (hasSuccess) {
+                    CacheManagerRemove('user_profile');
+                    swrFetch('/api/user', 'user_profile', (user) => {
+                        if (!user) return;
+                        document.getElementById('userBalance').textContent = formatRupiah(user.balance);
+                        document.getElementById('balancePill').textContent = formatRupiah(user.balance);
+                        document.getElementById('saldoSekarang').textContent = formatRupiah(user.balance);
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('Sync visible error:', err);
+        }
+    }
+
+    /* ============================================
+       DETAIL MODAL
+       ============================================ */
+    async function showDetailModal(d) {
+        const cacheKey = getHistoryCacheKey(state.historyPage);
+        const cached = CacheManagerGet(cacheKey);
+        if (cached && cached.value && cached.value.deposits) {
+            const fresh = cached.value.deposits.find(x => x.reference_id === d.reference_id);
+            if (fresh) d = { ...d, ...fresh };
+        }
+
+        const statusMap = {
+            success: { class: 'success', label: 'BERHASIL', icon: ICONS.check },
+            pending: { class: 'pending', label: 'PENDING', icon: ICONS.clock },
+            failed: { class: 'failed', label: 'GAGAL', icon: ICONS.close },
+            cancelled: { class: 'cancelled', label: 'DIBATALKAN', icon: ICONS.close },
+            expired: { class: 'expired', label: 'EXPIRED', icon: ICONS.clock },
+        };
+
+        const s = statusMap[d.status] || { class: 'pending', label: d.status?.toUpperCase() || '—', icon: ICONS.clock };
+        const methodLabel = d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA Manual';
+        const saldoMasuk = Number(d.amount);
+
+        let fee, totalBayar;
+        if (d.method === 'qris_dana') {
+            fee = Number(d.unique_code) || Number(d.fee) || 0;
+            totalBayar = Number(d.total_amount) || (saldoMasuk + fee);
+        } else {
+            totalBayar = Number(d.total_amount) || saldoMasuk;
+            fee = Number(d.fee) || Math.max(0, totalBayar - saldoMasuk);
+        }
+
+        const formatDate = (date) => {
+            if (!date) return '—';
+            return new Date(date).toLocaleString('id-ID', {
+                day: '2-digit', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+        };
+
+        const feeLoading = d.method === 'qrispy' && fee === 0 && d.status !== 'expired' && d.status !== 'cancelled' && d.status !== 'failed';
+        const showQr = d.status === 'pending' && d.qris_url;
+
+        document.getElementById('modalDetailContent').innerHTML = `
+            <div class="modal-header">
+                <div class="modal-title">Detail Deposit</div>
+                <button class="modal-close" type="button" data-modal-close>
+                    ${ICONS.close}
+                </button>
+            </div>
+
+            <div class="detail-header">
+                <div class="detail-icon ${s.class}">${s.icon}</div>
+                <h2>${formatRupiah(saldoMasuk)}</h2>
+                <p>${methodLabel}</p>
+            </div>
+
+            ${showQr ? `
+                <div class="detail-qr-preview">
+                    <div class="qr-wrapper">
+                        <img src="${d.qris_url}" alt="QR Code" id="detailQrImage" crossorigin="anonymous">
+                    </div>
+                    <button class="btn-download-qr" id="btnDownloadDetailQr" type="button" style="margin-top:12px;">
+                        ${ICONS.download}
+                        Download QR
+                    </button>
+                </div>
+            ` : ''}
+
+            <div class="detail-list">
+                <div class="detail-row">
+                    <span class="detail-label">Reference ID</span>
+                    <span class="detail-value">${d.reference_id || '—'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value ${s.class}">${s.label}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Metode</span>
+                    <span class="detail-value">${methodLabel}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Saldo Top Up</span>
+                    <span class="detail-value">${formatRupiah(saldoMasuk)}</span>
+                </div>
+                ${d.unique_code ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Kode Unik</span>
+                        <span class="detail-value warning">+${d.unique_code}</span>
+                    </div>
+                ` : ''}
+                <div class="detail-row">
+                    <span class="detail-label">Fee</span>
+                    <span class="detail-value warning" id="detailFee">
+                        ${feeLoading ? '<span class="inline-loader"></span>' : formatRupiah(fee)}
+                    </span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Total Bayar</span>
+                    <span class="detail-value highlight" id="detailTotal">${formatRupiah(totalBayar)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Saldo Diterima</span>
+                    <span class="detail-value success">${formatRupiah(saldoMasuk)}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Dibuat</span>
+                    <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.created_at)}</span>
+                </div>
+                ${d.expires_at ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Kedaluwarsa</span>
+                        <span class="detail-value" style="font-size:0.78rem;">${formatDate(d.expires_at)}</span>
+                    </div>
+                ` : ''}
+                ${d.paid_at ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Dibayar</span>
+                        <span class="detail-value success" style="font-size:0.78rem;">${formatDate(d.paid_at)}</span>
+                    </div>
+                ` : ''}
+            </div>
+
+            <div class="detail-actions">
+                <button class="btn btn-block" type="button" id="btnCopyRef">
+                    ${ICONS.copy}
+                    Copy Reference ID
+                </button>
+            </div>
+        `;
+
+        openModal('modalDetail');
+
+        document.getElementById('btnCopyRef').addEventListener('click', async () => {
+            navigator.clipboard.writeText(d.reference_id || '').then(() => {
+                const btn = document.getElementById('btnCopyRef');
+                const original = btn.innerHTML;
+                btn.innerHTML = `${ICONS.check} Copied!`;
+                setTimeout(() => btn.innerHTML = original, 1500);
+            });
+        });
+
+        if (showQr) {
+            document.getElementById('btnDownloadDetailQr')?.addEventListener('click', () => downloadQRDetail());
+        }
+
+        if (feeLoading && d.qris_id) {
+            try {
+                let transaction = null;
+                try {
+                    const res = await fetch(`${QRISPY_BASE}/api/payment/transactions?qris_id=${d.qris_id}`);
+                    const data = await safeJson(res);
+                    if (Array.isArray(data.data)) {
+                        transaction = data.data.find(t => t.payment_reference === d.reference_id || t.qris_id === d.qris_id);
+                    } else if (data.data && typeof data.data === 'object') {
+                        transaction = data.data;
+                    }
+                } catch (e) {
+                    try {
+                        const res2 = await fetch(`${QRISPY_BASE}/api/payment/qris/${d.qris_id}/status`);
+                        const data2 = await safeJson(res2);
+                        transaction = data2.data;
+                    } catch (e2) {}
+                }
+
+                const feeEl = document.getElementById('detailFee');
+                const totalEl = document.getElementById('detailTotal');
+
+                if (transaction) {
+                    const total = Number(transaction.amount) || totalBayar;
+                    const feeCalc = Math.max(0, total - saldoMasuk);
+                    if (feeEl) feeEl.textContent = formatRupiah(feeCalc);
+                    if (totalEl) totalEl.textContent = formatRupiah(total);
+
+                    securePost(`/api/deposit/${d.reference_id}/update-fee`, {
+                        total_amount: total,
+                        fee: feeCalc
+                    }, 'deposit_fee').catch(() => {});
+                } else {
+                    if (feeEl) feeEl.textContent = 'Rp0';
+                }
+            } catch (err) {
+                const feeEl = document.getElementById('detailFee');
+                if (feeEl) feeEl.textContent = 'Rp0';
+            }
+        }
+    }
+
+    async function downloadQRDetail() {
+        const qrImg = document.getElementById('detailQrImage');
+        if (!qrImg) return;
+
+        try {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const size = 600;
+            const padding = 40;
+            const topSpace = 60;
+            const bottomSpace = 60;
+
+            canvas.width = size;
+            canvas.height = size;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+
+            ctx.fillStyle = '#2563eb';
+            ctx.font = 'bold 24px "Bricolage Grotesque", Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('AsyrofOTP', size / 2, topSpace / 2);
+
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = qrImg.src;
+            });
+
+            const qrSize = size - (padding * 2);
+            ctx.drawImage(img, padding, topSpace, qrSize, qrSize - (bottomSpace - topSpace) / 2);
+
+            const refEl = document.querySelector('#modalDetailContent .detail-row .detail-value');
+            ctx.fillStyle = '#64748b';
+            ctx.font = '14px "JetBrains Mono", monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(refEl?.textContent || '', size / 2, size - bottomSpace / 2);
+
+            const link = document.createElement('a');
+            link.download = `AsyrofOTP-QR-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        } catch (err) {
+            window.open(qrImg.src, '_blank');
+        }
+    }
+
+    /* ============================================
+       EVENT BINDINGS
+       ============================================ */
+    btnLanjut.addEventListener('click', () => {
+        if (!state.amount || state.amount < 1000) return;
+        setStep(2);
+        openModal('modalMethod');
+    });
+
+    document.addEventListener('click', (e) => {
+        const closeBtn = e.target.closest('[data-modal-close]');
+        if (closeBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const modal = closeBtn.closest('.modal-overlay');
+            if (modal) {
+                closeModal(modal.id);
+                if (modal.id === 'modalMethod' && !state.method) setStep(1);
+            }
+            return;
+        }
+
+        if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+            closeModal(e.target.id);
+            if (e.target.id === 'modalMethod' && !state.method) setStep(1);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) {
+                closeModal(activeModal.id);
+                if (activeModal.id === 'modalMethod' && !state.method) setStep(1);
+            }
+        }
+    });
+
+    /* ============================================
+       LOGOUT
+       ============================================ */
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        try {
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (err) {}
+        if (window.CacheManager && window.CacheManager.clear) window.CacheManager.clear();
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('user');
+        window.location.href = '/landing';
+    });
+
+    /* ============================================
+       INIT
+       ============================================ */
+    restoreState();
+    updateButton();
+    loadPresets();
+    loadMethods();
+    loadHistory(1);
+
+    window.addEventListener('beforeunload', () => {
+        stopPolling();
+        stopCountdown();
+    });
+
+})();
