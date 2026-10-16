@@ -367,8 +367,16 @@
         })[ch]);
     }
 
+    /* Ambil inisial 1 huruf dari nama app */
+    function getInitialLetter(name) {
+        const str = String(name || '').trim();
+        if (!str) return '?';
+        const first = str.charAt(0).toUpperCase();
+        return /[A-Z0-9]/.test(first) ? first : '#';
+    }
+
     /* ============================================
-       SANITIZER — semua field yang dibutuhkan frontend
+       SANITIZER
        ============================================ */
     const ALLOWED_ORDER_FIELDS = new Set([
         'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
@@ -686,8 +694,13 @@
             fetch('/api/nokos/orders?status=pending&limit=50', { headers: { 'Authorization': `Bearer ${token}` } }),
             fetch('/api/nokos/orders?status=success&limit=20', { headers: { 'Authorization': `Bearer ${token}` } }),
         ]);
-        const pendingData = await safeJson(pendingRes);
-        const successData = await safeJson(successRes);
+
+        const pendingRaw = await safeJson(pendingRes);
+        const successRaw = await safeJson(successRes);
+
+        // Support dua format: { orders } atau { data: { orders } }
+        const pendingData = pendingRaw?.data || pendingRaw || {};
+        const successData = successRaw?.data || successRaw || {};
 
         const now = Date.now();
         const FIVE_MIN = 5 * 60 * 1000;
@@ -719,9 +732,9 @@
         const cacheKey = getActiveOrdersCacheKey();
         const cached = CacheManager.get(cacheKey);
 
-        if (cached && cached.value) {
-            activeState.allOrders = cached.value.orders || [];
-            renderActiveOrders(cached.value.orders || []);
+        if (cached && cached.value && Array.isArray(cached.value.orders) && cached.value.orders.length > 0) {
+            activeState.allOrders = cached.value.orders;
+            renderActiveOrders(cached.value.orders);
         }
 
         if (_loadActiveInFlight) return;
@@ -732,24 +745,33 @@
 
         try {
             const merged = await fetchActiveOrders();
+
             merged.forEach(o => {
                 const otpId = String(o.otp_id || '').trim();
                 const realId = String(o.raw_id || o.order_id || '').trim();
                 if (otpId && realId) ORDER_ID_MAP.set(otpId, realId);
             });
+
             activeState.allOrders = merged;
+
             const safeOrders = merged.map(o => {
                 const { raw_id, order_id, ...rest } = o;
                 return rest;
             });
-            CacheManager.set(cacheKey, { orders: safeOrders });
+            if (safeOrders.length > 0) {
+                CacheManager.set(cacheKey, { orders: safeOrders });
+            } else {
+                CacheManager.remove(cacheKey);
+            }
+
             renderActiveOrders(merged);
             activeState.initialLoadDone = true;
         } catch (err) {
             if (err.name === 'AbortError') return;
-            if (!cached && !activeState.initialLoadDone) {
+            if (activeState.allOrders.length === 0) {
                 const container = document.getElementById('activeOrders');
                 if (container) {
+                    container.className = '';
                     container.innerHTML = `
                         <div class="empty-orders">
                             <div class="icon-box">${ICONS.warning}</div>
@@ -788,7 +810,7 @@
     }
 
     /* ============================================
-       BUILD CARD — NOMOR URUT (TANPA ICON)
+       BUILD CARD — INISIAL APP (TANPA ANGKA)
        ============================================ */
     function buildActiveCardHtml(o, cardIndex) {
         const isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
@@ -814,7 +836,7 @@
         const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
         const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
 
-        const displayNumber = String(cardIndex + 1).padStart(2, '0');
+        const displayInitial = getInitialLetter(serviceDisplayName);
 
         let countdownHtml = '';
         if (hasValidCountdown) {
@@ -839,7 +861,7 @@
                  data-has-id="${hasApiId ? '1' : '0'}"
                  data-sig="">
                 <div class="aoc-header">
-                    <div class="aoc-card-number">${displayNumber}</div>
+                    <div class="aoc-card-number">${escapeHtml(displayInitial)}</div>
                     <div class="aoc-title-wrap">
                         <div class="aoc-title">
                             ${escapeHtml(serviceDisplayName)}
@@ -957,8 +979,7 @@
     }
 
     /* ============================================
-       RENDER ACTIVE ORDERS — empty state SELALU tampil
-       kalau tidak ada pesanan (hilang begitu ada pesanan)
+       RENDER ACTIVE ORDERS
        ============================================ */
     function renderActiveOrders(orders) {
         const container = document.getElementById('activeOrders');
@@ -966,9 +987,12 @@
         const pagEl = document.getElementById('activeOrdersPagination');
         if (!container) return;
 
-        const hasOrders = orders && orders.length > 0;
+        const hasOrders = Array.isArray(orders) && orders.length > 0;
 
         if (!hasOrders) {
+            // Kalau ada data lama → jangan hapus (biar tidak flicker)
+            if (activeState.allOrders.length > 0) return;
+
             container.className = '';
             container.innerHTML = `
                 <div class="empty-orders">
@@ -984,6 +1008,7 @@
             return;
         }
 
+        // Ada orders → pastikan class & count update
         activeState.hasRenderedOnce = true;
 
         if (countEl) {
@@ -997,9 +1022,14 @@
         const start = (activeState.page - 1) * activeState.limit;
         const pageOrders = orders.slice(start, start + activeState.limit);
 
+        // Pastikan grid class aktif
         if (!container.classList.contains('active-orders')) {
             container.className = 'active-orders';
         }
+
+        // Buang empty state sebelum render cards
+        const emptyEl = container.querySelector('.empty-orders');
+        if (emptyEl) emptyEl.remove();
 
         const existingCards = new Map();
         container.querySelectorAll(':scope > .aoc-card').forEach(card => {
@@ -1388,13 +1418,13 @@
         }
         content.innerHTML = `
             <div class="app-grid">
-                ${services.map((s, idx) => {
-                    const num = String(idx + 1).padStart(2, '0');
+                ${services.map((s) => {
+                    const initial = getInitialLetter(s.name);
                     return `
                         <button class="app-card" type="button"
                                 data-service="${escapeHtml(s.code)}"
                                 data-name="${escapeHtml(s.name)}">
-                            <div class="app-list-number">${num}</div>
+                            <div class="app-list-number">${escapeHtml(initial)}</div>
                             <div class="name">${escapeHtml(s.name)}</div>
                         </button>
                     `;
@@ -1420,7 +1450,7 @@
                 Ganti Aplikasi
             </button>
             <div class="app-selected-card">
-                <div class="app-list-number">✓</div>
+                <div class="app-list-number">${escapeHtml(getInitialLetter(state.serviceName))}</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">Aplikasi yang dipilih</div>
@@ -1506,7 +1536,7 @@
                 Ganti Negara
             </button>
             <div class="app-selected-card">
-                <div class="app-list-number">✓</div>
+                <div class="app-list-number">${escapeHtml(getInitialLetter(state.serviceName))}</div>
                 <div class="info">
                     <div class="name">${escapeHtml(state.serviceName || '')}</div>
                     <div class="sub">
@@ -1588,15 +1618,16 @@
         if (state.filter === 'murah') sorted.sort((a, b) => a.price_idr - b.price_idr);
         else sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
 
+        const serviceInitial = getInitialLetter(state.serviceName);
+
         content.innerHTML = `
             <div class="price-list">
                 ${sorted.map((p, i) => {
                     const stock = Number(p.stock) || Number(p.available) || 0;
                     const stockClass = stock === 0 ? 'out' : (stock < 50 ? 'low' : '');
-                    const num = String(i + 1).padStart(2, '0');
                     return `
                         <div class="price-item">
-                            <div class="app-list-number">${num}</div>
+                            <div class="app-list-number">${escapeHtml(serviceInitial)}</div>
                             <div class="price-info">
                                 <div class="price-title">
                                     Opsi ${i + 1}
@@ -1720,9 +1751,22 @@
     });
 
     /* ============================================
-       INIT — empty state SEKARANG, request paralel
+       INIT — loading state dulu, request paralel
        ============================================ */
-    renderActiveOrders([]);
+    (function initEmptyState() {
+        const container = document.getElementById('activeOrders');
+        if (!container) return;
+        container.className = '';
+        container.innerHTML = `
+            <div class="empty-orders">
+                <div class="icon-box">
+                    <span class="loading-spinner" style="width:24px;height:24px;border-width:2.5px;"></span>
+                </div>
+                <h3>Memuat pesanan...</h3>
+                <p>Sedang mengambil data pesanan aktif kamu.</p>
+            </div>
+        `;
+    })();
 
     (async () => {
         await Promise.allSettled([
