@@ -1,5 +1,5 @@
 // ============================================
-// ASYROFOTP - BACKEND API (FULL v16 - PRICE LOCK)
+// ASYROFOTP - BACKEND API (FULL v17 - SERVER PREMIUM)
 // PART 1/6: Header, Config, Security, Helpers
 // ============================================
 
@@ -137,7 +137,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -215,13 +215,30 @@ const API_CDN = process.env.API_CDN;
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
 const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
-const SERVER_CONFIG = {
-    ekonomi: { label: 'Server Ekonomi', desc: 'Harga terjangkau, khusus Indonesia', badge: 'MURAH', countries: ['id'] },
-    khusus: { label: 'Server Khusus', desc: 'Semua negara, stok lengkap', badge: 'LENGKAP', countries: null },
-    wa_luar: { label: 'Server Negara Luar', desc: 'Server luar negeri (non-Indonesia)', badge: 'LUAR', countries: null, excludeCountries: ['id'] },
-};
+// ===== ENV SMSCode (SERVER PREMIUM) — v1 · IDR =====
+const PREMIUM_BASE = 'https://api.smscode.gg/v1';
+const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
+const PREMIUM_WEBHOOK_SECRET = process.env.WEBHOOK_OTP2;
+if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
+if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
-const VALID_OPERATORS = ['any', 'telkomsel', 'indosat', 'axis', 'three', 'smartfren', 'byu'];
+// ===== SERVER CONFIG (hanya 2 server) =====
+const SERVER_CONFIG = {
+    ekonomi: {
+        label: 'Server Ekonomi',
+        desc: 'Harga terjangkau, khusus Indonesia',
+        badge: 'MURAH',
+        countries: ['id'],
+        provider: 'ekonomi',
+    },
+    premium: {
+        label: 'Server Premium',
+        desc: 'Semua negara, stok lengkap, real SIM',
+        badge: 'PREMIUM',
+        countries: null,
+        provider: 'premium',
+    },
+};
 
 const COUNTRY_NAMES = {
     id: 'Indonesia', ru: 'Russia', us: 'United States', my: 'Malaysia',
@@ -325,8 +342,12 @@ function setPriceLock(providerId, sellPrice, providerPrice, meta = {}) {
         provider_price: Number(providerPrice) || 0,
         locked_at: Date.now(),
         server: meta.server || null,
+        provider: meta.provider || null,
         service: meta.service || null,
         country: meta.country || null,
+        product_id: meta.product_id || null,
+        catalog_product_id: meta.catalog_product_id || null,
+        operator_id: meta.operator_id || null,
     });
 }
 
@@ -360,10 +381,33 @@ async function getServiceCodeMap() {
             if (normCode) map[normCode] = code;
         }
         cacheSet(cacheKey, map, 5 * 60 * 1000);
-        console.log(`✅ Service code map loaded: ${Object.keys(map).length} entries`);
+        console.log(`✅ Service code map (ekonomi): ${Object.keys(map).length} entries`);
         return map;
     } catch (err) {
         console.error('Get service code map error:', err.message);
+        return {};
+    }
+}
+
+async function getPremiumServiceCodeMap() {
+    const cacheKey = 'service_code_map_premium';
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+    try {
+        const services = await premiumFetch('/catalog/services');
+        const map = {};
+        for (const s of (services || [])) {
+            const code = String(s.code || '').trim().toLowerCase();
+            const name = String(s.name || '').trim();
+            if (!code) continue;
+            map[normalizeServiceName(name)] = code;
+            map[normalizeServiceName(code)] = code;
+        }
+        cacheSet(cacheKey, map, 30 * 60 * 1000);
+        console.log(`✅ Service code map (premium): ${Object.keys(map).length} entries`);
+        return map;
+    } catch (err) {
+        console.error('Premium service code map error:', err.message);
         return {};
     }
 }
@@ -373,11 +417,10 @@ async function enrichServicesWithCode(services, server) {
     if (server === 'ekonomi') {
         return services.map(s => ({ ...s, icon_code: s.code || null }));
     }
-    const codeMap = await getServiceCodeMap();
+    const codeMap = await getPremiumServiceCodeMap();
     return services.map(s => {
         const normName = normalizeServiceName(s.name);
-        const mappedIconCode = codeMap[normName] || null;
-        return { ...s, code: s.code, icon_code: mappedIconCode };
+        return { ...s, icon_code: codeMap[normName] || s.code || null };
     });
 }
 
@@ -407,7 +450,7 @@ const SERVERS_LIST = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
     desc: config.desc,
     badge: config.badge,
     countries: config.countries,
-    requiresOperator: !!config.requiresOperator,
+    provider: config.provider,
 }));
 
 // ============================================
@@ -555,6 +598,47 @@ async function dibananaFetch(endpoint, options = {}) {
     } finally { clearTimeout(timeout); }
 }
 
+// ============================================
+// ===== SMSCode (SERVER PREMIUM) FETCH — v1 IDR =====
+// ============================================
+async function premiumFetch(endpoint, options = {}) {
+    if (!PREMIUM_API_KEY) throw new Error('API_SERVER_PREMIUM belum di-set');
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${PREMIUM_BASE}${endpoint}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Authorization': `Bearer ${PREMIUM_API_KEY}`,
+                'Content-Type': 'application/json',
+                ...(options.headers || {}),
+            },
+        });
+        let data;
+        try { data = await res.json(); }
+        catch (e) {
+            const err = new Error(`Provider error: ${res.status}`);
+            err.status = res.status;
+            throw err;
+        }
+        if (!res.ok || data.success === false) {
+            const err = new Error(data.error?.message || data.message || 'Provider error');
+            err.status = res.status;
+            err.code = data.error?.code || data.code;
+            err.data = data;
+            throw err;
+        }
+        return data.data;
+    } finally { clearTimeout(timeout); }
+}
+
+// v1: money = integer IDR langsung. Gak ada konversi.
+function premiumMoneyToIdr(money) {
+    if (money == null) return 0;
+    return Math.round(Number(money) || 0);
+}
+
 async function getProviderBalance() {
     try {
         const data = await dibananaFetch('/balance');
@@ -563,6 +647,59 @@ async function getProviderBalance() {
     } catch (err) {
         return { ok: false, error: err.message, balance: 0 };
     }
+}
+
+// ============================================
+// ===== PROVIDER-AGNOSTIC HELPERS =====
+// ============================================
+async function providerOrderStatus(order) {
+    if (order.server === 'premium') {
+        const raw = await premiumFetch(`/orders/${encodeURIComponent(order.order_id)}`);
+        const mapStatus = (s) => {
+            switch (String(s || '').toUpperCase()) {
+                case 'OTP_RECEIVED': return 'received';
+                case 'COMPLETED':    return 'success';
+                case 'CANCELED':     return 'cancelled';
+                case 'EXPIRED':      return 'expired';
+                case 'ACTIVE':       return 'pending';
+                default:             return 'pending';
+            }
+        };
+        return {
+            status: mapStatus(raw.status),
+            otp_code: raw.otp_code || null,
+            otp_code_2: null,
+            full_sms: raw.otp_message || raw.full_sms || null,
+        };
+    }
+    return await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+}
+
+async function providerCancelOrder(order) {
+    if (order.server === 'premium') {
+        return await premiumFetch('/orders/cancel', {
+            method: 'POST',
+            body: JSON.stringify({ id: Number(order.order_id) }),
+        });
+    }
+    return await dibananaFetch('/cancel', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: Number(order.order_id) }),
+    });
+}
+
+async function providerResendOrder(order) {
+    if (order.server === 'premium') {
+        const raw = await premiumFetch('/orders/resend', {
+            method: 'POST',
+            body: JSON.stringify({ id: Number(order.order_id) }),
+        });
+        return { ...raw, status: 'pending' };
+    }
+    return await dibananaFetch('/resend', {
+        method: 'POST',
+        body: JSON.stringify({ order_id: Number(order.order_id) }),
+    });
 }
 
 // ============================================
@@ -676,6 +813,7 @@ async function notifyOtpSuccess(order, user = null) {
     }
 
     const displayId = order.otp_id || order.order_id || '-';
+    const serverLabel = order.server === 'premium' ? 'Premium' : 'Ekonomi';
 
     const text =
         `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
@@ -683,6 +821,7 @@ async function notifyOtpSuccess(order, user = null) {
         (user ? `<u>• User:</u> <b>${escapeHtmlNotif(user.username || user.name || '-')}</b>\n` : '') +
         (user ? `<u>• User ID:</u> <code>${escapeHtmlNotif(user.user_code || '-')}</code>\n` : '') +
         `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
+        `<u>• Server:</u> <b>${escapeHtmlNotif(serverLabel)}</b>\n` +
         `<u>• Service:</u> <b>${escapeHtmlNotif(order.service_name || order.service || '-')} - ${escapeHtmlNotif(order.country_name || order.country || '-')}</b>\n` +
         `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(order.phone_number))}</b>\n` +
         `<u>• Kode:</u> <b>${escapeHtmlNotif(order.otp_code || '-')}</b>\n` +
@@ -692,9 +831,7 @@ async function notifyOtpSuccess(order, user = null) {
 
     const replyMarkup = {
         inline_keyboard: [
-            [
-                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
-            ]
+            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
         ]
     };
 
@@ -737,9 +874,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
 
     const replyMarkup = {
         inline_keyboard: [
-            [
-                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }
-            ]
+            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
         ]
     };
 
@@ -1266,7 +1401,7 @@ const SCHEMA = {
 };
 
 // ============================================
-// ===== ENSURE SCHEMA (v16) =====
+// ===== ENSURE SCHEMA (v17) =====
 // ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
@@ -1278,7 +1413,7 @@ async function ensureSchema() {
     schemaPromise = (async () => {
         const start = Date.now();
         try {
-            console.log('🔧 Ensuring schema v16...');
+            console.log('🔧 Ensuring schema v17...');
 
             await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
                 if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
@@ -1388,7 +1523,7 @@ async function ensureSchema() {
             `).catch(() => {});
 
             schemaEnsured = true;
-            console.log(`✅ Schema v16 ensured in ${Date.now() - start}ms`);
+            console.log(`✅ Schema v17 ensured in ${Date.now() - start}ms`);
         } catch (err) {
             console.error('❌ Ensure schema failed:', err.message);
             schemaPromise = null;
@@ -1719,10 +1854,7 @@ async function autoCancelAndRefund(order) {
 
     let providerRefund = 0;
     try {
-        const cancelData = await dibananaFetch('/cancel', {
-            method: 'POST',
-            body: JSON.stringify({ order_id: Number(o.order_id) })
-        });
+        const cancelData = await providerCancelOrder(o);
         if (cancelData.refunded && Number(cancelData.refunded) > 0) {
             providerRefund = Number(cancelData.refunded);
         }
@@ -1821,7 +1953,7 @@ async function findUserOrder(userId, identifier) {
 }
 
 // ============================================
-// ===== AUTO SYNC ORDER =====
+// ===== AUTO SYNC ORDER (provider-agnostic) =====
 // ============================================
 async function autoSyncOrder(order) {
     if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
@@ -1835,7 +1967,7 @@ async function autoSyncOrder(order) {
     }
 
     try {
-        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+        const data = await providerOrderStatus(order);
         await pool.query(
             `UPDATE orders SET last_synced_at = NOW(), sync_attempt_count = sync_attempt_count + 1 WHERE id = $1`,
             [order.id]
@@ -2035,10 +2167,12 @@ app.get('/api/health', withDB(async (req, res) => {
         const base = { status: 'ok', time: result.rows[0].time };
         if (wantsDetail) {
             Object.assign(base, {
-                version: 'v16-price-lock',
+                version: 'v17-server-premium',
                 hasDibananaKey: !!DIBANANA_API_KEY,
+                hasPremiumKey: !!PREMIUM_API_KEY,
                 hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
                 hasWebhookOtp1: !!WEBHOOK_OTP1_SECRET,
+                hasWebhookOtp2: !!PREMIUM_WEBHOOK_SECRET,
                 hasJwtSecret: !!JWT_SECRET,
                 hasCronSecret: !!CRON_SECRET,
                 hasApiCdn: !!API_CDN,
@@ -2056,6 +2190,7 @@ app.get('/api/health', withDB(async (req, res) => {
                 depositFeeMax: DEPOSIT_FEE_MAX,
                 priceLockSize: priceLockCache.size,
                 priceLockMax: PRICE_LOCK_MAX_SIZE,
+                servers: Object.keys(SERVER_CONFIG),
             });
         }
         res.json(base);
@@ -2775,7 +2910,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== WEBHOOK OTP1 =====
+// ===== WEBHOOK OTP1 (dibanana · ekonomi) =====
 // ============================================
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     let signatureValid = false;
@@ -2982,8 +3117,254 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
 // ============================================
 
 // ============================================
-// PART 5B/6: CekOTP, Nokos Routes (PRICE LOCK)
+// PART 5B/6: Webhook OTP2, CekOTP, Nokos Routes
 // ============================================
+
+// ============================================
+// ===== WEBHOOK OTP2 (SERVER PREMIUM · SMSCode v1) =====
+// ============================================
+app.post('/api/webhook/otp2', withDB(async (req, res) => {
+    let signatureValid = false;
+    try {
+        if (!PREMIUM_WEBHOOK_SECRET) {
+            await logWebhookEvent({ source: 'otp2', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
+            return res.status(500).json({ error: 'Webhook secret not configured' });
+        }
+
+        // SMSCode: header = "sha256={HMAC-SHA256(body, webhook_secret)}"
+        const signature = req.headers['x-webhook-signature'];
+        if (!signature) {
+            await logWebhookEvent({ source: 'otp2', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
+            return res.status(401).json({ error: 'No signature' });
+        }
+
+        const rawBody = req.rawBody || JSON.stringify(req.body);
+        const expectedSig = 'sha256=' + crypto
+            .createHmac('sha256', PREMIUM_WEBHOOK_SECRET)
+            .update(rawBody)
+            .digest('hex');
+
+        const sigBuffer = Buffer.from(signature);
+        const expectedBuffer = Buffer.from(expectedSig);
+        if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+            await logWebhookEvent({ source: 'otp2', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
+            return res.status(401).json({ error: 'Invalid signature' });
+        }
+        signatureValid = true;
+
+        // Payload SMSCode: { event, timestamp, data: { order_id, phone_number, otp_code, otp_message, sms_revision, ... } }
+        const { event, data } = req.body || {};
+        if (!data || !data.order_id) {
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'MISSING_ORDER_ID' });
+            return res.status(400).json({ error: 'Missing order_id' });
+        }
+
+        const providerOrderId = String(data.order_id);
+        const orderRes = await pool.query('SELECT * FROM orders WHERE order_id = $1 LIMIT 1', [providerOrderId]);
+        if (orderRes.rows.length === 0) {
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'ORDER_NOT_FOUND', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.json({ status: 'ok', message: 'Order not found' });
+        }
+
+        const order = orderRes.rows[0];
+        const otpCode = data.otp_code || null;
+        const fullSms = data.otp_message || null;
+
+        // ---- Event: order.otp_received ----
+        if (event === 'order.otp_received' && (otpCode || fullSms)) {
+            const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
+            let revived = false;
+
+            if (isRevivable && otpCode) {
+                const orderAge = Date.now() - new Date(order.created_at).getTime();
+                if (orderAge <= REVIVE_GRACE_PERIOD_MS) {
+                    if (order.refunded_at && Number(order.refunded_at) > 0) {
+                        const refundAmount = Number(order.refunded_amount) || Number(order.price);
+                        const client = await pool.connect();
+                        try {
+                            await client.query('BEGIN');
+                            const deductRes = await client.query(
+                                `UPDATE users SET balance = balance - $1, updated_at = NOW()
+                                 WHERE id = $2 AND balance >= $1 RETURNING balance`,
+                                [refundAmount, order.user_id]
+                            );
+                            if (deductRes.rowCount === 0) {
+                                await client.query('ROLLBACK');
+                                console.error(`⚠️ Revive gagal: saldo user ${order.user_id} tidak cukup`);
+                            } else {
+                                await client.query(
+                                    `UPDATE orders 
+                                     SET status = 'received', otp_code = $1, full_sms = $2,
+                                         received_at = NOW(), refunded_at = NULL, refunded_amount = NULL,
+                                         refund_reason = 'revived_by_webhook',
+                                         revived_at = NOW(), revived_count = COALESCE(revived_count, 0) + 1,
+                                         updated_at = NOW()
+                                     WHERE id = $3`,
+                                    [otpCode, fullSms, order.id]
+                                );
+                                await client.query(
+                                    `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                                    [otpCode, String(order.order_id)]
+                                );
+                                await client.query(
+                                    `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                                     VALUES ('order', $1, $2, $3, 'received', 'webhook_revive', $4)`,
+                                    [String(order.order_id), order.user_id, order.status,
+                                     JSON.stringify({ otp_code: otpCode, refunded_balance_deducted: refundAmount, revived: true })]
+                                );
+                                await client.query('COMMIT');
+                                revived = true;
+                                console.log(`🔄 Order ${order.order_id} revived via webhook (premium)`);
+                            }
+                        } catch (err) {
+                            await client.query('ROLLBACK').catch(() => {});
+                            console.error('Revive error:', err.message);
+                        } finally {
+                            client.release();
+                        }
+                    } else {
+                        await pool.query(
+                            `UPDATE orders 
+                             SET status = 'received', otp_code = $1, full_sms = $2,
+                                 received_at = NOW(), revived_at = NOW(),
+                                 revived_count = COALESCE(revived_count, 0) + 1, updated_at = NOW()
+                             WHERE id = $3`,
+                            [otpCode, fullSms, order.id]
+                        );
+                        await pool.query(
+                            `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                            [otpCode, String(order.order_id)]
+                        );
+                        await logStatusChange({
+                            entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                            oldStatus: order.status, newStatus: 'received', reason: 'webhook_revive',
+                            metadata: { otp_code: otpCode, revived: true },
+                        });
+                        revived = true;
+                        console.log(`🔄 Order ${order.order_id} revived (no refund)`);
+                    }
+                }
+            }
+
+            if (!revived) {
+                const updateFields = [];
+                const updateParams = [];
+
+                if (otpCode) { updateFields.push(`otp_code = $${updateParams.length + 1}`); updateParams.push(otpCode); }
+                if (fullSms) { updateFields.push(`full_sms = $${updateParams.length + 1}`); updateParams.push(fullSms); }
+
+                updateFields.push(`status = $${updateParams.length + 1}`);
+                updateParams.push('received');
+                updateFields.push(`received_at = NOW()`);
+                updateFields.push(`updated_at = NOW()`);
+                updateParams.push(order.id);
+
+                await pool.query(
+                    `UPDATE orders SET ${updateFields.join(', ')} WHERE id = $${updateParams.length}`,
+                    updateParams
+                );
+
+                await pool.query(
+                    `UPDATE transactions SET status = 'success', otp_code = $1, updated_at = NOW() WHERE order_id = $2`,
+                    [otpCode || null, String(order.order_id)]
+                );
+
+                await logStatusChange({
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: 'received', reason: 'webhook_otp2',
+                    metadata: { otp_code: otpCode || null, has_full_sms: !!fullSms, sms_revision: data.sms_revision || null, otp_id: order.otp_id },
+                });
+            }
+
+            if (otpCode) {
+                try {
+                    const freshOrderRes = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                    if (freshOrderRes.rows[0]) {
+                        const user = await fetchUserForOrder(freshOrderRes.rows[0]);
+                        await notifyOtpSuccess(freshOrderRes.rows[0], user);
+                    }
+                } catch (err) {
+                    console.error('❌ Notif OTP (otp2) error:', err.message);
+                }
+            }
+
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: revived ? 'REVIVED' : 'OTP_UPDATED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.status(200).json({ status: 'ok', message: 'received', revived });
+        }
+
+        // ---- Event: order.completed ----
+        if (event === 'order.completed') {
+            if (order.status !== 'success' && order.status !== 'received') {
+                await pool.query(
+                    `UPDATE orders SET status = 'success', updated_at = NOW() WHERE id = $1`,
+                    [order.id]
+                );
+                await logStatusChange({
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: 'success', reason: 'webhook_otp2_completed',
+                    metadata: { otp_id: order.otp_id },
+                });
+            }
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_COMPLETED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.json({ status: 'ok' });
+        }
+
+        // ---- Event: order.expired ----
+        if (event === 'order.expired') {
+            if (!['expired', 'refunded'].includes(order.status)) {
+                await pool.query(
+                    `UPDATE orders SET status = 'expired', updated_at = NOW() WHERE id = $1`,
+                    [order.id]
+                );
+                await pool.query(
+                    `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
+                    [String(order.order_id)]
+                );
+                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_expired');
+                await logStatusChange({
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: 'expired', reason: 'webhook_otp2_expired',
+                    metadata: { otp_id: order.otp_id },
+                });
+            }
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_EXPIRED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.json({ status: 'ok' });
+        }
+
+        // ---- Event: order.canceled ----
+        if (event === 'order.canceled') {
+            if (!['cancelled', 'refunded'].includes(order.status)) {
+                await pool.query(
+                    `UPDATE orders SET status = 'cancelled', updated_at = NOW() WHERE id = $1`,
+                    [order.id]
+                );
+                await pool.query(
+                    `UPDATE transactions SET status = 'failed', updated_at = NOW() WHERE order_id = $1`,
+                    [String(order.order_id)]
+                );
+                const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
+                if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'provider_cancelled');
+                await logStatusChange({
+                    entityType: 'order', entityId: String(order.order_id), userId: order.user_id,
+                    oldStatus: order.status, newStatus: 'cancelled', reason: 'webhook_otp2_cancelled',
+                    metadata: { otp_id: order.otp_id },
+                });
+            }
+            await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_CANCELLED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
+            return res.json({ status: 'ok' });
+        }
+
+        // Event lain — ignore
+        await logWebhookEvent({ source: 'otp2', eventType: event || 'unknown', signatureValid: true, req, payload: req.body, processed: true, processNote: 'EVENT_IGNORED' });
+        res.json({ status: 'ok' });
+
+    } catch (err) {
+        console.error('Webhook OTP2 error:', err.message);
+        await logWebhookEvent({ source: 'otp2', signatureValid, req, payload: req.body, processed: false, processNote: 'ERROR: ' + err.message }).catch(() => {});
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
 
 // ============================================
 // ===== CEK OTP =====
@@ -3017,6 +3398,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 icon_code: order.icon_code,
                 country: order.country, country_name: order.country_name,
                 operator: order.operator,
+                server: order.server,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
                 refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason,
@@ -3037,6 +3419,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 icon_code: o.icon_code,
                 country: o.country, country_name: o.country_name,
                 operator: o.operator,
+                server: o.server,
                 expired_at: o.expired_at, refunded: cancelResult.refunded,
                 refunded_amount: cancelResult.refundedAmount, expires_in: 0,
                 refunded_at: o.refunded_at, refund_reason: o.refund_reason,
@@ -3044,7 +3427,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
         }
 
         try {
-            const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+            const data = await providerOrderStatus(order);
             await pool.query(`UPDATE orders SET last_checked_at = NOW(), last_synced_at = NOW() WHERE id = $1`, [order.id]);
 
             if (data.status !== order.status || data.otp_code) {
@@ -3101,6 +3484,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                     icon_code: fresh.rows[0].icon_code,
                     country: fresh.rows[0].country, country_name: fresh.rows[0].country_name,
                     operator: fresh.rows[0].operator,
+                    server: fresh.rows[0].server,
                     received_at: fresh.rows[0].received_at,
                     expires_in: fresh.rows[0].expired_at ? Math.max(0, Math.floor((new Date(fresh.rows[0].expired_at) - Date.now()) / 1000)) : 0,
                     expired_at: fresh.rows[0].expired_at, updated: true,
@@ -3119,6 +3503,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 icon_code: order.icon_code,
                 country: order.country, country_name: order.country_name,
                 operator: order.operator,
+                server: order.server,
                 received_at: order.received_at,
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
@@ -3137,6 +3522,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                 icon_code: order.icon_code,
                 country: order.country, country_name: order.country_name,
                 operator: order.operator,
+                server: order.server,
                 received_at: order.received_at,
                 expires_in: order.expired_at ? Math.max(0, Math.floor((new Date(order.expired_at) - Date.now()) / 1000)) : 0,
                 expired_at: order.expired_at, updated: false,
@@ -3260,24 +3646,32 @@ app.get('/api/nokos/services', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `services_${server}`;
     const cached = cacheGet(cacheKey);
-    if (cached) {
-        res.set('X-Cache', 'HIT');
-        return res.json(cached);
-    }
+    if (cached) { res.set('X-Cache', 'HIT'); return res.json(cached); }
 
     try {
-        const data = await dibananaFetch(`/services?server=${encodeURIComponent(server)}`);
-        const rawServices = data.services || [];
-        const services = await enrichServicesWithCode(rawServices, server);
+        let services = [];
 
-        const markedUp = services.map(s => {
-            if (s.price_idr) {
-                return { ...s, price_idr: applyMarkup(Number(s.price_idr)) };
-            }
-            return s;
-        });
+        if (server === 'ekonomi') {
+            const data = await dibananaFetch(`/services?server=ekonomi`);
+            services = await enrichServicesWithCode(data.services || [], 'ekonomi');
+            services = services.map(s => s.price_idr
+                ? { ...s, price_idr: applyMarkup(Number(s.price_idr)) }
+                : s);
 
-        const response = { server, services: markedUp };
+        } else if (server === 'premium') {
+            const raw = await premiumFetch('/catalog/services');
+            services = (raw || []).map(s => {
+                const code = String(s.code || '').trim().toLowerCase();
+                return {
+                    code,
+                    name: s.name || code,
+                    icon_code: code || null,
+                    active: s.active !== false,
+                };
+            });
+        }
+
+        const response = { server, services };
         cacheSet(cacheKey, response, 5 * 60 * 1000);
         res.set('X-Cache', 'MISS');
         res.json(response);
@@ -3297,44 +3691,49 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `countries_${server}_${service || 'all'}`;
     const cached = cacheGet(cacheKey);
-    if (cached) {
-        res.set('X-Cache', 'HIT');
-        return res.json(cached);
-    }
+    if (cached) { res.set('X-Cache', 'HIT'); return res.json(cached); }
 
     try {
-        const params = new URLSearchParams({ server });
-        if (service) params.append('service', service);
-        const data = await dibananaFetch(`/countries?${params.toString()}`);
-        if (data.countries) {
-            const response = { server, countries: data.countries };
-            cacheSet(cacheKey, response, 5 * 60 * 1000);
-            res.set('X-Cache', 'MISS');
-            return res.json(response);
+        let countries = [];
+
+        if (server === 'ekonomi') {
+            try {
+                const params = new URLSearchParams({ server: 'ekonomi' });
+                if (service) params.append('service', service);
+                const data = await dibananaFetch(`/countries?${params.toString()}`);
+                if (data.countries) {
+                    const response = { server, countries: data.countries };
+                    cacheSet(cacheKey, response, 5 * 60 * 1000);
+                    res.set('X-Cache', 'MISS');
+                    return res.json(response);
+                }
+            } catch (e) { /* fallback */ }
+            countries = (SERVER_CONFIG.ekonomi.countries || []).map(c => ({
+                code: c, name: COUNTRY_NAMES[c] || c.toUpperCase(),
+            }));
+
+        } else if (server === 'premium') {
+            const raw = await premiumFetch('/catalog/countries');
+            countries = (raw || []).map(c => ({
+                code: String(c.code || '').toLowerCase(),
+                name: c.name || c.code,
+                dial_code: c.dial_code || null,
+                emoji: c.emoji || null,
+            }));
         }
+
+        const response = { server, countries };
+        cacheSet(cacheKey, response, 5 * 60 * 1000);
+        res.set('X-Cache', 'MISS');
+        res.json(response);
     } catch (err) {
-        console.error('Countries error, fallback:', err.message);
+        console.error('Countries error:', err.message);
+        res.status(500).json({ error: 'Server error' });
     }
-
-    const config = SERVER_CONFIG[server];
-    let countries = [];
-
-    if (config.countries) {
-        countries = config.countries.map(c => ({ code: c, name: COUNTRY_NAMES[c] || c.toUpperCase() }));
-    } else {
-        countries = Object.entries(COUNTRY_NAMES).map(([code, name]) => ({ code, name }));
-        if (config.excludeCountries) {
-            countries = countries.filter(c => !config.excludeCountries.includes(c.code));
-        }
-    }
-
-    const response = { server, countries };
-    cacheSet(cacheKey, response, 5 * 60 * 1000);
-    res.json(response);
 }));
 
 // ============================================
-// ===== PRICES WITH PRICE LOCK ⭐ =====
+// ===== PRICES WITH PRICE LOCK (provider-agnostic) ⭐ =====
 // ============================================
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
@@ -3343,34 +3742,79 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 
     const cacheKey = `prices_${server}_${service}_${country}`;
     const cached = cacheGet(cacheKey);
-    if (cached) {
-        res.set('X-Cache', 'HIT');
-        return res.json(cached);
-    }
+    if (cached) { res.set('X-Cache', 'HIT'); return res.json(cached); }
 
     try {
-        const data = await dibananaFetch(`/prices?server=${encodeURIComponent(server)}&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`);
+        let providers = [];
 
-        // ===== MARKUP 10% PURE + KUNCI HARGA JUAL =====
-        // price_idr = harga JUAL (yang user lihat di list)
-        // setPriceLock() → simpan harga jual ke lock cache by provider ID
-        //                   biar /order nanti pakai harga SAMA PERSIS
-        const providers = (data.providers || []).map(p => {
-            const providerPrice = Number(p.price_idr) || 0;
-            const sellPrice = applyMarkup(providerPrice);
+        if (server === 'ekonomi') {
+            const data = await dibananaFetch(
+                `/prices?server=ekonomi&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`
+            );
+            providers = (data.providers || []).map(p => {
+                const providerPrice = Number(p.price_idr) || 0;
+                const sellPrice = applyMarkup(providerPrice);
+                const providerId = String(p.id || p.provider_id || '').trim();
+                if (providerId && sellPrice > 0) {
+                    setPriceLock(providerId, sellPrice, providerPrice, {
+                        server, service, country, provider: 'ekonomi',
+                    });
+                }
+                return { ...p, price_idr: sellPrice, _provider_price: providerPrice };
+            });
 
-            // ===== KUNCI HARGA JUAL ke cache by provider ID =====
-            const providerId = String(p.id || p.provider_id || '').trim();
-            if (providerId && sellPrice > 0) {
-                setPriceLock(providerId, sellPrice, providerPrice, { server, service, country });
+        } else if (server === 'premium') {
+            const [countriesRaw, servicesRaw] = await Promise.all([
+                premiumFetch('/catalog/countries'),
+                premiumFetch('/catalog/services'),
+            ]);
+            const countryObj = (countriesRaw || []).find(
+                c => String(c.code).toLowerCase() === String(country).toLowerCase()
+            );
+            const serviceObj = (servicesRaw || []).find(
+                s => String(s.code).toLowerCase() === String(service).toLowerCase()
+            );
+            if (!countryObj || !serviceObj) {
+                return res.json({ server, service, country, providers: [] });
             }
 
-            return {
-                ...p,
-                price_idr: sellPrice,
-                _provider_price: providerPrice,
-            };
-        });
+            const params = new URLSearchParams({
+                country_id: String(countryObj.id),
+                platform_id: String(serviceObj.id),
+                limit: '500',
+                page: '1',
+            });
+            const products = await premiumFetch(`/catalog/products?${params.toString()}`);
+
+            providers = (products || []).map(p => {
+                const providerPrice = premiumMoneyToIdr(p.price);
+                const sellPrice = applyMarkup(providerPrice);
+                const providerId = String(p.id || p.product_id || '').trim();
+
+                if (providerId && sellPrice > 0) {
+                    setPriceLock(providerId, sellPrice, providerPrice, {
+                        server, service, country, provider: 'premium',
+                        product_id: providerId,
+                        catalog_product_id: p.catalog_product_id || null,
+                        operator_id: p.operator_id || null,
+                    });
+                }
+
+                return {
+                    id: providerId,
+                    provider_id: providerId,
+                    product_id: providerId,
+                    catalog_product_id: p.catalog_product_id || null,
+                    operator_id: p.operator_id || null,
+                    operator_name: p.operator_name || null,
+                    name: p.name || `${serviceObj.name} ${countryObj.name}`,
+                    available: Number(p.available) || 0,
+                    active: p.active !== false,
+                    price_idr: sellPrice,
+                    _provider_price: providerPrice,
+                };
+            });
+        }
 
         const response = { server, service, country, providers };
         cacheSet(cacheKey, response, 2 * 60 * 1000);
@@ -3387,45 +3831,74 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
 }));
 
 // ============================================
-// ===== ⭐ NOKOS ORDER PREVIEW (PRICE LOCK) ⭐ =====
+// ===== NOKOS ORDER PREVIEW (PRICE LOCK) ⭐ =====
 // ============================================
 app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
-    const { id, server, service, country, provider_id, provider_price, operator } = req.body;
+    const { id, server, service, country, provider_price } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) {
         return res.status(400).json({ error: 'Server tidak valid' });
     }
 
-    const config = SERVER_CONFIG[server];
-    const isPremium = !!config.requiresOperator;
+    const isPremium = server === 'premium';
 
     try {
         let providerPrice = 0;
         let sellPrice = 0;
         let source = 'unknown';
 
-        if (isPremium) {
-            providerPrice = Number(provider_price) || 0;
-            if (providerPrice <= 0) {
-                return res.status(400).json({ error: 'provider_price tidak valid' });
-            }
-            sellPrice = applyMarkup(providerPrice);
-            source = 'premium_input';
+        if (!id) {
+            return res.status(400).json({ error: 'ID provider wajib' });
+        }
+
+        const locked = getPriceLock(id);
+        if (locked && locked.price_idr > 0) {
+            providerPrice = locked.provider_price;
+            sellPrice = locked.price_idr;
+            source = 'locked';
         } else {
-            if (!id) {
-                return res.status(400).json({ error: 'ID provider wajib' });
+            if (!service || !country) {
+                return res.status(400).json({ error: 'service dan country wajib' });
             }
 
-            // ===== CEK LOCK CACHE DULU =====
-            const locked = getPriceLock(id);
-            if (locked && locked.price_idr > 0) {
-                providerPrice = locked.provider_price;
-                sellPrice = locked.price_idr;
-                source = 'locked';
-            } else {
-                if (!service || !country) {
-                    return res.status(400).json({ error: 'service dan country wajib' });
+            if (isPremium) {
+                const [countriesRaw, servicesRaw] = await Promise.all([
+                    premiumFetch('/catalog/countries'),
+                    premiumFetch('/catalog/services'),
+                ]);
+                const countryObj = (countriesRaw || []).find(
+                    c => String(c.code).toLowerCase() === String(country).toLowerCase()
+                );
+                const serviceObj = (servicesRaw || []).find(
+                    s => String(s.code).toLowerCase() === String(service).toLowerCase()
+                );
+                if (!countryObj || !serviceObj) {
+                    return res.status(404).json({ error: 'Provider tidak ditemukan / stok habis', code: 'PROVIDER_NOT_FOUND' });
                 }
+                const params = new URLSearchParams({
+                    country_id: String(countryObj.id),
+                    platform_id: String(serviceObj.id),
+                    limit: '500',
+                    page: '1',
+                });
+                const products = await premiumFetch(`/catalog/products?${params.toString()}`);
+                const match = (products || []).find(p => String(p.id || p.product_id) === String(id));
+                if (!match) {
+                    return res.status(404).json({ error: 'Provider tidak ditemukan / stok habis', code: 'PROVIDER_NOT_FOUND' });
+                }
+                providerPrice = premiumMoneyToIdr(match.price);
+                if (providerPrice <= 0) {
+                    return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
+                }
+                sellPrice = applyMarkup(providerPrice);
+                setPriceLock(id, sellPrice, providerPrice, {
+                    server, service, country, provider: 'premium',
+                    product_id: id,
+                    catalog_product_id: match.catalog_product_id || null,
+                    operator_id: match.operator_id || null,
+                });
+                source = 'fallback_fresh';
+            } else {
                 const params = new URLSearchParams({ server, service, country });
                 const data = await dibananaFetch(`/prices?${params.toString()}`);
                 const match = (data.providers || []).find(p => String(p.id) === String(id));
@@ -3437,7 +3910,7 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
                     return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
                 }
                 sellPrice = applyMarkup(providerPrice);
-                setPriceLock(id, sellPrice, providerPrice, { server, service, country });
+                setPriceLock(id, sellPrice, providerPrice, { server, service, country, provider: 'ekonomi' });
                 source = 'fallback_fresh';
             }
         }
@@ -3452,12 +3925,13 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
 
         res.json({
             ok: true,
-            provider_id: id || provider_id || null,
+            provider_id: id || null,
             price_idr: sellPrice,
             markup_percent: MARKUP_PERCENT * 100,
             user_balance: userBalance,
             sufficient_balance: sufficient,
             source,
+            server,
             note: 'Harga real-time. Konfirmasi sebelum order.',
         });
     } catch (err) {
@@ -3471,31 +3945,20 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
 }));
 
 // ============================================
-// ===== NOKOS CREATE ORDER (PRICE LOCK) ⭐ =====
+// ===== NOKOS CREATE ORDER (PRICE LOCK, provider-agnostic) ⭐ =====
 // ============================================
 app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
     const {
         id, server, service, country, service_name, country_flag,
-        provider_id, provider_price, operator, icon_code,
-        expected_price
+        operator, icon_code, expected_price,
     } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
+    if (!id) return res.status(400).json({ error: 'ID produk wajib' });
 
-    const config = SERVER_CONFIG[server];
-    const isPremium = !!config.requiresOperator;
-
-    if (isPremium) {
-        if (!provider_id || !provider_price || !operator) {
-            return res.status(400).json({ error: 'Premium butuh provider_id, provider_price, dan operator' });
-        }
-        if (!VALID_OPERATORS.includes(operator)) {
-            return res.status(400).json({ error: `Operator tidak valid` });
-        }
-    } else {
-        if (!id) return res.status(400).json({ error: 'ID provider wajib' });
-    }
+    const isPremium = server === 'premium';
+    const isEkonomi = server === 'ekonomi';
 
     let providerOrderId = null;
     let price = 0;
@@ -3514,58 +3977,81 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
         if (userBalanceAtStart <= 0) {
             return res.status(400).json({
                 error: 'Saldo kamu kosong. Silakan deposit dulu.',
-                code: 'INSUFFICIENT_USER_BALANCE',
-                balance: 0,
+                code: 'INSUFFICIENT_USER_BALANCE', balance: 0,
             });
         }
 
         // ===== Kirim order ke provider =====
-        let orderBody;
-        if (isPremium) {
-            orderBody = { server, service, country, provider_id, provider_price, operator };
-        } else {
-            orderBody = { id };
-        }
-
         let data;
-        try {
-            data = await dibananaFetch('/order', { method: 'POST', body: JSON.stringify(orderBody) });
-        } catch (err) {
-            console.error('Provider order error:', err.message);
-            const errCode = err.code || err.data?.error;
-            if (errCode === 'INSUFFICIENT_BALANCE' || /saldo tidak cukup/i.test(err.message)) {
-                return res.status(503).json({
-                    error: 'Server sedang sibuk, coba lagi nanti.',
-                    code: 'INSUFFICIENT_BALANCE',
+        if (isEkonomi) {
+            try {
+                data = await dibananaFetch('/order', {
+                    method: 'POST',
+                    body: JSON.stringify({ id }),
+                });
+            } catch (err) {
+                console.error('Provider order error:', err.message);
+                const errCode = err.code || err.data?.error;
+                if (errCode === 'INSUFFICIENT_BALANCE' || /saldo tidak cukup/i.test(err.message)) {
+                    return res.status(503).json({
+                        error: 'Server sedang sibuk, coba lagi nanti.',
+                        code: 'INSUFFICIENT_BALANCE',
+                    });
+                }
+                return res.status(err.status || 500).json({
+                    error: err.message || 'Gagal order dari provider',
+                    code: errCode || 'PROVIDER_ERROR',
                 });
             }
-            return res.status(err.status || 500).json({
-                error: err.message || 'Gagal order dari provider',
-                code: errCode || 'PROVIDER_ERROR'
-            });
-        }
+            if (!data || !data.order_id) {
+                return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
+            }
+            providerOrderId = data.order_id;
+            providerPrice = Number(data.price_idr) || 0;
+            phoneNumber = data.phone_number || null;
 
-        if (!data || !data.order_id) {
-            return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
+        } else if (isPremium) {
+            // SMSCode v1: POST /orders/create dengan product_id
+            const idemKey = 'ord_' + crypto.randomBytes(16).toString('hex');
+            try {
+                data = await premiumFetch('/orders/create', {
+                    method: 'POST',
+                    headers: { 'Idempotency-Key': idemKey },
+                    body: JSON.stringify({ product_id: Number(id), quantity: 1 }),
+                });
+            } catch (err) {
+                console.error('Premium order error:', err.message);
+                return res.status(err.status || 500).json({
+                    error: err.message || 'Gagal order dari provider premium',
+                    code: err.code || 'PROVIDER_ERROR',
+                });
+            }
+            const firstOrder = data?.orders?.[0];
+            if (!firstOrder || !firstOrder.id) {
+                return res.status(500).json({ error: 'Provider response tidak valid', code: 'INVALID_RESPONSE' });
+            }
+            providerOrderId = String(firstOrder.id);
+            providerPrice = premiumMoneyToIdr(firstOrder.amount);
+            phoneNumber = firstOrder.phone_number || null;
         }
-
-        providerOrderId = data.order_id;
-        providerPrice = Number(data.price_idr) || 0;
-        phoneNumber = data.phone_number || null;
 
         if (providerPrice <= 0) {
-            console.error(`❌ Provider kasih harga invalid: ${data.price_idr}`);
-            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+            console.error(`❌ Provider kasih harga invalid: ${providerPrice}`);
+            try {
+                if (isEkonomi) {
+                    await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                } else {
+                    await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                }
+            } catch (e) {}
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ===== AMBIL HARGA JUAL DARI LOCK CACHE =====
-        const lockKey = String(id || provider_id || '').trim();
+        // ===== Ambil harga jual dari lock cache =====
+        const lockKey = String(id || '').trim();
         if (lockKey) {
             const locked = getPriceLock(lockKey);
-            if (locked && locked.price_idr > 0) {
-                lockedPrice = locked.price_idr;
-            }
+            if (locked && locked.price_idr > 0) lockedPrice = locked.price_idr;
         }
 
         if (lockedPrice) {
@@ -3575,7 +4061,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             // ===== GUARD: provider harga > lock → rugi, CANCEL =====
             if (providerPrice > lockedPrice) {
                 console.warn(`⚠️ RUGI: provider=${providerPrice} > locked=${lockedPrice}. Cancel order.`);
-                try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+                try {
+                    if (isEkonomi) {
+                        await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                    } else {
+                        await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                    }
+                } catch (e) {}
                 return res.status(409).json({
                     error: 'Harga provider naik. Silakan coba provider lain.',
                     code: 'PROVIDER_PRICE_JUMPED',
@@ -3589,7 +4081,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
         const profit = price - providerPrice;
 
-        console.log(`💰 Order ${providerOrderId}: provider=${providerPrice}, jual=${price}, profit=${profit} (${((price / providerPrice - 1) * 100).toFixed(2)}%) ${usedLock ? '[LOCKED]' : '[FALLBACK]'}`);
+        console.log(`💰 Order ${providerOrderId} (${server}): provider=${providerPrice}, jual=${price}, profit=${profit} ${usedLock ? '[LOCKED]' : '[FALLBACK]'}`);
 
         // ===== Guard expected_price (cuma kalau TIDAK pakai lock) =====
         if (!usedLock && expected_price && Number(expected_price) > 0) {
@@ -3597,7 +4089,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             const tolerance = Number(expected_price) * 0.01;
             if (diff > tolerance) {
                 console.warn(`⚠️ Price changed: expected=${expected_price}, actual=${price}, diff=${diff}`);
-                try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+                try {
+                    if (isEkonomi) {
+                        await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                    } else {
+                        await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                    }
+                } catch (e) {}
                 return res.status(409).json({
                     error: 'Harga berubah dari yang kamu lihat. Silakan refresh halaman.',
                     code: 'PRICE_CHANGED',
@@ -3609,7 +4107,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
         }
 
         if (userBalanceAtStart < price) {
-            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+            try {
+                if (isEkonomi) {
+                    await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                } else {
+                    await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                }
+            } catch (e) {}
             return res.status(400).json({
                 error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
                 code: 'INSUFFICIENT_USER_BALANCE',
@@ -3620,9 +4124,10 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
         if (!finalIconCode && service_name) {
             try {
-                const codeMap = await getServiceCodeMap();
-                const normName = normalizeServiceName(service_name);
-                finalIconCode = codeMap[normName] || null;
+                const codeMap = isPremium
+                    ? await getPremiumServiceCodeMap()
+                    : await getServiceCodeMap();
+                finalIconCode = codeMap[normalizeServiceName(service_name)] || null;
             } catch (e) {}
         }
 
@@ -3639,10 +4144,10 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                 [
                     req.user.id, String(providerOrderId), otpId, server,
-                    service || data.service || null,
+                    service || null,
                     service_name || null,
                     finalIconCode,
-                    country || data.country || null,
+                    country || null,
                     COUNTRY_NAMES[country] || country || null,
                     country_flag || country || null,
                     operator || null,
@@ -3660,7 +4165,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
             if (deductRes.rowCount === 0) {
                 await client.query('ROLLBACK');
-                try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+                try {
+                    if (isEkonomi) {
+                        await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                    } else {
+                        await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                    }
+                } catch (e) {}
                 return res.status(400).json({
                     error: 'Saldo kamu tidak cukup. Silakan deposit dulu.',
                     code: 'INSUFFICIENT_USER_BALANCE',
@@ -3673,8 +4184,8 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 [
                     req.user.id, String(providerOrderId),
-                    service_name || data.service || null,
-                    country || data.country || null,
+                    service_name || null,
+                    country || null,
                     country_flag || country || null,
                     phoneNumber, 'pending', price
                 ]
@@ -3686,8 +4197,8 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                 ['order', String(providerOrderId), req.user.id, null, 'pending', 'order_created',
                  JSON.stringify({
                      otp_id: otpId,
-                     service: service_name || data.service,
-                     country: country || data.country,
+                     service: service_name || null,
+                     country: country || null,
                      price,
                      provider_price: providerPrice,
                      profit,
@@ -3712,13 +4223,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                     otp_id: otpId,
                     phone_number: phoneNumber,
                     price_idr: price,
-                    server: data.server || server,
-                    service: data.service || service,
+                    server,
+                    service,
                     service_name: service_name || null,
                     icon_code: finalIconCode,
-                    country: data.country || country,
+                    country,
                     operator: operator || null,
-                    status: data.status || 'pending',
+                    status: 'pending',
                     expires_in: 1200,
                     expired_at: expiredAt.toISOString(),
                 },
@@ -3726,11 +4237,17 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
                 price_source: usedLock ? 'locked' : 'fallback',
             });
 
-            console.log(`⏱️ Order ${providerOrderId} in ${Date.now() - startTime}ms`);
+            console.log(`⏱️ Order ${providerOrderId} (${server}) in ${Date.now() - startTime}ms`);
         } catch (dbErr) {
             await client.query('ROLLBACK');
             console.error('DB insert error:', dbErr.message);
-            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+            try {
+                if (isEkonomi) {
+                    await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                } else {
+                    await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                }
+            } catch (e) {}
             return res.status(500).json({ error: 'Gagal menyimpan order. Coba lagi.' });
         } finally {
             client.release();
@@ -3739,7 +4256,13 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     } catch (err) {
         console.error('Create order error:', err.message);
         if (providerOrderId && !saldoDeducted) {
-            try { await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) }); } catch (e) {}
+            try {
+                if (isPremium) {
+                    await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(providerOrderId) }) });
+                } else {
+                    await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: providerOrderId }) });
+                }
+            } catch (e) {}
         }
         const isClientErr = err.status && err.status >= 400 && err.status < 500;
         res.status(isClientErr ? err.status : 500).json({
@@ -3749,7 +4272,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     }
 }));
 
-// ===== NOKOS CHECK STATUS ORDER =====
+// ===== NOKOS CHECK STATUS ORDER (provider-agnostic) =====
 app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -3765,6 +4288,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 icon_code: order.icon_code,
                 country: order.country, country_name: order.country_name, country_flag: order.country_flag,
                 operator: order.operator,
+                server: order.server,
                 received_at: order.received_at, expires_in: 0, expired_at: order.expired_at,
                 refunded_at: order.refunded_at, refunded_amount: order.refunded_amount,
                 refund_reason: order.refund_reason, created_at: order.created_at,
@@ -3772,7 +4296,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
         }
 
         const providerOrderId = order.order_id;
-        const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(providerOrderId)}`);
+        const data = await providerOrderStatus(order);
 
         if (data.status !== order.status || data.otp_code) {
             await pool.query(
@@ -3822,6 +4346,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                 country_name: o.country_name,
                 country_flag: o.country_flag,
                 operator: o.operator,
+                server: o.server,
                 refunded_at: o.refunded_at,
                 refunded_amount: o.refunded_amount,
                 refund_reason: o.refund_reason,
@@ -3842,6 +4367,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             country_name: o.country_name,
             country_flag: o.country_flag,
             operator: o.operator,
+            server: o.server,
             refunded_at: o.refunded_at,
             refunded_amount: o.refunded_amount,
             refund_reason: o.refund_reason,
@@ -3857,7 +4383,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ===== NOKOS RESEND =====
+// ===== NOKOS RESEND (provider-agnostic) =====
 app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -3894,19 +4420,15 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
             return res.status(400).json({ error: 'Maksimal 3x resend per order' });
         }
 
-        const providerOrderId = order.order_id;
-        const data = await dibananaFetch('/resend', {
-            method: 'POST',
-            body: JSON.stringify({ order_id: Number(providerOrderId) })
-        });
+        const data = await providerResendOrder(order);
 
         await pool.query(
             'UPDATE orders SET resend_count = resend_count + 1, status = $1, updated_at = NOW() WHERE id = $2',
-            [data.status, order.id]
+            [data.status || order.status, order.id]
         );
 
         await logStatusChange({
-            entityType: 'order', entityId: String(providerOrderId), userId: req.user.id,
+            entityType: 'order', entityId: String(order.order_id), userId: req.user.id,
             oldStatus: order.status, newStatus: data.status || order.status, reason: 'resend_sms',
             metadata: { resend_count: order.resend_count + 1, otp_id: order.otp_id },
         });
@@ -3979,7 +4501,7 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     }
 }));
 
-// ===== NOKOS CANCEL ORDER =====
+// ===== NOKOS CANCEL ORDER (provider-agnostic) =====
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -3993,18 +4515,13 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
             return res.status(400).json({ error: 'Order sudah tidak aktif' });
         }
 
-        const providerOrderId = order.order_id;
-
-        const data = await dibananaFetch('/cancel', {
-            method: 'POST',
-            body: JSON.stringify({ order_id: Number(providerOrderId) })
-        });
+        const data = await providerCancelOrder(order);
 
         await pool.query('UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2', ['cancelled', order.id]);
-        await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(providerOrderId)]);
+        await pool.query('UPDATE transactions SET status = $1, updated_at = NOW() WHERE order_id = $2', ['failed', String(order.order_id)]);
 
         await logStatusChange({
-            entityType: 'order', entityId: String(providerOrderId), userId: req.user.id,
+            entityType: 'order', entityId: String(order.order_id), userId: req.user.id,
             oldStatus: order.status, newStatus: 'cancelled', reason: 'manual_cancel',
             metadata: { refunded_amount: Number(data.refunded) || Number(order.price) || 0, otp_id: order.otp_id },
         });
@@ -4114,7 +4631,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ===== NOKOS SYNC BATCH =====
+// ===== NOKOS SYNC BATCH (provider-agnostic) =====
 app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { order_ids } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
@@ -4138,7 +4655,7 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
         for (const chunk of chunks) {
             await Promise.all(chunk.map(async (order) => {
                 try {
-                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+                    const data = await providerOrderStatus(order);
 
                     if (data.status !== order.status || data.otp_code) {
                         await pool.query(
@@ -4428,13 +4945,15 @@ app.get('/api/admin/price-locks', requireAuth, requireAdminFlex, withDB(async (r
                     profit: val.price_idr - val.provider_price,
                     locked_at: val.locked_at,
                     server: val.server,
+                    provider: val.provider,
                     service: val.service,
                     country: val.country,
+                    product_id: val.product_id,
+                    catalog_product_id: val.catalog_product_id,
                 });
             }
         }
 
-        // Sort by locked_at DESC
         entries.sort((a, b) => b.locked_at - a.locked_at);
 
         res.json({
@@ -4575,7 +5094,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
         const [recentOrders, recentDeposits] = await Promise.all([
             pool.query(
                 `SELECT order_id, otp_id, service_name, service, icon_code, country, country_name, phone_number,
-                        otp_code, price, provider_price, status, created_at, refunded_at, refunded_amount
+                        otp_code, price, provider_price, status, server, created_at, refunded_at, refunded_amount
                  FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
                 [userId]
             ),
@@ -4811,6 +5330,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, w
 app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
     const status = String(req.query.status || '').trim();
+    const serverFilter = String(req.query.server || '').trim();
     const search = String(req.query.search || '').trim().toLowerCase();
 
     try {
@@ -4824,6 +5344,11 @@ app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, r
                 params.push(status);
                 conditions.push(`o.status = $${params.length}`);
             }
+        }
+
+        if (serverFilter && serverFilter !== 'all') {
+            params.push(serverFilter);
+            conditions.push(`o.server = $${params.length}`);
         }
 
         if (search) {
@@ -5523,8 +6048,23 @@ app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req
 // ============================================
 app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
+        const provider = String(req.query.provider || 'ekonomi').toLowerCase();
+
+        if (provider === 'premium') {
+            // SMSCode v1: tidak ada endpoint balance publik di docs — pakai /balance
+            // Kalau SMSCode tidak menyediakan /balance, return not-supported
+            const data = await premiumFetch('/balance');
+            const balance = Number(data?.balance) || 0;
+            return res.json({
+                provider: 'premium',
+                currency: data?.currency || 'IDR',
+                balance,
+                raw: data,
+            });
+        }
+
         const data = await dibananaFetch('/balance');
-        res.json(data);
+        res.json({ provider: 'ekonomi', raw: data });
     } catch (err) {
         const isClientErr = err.status && err.status >= 400 && err.status < 500;
         res.status(isClientErr ? err.status : 500).json({
@@ -5590,6 +6130,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 otp_code: '123456',
                 otp_code_2: null,
                 price: 1500,
+                server: 'premium',
                 notified_at: null,
             };
 
@@ -5598,6 +6139,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
                 `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
+                `<u>• Server:</u> <b>Premium</b>\n` +
                 `<u>• Service:</u> <b>${escapeHtmlNotif(fakeOrder.service_name)}</b>\n` +
                 `<u>• Country:</u> <b>${escapeHtmlNotif(fakeOrder.country_name)}</b>\n` +
                 `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</b>\n` +
@@ -5895,6 +6437,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
                 o.service_name AS order_service_name,
                 o.phone_number AS order_phone,
                 o.otp_code AS order_otp_code,
+                o.server AS order_server,
                 o.notified_at AS order_notified_at,
                 d.reference_id AS deposit_ref,
                 d.method AS deposit_method,
@@ -5950,6 +6493,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
                     service_name: r.order_service_name,
                     phone: r.order_phone,
                     otp_code: r.order_otp_code,
+                    server: r.order_server,
                     notified_at: r.order_notified_at,
                 } : null,
                 deposit: r.entity_type === 'deposit' ? {
@@ -6224,7 +6768,7 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
                         return;
                     }
 
-                    const data = await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+                    const data = await providerOrderStatus(order);
 
                     if (data.status !== order.status || data.otp_code) {
                         await pool.query(
@@ -6450,10 +6994,11 @@ app.use((req, res) => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready v16 (PRICE LOCK)');
+        console.log('🚀 Server ready v17 (SERVER PREMIUM · SMSCode v1)');
         console.log(`💰 Markup nokos: ${MARKUP_PERCENT * 100}% PURE (round to rupiah)`);
         console.log(`💰 Fee deposit: Rp${DEPOSIT_FEE_MIN}-${DEPOSIT_FEE_MAX}`);
         console.log(`🔒 Price lock: persistent (no TTL), max ${PRICE_LOCK_MAX_SIZE} entries`);
+        console.log(`🌐 Servers: ${Object.keys(SERVER_CONFIG).join(', ')}`);
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
             console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
         } else {
