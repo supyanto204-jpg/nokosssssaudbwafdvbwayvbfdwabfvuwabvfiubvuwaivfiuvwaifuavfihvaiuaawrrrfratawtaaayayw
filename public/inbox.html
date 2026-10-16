@@ -46,13 +46,6 @@
         })();
 
         (function() {
-            if (window.location.protocol === 'view-source:') {
-                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
-                throw new Error('__VIEW_SOURCE_BLOCKED__');
-            }
-        })();
-
-        (function() {
             const saved = localStorage.getItem('asyrofotp_theme');
             const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
             document.documentElement.setAttribute('data-theme', theme);
@@ -62,60 +55,6 @@
             try { window.top.location = window.self.location; } catch (e) {}
             document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
         }
-
-        (function() {
-            const LOCK_FLAG = 'asyrof_devtools_lock';
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                document.documentElement.innerHTML = '<head></head><body></body>';
-
-                function showLockScreen() {
-                    document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
-                            </div>
-                        </div>
-                        <style>
-                            html, body { margin:0; padding:0; background:#0f172a; overflow:auto !important; position:static !important; height:auto !important; min-height:100vh !important; width:100% !important; }
-                            #devtoolsLockScreen { min-height:100vh; width:100%; background:#0f172a; display:flex; align-items:center; justify-content:center; padding:24px; box-sizing:border-box; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; user-select:none; -webkit-user-select:none; }
-                            #devtoolsLockScreen .lock-box { background:#1e293b; border:3px solid #475569; border-radius:20px; padding:40px 32px; max-width:440px; width:100%; text-align:center; box-shadow:8px 8px 0px rgba(0,0,0,0.5); box-sizing:border-box; }
-                            #devtoolsLockScreen .lock-icon { font-size:3rem; margin-bottom:16px; line-height:1; }
-                            #devtoolsLockScreen h2 { color:#dc2626; font-size:1.5rem; font-weight:800; margin:0 0 12px; font-family:inherit; }
-                            #devtoolsLockScreen p { color:#cbd5e1; font-size:0.95rem; line-height:1.6; margin:0 0 8px; }
-                            #devtoolsLockScreen .lock-hint { color:#64748b; font-size:0.78rem; font-family:ui-monospace, monospace; margin-top:20px; padding-top:16px; border-top:1px dashed #334155; }
-                        </style>
-                    `;
-
-                    const THRESHOLD = 200;
-                    setInterval(() => {
-                        const wDiff = window.outerWidth - window.innerWidth;
-                        const hDiff = window.outerHeight - window.innerHeight;
-                        const stillOpen = wDiff > THRESHOLD || hDiff > THRESHOLD;
-
-                        if (!stillOpen) {
-                            sessionStorage.removeItem(LOCK_FLAG);
-                            try {
-                                document.body.style.cssText = '';
-                                document.documentElement.style.cssText = '';
-                                document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                            } catch (e) {}
-                            window.location.reload();
-                        }
-                    }, 500);
-                }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
-                throw new Error('__DEVTOOLS_LOCK__');
-            }
-        })();
     </script>
 
     <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
@@ -298,25 +237,32 @@
 <script src="/js/main.js"></script>
 <script>
     /* ============================================
-       SECURITY HARDENING
+       SECURITY HARDENING (soft — tidak kaku)
        ============================================ */
     (function() {
         try {
             console.log('%c⚠️ STOP!', 'color:#dc2626;font-size:20px;font-weight:900;');
-            console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#64748b;font-size:12px;');
+            console.log('%cIni fitur browser untuk developer. Kalau ada yang menyuruh kamu paste sesuatu di sini, itu SCAM.', 'color:#64748b;font-size:12px;');
+            console.log('%cJangan pernah share password, token, atau data pribadi di sini.', 'color:#64748b;font-size:12px;');
         } catch (e) {}
     })();
 
     document.addEventListener('contextmenu', (e) => e.preventDefault());
     document.addEventListener('keydown', (e) => {
         const k = e.key;
-        if (k === 'F12') { e.preventDefault(); return false; }
-        if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) { e.preventDefault(); return false; }
-        if (e.ctrlKey && ['U','u','S','s','P','p'].includes(k)) { e.preventDefault(); return false; }
+        if (e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(k)) {
+            // DevTools dibolehkan — jangan blokir
+            return;
+        }
+        if (e.ctrlKey && ['U','u'].includes(k)) {
+            e.preventDefault(); // blokir view-source
+        }
     }, true);
+
     document.addEventListener('copy', (e) => {
         const t = e.target;
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+        if (t && t.closest && t.closest('[data-copy]')) return;
         e.preventDefault();
     });
     document.addEventListener('cut', (e) => {
@@ -324,43 +270,6 @@
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
         e.preventDefault();
     });
-
-    (function() {
-        const LOCK_FLAG = 'asyrof_devtools_lock';
-        const THRESHOLD_WIDTH = 200;
-        const THRESHOLD_HEIGHT = 200;
-
-        function shouldSkipDetection() {
-            if (navigator.maxTouchPoints > 0 && window.innerWidth < 1024) return true;
-            if (window.innerWidth < 600) return true;
-            return false;
-        }
-        function isDevToolsOpen() {
-            if (shouldSkipDetection()) return false;
-            return (window.outerWidth - window.innerWidth) > THRESHOLD_WIDTH ||
-                   (window.outerHeight - window.innerHeight) > THRESHOLD_HEIGHT;
-        }
-        function startDetection() {
-            setInterval(() => {
-                if (isDevToolsOpen()) {
-                    try { sessionStorage.setItem(LOCK_FLAG, '1'); } catch (e) {}
-                    try {
-                        document.body.style.cssText = '';
-                        document.documentElement.style.cssText = '';
-                        document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open');
-                    } catch (e) {}
-                    document.body.innerHTML = '';
-                    window.location.reload();
-                }
-            }, 500);
-        }
-        if (sessionStorage.getItem(LOCK_FLAG) === '1') return;
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', startDetection);
-        } else {
-            startDetection();
-        }
-    })();
 
     try {
         const cleanUrl = window.location.origin + window.location.pathname;
@@ -430,7 +339,7 @@
     };
 
     /* ============================================
-       SERVICE HELPERS
+       SERVICE HELPERS — inisial app
        ============================================ */
     function getServiceDisplayName(order) {
         const name = String(order?.service_name || '').trim();
@@ -444,7 +353,6 @@
         const first = String(name).trim().charAt(0).toUpperCase();
         return /[A-Z0-9]/.test(first) ? first : '#';
     }
-    /* Icon pakai inisial (bukan CDN) */
     function renderServiceIcon(order) {
         return `<span class="icon-fallback">${escapeHtml(getServiceInitial(order))}</span>`;
     }
@@ -850,7 +758,7 @@
     }
 
     /* ============================================
-       BUILD ORDER CARD — pakai inisial
+       BUILD ORDER CARD
        ============================================ */
     function buildOrderCardHtml(o) {
         const statusMap = {
