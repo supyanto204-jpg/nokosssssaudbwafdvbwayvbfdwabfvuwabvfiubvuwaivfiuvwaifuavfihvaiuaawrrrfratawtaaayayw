@@ -116,7 +116,7 @@
     <div class="topbar glass">
       <div class="topbar-left">
         <h1>Profile</h1>
-        <p>Kelola akun & lihat statistik kamu</p>
+        <p>Kelola akun kamu</p>
       </div>
       <div class="topbar-right">
         <button class="theme-btn glass" id="themeBtn" type="button" aria-label="Ganti tema">
@@ -144,115 +144,6 @@
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <span id="profileCodeText">—</span>
         </button>
-      </div>
-    </div>
-
-    <!-- CHART: ORDER STATS -->
-    <div class="chart-card glass-card reveal">
-      <div class="chart-header">
-        <div class="chart-header-left">
-          <h3>
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
-            Statistik Order
-          </h3>
-          <p>Performa pesanan kamu</p>
-        </div>
-        <div class="chart-tabs" id="chartOrderTabs">
-          <button class="chart-tab active" data-range="7" type="button">7H</button>
-          <button class="chart-tab" data-range="30" type="button">30H</button>
-          <button class="chart-tab" data-range="90" type="button">90H</button>
-        </div>
-      </div>
-      <div class="chart-legend">
-        <div class="chart-legend-item">
-          <span class="legend-dot success"></span> Berhasil
-        </div>
-        <div class="chart-legend-item">
-          <span class="legend-dot danger"></span> Gagal / Expired / Pending
-        </div>
-      </div>
-      <div class="chart-body">
-        <div class="chart-loading" id="chartOrderLoading">
-          <span class="spinner-sm"></span>
-          <span>Memuat statistik...</span>
-        </div>
-        <svg class="chart-svg" id="chartOrderSvg" viewBox="0 0 800 260" preserveAspectRatio="none"></svg>
-        <div class="chart-empty" id="chartOrderEmpty" style="display:none;">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          <p>Belum ada data pesanan</p>
-        </div>
-      </div>
-      <div class="chart-footer">
-        <div class="chart-stat">
-          <span class="chart-stat-label">Total</span>
-          <span class="chart-stat-value" id="statTotalOrders">—</span>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-label">Berhasil</span>
-          <span class="chart-stat-value success" id="statSuccessOrders">—</span>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-label">Gagal</span>
-          <span class="chart-stat-value danger" id="statFailedOrders">—</span>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-label">Success Rate</span>
-          <span class="chart-stat-value primary" id="statSuccessRate">—</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- CHART: SALDO ACTIVITY -->
-    <div class="chart-card glass-card reveal">
-      <div class="chart-header">
-        <div class="chart-header-left">
-          <h3>
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Aktivitas Saldo
-          </h3>
-          <p>Naik turun saldo kamu</p>
-        </div>
-        <div class="chart-tabs" id="chartSaldoTabs">
-          <button class="chart-tab active" data-range="7" type="button">7H</button>
-          <button class="chart-tab" data-range="30" type="button">30H</button>
-          <button class="chart-tab" data-range="90" type="button">90H</button>
-        </div>
-      </div>
-      <div class="chart-legend">
-        <div class="chart-legend-item">
-          <span class="legend-dot primary"></span> Saldo
-        </div>
-        <div class="chart-legend-item">
-          <span class="legend-dot success"></span> Masuk (deposit/refund)
-        </div>
-        <div class="chart-legend-item">
-          <span class="legend-dot danger"></span> Keluar (order)
-        </div>
-      </div>
-      <div class="chart-body">
-        <div class="chart-loading" id="chartSaldoLoading">
-          <span class="spinner-sm"></span>
-          <span>Memuat aktivitas saldo...</span>
-        </div>
-        <svg class="chart-svg" id="chartSaldoSvg" viewBox="0 0 800 260" preserveAspectRatio="none"></svg>
-        <div class="chart-empty" id="chartSaldoEmpty" style="display:none;">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          <p>Belum ada aktivitas saldo</p>
-        </div>
-      </div>
-      <div class="chart-footer">
-        <div class="chart-stat">
-          <span class="chart-stat-label">Total Masuk</span>
-          <span class="chart-stat-value success" id="statSaldoIn">—</span>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-label">Total Keluar</span>
-          <span class="chart-stat-value danger" id="statSaldoOut">—</span>
-        </div>
-        <div class="chart-stat">
-          <span class="chart-stat-label">Saldo Sekarang</span>
-          <span class="chart-stat-value primary" id="statSaldoNow">—</span>
-        </div>
       </div>
     </div>
 
