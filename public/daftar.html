@@ -1,180 +1,159 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>Daftar - AsyrofOTP</title>
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/core.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/login.css">
-    <link rel="stylesheet" href="/css/daftar.css">
-
-    <!-- 🔒 SECURITY (sama kayak login) -->
-    <script>
-        (function() {
-            const saved = localStorage.getItem('asyrofotp_theme');
-            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-        (function() {
-            if (window.location.protocol === 'view-source:') {
-                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
-                throw new Error('__VIEW_SOURCE_BLOCKED__');
-            }
-        })();
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; } catch (e) {}
-            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
-        }
-        (function() {
-            const LOCK_FLAG = 'asyrof_devtools_lock';
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                document.documentElement.innerHTML = '<head></head><body></body>';
-                function showLockScreen() {
-                    document.body.innerHTML = '<div id="devtoolsLockScreen"><div class="lock-box"><div class="lock-icon">🔒</div><h2>Akses Dibatasi</h2><p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p><p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p></div></div><style>html,body{margin:0;padding:0;background:#0f172a;overflow:auto!important;position:static!important;height:auto!important;min-height:100vh!important;width:100%!important;}#devtoolsLockScreen{min-height:100vh;width:100%;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;-webkit-user-select:none;}#devtoolsLockScreen .lock-box{background:#1e293b;border:3px solid #475569;border-radius:20px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:8px 8px 0px rgba(0,0,0,.5);box-sizing:border-box;}#devtoolsLockScreen .lock-icon{font-size:3rem;margin-bottom:16px;line-height:1;}#devtoolsLockScreen h2{color:#dc2626;font-size:1.5rem;font-weight:800;margin:0 0 12px;}#devtoolsLockScreen p{color:#cbd5e1;font-size:.95rem;line-height:1.6;margin:0 0 8px;}#devtoolsLockScreen .lock-hint{color:#64748b;font-size:.78rem;font-family:ui-monospace,monospace;margin-top:20px;padding-top:16px;border-top:1px dashed #334155;}</style>';
-                    const T = 200;
-                    setInterval(() => {
-                        const wd = window.outerWidth - window.innerWidth;
-                        const hd = window.outerHeight - window.innerHeight;
-                        if (wd <= T && hd <= T) { sessionStorage.removeItem(LOCK_FLAG); window.location.reload(); }
-                    }, 700);
-                }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
-                else showLockScreen();
-                throw new Error('__DEVTOOLS_LOCK__');
-            }
-        })();
-    </script>
-
-    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#007aff">
+<meta name="robots" content="noindex,nofollow">
+<title>Daftar — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/daftar.css">
+<script>
+(function(){
+  var d=document.documentElement;
+  var hc=navigator.hardwareConcurrency||4;
+  var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var c=navigator.connection||{};
+  var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
+  var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var mode='full';
+  if(r||sn||hc<=4||m)mode='lite';
+  d.setAttribute('data-perf',mode);
+  try{
+    var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    d.setAttribute('data-theme',t);
+  }catch(e){}
+  if(window.top!==window.self){
+    try{window.top.location=window.self.location}catch(e){}
+    d.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';
+  }
+})();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
 
 <!-- ===== BACKGROUND LAYERS ===== -->
 <div class="bg-stack" aria-hidden="true">
-    <div class="bg-shader" id="bgShader"></div>
-    <div class="bg-microslats" id="bgMicroslats"></div>
-    <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
+  <div class="bg-shader" id="bgShader"></div>
+  <div class="bg-microslats" id="bgMicroslats"></div>
+  <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
 </div>
 
 <!-- Theme toggle -->
-<button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+<button class="theme-toggle glass" id="themeToggle" type="button" aria-label="Ganti tema">
+  <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 </button>
 
 <!-- ===== AUTH LAYOUT ===== -->
 <div class="auth-center">
 
-    <!-- Logo "A" di atas card -->
-    <div class="auth-logo-block">
-        <div class="logo-icon" aria-hidden="true">A</div>
-    </div>
+  <div class="auth-logo-block">
+    <div class="logo-icon" aria-hidden="true">A</div>
+  </div>
 
-    <!-- Register card with Spotlight -->
-    <div class="spotlight-card" id="registerCard">
-        <div class="spotlight-card-inner">
-            <div class="auth-card-content">
-                <h1 class="auth-title">Buat Akun</h1>
-                <p class="subtitle">Daftar gratis, langsung bisa pakai.</p>
+  <div class="spotlight-card glass-card" id="registerCard">
+    <div class="spotlight-card-inner">
+      <div class="auth-card-content">
+        <h1 class="auth-title">Buat Akun</h1>
+        <p class="subtitle">Daftar gratis, langsung bisa pakai.</p>
 
-                <!-- STEP INDICATOR -->
-                <div class="steps" id="steps">
-                    <div class="step-dot active" data-step="1">1</div>
-                    <div class="step-line" data-line="1"></div>
-                    <div class="step-dot" data-step="2">2</div>
-                    <div class="step-line" data-line="2"></div>
-                    <div class="step-dot" data-step="3">3</div>
-                    <div class="step-line" data-line="3"></div>
-                    <div class="step-dot" data-step="4">4</div>
-                </div>
-
-                <div class="alert" id="alert" role="alert">
-                    <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                    <span id="alert-text"></span>
-                </div>
-
-                <form id="registerForm" autocomplete="on" novalidate>
-                    <div class="form-group visible" id="group-username">
-                        <label class="form-label" for="username">Username</label>
-                        <div class="input-wrap">
-                            <input type="text" class="form-control with-status" id="username" placeholder="username" autocomplete="username" autofocus spellcheck="false">
-                            <div class="input-status" id="status-username"></div>
-                        </div>
-                        <div class="form-hint" id="hint-username">Huruf, angka, underscore. 3-20 karakter.</div>
-                    </div>
-
-                    <div class="form-group" id="group-name">
-                        <label class="form-label" for="name">Nama Tampilan <span style="font-weight:500;color:var(--text-gray);">(opsional)</span></label>
-                        <input type="text" class="form-control" id="name" placeholder="Nama kamu" autocomplete="name" spellcheck="false">
-                        <div class="form-hint" id="hint-name">Boleh dikosongin.</div>
-                    </div>
-
-                    <div class="form-group" id="group-password">
-                        <label class="form-label" for="password">Password</label>
-                        <div class="input-wrap">
-                            <input type="password" class="form-control with-eye" id="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
-                            <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="form-hint" id="hint-password">Minimal 6 karakter.</div>
-                    </div>
-
-                    <div class="form-group" id="group-password2">
-                        <label class="form-label" for="password2">Konfirmasi Password</label>
-                        <div class="input-wrap">
-                            <input type="password" class="form-control with-eye" id="password2" placeholder="Ulangi password" autocomplete="new-password">
-                            <button type="button" class="eye-btn" id="togglePassword2" aria-label="Lihat password" tabindex="-1">
-                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                            </button>
-                        </div>
-                        <div class="form-hint" id="hint-password2">Ulangi password yang sama.</div>
-                    </div>
-
-                    <div class="terms-group" id="group-terms">
-                        <label class="terms-box" for="agree">
-                            <input type="checkbox" id="agree">
-                            <span class="terms-text">
-                                Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat & Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
-                            </span>
-                        </label>
-                    </div>
-
-                    <button type="submit" class="btn btn-glare" id="submitBtn" disabled>
-                        <span class="glare-layer" aria-hidden="true"></span>
-                        <span id="btnText">Daftar</span>
-                        <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    </button>
-                </form>
-
-                <div class="auth-footer">
-                    Sudah punya akun? <a href="/login">Login di sini</a>
-                </div>
-
-                <div class="recaptcha-notice">
-                    Dilindungi oleh reCAPTCHA.
-                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
-                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
-                </div>
-            </div>
+        <!-- STEP INDICATOR -->
+        <div class="steps" id="steps">
+          <div class="step-dot active" data-step="1">1</div>
+          <div class="step-line" data-line="1"></div>
+          <div class="step-dot" data-step="2">2</div>
+          <div class="step-line" data-line="2"></div>
+          <div class="step-dot" data-step="3">3</div>
+          <div class="step-line" data-line="3"></div>
+          <div class="step-dot" data-step="4">4</div>
         </div>
+
+        <div class="alert" id="alert" role="alert">
+          <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span id="alert-text"></span>
+        </div>
+
+        <form id="registerForm" autocomplete="on" novalidate>
+          <div class="form-group visible" id="group-username">
+            <label class="form-label" for="username">Username</label>
+            <div class="input-wrap">
+              <input type="text" class="form-control with-status" id="username" placeholder="username" autocomplete="username" autofocus spellcheck="false">
+              <div class="input-status" id="status-username"></div>
+            </div>
+            <div class="form-hint" id="hint-username">Huruf, angka, underscore. 3-20 karakter.</div>
+          </div>
+
+          <div class="form-group" id="group-name">
+            <label class="form-label" for="name">Nama Tampilan <span class="label-optional">(opsional)</span></label>
+            <input type="text" class="form-control" id="name" placeholder="Nama kamu" autocomplete="name" spellcheck="false">
+            <div class="form-hint" id="hint-name">Boleh dikosongin.</div>
+          </div>
+
+          <div class="form-group" id="group-password">
+            <label class="form-label" for="password">Password</label>
+            <div class="input-wrap">
+              <input type="password" class="form-control with-eye" id="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
+              <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="form-hint" id="hint-password">Minimal 6 karakter.</div>
+          </div>
+
+          <div class="form-group" id="group-password2">
+            <label class="form-label" for="password2">Konfirmasi Password</label>
+            <div class="input-wrap">
+              <input type="password" class="form-control with-eye" id="password2" placeholder="Ulangi password" autocomplete="new-password">
+              <button type="button" class="eye-btn" id="togglePassword2" aria-label="Lihat password" tabindex="-1">
+                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <div class="form-hint" id="hint-password2">Ulangi password yang sama.</div>
+          </div>
+
+          <div class="terms-group" id="group-terms">
+            <label class="terms-box" for="agree">
+              <input type="checkbox" id="agree">
+              <span class="terms-text">
+                Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat & Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn-submit" id="submitBtn" disabled>
+            <span class="btn-glare" aria-hidden="true"></span>
+            <span id="btnText">Daftar</span>
+            <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </form>
+
+        <div class="auth-footer">
+          Sudah punya akun? <a href="/login">Login di sini</a>
+        </div>
+
+        <div class="recaptcha-notice">
+          Dilindungi oleh reCAPTCHA.
+          <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
+          <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
 
 <script src="/js/daftar.js" defer></script>
