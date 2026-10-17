@@ -50,63 +50,122 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 </div>
 </nav>
 
+<!-- ============ HERO ============ -->
 <section class="hero" id="home">
 <div class="wrap">
 <div class="hero-grid">
-<div class="hero-l">
-<span class="pill"><span class="pill-dot"></span>Aktif 24 Jam</span>
-<h1 class="hero-h1">Layanan OTP<br><span class="grad">Cepat & Aman</span></h1>
-<p class="hero-p"><span id="typeText"></span><span class="cursor" id="typeCursor">|</span></p>
-<div class="hero-cta">
-<a href="/dashboard" class="btn btn-primary">
-<svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-Mulai Sekarang
-</a>
-<a href="#how" class="btn btn-glass">
-<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/></svg>
-Cara Kerja
-</a>
-</div>
-<div class="hero-stats">
-<div><div class="stat-v">1.700+</div><div class="stat-l">Layanan</div></div>
-<div><div class="stat-v">100+</div><div class="stat-l">Negara</div></div>
-<div><div class="stat-v">5s</div><div class="stat-l">OTP Masuk</div></div>
-<div><div class="stat-v">24/7</div><div class="stat-l">Support</div></div>
-</div>
-</div>
-<div class="hero-r">
-<div class="phone-mock">
-<div class="phone-notch"></div>
-<div class="phone-screen">
-<div class="msg-card">
-<div class="msg-head">
-<div class="msg-avatar">A</div>
-<div>
-<div class="msg-name">AsyrofOTP</div>
-<div class="msg-sub">Baru saja</div>
-</div>
-</div>
-<div class="msg-body">
-<div class="msg-line"></div>
-<div class="msg-line short"></div>
-<div class="otp-bubble">
-<span class="otp-num">382 914</span>
-<svg class="ic otp-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-</div>
-<div class="msg-line tiny"></div>
-</div>
-</div>
-<div class="phone-badge">
-<svg class="ic" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-<span>Verified</span>
-</div>
-</div>
-</div>
-</div>
+
+  <!-- LEFT: TEXT -->
+  <div class="hero-l">
+    <span class="pill"><span class="pill-dot"></span>Aktif 24 Jam</span>
+    <h1 class="hero-h1">Layanan OTP<br><span class="grad">Cepat & Aman</span></h1>
+    <p class="hero-p"><span id="typeText"></span><span class="cursor" id="typeCursor">|</span></p>
+    <div class="hero-cta">
+      <a href="/dashboard" class="btn btn-primary">
+        <svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+        Mulai Sekarang
+      </a>
+      <a href="#how" class="btn btn-glass">
+        <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/></svg>
+        Cara Kerja
+      </a>
+    </div>
+    <div class="hero-stats">
+      <div><div class="stat-v">1.700+</div><div class="stat-l">Layanan</div></div>
+      <div><div class="stat-v">100+</div><div class="stat-l">Negara</div></div>
+      <div><div class="stat-v">5s</div><div class="stat-l">OTP Masuk</div></div>
+      <div><div class="stat-v">24/7</div><div class="stat-l">Support</div></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: OTP FLOW ANIMATION -->
+  <div class="hero-r">
+    <div class="flow" id="flow" role="img" aria-label="Alur verifikasi OTP">
+
+      <!-- NODE 1: WhatsApp -->
+      <div class="flow-node flow-wa" data-step="1">
+        <div class="fn-icon">
+          <svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        </div>
+        <div class="fn-label">WhatsApp</div>
+        <div class="fn-sub">Minta OTP</div>
+      </div>
+
+      <!-- PATH 1 -->
+      <div class="flow-path">
+        <svg class="fp-svg" viewBox="0 0 200 60" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gradP1" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#25D366" stop-opacity="0"/>
+              <stop offset="50%" stop-color="#25D366" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#0a84ff" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+          <path class="fp-line" d="M0,30 C60,10 140,50 200,30" stroke="url(#gradP1)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle class="fp-dot" r="4" fill="#25D366">
+            <animateMotion dur="2.4s" repeatCount="indefinite" keyTimes="0;1" keySplines="0.4 0 0.2 1" calcMode="spline">
+              <mpath href="#path1"/>
+            </animateMotion>
+          </circle>
+          <path id="path1" d="M0,30 C60,10 140,50 200,30" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- NODE 2: AsyrofOTP (center) -->
+      <div class="flow-node flow-brand" data-step="2">
+        <div class="fn-icon fn-brand-ic">
+          <span class="fn-brand-letter">A</span>
+        </div>
+        <div class="fn-label">AsyrofOTP</div>
+        <div class="fn-sub">Terima OTP</div>
+        <div class="fn-otp" id="flowOtp">
+          <span class="fn-otp-d">8</span>
+          <span class="fn-otp-d">4</span>
+          <span class="fn-otp-d">7</span>
+          <span class="fn-otp-d">2</span>
+          <span class="fn-otp-d">9</span>
+          <span class="fn-otp-d">1</span>
+        </div>
+      </div>
+
+      <!-- PATH 2 -->
+      <div class="flow-path">
+        <svg class="fp-svg" viewBox="0 0 200 60" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="gradP2" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="#0a84ff" stop-opacity="1"/>
+              <stop offset="50%" stop-color="#5e5ce6" stop-opacity="1"/>
+              <stop offset="100%" stop-color="#25D366" stop-opacity="1"/>
+            </linearGradient>
+          </defs>
+          <path class="fp-line" d="M0,30 C60,50 140,10 200,30" stroke="url(#gradP2)" stroke-width="2" fill="none" stroke-linecap="round"/>
+          <circle class="fp-dot" r="4" fill="#0a84ff">
+            <animateMotion dur="2.4s" repeatCount="indefinite" keyTimes="0;1" keySplines="0.4 0 0.2 1" calcMode="spline">
+              <mpath href="#path2"/>
+            </animateMotion>
+          </circle>
+          <path id="path2" d="M0,30 C60,50 140,10 200,30" fill="none"/>
+        </svg>
+      </div>
+
+      <!-- NODE 3: Verified -->
+      <div class="flow-node flow-ok" data-step="3">
+        <div class="fn-icon fn-ok-ic">
+          <svg class="ic ic-fill" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" fill="none" stroke="currentColor" stroke-width="3"/></svg>
+        </div>
+        <div class="fn-label">Verified</div>
+        <div class="fn-sub">Berhasil</div>
+        <div class="fn-ripple"></div>
+      </div>
+
+    </div>
+  </div>
+
 </div>
 </div>
 </section>
 
+<!-- ============ SUPPORT ============ -->
 <section class="support" id="support">
 <div class="wrap">
 <div class="sec-head reveal">
@@ -138,6 +197,7 @@ Cara Kerja
 </div>
 </section>
 
+<!-- ============ FEATURES ============ -->
 <section class="features" id="features">
 <div class="wrap">
 <div class="sec-head reveal">
@@ -189,6 +249,7 @@ Cara Kerja
 </div>
 </section>
 
+<!-- ============ HOW ============ -->
 <section class="how" id="how">
 <div class="wrap">
 <div class="sec-head reveal">
@@ -197,30 +258,15 @@ Cara Kerja
 <p>Hanya butuh 4 langkah untuk mulai.</p>
 </div>
 <div class="how-grid">
-<div class="how-step reveal">
-<div class="how-num">1</div>
-<h3>Pilih Layanan</h3>
-<p>1.700+ layanan digital tersedia.</p>
-</div>
-<div class="how-step reveal">
-<div class="how-num">2</div>
-<h3>Pilih Negara</h3>
-<p>Dari 100+ negara di seluruh dunia.</p>
-</div>
-<div class="how-step reveal">
-<div class="how-num">3</div>
-<h3>Gunakan Nomor</h3>
-<p>Tempel nomor di aplikasi target.</p>
-</div>
-<div class="how-step reveal">
-<div class="how-num">4</div>
-<h3>Terima OTP</h3>
-<p>Kode masuk dalam ~5 detik.</p>
-</div>
+<div class="how-step reveal"><div class="how-num">1</div><h3>Pilih Layanan</h3><p>1.700+ layanan digital tersedia.</p></div>
+<div class="how-step reveal"><div class="how-num">2</div><h3>Pilih Negara</h3><p>Dari 100+ negara di seluruh dunia.</p></div>
+<div class="how-step reveal"><div class="how-num">3</div><h3>Gunakan Nomor</h3><p>Tempel nomor di aplikasi target.</p></div>
+<div class="how-step reveal"><div class="how-num">4</div><h3>Terima OTP</h3><p>Kode masuk dalam ~5 detik.</p></div>
 </div>
 </div>
 </section>
 
+<!-- ============ FAQ ============ -->
 <section class="faq" id="faq">
 <div class="wrap">
 <div class="sec-head reveal">
