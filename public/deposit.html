@@ -1,348 +1,329 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Deposit Saldo - AsyrofOTP</title>
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800;12..96,900&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/core.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/deposit.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0a84ff">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="noindex,nofollow">
+<title>Deposit Saldo — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/deposit.css">
+<script>
+(function(){
+  var d = document.documentElement;
+  try {
+    var hc = navigator.hardwareConcurrency || 4;
+    var m = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    var c = navigator.connection || {};
+    var sn = c.saveData || /2g|slow-2g/.test(c.effectiveType || '');
+    var r = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mode = 'full';
+    if (r || sn || hc <= 4 || m) mode = 'lite';
+    d.setAttribute('data-perf', mode);
+  } catch(e) { d.setAttribute('data-perf', 'lite'); }
 
-    <script>
-        (function() {
-            try {
-                document.documentElement.style.overflow = '';
-                document.documentElement.style.overflowY = '';
-                document.documentElement.style.height = '';
-                document.documentElement.style.position = '';
-                document.documentElement.style.top = '';
+  try {
+    var saved = null;
+    try { saved = localStorage.getItem('asyrofotp_theme'); } catch(_) {}
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    d.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+  } catch(e) {}
 
-                const cleanupBody = () => {
-                    if (!document.body) return;
-                    document.body.style.overflow = '';
-                    document.body.style.overflowY = '';
-                    document.body.style.position = '';
-                    document.body.style.top = '';
-                    document.body.style.left = '';
-                    document.body.style.right = '';
-                    document.body.style.width = '';
-                    document.body.style.height = '';
-                    document.body.classList.remove('modal-open', 'sidebar-open', 'sheet-open', 'no-scroll');
-                };
-
-                if (document.body) cleanupBody();
-                else document.addEventListener('DOMContentLoaded', cleanupBody, { once: true });
-            } catch (e) {}
-        })();
-
-        (function() {
-            const saved = localStorage.getItem('asyrofotp_theme');
-            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; } catch (e) {}
-            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
-        }
-    </script>
-
-    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+  try {
+    if (window.top !== window.self) {
+      try { window.top.location = window.self.location; } catch (e) {
+        document.addEventListener('DOMContentLoaded', function() {
+          document.body.innerHTML =
+            '<div style="position:fixed;inset:0;background:#000;color:#fff;' +
+            'font-family:system-ui,sans-serif;display:flex;align-items:center;' +
+            'justify-content:center;text-align:center;padding:20px;z-index:99999;">' +
+            '<div><h1 style="font-size:48px;margin:0 0 12px;">⛔</h1>' +
+            '<p style="opacity:.7;font-size:14px;margin:0;">Buka halaman ini di browser, bukan di dalam app.</p></div>' +
+            '</div>';
+        });
+      }
+    }
+  } catch(e) {}
+})();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
 
-<div class="bg-pulse" aria-hidden="true">
-    <span></span>
-    <span></span>
-    <span></span>
+<div class="bg" aria-hidden="true">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+  <div class="grid"></div>
 </div>
 
-<div class="dashboard-layout">
+<!-- ✅ SIDEBAR — child langsung <body>, DI LUAR .dashboard-layout -->
+<aside class="sidebar glass" id="sidebar">
+  <div class="sidebar-header">
+    <a href="/dashboard" class="sidebar-logo">
+      <div class="logo-icon">A</div>
+      <div class="logo-text">Asyrof<span>OTP</span></div>
+    </a>
+    <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar" type="button">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+  </div>
 
-    <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <a href="/dashboard" class="sidebar-logo">
-                <div class="logo-icon">A</div>
-                <div class="logo-text">Asyrof<span>OTP</span></div>
-            </a>
-            <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar">
-                <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
-            </button>
-        </div>
+  <nav class="sidebar-nav">
+    <a href="/dashboard" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="nav-label">Home</span>
+    </a>
+    <a href="/nokos" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span class="nav-label">Beli Nokos</span>
+    </a>
+    <a href="/inbox" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      <span class="nav-label">Inbox</span>
+    </a>
+    <a href="/deposit" class="nav-item active">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span class="nav-label">Deposit</span>
+    </a>
+    <div class="nav-section-label">Akun</div>
+    <a href="/profile" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="nav-label">Profile</span>
+    </a>
+  </nav>
 
-        <nav class="sidebar-nav">
-            <a href="/dashboard" class="nav-item" data-tooltip="Home">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                <span class="nav-label">Home</span>
-            </a>
-            <a href="/nokos" class="nav-item" data-tooltip="Beli Nokos">
-                <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-                <span class="nav-label">Beli Nokos</span>
-            </a>
-            <a href="/inbox" class="nav-item" data-tooltip="Inbox">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-                <span class="nav-label">Inbox</span>
-            </a>
-            <a href="/deposit" class="nav-item active" data-tooltip="Deposit">
-                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                <span class="nav-label">Deposit</span>
-            </a>
-
-            <div class="nav-section-label">Akun</div>
-            <a href="/profile" class="nav-item" data-tooltip="Profile">
-                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                <span class="nav-label">Profile</span>
-            </a>
-        </nav>
-
-        <div class="sidebar-footer">
-            <div class="user-info">
-                <div class="user-avatar" id="userInitial">
-                    <span class="loading-spinner loading-spinner-sm"></span>
-                </div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
-                    <div class="user-balance" id="userBalance">
-                        <span class="skeleton skeleton-text-sm"></span>
-                    </div>
-                </div>
-                <button class="logout-btn" id="logoutBtn" title="Keluar">
-                    <svg class="icon-svg" viewBox="0 0 24 24">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                        <polyline points="16 17 21 12 16 7"/>
-                        <line x1="21" y1="12" x2="9" y2="12"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </aside>
-
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <main class="main-content">
-        <div class="topbar">
-            <div class="topbar-left">
-                <h1>Deposit Saldo</h1>
-                <p>Top-up saldo buat beli nokos</p>
-            </div>
-            <div class="topbar-right">
-                <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-                    <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-                    <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                </button>
-                <button class="mobile-toggle" id="mobileToggle" aria-label="Buka menu" type="button">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-                </button>
-                <div class="balance-pill">
-                    <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                    <span class="label">Saldo:</span>
-                    <span class="amount" id="balancePill">—</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="deposit-hero">
-            <div class="deposit-hero-icon">
-                <svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="3" width="7" height="7" rx="1"/>
-                    <rect x="14" y="3" width="7" height="7" rx="1"/>
-                    <rect x="3" y="14" width="7" height="7" rx="1"/>
-                    <path d="M14 14h3v3h-3z"/>
-                    <path d="M21 14v3"/>
-                    <path d="M21 21h-3"/>
-                    <path d="M14 21h3"/>
-                    <path d="M17 17h.01"/>
-                </svg>
-            </div>
-            <div class="deposit-hero-text">
-                <h1>Isi Saldo</h1>
-                <p>Bayar pakai QRIS dari e-wallet atau m-banking apa pun. Minimal Rp1.000, maksimal Rp10.000.000 per transaksi.</p>
-            </div>
-        </div>
-
-        <div class="deposit-layout">
-            <div class="deposit-card">
-                <div class="step-indicator" id="stepIndicator">
-                    <div class="step-item active" id="step1">
-                        <div class="step-icon" id="step1Icon">●</div>
-                        <div class="step-label">Nominal</div>
-                    </div>
-                    <div class="step-line"></div>
-                    <div class="step-item" id="step2">
-                        <div class="step-icon" id="step2Icon">●</div>
-                        <div class="step-label">Metode</div>
-                    </div>
-                    <div class="step-line"></div>
-                    <div class="step-item" id="step3">
-                        <div class="step-icon" id="step3Icon">●</div>
-                        <div class="step-label">Bayar</div>
-                    </div>
-                </div>
-
-                <div id="panelNominal">
-                    <div class="form-title">Mau isi berapa?</div>
-                    <div class="input-amount-big">
-                        <div class="prefix">Rp</div>
-                        <input type="number" id="inputAmount" placeholder="0" min="1000" max="10000000" inputmode="numeric">
-                    </div>
-                    <div class="preset-grid" id="presetGrid"></div>
-                    <button class="btn-deposit" id="btnLanjut" disabled type="button">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        <span>Pilih Metode Pembayaran</span>
-                    </button>
-                    <div class="balance-info">
-                        Saldo sekarang <strong id="saldoSekarang">Rp0</strong>
-                    </div>
-                </div>
-
-                <div id="panelPayment" style="display:none;"></div>
-            </div>
-
-            <div class="deposit-sidebar">
-                <div class="side-card banner desktop-only">
-                    <div class="banner-content">
-                        <div class="banner-badge">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-                            Nokos Termurah
-                        </div>
-                        <div class="banner-title">AsyrofOTP<br>Nokos OTP 24 Jam</div>
-                        <div class="banner-sub">Mulai Rp2.000 · Refund otomatis</div>
-                    </div>
-                    <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                        <path d="M2 17l10 5 10-5"/>
-                        <path d="M2 12l10 5 10-5"/>
-                    </svg>
-                </div>
-
-                <div class="side-card info-card">
-                    <div class="side-title">
-                        <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                        Perlu Diketahui
-                    </div>
-                    <div class="info-list">
-                        <div class="info-item">
-                            <div class="bullet"></div>
-                            <div>Saldo masuk otomatis setelah QRIS dibayar, biasanya dalam hitungan detik.</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="bullet"></div>
-                            <div>Saldo hanya bisa dipakai di AsyrofOTP dan tidak bisa ditarik tunai.</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="bullet"></div>
-                            <div>QRIS kedaluwarsa? Status akan otomatis update jadi expired.</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="bullet"></div>
-                            <div>Klik riwayat deposit buat lihat detail lengkap.</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="history-section">
-            <div class="section-label">
-                <div class="dot"></div>
-                <div class="text">Riwayat Deposit</div>
-                <div class="line"></div>
-            </div>
-
-            <div id="historyList">
-                <div class="empty-block">
-                    <div class="icon-box">
-                        <svg class="icon-svg" viewBox="0 0 24 24">
-                            <line x1="12" y1="1" x2="12" y2="23"/>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-                        </svg>
-                    </div>
-                    <h3>Belum ada riwayat deposit</h3>
-                    <p>Deposit pertama kamu bakal muncul di sini.</p>
-                </div>
-            </div>
-
-            <div class="pagination" id="pagination" style="display:none;"></div>
-        </div>
-
-    </main>
-</div>
-
-<nav class="mobile-taskbar" aria-label="Navigasi utama">
-    <div class="mobile-taskbar-inner">
-        <a href="/dashboard" class="taskbar-item" data-page="dashboard">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-            <span class="taskbar-label">Home</span>
-        </a>
-        <a href="/nokos" class="taskbar-item" data-page="nokos">
-            <svg class="icon-svg" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-            <span class="taskbar-label">Nokos</span>
-        </a>
-        <a href="/deposit" class="taskbar-item taskbar-primary active" data-page="deposit">
-            <div class="icon-wrapper">
-                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            </div>
-            <span class="taskbar-label">Deposit</span>
-        </a>
-        <a href="/inbox" class="taskbar-item" data-page="inbox">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-            <span class="taskbar-label">Inbox</span>
-        </a>
-        <a href="/profile" class="taskbar-item" data-page="profile">
-            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span class="taskbar-label">Profile</span>
-        </a>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="userInitial"><span class="spinner-sm"></span></div>
+      <div class="user-details">
+        <div class="user-name" id="userName"><span class="skel skel-text"></span></div>
+        <div class="user-balance" id="userBalance"><span class="skel skel-text"></span></div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" title="Keluar" type="button">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
+  </div>
+</aside>
+
+<!-- ✅ OVERLAY — child langsung <body>, tepat setelah sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- ✅ KONTEN UTAMA dibungkus .dashboard-layout -->
+<div class="dashboard-layout">
+  <main class="main-content">
+    <div class="topbar glass">
+      <div class="topbar-left">
+        <h1>Deposit Saldo</h1>
+        <p>Top-up saldo buat beli nokos</p>
+      </div>
+      <div class="topbar-right">
+        <button class="theme-btn glass" id="themeToggle" type="button" aria-label="Ganti tema">
+          <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+          <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="balance-pill glass">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <span class="label">Saldo</span>
+          <span class="amount" id="balancePill">—</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="deposit-hero">
+      <div class="deposit-hero-icon">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3z"/><path d="M21 14v3M21 21h-3M14 21h3M17 17h.01"/></svg>
+      </div>
+      <div class="deposit-hero-text">
+        <h1>Isi Saldo</h1>
+        <p>Bayar pakai QRIS dari e-wallet atau m-banking apa pun. Minimal Rp1.000, maksimal Rp10.000.000 per transaksi.</p>
+      </div>
+    </div>
+
+    <div class="deposit-layout">
+      <div class="deposit-card glass-card">
+        <div class="step-indicator" id="stepIndicator">
+          <div class="step-item active" id="step1">
+            <div class="step-icon" id="step1Icon">●</div>
+            <div class="step-label">Nominal</div>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step2">
+            <div class="step-icon" id="step2Icon">●</div>
+            <div class="step-label">Metode</div>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-item" id="step3">
+            <div class="step-icon" id="step3Icon">●</div>
+            <div class="step-label">Bayar</div>
+          </div>
+        </div>
+
+        <div id="panelNominal">
+          <div class="form-title">Mau isi berapa?</div>
+          <div class="input-amount-big">
+            <div class="prefix">Rp</div>
+            <input type="number" id="inputAmount" placeholder="0" min="1000" max="10000000" inputmode="numeric">
+          </div>
+          <div class="preset-grid" id="presetGrid"></div>
+          <button class="btn-deposit" id="btnLanjut" disabled type="button">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span>Pilih Metode Pembayaran</span>
+          </button>
+          <div class="balance-info">
+            Saldo sekarang <strong id="saldoSekarang">Rp0</strong>
+          </div>
+        </div>
+
+        <div id="panelPayment" style="display:none;"></div>
+      </div>
+
+      <div class="deposit-sidebar">
+        <div class="side-card banner desktop-only">
+          <div class="banner-content">
+            <div class="banner-badge">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Nokos Termurah
+            </div>
+            <div class="banner-title">AsyrofOTP<br>Nokos OTP 24 Jam</div>
+            <div class="banner-sub">Mulai Rp2.000 · Refund otomatis</div>
+          </div>
+          <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+
+        <div class="side-card info-card glass-card">
+          <div class="side-title">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Perlu Diketahui
+          </div>
+          <div class="info-list">
+            <div class="info-item">
+              <div class="bullet"></div>
+              <div>Saldo masuk otomatis setelah QRIS dibayar, biasanya dalam hitungan detik.</div>
+            </div>
+            <div class="info-item">
+              <div class="bullet"></div>
+              <div>Saldo hanya bisa dipakai di AsyrofOTP dan tidak bisa ditarik tunai.</div>
+            </div>
+            <div class="info-item">
+              <div class="bullet"></div>
+              <div>QRIS kedaluwarsa? Status akan otomatis update jadi expired.</div>
+            </div>
+            <div class="info-item">
+              <div class="bullet"></div>
+              <div>Klik riwayat deposit buat lihat detail lengkap.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="history-section">
+      <div class="section-title">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Riwayat Deposit</span>
+      </div>
+
+      <div id="historyList">
+        <div class="empty-inbox">
+          <div class="icon-box">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          </div>
+          <h3>Belum ada riwayat deposit</h3>
+          <p>Deposit pertama kamu bakal muncul di sini.</p>
+        </div>
+      </div>
+
+      <div class="pagination" id="pagination" style="display:none;"></div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="site-footer-links">
+        <a href="/syarat">Syarat</a>
+        <a href="/ketentuan">Ketentuan</a>
+      </div>
+      <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+    </footer>
+  </main>
+</div>
+
+<nav class="mobile-taskbar glass" aria-label="Navigasi utama">
+  <div class="mobile-taskbar-inner">
+    <a href="/dashboard" class="taskbar-item" data-page="dashboard">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="taskbar-label">Home</span>
+    </a>
+    <a href="/nokos" class="taskbar-item" data-page="nokos">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span class="taskbar-label">Nokos</span>
+    </a>
+    <a href="/deposit" class="taskbar-item taskbar-primary active" data-page="deposit">
+      <div class="icon-wrapper">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <span class="taskbar-label">Deposit</span>
+    </a>
+    <a href="/inbox" class="taskbar-item" data-page="inbox">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      <span class="taskbar-label">Inbox</span>
+    </a>
+    <a href="/profile" class="taskbar-item" data-page="profile">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="taskbar-label">Profile</span>
+    </a>
+  </div>
 </nav>
 
 <div class="modal-overlay" id="modalMethod">
-    <div class="modal">
-        <div class="modal-header">
-            <div class="modal-title">Pilih Metode Pembayaran</div>
-            <button class="modal-close" type="button" data-modal-close aria-label="Tutup">
-                <svg class="icon-svg" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-        </div>
-        <div class="method-grid" id="methodGrid"></div>
+  <div class="modal glass-card">
+    <div class="modal-header">
+      <div class="modal-title">Pilih Metode Pembayaran</div>
+      <button class="modal-close" type="button" data-modal-close aria-label="Tutup">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
+    <div class="method-grid" id="methodGrid"></div>
+  </div>
 </div>
 
 <div class="modal-overlay" id="modalPayment">
-    <div class="modal" id="modalPaymentContent"></div>
+  <div class="modal glass-card" id="modalPaymentContent"></div>
 </div>
 
 <div class="modal-overlay" id="modalDetail">
-    <div class="modal" id="modalDetailContent"></div>
+  <div class="modal glass-card" id="modalDetailContent"></div>
 </div>
 
 <div class="custom-alert-overlay" id="customAlert">
-    <div class="custom-alert">
-        <div class="custom-alert-icon info" id="customAlertIcon">
-            <svg class="icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-        </div>
-        <h3 id="customAlertTitle">Informasi</h3>
-        <p id="customAlertMessage">—</p>
-        <div class="custom-alert-actions" id="customAlertActions">
-            <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
-        </div>
+  <div class="custom-alert glass-card">
+    <div class="custom-alert-icon info" id="customAlertIcon">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </div>
+    <h3 id="customAlertTitle">Informasi</h3>
+    <p id="customAlertMessage">—</p>
+    <div class="custom-alert-actions" id="customAlertActions">
+      <button class="btn btn-primary" id="customAlertOk" type="button">OK</button>
+    </div>
+  </div>
 </div>
 
-<script src="/js/main.js"></script>
-<script src="/js/deposit.js"></script>
+<script src="/js/deposit.js" defer></script>
 
 </body>
 </html>
