@@ -1,5 +1,10 @@
 /* ============================================================
-   INBOX.JS — iOS Liquid Glass + Encrypted Cache + Boost Sync
+   INBOX.JS — v6 FINAL
+   - Safe storage (Safari Private Mode)
+   - Sidebar toggle dengan touch + body.sidebar-open
+   - Fetch timeout (network lemot tidak hang)
+   - Guard getElementById
+   - pagehide untuk iOS
    ============================================================ */
 (function (global) {
   'use strict';
@@ -10,6 +15,10 @@
     const _s = 'c2FsdC1pbmJveC12MjAyNi1zZWN1cmU=';
     const _i = 100000;
     let _dk = null;
+    const supported = (() => {
+      try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
+      catch (e) { return false; }
+    })();
 
     async function _derive() {
       if (_dk) return _dk;
@@ -38,7 +47,16 @@
       for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
       return btoa(s);
     }
+    function _fallbackSeal(obj) {
+      try { return 'fb:' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+      catch (e) { return null; }
+    }
+    function _fallbackUnseal(b64) {
+      try { return JSON.parse(decodeURIComponent(escape(atob(b64.slice(3))))); }
+      catch (e) { return null; }
+    }
     async function seal(obj) {
+      if (!supported) return _fallbackSeal(obj);
       try {
         const key = await _derive();
         const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -49,9 +67,12 @@
         comb.set(iv, 0);
         comb.set(new Uint8Array(c), iv.length);
         return _buf2b(comb.buffer);
-      } catch (e) { return null; }
+      } catch (e) { return _fallbackSeal(obj); }
     }
     async function unseal(b64) {
+      if (!b64) return null;
+      if (b64.indexOf('fb:') === 0) return _fallbackUnseal(b64);
+      if (!supported) return null;
       try {
         const key = await _derive();
         const buf = _b2buf(b64);
@@ -63,7 +84,24 @@
         return JSON.parse(new TextDecoder().decode(plain));
       } catch (e) { return null; }
     }
-    return { seal, unseal };
+    return { seal, unseal, supported };
+  })();
+
+  /* §0 — SAFE STORAGE */
+  const SafeStorage = (() => {
+    let ls = null, ss = null;
+    try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch(e) { ls = null; }
+    try { ss = window.sessionStorage; ss.setItem('__t','1'); ss.removeItem('__t'); } catch(e) { ss = null; }
+    const mem = new Map();
+    function wrap(store, prefix) {
+      return {
+        get(k) { try { return store ? store.getItem(prefix+k) : (mem.get(prefix+k) ?? null); } catch(e) { return mem.get(prefix+k) ?? null; } },
+        set(k,v) { try { if(store) store.setItem(prefix+k,v); else mem.set(prefix+k,v); } catch(e) { mem.set(prefix+k,v); } },
+        remove(k) { try { if(store) store.removeItem(prefix+k); else mem.delete(prefix+k); } catch(e) { mem.delete(prefix+k); } },
+        keys() { try { return store ? Object.keys(store) : Array.from(mem.keys()); } catch(e) { return Array.from(mem.keys()); } },
+      };
+    }
+    return { local: wrap(ls,''), session: wrap(ss,'') };
   })();
 
   /* §2 — CACHE (encrypted + memory) */
@@ -77,12 +115,12 @@
         _mem.delete(key);
       }
       try {
-        const raw = localStorage.getItem(P + key);
+        const raw = SafeStorage.local.get(P + key);
         if (!raw) return null;
         const e = await _crypto.unseal(raw);
         if (!e) return null;
         if (ttl && Date.now() - e.t > ttl) {
-          localStorage.removeItem(P + key);
+          SafeStorage.local.remove(P + key);
           return null;
         }
         _mem.set(key, e);
@@ -94,26 +132,26 @@
       _mem.set(key, e);
       try {
         const s = await _crypto.seal(e);
-        if (s) localStorage.setItem(P + key, s);
+        if (s) SafeStorage.local.set(P + key, s);
       } catch (err) {}
     }
     function remove(key) {
       _mem.delete(key);
-      try { localStorage.removeItem(P + key); } catch (e) {}
+      try { SafeStorage.local.remove(P + key); } catch (e) {}
     }
     function invalidate(prefix) {
       _mem.forEach((_, k) => { if (k.startsWith(prefix)) _mem.delete(k); });
       try {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith(P + prefix)) localStorage.removeItem(k);
+        SafeStorage.local.keys().forEach(k => {
+          if (k.startsWith(P + prefix)) SafeStorage.local.remove(k);
         });
       } catch (e) {}
     }
     function clear() {
       _mem.clear();
       try {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith(P)) localStorage.removeItem(k);
+        SafeStorage.local.keys().forEach(k => {
+          if (k.startsWith(P)) SafeStorage.local.remove(k);
         });
       } catch (e) {}
     }
@@ -140,11 +178,12 @@
     autoSync: 5000,
     refundCheck: 30000,
     pageLimit: 5,
+    fetchTimeout: 12000,
   };
 
   /* §4 — DEVICE */
   const _dev = (() => {
-    const mq = (q) => window.matchMedia(q).matches;
+    const mq = (q) => { try { return window.matchMedia(q).matches; } catch(e) { return false; } };
     const hc = navigator.hardwareConcurrency || 4;
     const conn = navigator.connection || {};
     return {
@@ -180,8 +219,13 @@
     } catch (e) {}
   })();
 
-  /* §6 — AUTH */
-  const token = localStorage.getItem('access_token');
+  /* §6 — AUTH (safe localStorage) */
+  let token = null;
+  try {
+    token = SafeStorage.local.get('access_token');
+  } catch (e) {
+    token = null;
+  }
   if (!token) {
     location.href = '/login';
     return;
@@ -189,6 +233,15 @@
 
   /* §7 — HELPERS */
   function safeJson(res) { return res.json().catch(() => ({})); }
+
+  function fetchWithTimeout(url, opts = {}, ms = _cfg.fetchTimeout) {
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+    const o = Object.assign({}, opts);
+    if (ctrl) o.signal = ctrl.signal;
+    return fetch(url, o).finally(() => { if (timer) clearTimeout(timer); });
+  }
+
   function formatRupiah(n) {
     const v = Number(n) || 0;
     return 'Rp' + v.toLocaleString('id-ID');
@@ -231,12 +284,7 @@
       'Cek pesanan & status OTP kamu',
       'Inbox kamu, semua ada di sini',
     ],
-    heroTitle: [
-      'Inbox',
-      'Pesan Kamu',
-      'Riwayat OTP',
-      'Semua Pesanan',
-    ],
+    heroTitle: ['Inbox','Pesan Kamu','Riwayat OTP','Semua Pesanan'],
     heroDesc: [
       'Semua nomor Nokos, kode OTP, dan status pesananmu tersusun rapi di satu tempat.',
       'Cek OTP masuk, status pesanan, dan riwayat transaksi. Auto-refresh tiap 5 detik.',
@@ -427,28 +475,35 @@
     } else fallbackCopy(text, onOk);
   }
   function fallbackCopy(text, onOk) {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    ta.setSelectionRange(0, ta.value.length);
     try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
       const ok = document.execCommand('copy');
       if (ok && typeof onOk === 'function') onOk();
-    } catch (e) {}
-    document.body.removeChild(ta);
+      document.body.removeChild(ta);
+    } catch (e) {
+      try {
+        const t = document.querySelector('textarea[readonly]');
+        if (t) t.remove();
+      } catch (_) {}
+    }
   }
 
   /* §15 — CUSTOM ALERT */
   function showAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
     return new Promise((resolve) => {
       const overlay = document.getElementById('customAlert');
+      if (!overlay) { resolve(window.confirm(message || title || 'OK')); return; }
       const iconEl = document.getElementById('customAlertIcon');
       const titleEl = document.getElementById('customAlertTitle');
       const msgEl = document.getElementById('customAlertMessage');
       const actionsEl = document.getElementById('customAlertActions');
+      if (!iconEl || !titleEl || !msgEl || !actionsEl) { resolve(false); return; }
 
       iconEl.className = 'custom-alert-icon ' + type;
       iconEl.innerHTML = ICONS[type] || ICONS.info;
@@ -488,18 +543,18 @@
       const cur = document.documentElement.getAttribute('data-theme') || 'light';
       const nx = cur === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', nx);
-      try { localStorage.setItem('asyrofotp_theme', nx); } catch (e) {}
+      try { SafeStorage.local.set('asyrofotp_theme', nx); } catch (e) {}
       const m = document.querySelector('meta[name="theme-color"]');
       if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
     });
   })();
 
-  /* §17 — SIDEBAR */
+  /* §17a — SIDEBAR (desktop collapse) */
   (function () {
     const sidebar = document.getElementById('sidebar');
     const collapseBtn = document.getElementById('collapseBtn');
     if (!sidebar || !collapseBtn) return;
-    const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+    const isCollapsed = SafeStorage.local.get('sidebar_collapsed') === 'true';
     if (isCollapsed && window.innerWidth > 768) {
       sidebar.classList.add('collapsed');
       document.body.classList.add('sidebar-collapsed');
@@ -508,21 +563,26 @@
       if (window.innerWidth <= 768) return;
       const c = sidebar.classList.toggle('collapsed');
       document.body.classList.toggle('sidebar-collapsed', c);
-      try { localStorage.setItem('sidebar_collapsed', c); } catch (e) {}
+      try { SafeStorage.local.set('sidebar_collapsed', c); } catch (e) {}
     });
   })();
 
+  /* §17b — SIDEBAR (mobile toggle) — FIX: sidebar-open + touch + debounce */
   (function () {
     const toggle = document.getElementById('mobileToggle');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     if (!toggle || !sidebar || !overlay) return;
+
     let open = false;
+    let lastToggle = 0;
+
     function openSb() {
       if (open) return;
       open = true;
       sidebar.classList.add('open');
       overlay.classList.add('active');
+      document.body.classList.add('sidebar-open');
       document.body.style.overflow = 'hidden';
     }
     function closeSb() {
@@ -530,13 +590,27 @@
       open = false;
       sidebar.classList.remove('open');
       overlay.classList.remove('active');
+      document.body.classList.remove('sidebar-open');
       document.body.style.overflow = '';
     }
-    toggle.addEventListener('click', (e) => {
-      e.preventDefault(); e.stopPropagation();
+
+    function onToggle(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const now = Date.now();
+      if (now - lastToggle < 300) return;
+      lastToggle = now;
       if (open) closeSb(); else openSb();
-    });
-    overlay.addEventListener('click', closeSb);
+    }
+    toggle.addEventListener('click', onToggle);
+    toggle.addEventListener('touchend', onToggle, { passive: false });
+
+    function onOverlay(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      closeSb();
+    }
+    overlay.addEventListener('click', onOverlay);
+    overlay.addEventListener('touchstart', onOverlay, { passive: false });
+
     sidebar.querySelectorAll('.nav-item').forEach(l => {
       l.addEventListener('click', () => {
         if (window.innerWidth <= 768) setTimeout(closeSb, 100);
@@ -544,6 +618,14 @@
     });
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && open) closeSb();
+    });
+
+    let rt = null;
+    window.addEventListener('resize', () => {
+      if (rt) clearTimeout(rt);
+      rt = setTimeout(() => {
+        if (window.innerWidth > 768 && open) closeSb();
+      }, 150);
     });
   })();
 
@@ -578,7 +660,7 @@
   }
   async function securePost(url, body = {}, action = 'inbox') {
     const rc = await getRecaptchaToken(action);
-    return fetch(url, {
+    return fetchWithTimeout(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -595,7 +677,7 @@
       if (cached) renderUser(cached);
     }
     try {
-      const res = await fetch(_cfg.ep.user, {
+      const res = await fetchWithTimeout(_cfg.ep.user, {
         headers: { Authorization: 'Bearer ' + token },
       });
       if (res.status === 401 || res.status === 403) {
@@ -658,6 +740,7 @@
   /* §21 — LOAD ORDERS */
   async function loadOrders(silent = false) {
     const container = document.getElementById('ordersContainer');
+    if (!container) return;
     const cacheKey = `orders_p${state.page}`;
     const cached = await Cache.get(cacheKey, _cfg.ttl.orders);
 
@@ -680,7 +763,7 @@
 
     try {
       const url = `${_cfg.ep.orders}?page=${state.page}&limit=${state.limit}&status=nokos`;
-      const res = await fetch(url, {
+      const res = await fetchWithTimeout(url, {
         headers: { Authorization: 'Bearer ' + token },
         signal: _loadOrdersAbort.signal,
       });
@@ -719,7 +802,7 @@
     const cached = await Cache.get('counts', _cfg.ttl.counts);
     if (cached) applyCounts(cached);
     try {
-      const res = await fetch(_cfg.ep.stats, {
+      const res = await fetchWithTimeout(_cfg.ep.stats, {
         headers: { Authorization: 'Bearer ' + token },
       });
       const data = await safeJson(res);
@@ -738,22 +821,22 @@
     const k = 'aotp_cd_' + key;
     const now = Date.now();
     try {
-      const s = sessionStorage.getItem(k);
+      const s = SafeStorage.session.get(k);
       if (s) {
         const d = parseInt(s, 10);
         if (Number.isFinite(d) && d > now) return d;
-        sessionStorage.removeItem(k);
+        SafeStorage.session.remove(k);
       }
     } catch (e) {}
     if (expiresIn > 0) {
       const d = now + expiresIn * 1000;
-      try { sessionStorage.setItem(k, String(d)); } catch (e) {}
+      try { SafeStorage.session.set(k, String(d)); } catch (e) {}
       return d;
     }
     return 0;
   }
   function clearDeadline(key) {
-    try { sessionStorage.removeItem('aotp_cd_' + key); } catch (e) {}
+    try { SafeStorage.session.remove('aotp_cd_' + key); } catch (e) {}
   }
 
   /* §24 — BUILD CARD */
@@ -958,6 +1041,7 @@
   /* §25 — RENDER ORDERS */
   function renderOrders(data, fromCache) {
     const container = document.getElementById('ordersContainer');
+    if (!container) return;
     const paginationEl = document.getElementById('pagination');
 
     if (!data.orders || data.orders.length === 0) {
@@ -972,7 +1056,7 @@
           </a>
         </div>
       `;
-      paginationEl.style.display = 'none';
+      if (paginationEl) paginationEl.style.display = 'none';
       return;
     }
 
@@ -1042,25 +1126,27 @@
     listWrap.appendChild(frag);
 
     state.totalPages = Math.ceil((data.total || 0) / state.limit);
-    if (state.totalPages > 1) {
-      paginationEl.style.display = 'flex';
-      paginationEl.innerHTML = `
-        <button class="page-btn" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Prev</button>
-        <span class="page-info">Halaman ${state.page} dari ${state.totalPages}</span>
-        <button class="page-btn" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Next</button>
-      `;
-      paginationEl.querySelectorAll('.page-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const p = Number(btn.dataset.page);
-          if (p >= 1 && p <= state.totalPages) {
-            state.page = p;
-            loadOrders();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }
+    if (paginationEl) {
+      if (state.totalPages > 1) {
+        paginationEl.style.display = 'flex';
+        paginationEl.innerHTML = `
+          <button class="page-btn" type="button" data-page="${state.page - 1}" ${state.page <= 1 ? 'disabled' : ''}>Prev</button>
+          <span class="page-info">Halaman ${state.page} dari ${state.totalPages}</span>
+          <button class="page-btn" type="button" data-page="${state.page + 1}" ${state.page >= state.totalPages ? 'disabled' : ''}>Next</button>
+        `;
+        paginationEl.querySelectorAll('.page-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const p = Number(btn.dataset.page);
+            if (p >= 1 && p <= state.totalPages) {
+              state.page = p;
+              loadOrders();
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+          });
         });
-      });
-    } else {
-      paginationEl.style.display = 'none';
+      } else {
+        paginationEl.style.display = 'none';
+      }
     }
 
     startCountdowns();
@@ -1110,7 +1196,7 @@
 
     try {
       const results = await Promise.allSettled(
-        orders.map(o => fetch(_cfg.ep.cekotp, {
+        orders.map(o => fetchWithTimeout(_cfg.ep.cekotp, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1229,15 +1315,18 @@
 
   /* §28 — DETAIL MODAL */
   function openDetailModal() {
-    document.getElementById('detailModal').classList.add('active');
+    const el = document.getElementById('detailModal');
+    if (el) el.classList.add('active');
     document.body.style.overflow = 'hidden';
   }
   function closeDetailModal() {
-    document.getElementById('detailModal').classList.remove('active');
+    const el = document.getElementById('detailModal');
+    if (el) el.classList.remove('active');
     document.body.style.overflow = '';
   }
 
   function bindDetailImages(root) {
+    if (!root) return;
     root.querySelectorAll('img[data-sources]').forEach(img => {
       if (img.dataset.bound) return;
       img.dataset.bound = '1';
@@ -1246,13 +1335,14 @@
   }
 
   function renderDetailSkeleton(card) {
+    const mc = document.getElementById('detailModalContent');
+    if (!mc) return;
     const otpId = card?.dataset.otpId || '';
     const priceIdr = Number(card?.dataset.price || 0);
     const svcName = card?.dataset.service || '';
     const cName = card?.dataset.country || '';
     const cCode = card?.dataset.countryCode || '';
     const phone = card?.dataset.phone || '';
-    const mc = document.getElementById('detailModalContent');
     mc.innerHTML = `
       <div class="detail-modal-header">
         <div class="detail-modal-app" title="${escapeHtml(svcName)}">${renderServiceIcon({ service_name: svcName })}</div>
@@ -1286,8 +1376,10 @@
         </div>
       </div>
     `;
-    document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
-    document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
+    const close1 = document.getElementById('detailModalClose');
+    if (close1) close1.addEventListener('click', closeDetailModal);
+    const close2 = document.getElementById('detailModalCloseBtn');
+    if (close2) close2.addEventListener('click', closeDetailModal);
     bindDetailImages(mc);
   }
 
@@ -1318,6 +1410,7 @@
     const priceIdr = Number(o.price_idr ?? o.price ?? 0);
 
     const mc = document.getElementById('detailModalContent');
+    if (!mc) return;
     mc.innerHTML = `
       <div class="detail-modal-header">
         <div class="detail-modal-app" title="${escapeHtml(svcName)}">${renderServiceIcon(o)}</div>
@@ -1405,8 +1498,10 @@
         copyToClipboard(btn.dataset.copy, btn);
       });
     });
-    document.getElementById('detailModalClose').addEventListener('click', closeDetailModal);
-    document.getElementById('detailModalCloseBtn').addEventListener('click', closeDetailModal);
+    const close1 = document.getElementById('detailModalClose');
+    if (close1) close1.addEventListener('click', closeDetailModal);
+    const close2 = document.getElementById('detailModalCloseBtn');
+    if (close2) close2.addEventListener('click', closeDetailModal);
     bindDetailImages(mc);
   }
 
@@ -1414,7 +1509,7 @@
     renderDetailSkeleton(card);
     openDetailModal();
     try {
-      const res = await fetch(_cfg.ep.orderDetail + '/' + encodeURIComponent(orderId), {
+      const res = await fetchWithTimeout(_cfg.ep.orderDetail + '/' + encodeURIComponent(orderId), {
         headers: { Authorization: 'Bearer ' + token },
       });
       const o = await safeJson(res);
@@ -1432,34 +1527,50 @@
         const p = document.createElement('p');
         p.className = 'detail-error-msg';
         p.textContent = err.message || 'Coba lagi nanti.';
-        mb.insertBefore(p, mb.querySelector('.detail-actions'));
+        const actions = mb.querySelector('.detail-actions');
+        if (actions) mb.insertBefore(p, actions);
       }
     }
   }
 
-  document.getElementById('detailModal').addEventListener('click', (e) => {
-    if (e.target.id === 'detailModal') closeDetailModal();
-  });
+  /* §28b — Detail modal close (guard) */
+  (function () {
+    const el = document.getElementById('detailModal');
+    if (!el) return;
+    el.addEventListener('click', (e) => {
+      if (e.target.id === 'detailModal') closeDetailModal();
+    });
+    el.addEventListener('touchstart', (e) => {
+      if (e.target.id === 'detailModal') {
+        e.preventDefault();
+        closeDetailModal();
+      }
+    }, { passive: false });
+  })();
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       const overlay = document.getElementById('detailModal');
-      if (overlay.classList.contains('active')) closeDetailModal();
+      if (overlay && overlay.classList.contains('active')) closeDetailModal();
     }
   });
 
-  /* §29 — REFRESH */
-  document.getElementById('refreshBtn').addEventListener('click', async function () {
-    const btn = this;
-    btn.classList.add('spinning');
-    Cache.invalidate('orders_');
-    Cache.remove('counts');
-    await Promise.allSettled([
-      checkRefunds(true),
-      loadOrders(true),
-      loadCounts(),
-    ]);
-    setTimeout(() => btn.classList.remove('spinning'), 500);
-  });
+  /* §29 — REFRESH (guard) */
+  (function () {
+    const btn = document.getElementById('refreshBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+      btn.classList.add('spinning');
+      Cache.invalidate('orders_');
+      Cache.remove('counts');
+      await Promise.allSettled([
+        checkRefunds(true),
+        loadOrders(true),
+        loadCounts(),
+      ]);
+      setTimeout(() => btn.classList.remove('spinning'), 500);
+    });
+  })();
 
   /* §30 — AUTO SYNC */
   function startAutoSync() {
@@ -1489,33 +1600,38 @@
     }
   }
 
-  /* §31 — LOGOUT */
+  /* §31 — LOGOUT (guard) */
   async function handleLogout() {
     try {
-      await fetch(_cfg.ep.logout, {
+      await fetchWithTimeout(_cfg.ep.logout, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token },
       });
     } catch (e) {}
     Cache.clear();
     try {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refresh_token');
+      SafeStorage.local.remove('access_token');
+      SafeStorage.local.remove('user');
+      SafeStorage.local.remove('refresh_token');
     } catch (e) {}
     location.href = '/landing';
   }
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    const ok = await showAlert({
-      title: 'Keluar Akun?',
-      message: 'Kamu yakin mau keluar dari akun ini?',
-      type: 'warning',
-      okText: 'Ya, Keluar',
-      cancelText: 'Batal',
-      showCancel: true,
+
+  (function () {
+    const btn = document.getElementById('logoutBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const ok = await showAlert({
+        title: 'Keluar Akun?',
+        message: 'Kamu yakin mau keluar dari akun ini?',
+        type: 'warning',
+        okText: 'Ya, Keluar',
+        cancelText: 'Batal',
+        showCancel: true,
+      });
+      if (ok) handleLogout();
     });
-    if (ok) handleLogout();
-  });
+  })();
 
   /* §32 — INIT */
   (async function init() {
@@ -1543,10 +1659,12 @@
     }
   });
 
-  window.addEventListener('beforeunload', () => {
+  function _cleanup() {
     stopAutoSync();
     Object.values(state.countdownIntervals).forEach(clearInterval);
     if (_loadOrdersAbort) _loadOrdersAbort.abort();
-  });
+  }
+  window.addEventListener('pagehide', _cleanup);
+  window.addEventListener('beforeunload', _cleanup);
 
 })(window);
