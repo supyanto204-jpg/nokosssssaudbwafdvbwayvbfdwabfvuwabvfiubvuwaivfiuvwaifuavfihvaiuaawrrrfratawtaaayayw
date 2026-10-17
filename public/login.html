@@ -1,224 +1,141 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <title>Login - AsyrofOTP</title>
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/core.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/login.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0a84ff">
+<meta name="robots" content="noindex,nofollow">
+<title>Masuk — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/login.css">
 
-    <!-- 🔒 SECURITY -->
-    <script>
-        (function() {
-            const saved = localStorage.getItem('asyrofotp_theme');
-            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; } catch (e) {}
-            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
-        }
-
-        (function() {
-            const LOCK_FLAG = 'asyrof_devtools_lock';
-
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                document.documentElement.innerHTML = '<head></head><body></body>';
-
-                function showLockScreen() {
-                    document.body.innerHTML = `
-                        <div id="devtoolsLockScreen">
-                            <div class="lock-box">
-                                <div class="lock-icon">🔒</div>
-                                <h2>Akses Dibatasi</h2>
-                                <p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p>
-                                <p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p>
-                            </div>
-                        </div>
-                        <style>
-                            html, body {
-                                margin: 0; padding: 0;
-                                background: #0f172a;
-                                overflow: auto !important;
-                                position: static !important;
-                                height: auto !important;
-                                min-height: 100vh !important;
-                                width: 100% !important;
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-                            }
-                            #devtoolsLockScreen {
-                                min-height: 100vh; width: 100%;
-                                background: #0f172a;
-                                display: flex; align-items: center; justify-content: center;
-                                padding: 24px; box-sizing: border-box;
-                                user-select: none; -webkit-user-select: none;
-                            }
-                            #devtoolsLockScreen .lock-box {
-                                background: #1e293b;
-                                border: 3px solid #475569;
-                                border-radius: 20px;
-                                padding: 40px 32px;
-                                max-width: 440px; width: 100%;
-                                text-align: center;
-                                box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.5);
-                                box-sizing: border-box;
-                            }
-                            #devtoolsLockScreen .lock-icon {
-                                font-size: 3rem; margin-bottom: 16px; line-height: 1;
-                            }
-                            #devtoolsLockScreen h2 {
-                                color: #dc2626;
-                                font-size: 1.5rem; font-weight: 800;
-                                margin: 0 0 12px; font-family: inherit;
-                            }
-                            #devtoolsLockScreen p {
-                                color: #cbd5e1;
-                                font-size: 0.95rem; line-height: 1.6;
-                                margin: 0 0 8px;
-                            }
-                            #devtoolsLockScreen .lock-hint {
-                                color: #64748b;
-                                font-size: 0.78rem;
-                                font-family: ui-monospace, monospace;
-                                margin-top: 20px; padding-top: 16px;
-                                border-top: 1px dashed #334155;
-                            }
-                        </style>
-                    `;
-
-                    const THRESHOLD = 200;
-                    setInterval(() => {
-                        const wDiff = window.outerWidth - window.innerWidth;
-                        const hDiff = window.outerHeight - window.innerHeight;
-                        if (wDiff <= THRESHOLD && hDiff <= THRESHOLD) {
-                            sessionStorage.removeItem(LOCK_FLAG);
-                            window.location.reload();
-                        }
-                    }, 500);
-                }
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', showLockScreen);
-                } else {
-                    showLockScreen();
-                }
-
-                throw new Error('__DEVTOOLS_LOCK__');
-            }
-        })();
-    </script>
-
-    <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+<script>
+(function(){
+var hc=navigator.hardwareConcurrency||2;
+var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+var lowEnd=hc<=4||mobile;
+var conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+var slowNet=conn&&(conn.saveData||/2g|slow-2g/.test(conn.effectiveType||''));
+var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var mode='full';
+if(reduced||slowNet)mode='lite';
+else if(lowEnd)mode='lite';
+document.documentElement.setAttribute('data-perf',mode);
+try{
+var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+document.documentElement.setAttribute('data-theme',t);
+}catch(e){}
+if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}
+})();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
 
-<!-- ===== BACKGROUND LAYERS ===== -->
-<div class="bg-stack" aria-hidden="true">
-    <!-- WebGL layer: Aurora (dark) / Iridescence (light) -->
-    <div class="bg-shader" id="bgShader"></div>
-    <!-- MicroSlats layer -->
-    <div class="bg-microslats" id="bgMicroslats"></div>
-    <!-- Cursor Grid canvas -->
-    <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
+<div class="bg" aria-hidden="true">
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="grid"></div>
 </div>
 
-<!-- ===== Theme toggle ===== -->
-<button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-    <svg class="icon-svg sun-icon" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="4"/>
-        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
-    </svg>
-    <svg class="icon-svg moon-icon" viewBox="0 0 24 24">
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-    </svg>
+<button class="theme-btn glass" id="themeBtn" type="button" aria-label="Ganti tema">
+<svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+<svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
 </button>
 
-<!-- ===== AUTH LAYOUT ===== -->
-<div class="auth-center">
+<div class="auth-wrap">
+<div class="auth-brand">
+<div class="brand-mark">A</div>
+<div class="brand-txt">Asyrof<span>OTP</span></div>
+</div>
 
-    <!-- Logo "A" (bukan sticker) -->
-    <div class="auth-logo-block">
-        <div class="logo-icon" aria-hidden="true">A</div>
-    </div>
+<div class="auth-card glass-card" id="loginCard">
+<div class="auth-head">
+<h1>Masuk</h1>
+<p>Senang melihatmu lagi. Yuk lanjut.</p>
+</div>
 
-    <!-- Login card with Spotlight -->
-    <div class="spotlight-card" id="loginCard">
-        <div class="spotlight-card-inner">
-            <div class="auth-card-content">
-                <h1 class="auth-title">Masuk</h1>
-                <p class="subtitle">Selamat datang kembali! Silakan login.</p>
+<div class="alert" id="alert" role="alert">
+<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+<span id="alert-text"></span>
+</div>
 
-                <div class="alert" id="alert" role="alert">
-                    <svg class="icon-svg" viewBox="0 0 24 24" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                    <span id="alert-text"></span>
-                </div>
+<form id="loginForm" autocomplete="on" novalidate>
+<div class="field">
+<label class="label" for="username">Username</label>
+<div class="input-box">
+<svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+<input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
+</div>
+</div>
 
-                <form id="loginForm" autocomplete="on" novalidate>
-                    <div class="form-group">
-                        <label class="form-label" for="username">Username</label>
-                        <input type="text" class="form-control" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="password">Password</label>
-                        <div class="input-wrap">
-                            <input type="password" class="form-control with-eye" id="password" placeholder="••••••••" required autocomplete="current-password">
-                            <button type="button" class="eye-btn" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-                                <svg class="icon-svg" viewBox="0 0 24 24" id="eyeIcon">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                                    <circle cx="12" cy="12" r="3"/>
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
+<div class="field">
+<label class="label" for="password">Password</label>
+<div class="input-box">
+<svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+<input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+<button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon">
+<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+</svg>
+</button>
+</div>
+</div>
 
-                    <div class="status-row" id="statusRow" aria-hidden="true">
-                        <span class="status-mark" id="statusMark" data-status="pending">
-                            <svg class="status-mark__glyph" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-                                <circle class="status-mark__track" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-                                <circle class="status-mark__ring" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-                                <path class="status-mark__check" d="M7.5 12.25 10.5 15.25 16.75 8.75" pathLength="1"/>
-                                <path class="status-mark__cross" d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" pathLength="1"/>
-                            </svg>
-                            <span class="status-mark__label">
-                                <span id="statusLabel">Menunggu</span>
-                                <span class="status-mark__strike" aria-hidden="true"></span>
-                            </span>
-                        </span>
-                    </div>
+<div class="row-between">
+<label class="remember">
+<input type="checkbox" id="rememberMe">
+<span class="check-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+<span>Ingat saya</span>
+</label>
+<a href="/forgot" class="link-forgot">Lupa password?</a>
+</div>
 
-                    <button type="submit" class="btn btn-glare" id="submitBtn">
-                        <span class="glare-layer" aria-hidden="true"></span>
-                        <span id="btnText">Login</span>
-                        <svg class="icon-svg" viewBox="0 0 24 24" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                    </button>
-                </form>
+<div class="status" id="statusRow" aria-live="polite">
+<span class="status-mark" id="statusMark" data-status="pending">
+<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+<circle class="track" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
+<circle class="ring" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
+<path class="check" d="M7.5 12.25 10.5 15.25 16.75 8.75" pathLength="1"/>
+<path class="cross" d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" pathLength="1"/>
+</svg>
+<span class="status-label" id="statusLabel">Menunggu</span>
+</span>
+</div>
 
-                <div class="auth-footer">
-                    Belum punya akun? <a href="/daftar">Daftar sekarang</a>
-                </div>
+<button type="submit" class="btn-submit" id="submitBtn">
+<span class="btn-glare" aria-hidden="true"></span>
+<span id="btnText">Masuk</span>
+<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+</button>
+</form>
 
-                <div class="recaptcha-notice">
-                    Dilindungi oleh reCAPTCHA.
-                    <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> ·
-                    <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="auth-foot">
+Belum punya akun? <a href="/daftar">Daftar gratis</a>
+</div>
+<div class="recaptcha-note">
+Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+</div>
+</div>
+
+<div class="cache-info" id="cacheInfo" hidden>
+<div class="cache-card glass">
+<div class="cache-row"><span class="cache-label">Terakhir login</span><span class="cache-val" id="cacheLastLogin">—</span></div>
+<div class="cache-row"><span class="cache-label">User ID</span><span class="cache-val mono" id="cacheUserId">—</span></div>
+<div class="cache-row"><span class="cache-label">Saldo terakhir</span><span class="cache-val" id="cacheBalance">—</span></div>
+<button class="cache-clear" id="cacheClear" type="button">Hapus info tersimpan</button>
+</div>
+</div>
 </div>
 
 <script src="/js/login.js" defer></script>
-
 </body>
 </html>
