@@ -1,63 +1,133 @@
-(function(){
+(function(_0x1,_0x2){
 'use strict';
-
-var D=document,W=window;
-var q=function(s,c){return (c||D).querySelector(s)};
-var isLite=D.documentElement.getAttribute('data-perf')==='lite';
+var _a=document,_b=window;
+var _c=function(s,c){return (c||_a).querySelector(s)};
+var _d=function(sel){return Array.prototype.slice.call((_a||document).querySelectorAll(sel))};
 
 // ============================================
-// ANTI-BYPASS (soft — F12 boleh)
+// CONSTANTS (base64 encoded untuk anti-tebak)
 // ============================================
-(function(){
+var S1='YXN5cm9mbG9naW5jYWNoZV92MTI='; // "asyrof_login_cache_v12"
+var S2='c2FsdF9zZWNyZXRfa2V5XzIwMjY='; // "salt_secret_key_2026"
+var S3='eG9yX2tleV9hc3lyb2Zfc2VjdXJl'; // "xor_key_asyrof_secure"
+var STORE_KEY=atob(S1);
+var SALT=atob(S2);
+var XORKEY=atob(S3);
+
+// ============================================
+// UTIL: base64 + xor + salt + hash ringan
+// ============================================
+function _enc(str){
+var s=String(str||'');
+var x='';
+for(var i=0;i<s.length;i++){
+var ch=s.charCodeAt(i);
+var k=XORKEY.charCodeAt(i%XORKEY.length);
+x+=String.fromCharCode(ch^k);
+}
+var b=null;
 try{
-console.log('%c⚠️ STOP!','color:#ff3b30;font-size:20px;font-weight:900');
-console.log('%cJangan paste apapun di sini. Itu SCAM.','color:#8e8e93;font-size:12px');
-}catch(e){}
-D.addEventListener('contextmenu',function(e){e.preventDefault()});
-D.addEventListener('keydown',function(e){
-var k=e.key;
-if(e.ctrlKey&&(k==='u'||k==='U'||k==='s'||k==='S')){e.preventDefault()}
-},true);
-D.addEventListener('copy',function(e){
-var t=e.target;
-if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
-e.preventDefault();
-});
-D.addEventListener('cut',function(e){
-var t=e.target;
-if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
-e.preventDefault();
-});
+b=btoa(unescape(encodeURIComponent(x)));
+}catch(e){
+b=btoa(x);
+}
+var mixed=SALT+'.'+b+'.'+SALT.split('').reverse().join('');
+return btoa(mixed);
+}
+
+function _dec(encoded){
 try{
-var u=W.location.origin+W.location.pathname;
-if(W.location.search)history.replaceState(null,'',u);
-}catch(e){}
-})();
+var raw=atob(encoded);
+var parts=raw.split('.');
+if(parts.length!==3)return null;
+var b=parts[1];
+var x='';
+try{
+x=decodeURIComponent(escape(atob(b)));
+}catch(e){
+x=atob(b);
+}
+var out='';
+for(var i=0;i<x.length;i++){
+var ch=x.charCodeAt(i);
+var k=XORKEY.charCodeAt(i%XORKEY.length);
+out+=String.fromCharCode(ch^k);
+}
+return out;
+}catch(e){
+return null;
+}
+}
 
 // ============================================
-// SESSION STORAGE — Remember Me
+// CACHE
 // ============================================
-var STORE_KEY='asyrof_login_cache_v1';
-
-function readCache(){
+function _read(){
 try{
 var raw=localStorage.getItem(STORE_KEY);
 if(!raw)return null;
-return JSON.parse(raw);
+var json=_dec(raw);
+if(!json)return null;
+var obj=JSON.parse(json);
+if(!obj||typeof obj!=='object')return null;
+return obj;
 }catch(e){return null}
 }
-function writeCache(data){
-try{localStorage.setItem(STORE_KEY,JSON.stringify(data))}catch(e){}
+function _write(obj){
+try{
+var json=JSON.stringify(obj);
+var encoded=_enc(json);
+localStorage.setItem(STORE_KEY,encoded);
+return true;
+}catch(e){return false}
 }
-function clearCache(){
+function _patch(p){
+var c=_read()||{};
+var next=Object.assign({},c,p);
+return _write(next);
+}
+function _clear(){
 try{localStorage.removeItem(STORE_KEY)}catch(e){}
 }
-function updateCache(patch){
-var c=readCache()||{};
-var next=Object.assign({},c,patch);
-writeCache(next);
-return next;
+
+// ============================================
+// ANTI-BYPASS
+// ============================================
+(function(){
+try{
+var a='%c⚠️ STOP!';
+var b='%cJangan paste apapun di sini. Itu SCAM.';
+console.log(a,'color:#ff3b30;font-size:20px;font-weight:900');
+console.log(b,'color:#8e8e93;font-size:12px');
+}catch(e){}
+
+_a.addEventListener('contextmenu',function(e){e.preventDefault()});
+_a.addEventListener('keydown',function(e){
+var k=e.key;
+if(e.ctrlKey&&(k==='u'||k==='U'||k==='s'||k==='S')){e.preventDefault()}
+},true);
+_a.addEventListener('copy',function(e){
+var t=e.target;
+if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
+e.preventDefault();
+});
+_a.addEventListener('cut',function(e){
+var t=e.target;
+if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.isContentEditable))return;
+e.preventDefault();
+});
+
+try{
+var clean=_b.location.origin+_b.location.pathname;
+if(_b.location.search)history.replaceState(null,'',clean);
+}catch(e){}
+
+// Deteksi iframe embed
+if(_b.top!==_b.self){
+try{_b.top.location=_b.self.location}catch(e){}
+_a.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';
 }
+})();
 
 // ============================================
 // AUTO REDIRECT kalau sudah login
@@ -71,11 +141,12 @@ var timer=setTimeout(function(){ctrl.abort()},5000);
 fetch('/api/user',{headers:{Authorization:'Bearer '+tk},signal:ctrl.signal})
 .then(function(r){
 clearTimeout(timer);
-if(r.ok){W.location.replace('/dashboard');return}
+if(r.ok){_b.location.replace('/dashboard');return}
 if(r.status===401||r.status===403){
 try{
 localStorage.removeItem('access_token');
 localStorage.removeItem('user');
+localStorage.removeItem('refresh_token');
 }catch(e){}
 }
 })
@@ -86,14 +157,14 @@ localStorage.removeItem('user');
 // THEME
 // ============================================
 (function(){
-var b=q('#themeBtn');
+var b=_c('#themeBtn');
 if(!b)return;
 b.addEventListener('click',function(){
-var cur=D.documentElement.getAttribute('data-theme')||'light';
+var cur=_a.documentElement.getAttribute('data-theme')||'light';
 var nx=cur==='dark'?'light':'dark';
-D.documentElement.setAttribute('data-theme',nx);
+_a.documentElement.setAttribute('data-theme',nx);
 try{localStorage.setItem('asyrofotp_theme',nx)}catch(e){}
-var m=q('meta[name="theme-color"]');
+var m=_c('meta[name="theme-color"]');
 if(m)m.setAttribute('content',nx==='dark'?'#0a0a0c':'#eef2f7');
 });
 })();
@@ -101,139 +172,105 @@ if(m)m.setAttribute('content',nx==='dark'?'#0a0a0c':'#eef2f7');
 // ============================================
 // ELEMENTS
 // ============================================
-var form=q('#loginForm');
-var alertEl=q('#alert');
-var alertText=q('#alert-text');
-var alertIcon=q('#alertIcon');
-var submitBtn=q('#submitBtn');
-var btnText=q('#btnText');
-var btnIcon=q('#btnIcon');
-var passwordInput=q('#password');
-var togglePassword=q('#togglePassword');
-var eyeIcon=q('#eyeIcon');
-var usernameInput=q('#username');
-var rememberInput=q('#rememberMe');
-var statusRow=q('#statusRow');
-var statusMark=q('#statusMark');
-var statusLabel=q('#statusLabel');
-var cacheInfo=q('#cacheInfo');
-var cacheLastLogin=q('#cacheLastLogin');
-var cacheUserId=q('#cacheUserId');
-var cacheBalance=q('#cacheBalance');
-var cacheClearBtn=q('#cacheClear');
+var _form=_c('#loginForm');
+var _alert=_c('#alert');
+var _alertText=_c('#alert-text');
+var _alertIcon=_c('#alertIcon');
+var _submit=_c('#submitBtn');
+var _btnText=_c('#btnText');
+var _btnIcon=_c('#btnIcon');
+var _password=_c('#password');
+var _eye=_c('#togglePassword');
+var _eyeIcon=_c('#eyeIcon');
+var _user=_c('#username');
+var _remember=_c('#rememberMe');
+var _statusRow=_c('#statusRow');
+var _statusLabel=_c('#statusLabel');
 
-if(!form)return;
+if(!_form)return;
 
 // ============================================
-// CACHE RENDER + PREFILL
+// CACHE RENDER (hanya prefill, tidak tampilkan card)
 // ============================================
-function fmtRupiah(n){
-var num=Number(n)||0;
-return 'Rp'+num.toLocaleString('id-ID');
+function _renderCache(){
+var c=_read();
+if(!c)return;
+if(_user&&c.username&&!_user.value){
+_user.value=c.username;
 }
-function fmtDate(iso){
-if(!iso)return '—';
-try{
-return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
-}catch(e){return '—'}
+if(_remember&&c.remember)_remember.checked=true;
 }
+_renderCache();
 
-function renderCache(){
-var c=readCache();
-if(!c){
-if(cacheInfo)cacheInfo.hidden=true;
-return;
-}
-if(cacheInfo)cacheInfo.hidden=false;
-if(cacheLastLogin)cacheLastLogin.textContent=fmtDate(c.lastLogin);
-if(cacheUserId)cacheUserId.textContent=c.userId||'—';
-if(cacheBalance)cacheBalance.textContent=c.balance!=null?fmtRupiah(c.balance):'—';
-if(usernameInput&&c.username&&!usernameInput.value){
-usernameInput.value=c.username;
-}
-if(rememberInput&&c.remember)rememberInput.checked=true;
-}
-renderCache();
-
-if(rememberInput){
-rememberInput.addEventListener('change',function(){
-updateCache({remember:!!rememberInput.checked});
-});
-}
-
-if(cacheClearBtn){
-cacheClearBtn.addEventListener('click',function(){
-clearCache();
-if(cacheInfo)cacheInfo.hidden=true;
-if(usernameInput)usernameInput.value='';
-if(rememberInput)rememberInput.checked=false;
-hideAlert();
+if(_remember){
+_remember.addEventListener('change',function(){
+_patch({remember:!!_remember.checked});
 });
 }
 
 // ============================================
 // ALERT
 // ============================================
-var ALERT_ICONS={
+var _ai={
 info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
 error:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
 success:'<polyline points="20 6 9 17 4 12"/>'
 };
-function showAlert(msg,type){
+function _showAlert(msg,type){
 type=type||'error';
-if(!alertEl)return;
-alertEl.className='alert show '+type;
-if(alertText)alertText.textContent=msg;
-if(alertIcon)alertIcon.innerHTML=ALERT_ICONS[type]||ALERT_ICONS.info;
+if(!_alert)return;
+_alert.className='alert show '+type;
+if(_alertText)_alertText.textContent=msg;
+if(_alertIcon)_alertIcon.innerHTML=_ai[type]||_ai.info;
 }
-function hideAlert(){
-if(alertEl)alertEl.className='alert';
+function _hideAlert(){
+if(_alert)_alert.className='alert';
 }
 
 // ============================================
-// STATUS MARK
+// STATUS
 // ============================================
-function setStatus(status,labelText){
-if(!statusMark)return;
-statusMark.setAttribute('data-status',status);
-if(statusLabel&&labelText)statusLabel.textContent=labelText;
-if(!statusRow)return;
-if(status==='pending'){
-statusRow.classList.remove('visible');
-statusRow.setAttribute('aria-hidden','true');
+function _setStatus(state,label){
+if(!_statusRow)return;
+if(!_statusRow.dataset)_statusRow.dataset={};
+_statusRow.dataset.state=state;
+if(_statusLabel&&label)_statusLabel.textContent=label;
+if(state==='pending'){
+_statusRow.classList.remove('visible');
+_statusRow.setAttribute('aria-hidden','true');
 }else{
-statusRow.classList.add('visible');
-statusRow.setAttribute('aria-hidden','false');
+_statusRow.classList.add('visible');
+_statusRow.setAttribute('aria-hidden','false');
 }
 }
 
 // ============================================
 // PASSWORD TOGGLE
 // ============================================
-var EYE_OPEN='<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
-var EYE_CLOSED='<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
-var pwdVisible=false;
-if(togglePassword){
-togglePassword.addEventListener('click',function(){
-pwdVisible=!pwdVisible;
-passwordInput.type=pwdVisible?'text':'password';
-if(eyeIcon)eyeIcon.innerHTML=pwdVisible?EYE_CLOSED:EYE_OPEN;
+var _eo='<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
+var _ec='<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
+var _pv=false;
+if(_eye){
+_eye.addEventListener('click',function(){
+_pv=!_pv;
+_password.type=_pv?'text':'password';
+if(_eyeIcon)_eyeIcon.innerHTML=_pv?_ec:_eo;
 });
 }
 
 // ============================================
 // RECAPTCHA WAIT
 // ============================================
-function waitForRecaptcha(){
+function _waitRecap(){
 return new Promise(function(resolve){
-if(W.grecaptcha&&W.grecaptcha.execute)return resolve();
-var attempts=0;
-var timer=setInterval(function(){
-attempts++;
-if(W.grecaptcha&&W.grecaptcha.execute){
-clearInterval(timer);resolve();
-}else if(attempts>=50){
-clearInterval(timer);resolve();
+if(_b.grecaptcha&&_b.grecaptcha.execute)return resolve();
+var n=0;
+var t=setInterval(function(){
+n++;
+if(_b.grecaptcha&&_b.grecaptcha.execute){
+clearInterval(t);resolve();
+}else if(n>=50){
+clearInterval(t);resolve();
 }
 },100);
 });
@@ -242,102 +279,101 @@ clearInterval(timer);resolve();
 // ============================================
 // SUBMIT
 // ============================================
-var RECAPTCHA_SITE_KEY='6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
+var _RK='6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 
-form.addEventListener('submit',async function(e){
+_form.addEventListener('submit',async function(e){
 e.preventDefault();
-hideAlert();
+_hideAlert();
 
-var username=usernameInput?usernameInput.value.trim():'';
-var password=passwordInput?passwordInput.value:'';
+var u=_user?_user.value.trim():'';
+var p=_password?_password.value:'';
 
-if(!username||!password){
-showAlert('Username dan password wajib diisi','error');
-setStatus('failed','Data belum lengkap');
+if(!u||!p){
+_showAlert('Username dan password wajib diisi','error');
+_setStatus('failed','Data belum lengkap');
 return;
 }
 
-submitBtn.disabled=true;
-if(btnText)btnText.textContent='Memproses...';
-var originalIconHTML=btnIcon?btnIcon.outerHTML:'';
-if(btnIcon&&btnIcon.parentNode){
-btnIcon.outerHTML='<span class="spinner" id="btnIcon"></span>';
+_submit.disabled=true;
+if(_btnText)_btnText.textContent='Memproses...';
+var origIcon=_btnIcon?_btnIcon.outerHTML:'';
+if(_btnIcon&&_btnIcon.parentNode){
+_btnIcon.outerHTML='<span class="spinner" id="btnIcon"></span>';
 }
-setStatus('running','Memverifikasi kredensial...');
+_setStatus('running','Memverifikasi kredensial...');
 
 try{
-await waitForRecaptcha();
-if(!W.grecaptcha||!W.grecaptcha.execute){
+await _waitRecap();
+if(!_b.grecaptcha||!_b.grecaptcha.execute){
 throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
 }
-setStatus('running','Memeriksa keamanan...');
+_setStatus('running','Memeriksa keamanan...');
 
 var recaptchaToken=await new Promise(function(resolve,reject){
-W.grecaptcha.ready(function(){
-W.grecaptcha.execute(RECAPTCHA_SITE_KEY,{action:'login'})
+_b.grecaptcha.ready(function(){
+_b.grecaptcha.execute(_RK,{action:'login'})
 .then(resolve)
 .catch(reject);
 });
 setTimeout(function(){reject(new Error('Timeout verifikasi keamanan'))},10000);
 });
 
-setStatus('running','Menghubungi server...');
+_setStatus('running','Menghubungi server...');
 
 var res=await fetch('/api/auth/login',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({username:username,password:password,recaptcha_token:recaptchaToken})
+body:JSON.stringify({username:u,password:p,recaptcha_token:recaptchaToken})
 });
 
 var data=await res.json();
 if(!res.ok)throw new Error(data.error||'Login gagal');
 
-// Save token & user
 try{
 localStorage.setItem('access_token',data.session.access_token);
 if(data.session.refresh_token)localStorage.setItem('refresh_token',data.session.refresh_token);
 localStorage.setItem('user',JSON.stringify(data.user));
 }catch(e){}
 
-// Update cache
+// CACHE (encoded)
 var cacheNow={
-username:username,
-remember:rememberInput?!!rememberInput.checked:true,
+username:u,
+remember:_remember?!!_remember.checked:true,
 lastLogin:new Date().toISOString(),
-userId:data.user&&data.user.user_code?data.user.user_code:(data.user&&data.user.username)||null,
-balance:data.user&&data.user.balance!=null?Number(data.user.balance):null,
-name:data.user&&data.user.name?data.user.name:null
+userId:(data.user&&data.user.user_code)?data.user.user_code:((data.user&&data.user.username)||null),
+balance:(data.user&&data.user.balance!=null)?Number(data.user.balance):null,
+name:(data.user&&data.user.name)?data.user.name:null
 };
-if(rememberInput&&!rememberInput.checked){
+if(_remember&&!_remember.checked){
 cacheNow.remember=false;
 cacheNow.balance=null;
 cacheNow.userId=null;
 }
-updateCache(cacheNow);
+_patch(cacheNow);
 
-setStatus('done','Login berhasil!');
-showAlert('Login berhasil! Mengalihkan...','success');
+_setStatus('done','Login berhasil!');
+_showAlert('Login berhasil! Mengalihkan...','success');
 
-setTimeout(function(){W.location.replace('/dashboard')},800);
+setTimeout(function(){_b.location.replace('/dashboard')},800);
 
 }catch(err){
-setStatus('failed','Gagal login');
-showAlert(err&&err.message?err.message:'Terjadi kesalahan','error');
-if(submitBtn)submitBtn.disabled=false;
-if(btnText)btnText.textContent='Masuk';
-var oldIcon=q('#btnIcon');
-if(oldIcon&&originalIconHTML){
-oldIcon.outerHTML=originalIconHTML;
+_setStatus('failed','Gagal login');
+_showAlert(err&&err.message?err.message:'Terjadi kesalahan','error');
+if(_submit)_submit.disabled=false;
+if(_btnText)_btnText.textContent='Masuk';
+var oldIcon=_c('#btnIcon');
+if(oldIcon&&origIcon){
+oldIcon.outerHTML=origIcon;
 }
-setTimeout(function(){setStatus('pending','Menunggu')},3000);
+setTimeout(function(){_setStatus('pending','Menunggu')},3000);
 }
 });
 
-// ============================================
-// ENTER KEY — biar submit tetap ke-handle
-// ============================================
-usernameInput&&usernameInput.addEventListener('keydown',function(e){
-if(e.key==='Enter'){e.preventDefault();passwordInput&&passwordInput.focus()}
+// Enter di username
+if(_user){
+_user.addEventListener('keydown',function(e){
+if(e.key==='Enter'){e.preventDefault();if(_password)_password.focus()}
 });
+}
 
 })();
