@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://flagcdn.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/landing.css">
 <script>
@@ -89,7 +90,6 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
     </div>
   </div>
 
-  <!-- DEMO — hidden di HP -->
   <div class="hero-r">
     <div class="demo glass-card" id="demo">
       <div class="demo-status">
@@ -105,10 +105,10 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
       <div class="demo-screen">
         <div class="app-ui on" id="appUi">
           <div class="app-country">
-  <img class="ac-flag-img" src="https://flagcdn.com/w40/id.png" alt="ID" loading="lazy">
-  <span class="ac-code">+62</span>
-  <span class="ac-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
-</div>
+            <img class="ac-flag-img" src="https://flagcdn.com/w40/id.png" alt="ID" loading="lazy">
+            <span class="ac-code">+62</span>
+            <span class="ac-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+          </div>
           <div class="app-number">812 3456 7890</div>
           <div class="app-instruction">
             <div class="ai-label">VERIFIKASI NOMOR</div>
@@ -308,28 +308,29 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
   </div>
 
   <div class="how-preview" id="howPreview">
+    <!-- Screen 1 -->
     <div class="how-scr on" data-scr="1">
       <div class="how-scr-head">Pilih Aplikasi</div>
       <div class="how-app-list">
-        <div class="how-app-item" data-pick="1">
+        <div class="how-app-item" data-app="wa">
           <div class="how-app-icon" style="--c:#25D366">
             <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="20" height="20">
           </div>
           <div class="how-app-name">WhatsApp</div>
         </div>
-        <div class="how-app-item" data-pick="0">
+        <div class="how-app-item" data-app="tg">
           <div class="how-app-icon" style="--c:#229ED9">
             <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/telegram.svg" alt="" width="20" height="20">
           </div>
           <div class="how-app-name">Telegram</div>
         </div>
-        <div class="how-app-item" data-pick="0">
+        <div class="how-app-item" data-app="sp">
           <div class="how-app-icon" style="--c:#EE4D2D">
             <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/shopee.svg" alt="" width="20" height="20">
           </div>
           <div class="how-app-name">Shopee</div>
         </div>
-        <div class="how-app-item" data-pick="0">
+        <div class="how-app-item" data-app="ig">
           <div class="how-app-icon" style="--c:#E1306C">
             <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/instagram.svg" alt="" width="20" height="20">
           </div>
@@ -338,37 +339,39 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
       </div>
     </div>
 
+    <!-- Screen 2 -->
     <div class="how-scr" data-scr="2">
       <div class="how-scr-head">Pilih Negara</div>
       <div class="how-country-list">
-        <div class="how-country-item" data-pick="0">
+        <div class="how-country-item" data-cc="id">
           <img class="how-flag" src="https://flagcdn.com/w40/id.png" alt="ID" loading="lazy">
           <div class="how-country-info"><div class="how-country-name">Indonesia</div><div class="how-country-code">+62</div></div>
         </div>
-        <div class="how-country-item" data-pick="0">
+        <div class="how-country-item" data-cc="us">
           <img class="how-flag" src="https://flagcdn.com/w40/us.png" alt="US" loading="lazy">
           <div class="how-country-info"><div class="how-country-name">United States</div><div class="how-country-code">+1</div></div>
         </div>
-        <div class="how-country-item" data-pick="0">
+        <div class="how-country-item" data-cc="gb">
           <img class="how-flag" src="https://flagcdn.com/w40/gb.png" alt="GB" loading="lazy">
           <div class="how-country-info"><div class="how-country-name">United Kingdom</div><div class="how-country-code">+44</div></div>
         </div>
-        <div class="how-country-item" data-pick="1">
+        <div class="how-country-item" data-cc="ru">
           <img class="how-flag" src="https://flagcdn.com/w40/ru.png" alt="RU" loading="lazy">
           <div class="how-country-info"><div class="how-country-name">Russia</div><div class="how-country-code">+7</div></div>
         </div>
       </div>
     </div>
 
+    <!-- Screen 3 -->
     <div class="how-scr" data-scr="3">
       <div class="how-scr-head">Tempel Nomor</div>
       <div class="how-target-app">
-        <div class="how-target-icon" style="--c:#25D366">
-          <img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="22" height="22">
+        <div class="how-target-icon" id="howTargetIcon" style="--c:#25D366">
+          <img id="howTargetImg" src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="22" height="22">
         </div>
         <div class="how-target-info">
-          <div class="how-target-name">WhatsApp</div>
-          <div class="how-target-code">+62 812 3456 7890</div>
+          <div class="how-target-name" id="howTargetName">WhatsApp</div>
+          <div class="how-target-code" id="howTargetCode">+62 812 3456 7890</div>
         </div>
       </div>
       <div class="how-paste-hint">
@@ -377,6 +380,7 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
       </div>
     </div>
 
+    <!-- Screen 4 -->
     <div class="how-scr" data-scr="4">
       <div class="how-scr-head">Kode Terkirim</div>
       <div class="how-otp-notif">
@@ -387,15 +391,16 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
         <div class="how-otp-digits">
           <span>4</span><span>8</span><span>2</span><span>1</span><span>7</span><span>3</span>
         </div>
-        <div class="how-otp-note">Salin ke aplikasi WhatsApp</div>
+        <div class="how-otp-note" id="howOtpNote">Salin ke aplikasi WhatsApp</div>
       </div>
     </div>
-
-    <div class="how-cursor" id="howCursor">
-      <svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="#0a84ff" stroke="white" stroke-width="1.5"/></svg>
-    </div>
-    <div class="how-tap" id="howTap"></div>
   </div>
+
+  <!-- Cursor & tap di level .how-demo -->
+  <div class="how-cursor" id="howCursor">
+    <svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="#0a84ff" stroke="white" stroke-width="1.5"/></svg>
+  </div>
+  <div class="how-tap" id="howTap"></div>
 </div>
 
 </div>
