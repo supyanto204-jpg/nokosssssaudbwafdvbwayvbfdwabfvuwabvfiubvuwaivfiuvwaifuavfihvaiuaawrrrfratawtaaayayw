@@ -1,6 +1,8 @@
 /* ============================================================
-   NOKOS.CSS — v5 FULL TOUCH FIX
-   Support all devices & browsers (iOS, Android, Firefox, Samsung)
+   NOKOS.CSS — v6 FINAL
+   - Sidebar nimpa topbar saat dibuka
+   - Semua tombol bisa diklik di HP
+   - Support iOS, Android, Firefox, Samsung
    ============================================================ */
 
 :root {
@@ -77,7 +79,7 @@ body.sheet-open {
   height: 100%;
 }
 
-/* JANGAN blokir callout global */
+/* Jangan blokir callout global — hanya elemen dekoratif */
 body, body * {
   -webkit-user-select: none;
   user-select: none;
@@ -94,7 +96,7 @@ a, button, [role="button"],
   -webkit-touch-callout: default;
 }
 
-/* FIX: touch-action & tap highlight untuk semua elemen interaktif */
+/* Touch fix */
 a, button, [role="button"], input, select, textarea, label,
 .nav-item, .app-card, .server-card, .country-item, .price-item,
 .sheet-tab, .page-btn, .btn-cta, .btn-primary, .btn-mini,
@@ -107,7 +109,6 @@ a, button, [role="button"], input, select, textarea, label,
   touch-action: manipulation;
 }
 
-/* Cursor pointer hanya di device hover */
 @media (hover: hover) {
   a, button, [role="button"],
   .nav-item, .app-card, .server-card, .country-item,
@@ -135,7 +136,7 @@ img, svg {
 }
 
 /* ============================================================
-   BACKGROUND ORBS
+   BACKGROUND
    ============================================================ */
 .bg {
   position: fixed;
@@ -248,14 +249,9 @@ img, svg {
   z-index: 1;
 }
 
-/* FIX: Fallback backdrop-filter */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass,
-  .glass-card,
-  .nokos-hero,
-  .custom-alert,
-  .bottom-sheet,
-  .modal {
+  .glass, .glass-card, .nokos-hero,
+  .custom-alert, .bottom-sheet, .modal {
     background: rgba(255, 255, 255, 0.94);
   }
   [data-theme="dark"] .glass,
@@ -266,10 +262,6 @@ img, svg {
   [data-theme="dark"] .modal {
     background: rgba(28, 28, 32, 0.96);
   }
-  .sidebar-overlay { background: rgba(0, 0, 0, 0.55); }
-  .bottom-sheet-overlay { background: rgba(0, 0, 0, 0.65); }
-  .custom-alert-overlay { background: rgba(0, 0, 0, 0.7); }
-  .modal-overlay { background: rgba(0, 0, 0, 0.65); }
 }
 
 /* ============================================================
@@ -283,7 +275,6 @@ img, svg {
 .reveal:nth-child(1) { animation-delay: 0.05s; }
 .reveal:nth-child(2) { animation-delay: 0.10s; }
 .reveal:nth-child(3) { animation-delay: 0.15s; }
-
 @keyframes revealUp {
   to { opacity: 1; transform: translateY(0); }
 }
@@ -300,7 +291,7 @@ img, svg {
 }
 
 /* ============================================================
-   SIDEBAR
+   SIDEBAR — z-index 300 (di atas topbar)
    ============================================================ */
 .sidebar {
   position: fixed;
@@ -311,7 +302,7 @@ img, svg {
   padding: 18px 14px;
   display: flex;
   flex-direction: column;
-  z-index: 60;
+  z-index: 300;
   transition: width 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
   overflow: hidden;
 }
@@ -336,13 +327,10 @@ img, svg {
 }
 
 .logo-icon {
-  width: 38px;
-  height: 38px;
+  width: 38px; height: 38px;
   border-radius: 12px;
   background: var(--grad);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   color: #fff;
   font-weight: 900;
   font-size: 1.3rem;
@@ -461,12 +449,7 @@ img, svg {
   pointer-events: none;
 }
 
-.user-details {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
+.user-details { flex: 1; min-width: 0; overflow: hidden; pointer-events: none; }
 
 .user-name {
   font-size: 0.85rem;
@@ -511,7 +494,7 @@ img, svg {
 }
 
 /* ============================================================
-   MAIN
+   MAIN CONTENT
    ============================================================ */
 .main-content {
   flex: 1;
@@ -527,7 +510,7 @@ img, svg {
 body.sidebar-collapsed .main-content { margin-left: 108px; }
 
 /* ============================================================
-   TOPBAR
+   TOPBAR — z-index 20, turun saat sidebar buka
    ============================================================ */
 .topbar {
   display: flex;
@@ -542,13 +525,15 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   pointer-events: auto;
 }
 
+/* Saat sidebar terbuka di mobile, topbar turun */
+body.sidebar-open .topbar { z-index: 10; }
+
 .topbar-left h1 {
   font-size: 1.35rem;
   font-weight: 900;
   letter-spacing: -0.03em;
   line-height: 1.1;
 }
-
 .topbar-left p {
   font-size: 0.82rem;
   color: var(--txt2);
@@ -901,7 +886,7 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 }
 
 .aoc-otp-copy {
-  width: 32px; height: 32px;
+  width: 36px; height: 36px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.7);
   border: 1.5px solid var(--gl-bd2);
@@ -1220,7 +1205,7 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   bottom: 12px;
   left: 12px;
   right: 12px;
-  z-index: 100;
+  z-index: 250;
   padding: 6px;
   border-radius: 22px;
 }
@@ -1266,26 +1251,26 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 .taskbar-primary:active .icon-wrapper { transform: scale(0.92); }
 
 /* ============================================================
-   SIDEBAR OVERLAY — FIX KRITIS
+   SIDEBAR OVERLAY — z-index 290
    ============================================================ */
 .sidebar-overlay {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
-  z-index: 49;
+  z-index: 290;
   opacity: 0;
   transition: opacity 0.3s;
-  pointer-events: none; /* default: TIDAK menangkap tap */
+  pointer-events: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 .sidebar-overlay.active {
   display: block;
   opacity: 1;
-  pointer-events: auto; /* hanya aktif saat sidebar terbuka */
+  pointer-events: auto;
 }
 
 /* ============================================================
@@ -1340,7 +1325,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 .bottom-sheet-overlay.closing .bottom-sheet {
   animation: sheetSlideDown 0.28s cubic-bezier(0.4, 0, 0.6, 1) forwards;
 }
-
 @keyframes sheetSlideUp {
   from { transform: translateY(100%); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -1368,7 +1352,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   border-radius: 50px;
   margin: 12px auto 8px;
   flex-shrink: 0;
-  transition: background-color 0.2s;
   pointer-events: none;
 }
 
@@ -1424,14 +1407,12 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   overscroll-behavior: contain;
   touch-action: pan-y;
 }
-
 .sheet-body::-webkit-scrollbar { width: 6px; }
 .sheet-body::-webkit-scrollbar-track { background: transparent; border-radius: 99px; }
 .sheet-body::-webkit-scrollbar-thumb {
   background: rgba(10, 132, 255, 0.35);
   border-radius: 99px;
 }
-.sheet-body::-webkit-scrollbar-thumb:hover { background: rgba(10, 132, 255, 0.55); }
 
 .sheet-back {
   display: inline-flex;
@@ -1459,7 +1440,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   .sheet-back:hover { background: var(--p); color: #fff; border-color: var(--p); }
 }
 
-/* SERVER LIST */
 .server-list { display: flex; flex-direction: column; gap: 12px; }
 .server-card {
   display: flex;
@@ -1483,7 +1463,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 }
 [data-theme="dark"] .server-card { background: rgba(255, 255, 255, 0.06); }
 .server-card:active { transform: scale(0.99); }
-
 .server-icon {
   width: 40px; height: 40px;
   border-radius: 11px;
@@ -1525,7 +1504,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   }
 }
 
-/* SEARCH */
 .sheet-search {
   position: relative;
   margin-bottom: 18px;
@@ -1563,7 +1541,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 }
 [data-theme="dark"] .sheet-search .form-control:focus { background: rgba(255, 255, 255, 0.1); }
 
-/* APP SELECTED */
 .app-selected-card {
   display: flex;
   align-items: center;
@@ -1601,7 +1578,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   pointer-events: none;
 }
 
-/* APP GRID */
 .app-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -1643,7 +1619,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   word-break: break-word;
-  transition: color 0.2s;
   pointer-events: none;
 }
 @media (hover: hover) {
@@ -1655,7 +1630,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   .app-card:hover .name { color: var(--p); }
 }
 
-/* TABS */
 .sheet-tabs {
   display: flex;
   gap: 6px;
@@ -1689,7 +1663,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   box-shadow: 0 4px 12px rgba(10, 132, 255, 0.35);
 }
 
-/* COUNTRY LIST */
 .country-list { display: flex; flex-direction: column; gap: 8px; }
 .country-item {
   display: flex;
@@ -1711,7 +1684,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 }
 [data-theme="dark"] .country-item { background: rgba(255, 255, 255, 0.06); }
 .country-item:active { transform: scale(0.99); }
-
 .country-flag {
   width: 32px; height: 24px;
   flex-shrink: 0;
@@ -1740,7 +1712,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   }
 }
 
-/* PRICE LIST */
 .price-list {
   display: flex;
   flex-direction: column;
@@ -1825,7 +1796,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   }
 }
 
-/* LOADING / EMPTY BLOCK */
 .loading-block {
   display: flex;
   flex-direction: column;
@@ -1858,7 +1828,7 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 .empty-block p { font-size: 0.82rem; }
 
 /* ============================================================
-   MODAL
+   MODAL — z-index 99999
    ============================================================ */
 .modal-overlay {
   position: fixed;
@@ -1930,7 +1900,7 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
 }
 
 /* ============================================================
-   CUSTOM ALERT
+   CUSTOM ALERT — z-index 999999
    ============================================================ */
 .custom-alert-overlay {
   display: none;
@@ -2071,13 +2041,19 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   .sidebar {
     transform: translateX(-120%);
     width: 260px;
-    z-index: 60;
+    z-index: 300;
+    /* Sidebar solid di mobile agar tidak tembus pandang */
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  [data-theme="dark"] .sidebar {
+    background: rgba(28, 28, 32, 0.98) !important;
   }
   .sidebar.open { transform: translateX(0); }
 
-  /* FIX: overlay hanya aktif saat .active */
   .sidebar-overlay { display: none; }
-  .sidebar-overlay.active { display: block; pointer-events: auto; }
+  .sidebar-overlay.active { display: block; pointer-events: auto; z-index: 290; }
 
   .main-content {
     margin-left: 0;
@@ -2111,7 +2087,6 @@ body.sidebar-collapsed .main-content { margin-left: 108px; }
   .mobile-taskbar { display: block; }
   .site-footer { font-size: 0.72rem; }
 
-  /* Target tap 44px */
   .nav-item, .app-card, .server-card, .country-item,
   .sheet-tab, .page-btn, .btn-mini, .btn-primary,
   .custom-alert-actions .btn, .taskbar-item {
