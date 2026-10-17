@@ -15,24 +15,24 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/login.css">
-
 <script>
 (function(){
+var d=document.documentElement;
 var hc=navigator.hardwareConcurrency||2;
-var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-var lowEnd=hc<=4||mobile;
-var conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-var slowNet=conn&&(conn.saveData||/2g|slow-2g/.test(conn.effectiveType||''));
-var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+var le=hc<=4||m;
+var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+var sn=c&&(c.saveData||/2g|slow-2g/.test(c.effectiveType||''));
+var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 var mode='full';
-if(reduced||slowNet)mode='lite';
-else if(lowEnd)mode='lite';
-document.documentElement.setAttribute('data-perf',mode);
+if(r||sn)mode='lite';
+else if(le)mode='lite';
+d.setAttribute('data-perf',mode);
 try{
 var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-document.documentElement.setAttribute('data-theme',t);
+d.setAttribute('data-theme',t);
 }catch(e){}
-if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}
+if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}d.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}
 })();
 </script>
 <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
@@ -100,15 +100,10 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 </div>
 
 <div class="status" id="statusRow" aria-live="polite">
-<span class="status-mark" id="statusMark" data-status="pending">
-<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-<circle class="track" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-<circle class="ring" cx="12" cy="12" r="9" transform="rotate(-90 12 12)"/>
-<path class="check" d="M7.5 12.25 10.5 15.25 16.75 8.75" pathLength="1"/>
-<path class="cross" d="M8.5 8.5 15.5 15.5M15.5 8.5 8.5 15.5" pathLength="1"/>
-</svg>
+<div class="status-bar" id="statusBar">
+<div class="status-bar-fill" id="statusBarFill"></div>
+</div>
 <span class="status-label" id="statusLabel">Menunggu</span>
-</span>
 </div>
 
 <button type="submit" class="btn-submit" id="submitBtn">
@@ -123,15 +118,6 @@ Belum punya akun? <a href="/daftar">Daftar gratis</a>
 </div>
 <div class="recaptcha-note">
 Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
-</div>
-</div>
-
-<div class="cache-info" id="cacheInfo" hidden>
-<div class="cache-card glass">
-<div class="cache-row"><span class="cache-label">Terakhir login</span><span class="cache-val" id="cacheLastLogin">—</span></div>
-<div class="cache-row"><span class="cache-label">User ID</span><span class="cache-val mono" id="cacheUserId">—</span></div>
-<div class="cache-row"><span class="cache-label">Saldo terakhir</span><span class="cache-val" id="cacheBalance">—</span></div>
-<button class="cache-clear" id="cacheClear" type="button">Hapus info tersimpan</button>
 </div>
 </div>
 </div>
