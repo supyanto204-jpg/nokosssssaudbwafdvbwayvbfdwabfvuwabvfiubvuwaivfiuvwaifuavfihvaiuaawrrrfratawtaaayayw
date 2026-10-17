@@ -1,11 +1,5 @@
-/* ============================================================
-   PROFILE.JS — v7 FINAL
-   Chart SVG-based, enc cache, touch fix, security soft
-   ============================================================ */
 (function (global) {
   'use strict';
-
-  /* §0 — SAFE STORAGE */
   const SafeStorage = (() => {
     let ls = null, ss = null;
     try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch(e) { ls = null; }
@@ -21,8 +15,6 @@
     }
     return { local: wrap(ls,''), session: wrap(ss,'') };
   })();
-
-  /* §1 — CRYPTO */
   const _crypto = (() => {
     const _k = 'cHJvZmlsZS1zZWNyZXQta2V5LTIwMjYtYXN5cm9m';
     const _s = 'c2FsdC1wcm9maWxlLXYyMDI2LXNlY3VyZQ==';
@@ -32,7 +24,6 @@
       try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
       catch(e) { return false; }
     })();
-
     async function _derive() {
       if (_dk) return _dk;
       const enc = new TextEncoder();
@@ -84,8 +75,6 @@
     }
     return { seal, unseal };
   })();
-
-  /* §2 — CACHE */
   const Cache = (() => {
     const P = 'aotp_p_';
     const _mem = new Map();
@@ -123,8 +112,6 @@
     }
     return { get, set, remove, clear };
   })();
-
-  /* §3 — CONFIG */
   const _cfg = {
     rk: '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg',
     ep: {
@@ -141,8 +128,6 @@
     },
     fetchTimeout: 12000,
   };
-
-  /* §4 — SECURITY soft */
   (function () {
     try {
       console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
@@ -164,13 +149,9 @@
       if (location.search) history.replaceState(null, '', clean);
     } catch(e) {}
   })();
-
-  /* §5 — AUTH */
   let token = null;
   try { token = SafeStorage.local.get('access_token'); } catch(e) { token = null; }
   if (!token) { location.href = '/login'; return; }
-
-  /* §6 — HELPERS */
   function $(id) { return document.getElementById(id); }
   function safeJson(res) { return res.json().catch(() => ({})); }
   function fetchWithTimeout(url, opts = {}, ms = _cfg.fetchTimeout) {
@@ -199,8 +180,6 @@
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[ch]);
   }
-
-  /* §7 — CLIPBOARD */
   function copyToClipboard(text, btnEl, successHtml) {
     const onOk = () => {
       if (!btnEl) return;
@@ -232,8 +211,6 @@
       try { const t = document.querySelector('textarea[readonly]'); if (t) t.remove(); } catch(_) {}
     }
   }
-
-  /* §8 — RECAPTCHA */
   function waitForRecaptcha() {
     return new Promise((resolve) => {
       if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -265,8 +242,6 @@
       body: JSON.stringify({ ...body, recaptcha_token: rc }),
     });
   }
-
-  /* §9 — THEME */
   (function () {
     const btn = $('themeBtn');
     if (!btn) return;
@@ -282,8 +257,6 @@
       if (state.chartSaldo.data) drawChart('saldo', state.chartSaldo.data);
     });
   })();
-
-  /* §10 — SIDEBAR (desktop) */
   (function () {
     const sidebar = $('sidebar');
     const btn = $('collapseBtn');
@@ -300,17 +273,13 @@
       try { SafeStorage.local.set('sidebar_collapsed', c); } catch(e) {}
     });
   })();
-
-  /* §11 — SIDEBAR (mobile) */
   (function () {
     const toggle = $('mobileToggle');
     const sidebar = $('sidebar');
     const overlay = $('sidebarOverlay');
     if (!toggle || !sidebar || !overlay) return;
-
     let open = false;
     let lastToggle = 0;
-
     function openSb() {
       if (open) return;
       open = true;
@@ -358,15 +327,11 @@
       rt = setTimeout(() => { if (window.innerWidth > 768 && open) closeSb(); }, 150);
     });
   })();
-
-  /* §12 — STATE */
   const state = {
     user: null,
     chartOrder: { range: 7, data: null },
     chartSaldo: { range: 7, data: null },
   };
-
-  /* §13 — LOAD USER */
   async function loadUser(force = false) {
     if (!force) {
       const cached = await Cache.get('user', _cfg.ttl.user);
@@ -390,7 +355,6 @@
     const name = user.name || user.username || '—';
     const initial = getInitial(name);
     const bal = formatRupiah(user.balance);
-
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
     set('userName', name);
     set('userBalance', bal);
@@ -405,7 +369,6 @@
     set('statSaldoNow', bal);
     const inputName = $('inputName');
     if (inputName) inputName.value = user.name || '';
-
     if (user.user_code) {
       const code = String(user.user_code);
       const badge = $('profileCodeBadge');
@@ -416,10 +379,6 @@
       if (copyBtn) copyBtn.style.display = 'inline-flex';
     }
   }
-
-  /* ============================================================
-     §14 — CHART ENGINE (SVG-based)
-     ============================================================ */
   const COLORS = {
     success: '#34c759',
     successGlow: 'rgba(52, 199, 89, 0.2)',
@@ -430,35 +389,27 @@
     grid: 'rgba(142, 142, 147, 0.15)',
     text: '#8e8e93',
   };
-
   function buildChartSVG(svgEl, series, opts = {}) {
     if (!svgEl) return;
     const W = 800, H = 260;
     const padL = 50, padR = 20, padT = 20, padB = 30;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
-
-    // Find global min/max
     let allValues = [];
     series.forEach(s => {
       s.points.forEach(p => allValues.push(p.y));
     });
     if (allValues.length === 0) { svgEl.innerHTML = ''; return; }
-
     let minY = Math.min(...allValues);
     let maxY = Math.max(...allValues);
     if (minY === maxY) { maxY = minY + 1; minY = Math.max(0, minY - 1); }
     if (opts.allowNegative && minY > 0) minY = 0;
     if (opts.allowNegative && maxY < 0) maxY = 0;
     const rangeY = maxY - minY;
-
     const n = series[0].points.length;
     const stepX = n > 1 ? innerW / (n - 1) : innerW;
-
     function x(i) { return padL + i * stepX; }
     function y(v) { return padT + innerH - ((v - minY) / rangeY) * innerH; }
-
-    // Build path
     function buildPath(points) {
       if (points.length === 0) return '';
       let d = '';
@@ -467,7 +418,6 @@
         const py = y(p.y);
         if (i === 0) d += `M ${px.toFixed(1)} ${py.toFixed(1)}`;
         else {
-          // Smooth curve (Catmull-Rom to Bezier)
           const prev = points[i - 1];
           const prevX = x(i - 1);
           const prevY = y(prev.y);
@@ -480,8 +430,6 @@
       });
       return d;
     }
-
-    // Grid lines (horizontal)
     let gridLines = '';
     const gridCount = 4;
     for (let i = 0; i <= gridCount; i++) {
@@ -490,8 +438,6 @@
       gridLines += `<line x1="${padL}" y1="${gy.toFixed(1)}" x2="${W - padR}" y2="${gy.toFixed(1)}" stroke="${COLORS.grid}" stroke-width="1" stroke-dasharray="4 4"/>`;
       gridLines += `<text x="${padL - 8}" y="${(gy + 4).toFixed(1)}" fill="${COLORS.text}" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">${formatRupiahShort(val)}</text>`;
     }
-
-    // X-axis labels
     let xLabels = '';
     const xStep = Math.max(1, Math.floor(n / 6));
     for (let i = 0; i < n; i += xStep) {
@@ -501,13 +447,10 @@
         xLabels += `<text x="${px.toFixed(1)}" y="${H - 8}" fill="${COLORS.text}" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">${escapeHtml(p.label)}</text>`;
       }
     }
-
-    // Build series paths
     let seriesSVG = '';
     series.forEach(s => {
       const pathD = buildPath(s.points);
       if (!pathD) return;
-      // Area gradient under line
       const areaD = pathD + ` L ${x(n - 1).toFixed(1)} ${(padT + innerH).toFixed(1)} L ${x(0).toFixed(1)} ${(padT + innerH).toFixed(1)} Z`;
       seriesSVG += `
         <defs>
@@ -519,7 +462,6 @@
         <path d="${areaD}" fill="url(#grad-${s.id})" />
         <path d="${pathD}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
       `;
-      // Dots on points
       s.points.forEach((p, i) => {
         const px = x(i);
         const py = y(p.y);
@@ -529,8 +471,6 @@
 
     svgEl.innerHTML = gridLines + xLabels + seriesSVG;
   }
-
-  /* §15 — LOAD CHART ORDER */
   async function loadChartOrder(range = 7, force = false) {
     state.chartOrder.range = range;
     const svgEl = $('chartOrderSvg');
@@ -539,7 +479,6 @@
     if (loading) loading.style.display = 'flex';
     if (empty) empty.style.display = 'none';
     if (svgEl) svgEl.innerHTML = '';
-
     const cacheKey = `chart_order_${range}`;
     if (!force) {
       const cached = await Cache.get(cacheKey, _cfg.ttl.chart);
@@ -550,7 +489,6 @@
         return;
       }
     }
-
     try {
       const res = await fetchWithTimeout(`${_cfg.ep.orderStats}?range=${range}`, {
         headers: { Authorization: 'Bearer ' + token },
@@ -567,7 +505,6 @@
       if (loading) loading.style.display = 'none';
     }
   }
-
   function renderChartOrder(data) {
     const svgEl = $('chartOrderSvg');
     const empty = $('chartOrderEmpty');
@@ -576,33 +513,25 @@
       return;
     }
     if (empty) empty.style.display = 'none';
-
     const labels = data.labels || [];
     const successArr = data.success || [];
     const failedArr = data.failed || [];
-
     const successPoints = labels.map((l, i) => ({ y: successArr[i] || 0, label: l }));
     const failedPoints = labels.map((l, i) => ({ y: failedArr[i] || 0, label: l }));
-
     buildChartSVG(svgEl, [
       { id: 'success', color: COLORS.success, points: successPoints },
       { id: 'failed', color: COLORS.danger, points: failedPoints },
     ]);
-
-    // Stats
     const total = (data.total || 0);
     const succ = successArr.reduce((a, b) => a + b, 0);
     const fail = failedArr.reduce((a, b) => a + b, 0);
     const rate = total > 0 ? Math.round((succ / total) * 100) : 0;
-
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
     set('statTotalOrders', total);
     set('statSuccessOrders', succ);
     set('statFailedOrders', fail);
     set('statSuccessRate', rate + '%');
   }
-
-  /* §16 — LOAD CHART SALDO */
   async function loadChartSaldo(range = 7, force = false) {
     state.chartSaldo.range = range;
     const svgEl = $('chartSaldoSvg');
@@ -611,7 +540,6 @@
     if (loading) loading.style.display = 'flex';
     if (empty) empty.style.display = 'none';
     if (svgEl) svgEl.innerHTML = '';
-
     const cacheKey = `chart_saldo_${range}`;
     if (!force) {
       const cached = await Cache.get(cacheKey, _cfg.ttl.chart);
@@ -622,7 +550,6 @@
         return;
       }
     }
-
     try {
       const res = await fetchWithTimeout(`${_cfg.ep.saldoActivity}?range=${range}`, {
         headers: { Authorization: 'Bearer ' + token },
@@ -638,7 +565,6 @@
       if (loading) loading.style.display = 'none';
     }
   }
-
   function renderChartSaldo(data) {
     const svgEl = $('chartSaldoSvg');
     const empty = $('chartSaldoEmpty');
@@ -647,27 +573,20 @@
       return;
     }
     if (empty) empty.style.display = 'none';
-
     const labels = data.labels || [];
     const balanceArr = data.balance || [];
-
     const points = labels.map((l, i) => ({ y: balanceArr[i] || 0, label: l }));
-
     buildChartSVG(svgEl, [
       { id: 'balance', color: COLORS.primary, points: points },
     ], { allowNegative: true });
-
     const totalIn = data.total_in || 0;
     const totalOut = data.total_out || 0;
     const now = balanceArr.length > 0 ? balanceArr[balanceArr.length - 1] : 0;
-
     const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
     set('statSaldoIn', formatRupiahShort(totalIn));
     set('statSaldoOut', formatRupiahShort(totalOut));
     set('statSaldoNow', formatRupiah(now));
   }
-
-  /* §17 — CHART TABS */
   (function () {
     const tabsOrder = document.querySelectorAll('#chartOrderTabs .chart-tab');
     tabsOrder.forEach(tab => {
@@ -677,7 +596,6 @@
         loadChartOrder(Number(tab.dataset.range), true);
       });
     });
-
     const tabsSaldo = document.querySelectorAll('#chartSaldoTabs .chart-tab');
     tabsSaldo.forEach(tab => {
       tab.addEventListener('click', () => {
@@ -687,8 +605,6 @@
       });
     });
   })();
-
-  /* §18 — MODAL */
   function openModal(id) {
     const m = $(id);
     if (m) {
@@ -727,8 +643,6 @@
       }
     });
   })();
-
-  /* §19 — PASSWORD TOGGLE */
   (function () {
     document.querySelectorAll('.password-toggle').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -748,8 +662,6 @@
       });
     });
   })();
-
-  /* §20 — PASSWORD STRENGTH */
   (function () {
     const input = $('inputNewPassword');
     const meter = $('pwdStrength');
@@ -773,8 +685,6 @@
       });
     });
   })();
-
-  /* §21 — ALERT HELPER */
   function showAlert(id, message, type) {
     const el = $(id);
     if (!el) return;
@@ -786,8 +696,6 @@
     const el = $(id);
     if (el) el.classList.remove('show');
   }
-
-  /* §22 — FORM NAME */
   (function () {
     const form = $('formName');
     if (!form) return;
@@ -799,16 +707,13 @@
       const orig = btn.innerHTML;
       if (!name) { showAlert('alertName', 'Nama tidak boleh kosong', 'error'); return; }
       if (name.length > 50) { showAlert('alertName', 'Nama maksimal 50 karakter', 'error'); return; }
-
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-sm"></span> Menyimpan...';
-
       try {
         const res = await securePost(_cfg.ep.updateName, { name }, 'update_profile');
         const data = await safeJson(res);
         if (!res.ok || data.error) throw new Error(data.error || 'Gagal menyimpan');
         showAlert('alertName', 'Nama berhasil diupdate!', 'success');
-
         const initial = getInitial(name);
         const set = (id, txt) => { const el = $(id); if (el) el.textContent = txt; };
         set('profileName', name);
@@ -816,7 +721,6 @@
         set('userName', name);
         set('profileAvatar', initial);
         set('userInitial', initial);
-
         Cache.remove('user');
         setTimeout(() => {
           closeModal($('modalName'));
@@ -830,8 +734,6 @@
       }
     });
   })();
-
-  /* §23 — FORM PASSWORD */
   (function () {
     const form = $('formPassword');
     if (!form) return;
@@ -843,15 +745,12 @@
       const np2 = $('inputNewPassword2').value;
       const btn = $('btnSavePassword');
       const orig = btn.innerHTML;
-
       if (!cur) { showAlert('alertPassword', 'Password lama wajib diisi', 'error'); return; }
       if (np.length < 6) { showAlert('alertPassword', 'Password baru minimal 6 karakter', 'error'); return; }
       if (np !== np2) { showAlert('alertPassword', 'Konfirmasi password tidak cocok', 'error'); return; }
       if (np === cur) { showAlert('alertPassword', 'Password baru harus beda dengan yang lama', 'error'); return; }
-
       btn.disabled = true;
       btn.innerHTML = '<span class="spinner-sm"></span> Menyimpan...';
-
       try {
         const res = await securePost(_cfg.ep.changePassword, { current_password: cur, new_password: np }, 'change_password');
         const data = await safeJson(res);
@@ -871,8 +770,6 @@
       }
     });
   })();
-
-  /* §24 — COPY USER CODE */
   (function () {
     const badge = $('profileCodeBadge');
     if (badge) {
@@ -891,8 +788,6 @@
       });
     }
   })();
-
-  /* §25 — LOGOUT */
   async function handleLogout() {
     try {
       await fetchWithTimeout(_cfg.ep.logout, {
@@ -915,26 +810,21 @@
       if (window.confirm('Yakin mau keluar dari akun ini?')) handleLogout();
     });
   })();
-
-  /* §26 — INIT */
   function init() {
     loadUser(false);
     loadChartOrder(7, false);
     loadChartSaldo(7, false);
   }
-
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
-
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       loadUser(false);
     }
   });
-
   function _cleanup() {}
   window.addEventListener('pagehide', _cleanup);
   window.addEventListener('beforeunload', _cleanup);
