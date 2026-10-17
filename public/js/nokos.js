@@ -1,12 +1,15 @@
 /* ============================================================
-   NOKOS.JS — Beli Nokos + Encrypted Cache + Dynamic Copy
+   NOKOS.JS — v4 FIXED
+   - closeSheet animasi smooth
+   - alert z-index di atas bottom sheet
+   - bottom sheet auto-resize per step
+   - app card gak kepotong
+   - empty state loading logo fix
    ============================================================ */
 (function (global) {
   'use strict';
 
-  /* ============================================================
-     §1 — CRYPTO (AES-GCM + PBKDF2)
-     ============================================================ */
+  /* §1 — CRYPTO */
   const _crypto = (() => {
     const _k = 'bm9rb3Mtc2VjcmV0LWtleS0yMDI2LWFzeXJvZg==';
     const _s = 'c2FsdC1ub2tvcy12MjAyNi1zZWN1cmU=';
@@ -28,7 +31,6 @@
       );
       return _dk;
     }
-
     function _b2buf(b64) {
       const bin = atob(b64);
       const u = new Uint8Array(bin.length);
@@ -41,7 +43,6 @@
       for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
       return btoa(s);
     }
-
     async function seal(obj) {
       try {
         const key = await _derive();
@@ -55,7 +56,6 @@
         return _buf2b(comb.buffer);
       } catch (e) { return null; }
     }
-
     async function unseal(b64) {
       try {
         const key = await _derive();
@@ -68,17 +68,13 @@
         return JSON.parse(new TextDecoder().decode(plain));
       } catch (e) { return null; }
     }
-
     return { seal, unseal };
   })();
 
-  /* ============================================================
-     §2 — ENCRYPTED CACHE
-     ============================================================ */
+  /* §2 — CACHE */
   const Cache = (() => {
     const P = 'aotp_n_';
     const _mem = new Map();
-
     async function get(key, ttl) {
       if (_mem.has(key)) {
         const e = _mem.get(key);
@@ -98,7 +94,6 @@
         return e.v;
       } catch (err) { return null; }
     }
-
     async function set(key, v) {
       const e = { t: Date.now(), v };
       _mem.set(key, e);
@@ -107,12 +102,10 @@
         if (s) localStorage.setItem(P + key, s);
       } catch (err) {}
     }
-
     function remove(key) {
       _mem.delete(key);
       try { localStorage.removeItem(P + key); } catch (e) {}
     }
-
     function clear() {
       _mem.clear();
       try {
@@ -121,13 +114,10 @@
         });
       } catch (e) {}
     }
-
     return { get, set, remove, clear };
   })();
 
-  /* ============================================================
-     §3 — CONFIG
-     ============================================================ */
+  /* §3 — CONFIG */
   const _cfg = {
     rk: '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg',
     ep: {
@@ -155,9 +145,7 @@
     activeLimit: 2,
   };
 
-  /* ============================================================
-     §4 — DEVICE DETECTION
-     ============================================================ */
+  /* §4 — DEVICE */
   const _dev = (() => {
     const mq = (q) => window.matchMedia(q).matches;
     const hc = navigator.hardwareConcurrency || 4;
@@ -168,20 +156,16 @@
       reduced: mq('(prefers-reduced-motion: reduce)'),
     };
   })();
-
   if (_dev.reduced || _dev.lowEnd) {
     document.documentElement.setAttribute('data-perf', 'lite');
   }
 
-  /* ============================================================
-     §5 — SECURITY (soft, F12 allowed)
-     ============================================================ */
+  /* §5 — SECURITY soft */
   (function () {
     try {
       console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
       console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
     } catch (e) {}
-
     document.addEventListener('copy', (e) => {
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
@@ -193,44 +177,35 @@
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       e.preventDefault();
     });
-
     try {
       const clean = location.origin + location.pathname;
       if (location.search) history.replaceState(null, '', clean);
     } catch (e) {}
   })();
 
-  /* ============================================================
-     §6 — AUTH
-     ============================================================ */
+  /* §6 — AUTH */
   const token = localStorage.getItem('access_token');
   if (!token) {
     location.href = '/login';
     return;
   }
 
-  /* ============================================================
-     §7 — HELPERS
-     ============================================================ */
+  /* §7 — HELPERS */
   function safeJson(res) {
     return res.json().catch(() => ({}));
   }
-
   function formatRupiah(n) {
     const v = Number(n) || 0;
     return 'Rp' + v.toLocaleString('id-ID');
   }
-
   function getInitial(name) {
     return String(name || '?').trim().charAt(0).toUpperCase() || '?';
   }
-
   function escapeHtml(v) {
     return String(v ?? '').replace(/[&<>"']/g, ch => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[ch]);
   }
-
   function formatTanggal(iso) {
     if (!iso) return '—';
     try {
@@ -240,14 +215,11 @@
       });
     } catch (e) { return '—'; }
   }
-
   function pick(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  /* ============================================================
-     §8 — DYNAMIC COPY
-     ============================================================ */
+  /* §8 — DYNAMIC COPY */
   const _copy = {
     pageSubtitle: [
       'Nomor OTP langsung, kode OTP muncul sendiri',
@@ -302,9 +274,7 @@
     if (ct) ct.textContent = pick(_copy.ctaText);
   }
 
-  /* ============================================================
-     §9 — ICONS
-     ============================================================ */
+  /* §9 — ICONS */
   const ICONS = {
     check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
     close: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
@@ -317,33 +287,19 @@
     key: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
     checkCircle: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
     ban: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+    phone: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
   };
 
-  /* ============================================================
-     §10 — STATE
-     ============================================================ */
+  /* §10 — STATE */
   const state = {
-    step: 1,
-    server: null,
-    serverLabel: null,
-    requiresOperator: false,
-    service: null,
-    serviceName: null,
-    country: null,
-    countryName: null,
-    operator: 'any',
-    providers: [],
-    filter: 'sukses',
+    step: 1, server: null, serverLabel: null, requiresOperator: false,
+    service: null, serviceName: null, country: null, countryName: null,
+    operator: 'any', providers: [], filter: 'sukses',
   };
 
   const activeState = {
-    page: 1,
-    limit: _cfg.activeLimit,
-    totalPages: 1,
-    allOrders: [],
-    countdownIntervals: {},
-    hasRenderedOnce: false,
-    initialLoadDone: false,
+    page: 1, limit: _cfg.activeLimit, totalPages: 1, allOrders: [],
+    countdownIntervals: {}, hasRenderedOnce: false, initialLoadDone: false,
   };
 
   const ORDER_ID_MAP = new Map();
@@ -356,9 +312,7 @@
   let _loadActiveAbort = null;
   let _loadActiveInFlight = false;
 
-  /* ============================================================
-     §11 — SANITIZE
-     ============================================================ */
+  /* §11 — SANITIZE */
   const ALLOWED_ORDER_FIELDS = new Set([
     'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
     'price_idr', 'price', 'service', 'service_name',
@@ -366,13 +320,11 @@
     'expires_in', 'expired_at', 'created_at', 'updated_at',
     'received_at', 'refunded_at', 'refunded_amount', '_bucket',
   ]);
-
   const ALLOWED_PROVIDER_FIELDS = new Set([
     'id', 'provider_id', 'provider_price', 'price_idr', 'price',
     'stock', 'available', 'active', 'name', 'operator',
     'product_id', 'catalog_product_id', 'operator_id', 'operator_name',
   ]);
-
   function sanitizeOrder(order) {
     if (!order || typeof order !== 'object') return order;
     const clean = {};
@@ -381,7 +333,6 @@
     }
     return clean;
   }
-
   function sanitizeProvider(provider) {
     if (!provider || typeof provider !== 'object') return provider;
     const clean = {};
@@ -391,9 +342,7 @@
     return clean;
   }
 
-  /* ============================================================
-     §12 — SERVICE HELPERS
-     ============================================================ */
+  /* §12 — SERVICE HELPERS */
   function getServiceDisplayName(order) {
     return String(order?.service_name || order?.service || 'Layanan OTP').trim();
   }
@@ -410,7 +359,6 @@
     hk: 'Hong Kong', nz: 'Selandia Baru', ch: 'Swiss', se: 'Swedia', no: 'Norwegia',
     fi: 'Finlandia', be: 'Belgia', pt: 'Portugal', eg: 'Mesir', ke: 'Kenya', gh: 'Ghana',
   };
-
   function getCountryName(order) {
     const code = String(order?.country || order?.country_name || '').trim().toLowerCase();
     const supplied = String(order?.country_name || '').trim();
@@ -424,7 +372,6 @@
     }
     return supplied || 'Negara tidak diketahui';
   }
-
   function getOtpId(order) {
     const id = String(order?.otp_id || '').trim();
     if (id) return id;
@@ -436,15 +383,12 @@
     return 'OTP' + (hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0');
   }
 
-  /* ============================================================
-     §13 — FLAG
-     ============================================================ */
+  /* §13 — FLAG */
   function countryCodeToTwemoji(code) {
     const c = (code || '').toUpperCase();
     if (c.length !== 2) return null;
     return c.split('').map(ch => (0x1F1E6 + ch.charCodeAt(0) - 65).toString(16)).join('-');
   }
-
   function getFlagSources(code) {
     const c = (code || '').toLowerCase();
     if (!/^[a-z]{2}$/.test(c)) return [];
@@ -454,7 +398,6 @@
       `https://flagcdn.com/w40/${c}.png`,
     ].filter(Boolean);
   }
-
   function renderFlag(code, cls = 'flag-img') {
     const sources = getFlagSources(code);
     if (sources.length === 0) {
@@ -463,7 +406,6 @@
     const attr = JSON.stringify(sources).replace(/"/g, '&quot;');
     return `<img class="${cls}" src="${sources[0]}" alt="${escapeHtml(code)}" loading="lazy" data-sources="${attr}" data-idx="0">`;
   }
-
   window._handleFlagErr = function (img) {
     try {
       const sources = JSON.parse(img.dataset.sources || '[]');
@@ -483,9 +425,7 @@
     } catch (e) { img.style.display = 'none'; }
   };
 
-  /* ============================================================
-     §14 — CLIPBOARD
-     ============================================================ */
+  /* §14 — CLIPBOARD */
   function copyToClipboard(text, btnEl) {
     const onOk = () => {
       if (!btnEl) return;
@@ -497,7 +437,6 @@
       navigator.clipboard.writeText(text).then(onOk).catch(() => fallbackCopy(text, onOk));
     } else fallbackCopy(text, onOk);
   }
-
   function fallbackCopy(text, onOk) {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -513,9 +452,7 @@
     document.body.removeChild(ta);
   }
 
-  /* ============================================================
-     §15 — CUSTOM ALERT
-     ============================================================ */
+  /* §15 — CUSTOM ALERT (di atas bottom sheet) */
   function showAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
     return new Promise((resolve) => {
       const overlay = document.getElementById('customAlert');
@@ -554,9 +491,7 @@
     });
   }
 
-  /* ============================================================
-     §16 — THEME
-     ============================================================ */
+  /* §16 — THEME */
   (function () {
     const btn = document.getElementById('themeBtn');
     if (!btn) return;
@@ -570,20 +505,16 @@
     });
   })();
 
-  /* ============================================================
-     §17 — SIDEBAR
-     ============================================================ */
+  /* §17 — SIDEBAR */
   (function () {
     const sidebar = document.getElementById('sidebar');
     const collapseBtn = document.getElementById('collapseBtn');
     if (!sidebar || !collapseBtn) return;
-
     const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
     if (isCollapsed && window.innerWidth > 768) {
       sidebar.classList.add('collapsed');
       document.body.classList.add('sidebar-collapsed');
     }
-
     collapseBtn.addEventListener('click', () => {
       if (window.innerWidth <= 768) return;
       const c = sidebar.classList.toggle('collapsed');
@@ -597,7 +528,6 @@
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     if (!toggle || !sidebar || !overlay) return;
-
     let open = false;
     function openSb() {
       if (open) return;
@@ -628,9 +558,7 @@
     });
   })();
 
-  /* ============================================================
-     §18 — RECAPTCHA
-     ============================================================ */
+  /* §18 — RECAPTCHA */
   function waitForRecaptcha() {
     return new Promise((resolve) => {
       if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -645,7 +573,6 @@
       }, 100);
     });
   }
-
   async function getRecaptchaToken(action) {
     try {
       await waitForRecaptcha();
@@ -660,7 +587,6 @@
       });
     } catch (e) { return null; }
   }
-
   async function securePost(url, body = {}, action = 'nokos') {
     const rc = await getRecaptchaToken(action);
     return fetch(url, {
@@ -673,9 +599,7 @@
     });
   }
 
-  /* ============================================================
-     §19 — LOAD PROFILE
-     ============================================================ */
+  /* §19 — LOAD PROFILE */
   async function loadProfile(force = false) {
     if (!force) {
       const cached = await Cache.get('user', _cfg.ttl.user);
@@ -696,7 +620,6 @@
       }
     } catch (e) {}
   }
-
   function renderUser(user) {
     if (!user) return;
     const name = user.name || user.username || '—';
@@ -712,9 +635,7 @@
     if (sheetEl) sheetEl.textContent = formatRupiah(user.balance);
   }
 
-  /* ============================================================
-     §20 — FETCH ACTIVE ORDERS
-     ============================================================ */
+  /* §20 — FETCH ACTIVE ORDERS */
   async function fetchActiveOrders() {
     const [pRes, sRes] = await Promise.all([
       fetch(_cfg.ep.orders + '?status=pending&limit=50', {
@@ -724,15 +645,12 @@
         headers: { Authorization: 'Bearer ' + token },
       }),
     ]);
-
     const pRaw = await safeJson(pRes);
     const sRaw = await safeJson(sRes);
     const pData = pRaw?.data || pRaw || {};
     const sData = sRaw?.data || sRaw || {};
-
     const now = Date.now();
     const FIVE_MIN = 5 * 60 * 1000;
-
     const pending = (pData.orders || []).map(o => ({ ...sanitizeOrder(o), _bucket: 'pending' }));
     const recent = (sData.orders || [])
       .filter(o => {
@@ -742,7 +660,6 @@
         return Number.isFinite(ts) && (now - ts) <= FIVE_MIN;
       })
       .map(o => ({ ...sanitizeOrder(o), _bucket: 'success' }));
-
     const merged = [...pending, ...recent];
     merged.sort((a, b) => {
       if (a._bucket !== b._bucket) return a._bucket === 'pending' ? -1 : 1;
@@ -759,30 +676,24 @@
       activeState.allOrders = cached;
       renderActiveOrders(cached);
     }
-
     if (_loadActiveInFlight) return;
     _loadActiveInFlight = true;
     if (_loadActiveAbort) _loadActiveAbort.abort();
     _loadActiveAbort = new AbortController();
-
     try {
       const merged = await fetchActiveOrders();
-
       merged.forEach(o => {
         const otpId = String(o.otp_id || '').trim();
         const realId = String(o.raw_id || o.order_id || '').trim();
         if (otpId && realId) ORDER_ID_MAP.set(otpId, realId);
       });
-
       activeState.allOrders = merged;
-
       const safe = merged.map(o => {
         const { raw_id, order_id, ...rest } = o;
         return rest;
       });
       if (safe.length > 0) await Cache.set('orders', safe);
       else Cache.remove('orders');
-
       renderActiveOrders(merged);
       activeState.initialLoadDone = true;
     } catch (err) {
@@ -806,9 +717,7 @@
     }
   }
 
-  /* ============================================================
-     §21 — COUNTDOWN
-     ============================================================ */
+  /* §21 — COUNTDOWN */
   function getDeadline(key, expiresIn) {
     const k = 'aotp_cd_' + key;
     const now = Date.now();
@@ -827,14 +736,11 @@
     }
     return 0;
   }
-
   function clearDeadline(key) {
     try { sessionStorage.removeItem('aotp_cd_' + key); } catch (e) {}
   }
 
-  /* ============================================================
-     §22 — BUILD CARD
-     ============================================================ */
+  /* §22 — BUILD CARD */
   function buildCard(o, idx) {
     const isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
     const isPending = o.status === 'pending' && !isSuccess;
@@ -847,9 +753,7 @@
     const hasValidCd = isPending && !hasOtp && expiresIn > 0;
     const priceIdr = Number(o.price_idr ?? o.price ?? 0);
     const created = formatTanggal(o.created_at);
-
     if ((o.order_id || o.raw_id) && otpId) ORDER_ID_MAP.set(otpId, o.order_id || o.raw_id);
-
     const cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
     const badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
     const badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
@@ -980,25 +884,19 @@
     });
   }
 
-  /* ============================================================
-     §23 — RENDER ACTIVE
-     ============================================================ */
+  /* §23 — RENDER ACTIVE */
   function renderActiveOrders(orders) {
     const container = document.getElementById('activeOrders');
     const countEl = document.getElementById('activeCount');
     const pagEl = document.getElementById('activeOrdersPagination');
     if (!container) return;
-
     const hasOrders = Array.isArray(orders) && orders.length > 0;
-
     if (!hasOrders) {
       if (activeState.allOrders.length > 0) return;
       container.className = '';
       container.innerHTML = `
         <div class="empty-orders">
-          <div class="icon-box">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-          </div>
+          <div class="icon-box">${ICONS.phone}</div>
           <h3>Belum ada pesanan aktif</h3>
           <p>Nomor yang kamu beli bakal muncul di sini beserta kode OTP-nya.</p>
         </div>
@@ -1007,13 +905,11 @@
       if (pagEl) pagEl.style.display = 'none';
       return;
     }
-
     activeState.hasRenderedOnce = true;
     if (countEl) {
       countEl.textContent = orders.length;
       countEl.style.display = 'inline-flex';
     }
-
     const total = orders.length;
     activeState.totalPages = Math.max(1, Math.ceil(total / activeState.limit));
     if (activeState.page > activeState.totalPages) activeState.page = activeState.totalPages;
@@ -1031,16 +927,13 @@
       const id = card.dataset.ref;
       if (id) existing.set(id, card);
     });
-
     const frag = document.createDocumentFragment();
-
     pageOrders.forEach((o, idx) => {
       const otpId = getOtpId(o);
       const key = otpId || `fb-${idx}`;
       const tmp = document.createElement('div');
       tmp.innerHTML = buildCard(o, start + idx).trim();
       const newCard = tmp.firstElementChild;
-
       const newSig = [
         o.status || '',
         (o.otp_code || '').trim(),
@@ -1048,16 +941,13 @@
         (o.service || '').trim(),
         o._bucket || '',
       ].join('|');
-
       const old = existing.get(key);
       const oldSig = old ? old.dataset.sig || '' : null;
-
       if (old && oldSig === newSig) {
         frag.appendChild(old);
         existing.delete(key);
         return;
       }
-
       if (old) {
         old.remove();
         if (activeState.countdownIntervals[key]) {
@@ -1067,12 +957,10 @@
         clearDeadline(key);
         existing.delete(key);
       }
-
       newCard.dataset.sig = newSig;
       bindCard(newCard);
       frag.appendChild(newCard);
     });
-
     existing.forEach((card, id) => {
       card.remove();
       if (activeState.countdownIntervals[id]) {
@@ -1081,7 +969,6 @@
       }
       clearDeadline(id);
     });
-
     container.appendChild(frag);
 
     if (activeState.totalPages > 1) {
@@ -1103,25 +990,21 @@
     } else {
       pagEl.style.display = 'none';
     }
-
     startCountdowns();
   }
 
   function startCountdowns() {
     Object.values(activeState.countdownIntervals).forEach(clearInterval);
     activeState.countdownIntervals = {};
-
     document.querySelectorAll('.aoc-countdown').forEach(el => {
       const ref = el.dataset.ref;
       const deadline = parseInt(el.dataset.deadline || '0', 10);
       const textEl = el.querySelector('.countdown-text');
-
       if (!deadline) {
         if (textEl) textEl.textContent = 'EXPIRED';
         el.classList.add('expired');
         return;
       }
-
       function tick() {
         const rem = Math.floor((deadline - Date.now()) / 1000);
         if (rem <= 0) {
@@ -1139,21 +1022,17 @@
         const s = rem % 60;
         if (textEl) textEl.textContent = `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
       }
-
       tick();
       activeState.countdownIntervals[ref] = setInterval(tick, 1000);
     });
   }
 
-  /* ============================================================
-     §24 — SYNC PENDING OTP
-     ============================================================ */
+  /* §24 — SYNC PENDING OTP */
   async function syncPendingOrders() {
     const pending = activeState.allOrders.filter(o =>
       o._bucket === 'pending' && o.status === 'pending' && !(o.otp_code && o.otp_code.trim())
     );
     if (pending.length === 0) return;
-
     const results = await Promise.allSettled(
       pending.map(o => {
         const otpId = String(o.otp_id || '').trim();
@@ -1161,7 +1040,6 @@
         return securePost(_cfg.ep.cekotp, { order_id: realId, otp_id: otpId }, 'cekotp').then(r => safeJson(r));
       })
     );
-
     let hasUpdate = false;
     for (const r of results) {
       if (r.status !== 'fulfilled') continue;
@@ -1175,42 +1053,34 @@
         }
       }
     }
-
     if (hasUpdate) {
       Cache.remove('orders');
       loadActiveOrders();
     }
   }
 
-  /* ============================================================
-     §25 — AUTO SYNC
-     ============================================================ */
+  /* §25 — AUTO SYNC */
   function startAutoSync() {
     if (autoSyncInterval) clearInterval(autoSyncInterval);
     autoSyncInterval = setInterval(() => {
       if (!document.hidden) loadActiveOrders();
     }, _cfg.autoSync);
-
     if (otpCheckInterval) clearInterval(otpCheckInterval);
     otpCheckInterval = setInterval(() => {
       if (!document.hidden) syncPendingOrders();
     }, _cfg.otpCheck);
-
     if (profileSyncInterval) clearInterval(profileSyncInterval);
     profileSyncInterval = setInterval(() => {
       if (!document.hidden) loadProfile(false);
     }, _cfg.profileSync);
   }
-
   function stopAutoSync() {
     if (autoSyncInterval) { clearInterval(autoSyncInterval); autoSyncInterval = null; }
     if (otpCheckInterval) { clearInterval(otpCheckInterval); otpCheckInterval = null; }
     if (profileSyncInterval) { clearInterval(profileSyncInterval); profileSyncInterval = null; }
   }
 
-  /* ============================================================
-     §26 — ACTION HANDLERS
-     ============================================================ */
+  /* §26 — ACTION HANDLERS */
   async function resendOrder(orderId, btn) {
     const orig = btn.innerHTML;
     btn.disabled = true;
@@ -1228,7 +1098,6 @@
       btn.innerHTML = orig;
     }
   }
-
   async function confirmOrder(orderId, btn) {
     const ok = await showAlert({
       title: 'Konfirmasi Sukses',
@@ -1254,7 +1123,6 @@
       btn.innerHTML = orig;
     }
   }
-
   async function cancelOrder(orderId, btn) {
     const ok = await showAlert({
       title: 'Batalkan Pesanan',
@@ -1284,15 +1152,49 @@
   }
 
   /* ============================================================
-     §27 — BOTTOM SHEET
+     §27 — BOTTOM SHEET — FIXED
+     - Close animasi smooth (slide down + fade)
+     - Auto-resize per step (gak terlalu tinggi/kosong)
      ============================================================ */
+  let _sheetClosing = false;
+
   function openSheet() {
-    document.getElementById('sheetOverlay').classList.add('active');
+    const overlay = document.getElementById('sheetOverlay');
+    if (!overlay) return;
+    overlay.classList.remove('closing');
+    overlay.classList.add('active');
     document.body.classList.add('sheet-open');
+    document.body.style.overflow = 'hidden';
+    _sheetClosing = false;
   }
+
   function closeSheet() {
-    document.getElementById('sheetOverlay').classList.remove('active');
-    document.body.classList.remove('sheet-open');
+    const overlay = document.getElementById('sheetOverlay');
+    if (!overlay || _sheetClosing) return;
+    _sheetClosing = true;
+    overlay.classList.add('closing');
+    setTimeout(() => {
+      overlay.classList.remove('active', 'closing');
+      document.body.classList.remove('sheet-open');
+      document.body.style.overflow = '';
+      _sheetClosing = false;
+    }, 280);
+  }
+
+  // FIX: auto-resize sheet body per step
+  function adjustSheetHeight() {
+    const sheet = document.getElementById('bottomSheet');
+    const body = document.getElementById('sheetBody');
+    if (!sheet || !body) return;
+    // Reset dulu biar hitung natural
+    body.style.maxHeight = '';
+    const headerH = sheet.querySelector('.sheet-header')?.offsetHeight || 0;
+    const handleH = sheet.querySelector('.sheet-handle')?.offsetHeight || 0;
+    const padding = 24;
+    const maxBodyH = window.innerHeight * 0.88 - headerH - handleH - padding;
+    const contentH = body.scrollHeight;
+    const targetH = Math.min(contentH, maxBodyH);
+    body.style.maxHeight = targetH + 'px';
   }
 
   document.getElementById('btnOrder').addEventListener('click', () => {
@@ -1328,13 +1230,13 @@
     }
   }
 
+  /* §28 — RENDER SERVER */
   async function renderServerStep() {
     const body = document.getElementById('sheetBody');
     body.innerHTML = `<div class="loading-block"><span class="spinner"></span><span>Memuat server...</span></div>`;
-
+    adjustSheetHeight();
     const cached = await Cache.get('servers', _cfg.ttl.servers);
     if (cached && cached.length > 0) renderServers(cached);
-
     try {
       const res = await fetch(_cfg.ep.servers, {
         headers: { Authorization: 'Bearer ' + token },
@@ -1346,6 +1248,7 @@
     } catch (err) {
       if (!cached) {
         body.innerHTML = `<div class="empty-block"><h3>Gagal memuat server</h3><p>${escapeHtml(err.message)}</p></div>`;
+        adjustSheetHeight();
       }
     }
   }
@@ -1354,6 +1257,7 @@
     const body = document.getElementById('sheetBody');
     if (!servers || servers.length === 0) {
       body.innerHTML = `<div class="empty-block"><h3>Belum ada server</h3><p>Coba lagi nanti.</p></div>`;
+      adjustSheetHeight();
       return;
     }
     body.innerHTML = `
@@ -1383,8 +1287,10 @@
         goToStep(2);
       });
     });
+    adjustSheetHeight();
   }
 
+  /* §29 — RENDER APP — FIXED (tombol gak kepotong) */
   async function renderAppStep() {
     const body = document.getElementById('sheetBody');
     body.innerHTML = `
@@ -1398,6 +1304,7 @@
       </div>
       <div id="appContent"><div class="loading-block"><span class="spinner"></span><span>Memuat aplikasi...</span></div></div>
     `;
+    adjustSheetHeight();
     document.getElementById('backBtn').addEventListener('click', () => goToStep(1));
 
     const ck = `services_${state.server}`;
@@ -1406,7 +1313,6 @@
       servicesCache = cached;
       renderApps(servicesCache);
     }
-
     try {
       const res = await fetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server), {
         headers: { Authorization: 'Bearer ' + token },
@@ -1428,7 +1334,10 @@
     } catch (err) {
       if (!cached) {
         const c = document.getElementById('appContent');
-        if (c) c.innerHTML = `<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>${escapeHtml(err.message)}</p></div>`;
+        if (c) {
+          c.innerHTML = `<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>${escapeHtml(err.message)}</p></div>`;
+          adjustSheetHeight();
+        }
       }
     }
   }
@@ -1438,6 +1347,7 @@
     if (!c) return;
     if (!services || services.length === 0) {
       c.innerHTML = `<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Server ini belum punya aplikasi tersedia.</p></div>`;
+      adjustSheetHeight();
       return;
     }
     c.innerHTML = `
@@ -1462,8 +1372,10 @@
         goToStep(3);
       });
     });
+    adjustSheetHeight();
   }
 
+  /* §30 — RENDER COUNTRY */
   async function renderCountryStep() {
     const body = document.getElementById('sheetBody');
     body.innerHTML = `
@@ -1484,12 +1396,12 @@
       </div>
       <div id="countryContent"><div class="loading-block"><span class="spinner"></span><span>Memuat negara...</span></div></div>
     `;
+    adjustSheetHeight();
     document.getElementById('backBtn').addEventListener('click', () => goToStep(2));
 
     const ck = `countries_${state.server}_${state.service}`;
     const cached = await Cache.get(ck, _cfg.ttl.countries);
     if (cached && cached.length > 0) renderCountries(cached);
-
     try {
       const res = await fetch(
         _cfg.ep.countries + '?server=' + encodeURIComponent(state.server) + '&service=' + encodeURIComponent(state.service),
@@ -1512,7 +1424,10 @@
     } catch (err) {
       if (!cached) {
         const c = document.getElementById('countryContent');
-        if (c) c.innerHTML = `<div class="empty-block"><h3>Gagal memuat negara</h3><p>${escapeHtml(err.message)}</p></div>`;
+        if (c) {
+          c.innerHTML = `<div class="empty-block"><h3>Gagal memuat negara</h3><p>${escapeHtml(err.message)}</p></div>`;
+          adjustSheetHeight();
+        }
       }
     }
   }
@@ -1522,6 +1437,7 @@
     if (!c) return;
     if (!countries || countries.length === 0) {
       c.innerHTML = `<div class="empty-block"><h3>Belum ada negara</h3><p>Server ini belum punya negara tersedia.</p></div>`;
+      adjustSheetHeight();
       return;
     }
     c.innerHTML = `
@@ -1549,8 +1465,10 @@
     c.querySelectorAll('img[data-sources]').forEach(img => {
       img.addEventListener('error', function () { window._handleFlagErr(this); });
     });
+    adjustSheetHeight();
   }
 
+  /* §31 — RENDER PRICE */
   async function renderPriceStep() {
     const body = document.getElementById('sheetBody');
     body.innerHTML = `
@@ -1573,6 +1491,7 @@
       </div>
       <div id="priceContent"><div class="loading-block"><span class="spinner"></span><span>Memuat harga...</span></div></div>
     `;
+    adjustSheetHeight();
     document.getElementById('backBtn').addEventListener('click', () => goToStep(3));
 
     document.querySelectorAll('.sheet-tab').forEach(tab => {
@@ -1590,7 +1509,6 @@
       state.providers = cached;
       renderPrices(state.providers);
     }
-
     try {
       const res = await fetch(
         _cfg.ep.prices + '?server=' + encodeURIComponent(state.server) +
@@ -1600,32 +1518,30 @@
       );
       const data = await safeJson(res);
       const raw = data.providers || [];
-
       PROVIDER_RAW_MAP.clear();
       raw.forEach(p => {
         const pid = String(p.id || p.provider_id || '').trim();
         if (pid) {
           PROVIDER_RAW_MAP.set(pid, {
-            id: p.id,
-            provider_id: p.provider_id,
-            provider_price: p.provider_price,
-            price: p.price,
+            id: p.id, provider_id: p.provider_id,
+            provider_price: p.provider_price, price: p.price,
           });
         }
       });
-
       const providers = raw.map(p => ({
         ...sanitizeProvider(p),
         _pid: String(p.id || p.provider_id || '').trim(),
       }));
-
       state.providers = providers;
       if (providers.length > 0) await Cache.set(ck, providers);
       renderPrices(providers);
     } catch (err) {
       if (!cached) {
         const c = document.getElementById('priceContent');
-        if (c) c.innerHTML = `<div class="empty-block"><h3>Gagal memuat harga</h3><p>${escapeHtml(err.message)}</p></div>`;
+        if (c) {
+          c.innerHTML = `<div class="empty-block"><h3>Gagal memuat harga</h3><p>${escapeHtml(err.message)}</p></div>`;
+          adjustSheetHeight();
+        }
       }
     }
   }
@@ -1633,19 +1549,16 @@
   function renderPrices(providers) {
     const c = document.getElementById('priceContent');
     if (!c) return;
-
     const list = (providers || []).filter(p => p.active !== false);
     if (list.length === 0) {
       c.innerHTML = `<div class="empty-block"><h3>Stok habis</h3><p>Belum ada stok tersedia untuk kombinasi ini.</p></div>`;
+      adjustSheetHeight();
       return;
     }
-
     const sorted = [...list];
     if (state.filter === 'murah') sorted.sort((a, b) => a.price_idr - b.price_idr);
     else sorted.sort((a, b) => (b.stock || 0) - (a.stock || 0));
-
     const svcIni = getInitial(state.serviceName);
-
     c.innerHTML = `
       <div class="price-list">
         ${sorted.map((p, i) => {
@@ -1677,12 +1590,14 @@
       btn.addEventListener('click', () => {
         const pid = btn.dataset.buyPid;
         const p = sorted.find(x => String(x._pid) === String(pid));
-        if (p) confirmOrder(pid, p, btn);
+        if (p) confirmPurchase(pid, p, btn);
       });
     });
+    adjustSheetHeight();
   }
 
-  async function confirmOrder(pid, priceData, btn) {
+  /* §32 — CONFIRM & PLACE ORDER */
+  async function confirmPurchase(pid, priceData, btn) {
     const price = Number(priceData.price_idr || priceData.price || 0);
     const ok = await showAlert({
       title: 'Konfirmasi Pembelian',
@@ -1704,11 +1619,8 @@
       const raw = PROVIDER_RAW_MAP.get(pid) || {};
       const expected = Number(priceData.price_idr || priceData.price || 0);
       const body = {
-        server: state.server,
-        service: state.service,
-        country: state.country,
-        service_name: state.serviceName,
-        country_flag: state.country,
+        server: state.server, service: state.service, country: state.country,
+        service_name: state.serviceName, country_flag: state.country,
         expected_price: expected,
       };
       if (state.requiresOperator) {
@@ -1743,9 +1655,7 @@
     }
   }
 
-  /* ============================================================
-     §28 — MODAL CLOSE
-     ============================================================ */
+  /* §33 — MODAL CLOSE */
   document.addEventListener('click', (e) => {
     if (e.target.classList && e.target.classList.contains('modal-overlay')) {
       e.target.classList.remove('active');
@@ -1760,9 +1670,7 @@
     }
   });
 
-  /* ============================================================
-     §29 — LOGOUT
-     ============================================================ */
+  /* §34 — LOGOUT */
   async function handleLogout() {
     try {
       await fetch(_cfg.ep.logout, {
@@ -1780,7 +1688,6 @@
     } catch (e) {}
     location.href = '/landing';
   }
-
   document.getElementById('logoutBtn').addEventListener('click', async () => {
     const ok = await showAlert({
       title: 'Keluar Akun?',
@@ -1793,9 +1700,7 @@
     if (ok) handleLogout();
   });
 
-  /* ============================================================
-     §30 — INIT
-     ============================================================ */
+  /* §35 — INIT */
   (function initEmptyState() {
     const c = document.getElementById('activeOrders');
     if (!c) return;
@@ -1827,7 +1732,6 @@
       syncPendingOrders();
     }
   });
-
   window.addEventListener('beforeunload', () => {
     stopAutoSync();
     Object.values(activeState.countdownIntervals).forEach(clearInterval);
