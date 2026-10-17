@@ -18,22 +18,41 @@
 <script>
 (function(){
   var d=document.documentElement;
-  var hc=navigator.hardwareConcurrency||4;
-  var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  var c=navigator.connection||{};
-  var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
-  var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var mode='full';
-  if(r||sn||hc<=4||m)mode='lite';
-  d.setAttribute('data-perf',mode);
-  try{
-    var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  try {
+    var hc=navigator.hardwareConcurrency||4;
+    var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    var c=navigator.connection||{};
+    var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
+    var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var mode='full';
+    if(r||sn||hc<=4||m)mode='lite';
+    d.setAttribute('data-perf',mode);
+  } catch(e) { d.setAttribute('data-perf','lite'); }
+
+  try {
+    var saved=null;
+    try { saved=localStorage.getItem('asyrofotp_theme'); } catch(_) {}
+    var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var t=saved||(prefersDark?'dark':'light');
     d.setAttribute('data-theme',t);
-  }catch(e){}
-  if(window.top!==window.self){
-    try{window.top.location=window.self.location}catch(e){}
-    d.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';
-  }
+  } catch(e) {}
+
+  // Anti-iframe: JANGAN hancurkan DOM
+  try {
+    if(window.top!==window.self){
+      try{window.top.location=window.self.location}catch(e){
+        document.addEventListener('DOMContentLoaded',function(){
+          document.body.innerHTML =
+            '<div style="position:fixed;inset:0;background:#000;color:#fff;' +
+            'font-family:system-ui,sans-serif;display:flex;align-items:center;' +
+            'justify-content:center;text-align:center;padding:20px;z-index:99999;">' +
+            '<div><h1 style="font-size:48px;margin:0 0 12px;">⛔</h1>' +
+            '<p style="opacity:.7;font-size:14px;margin:0;">Buka halaman ini di browser, bukan di dalam app.</p></div>' +
+            '</div>';
+        });
+      }
+    }
+  } catch(e) {}
 })();
 </script>
 </head>
@@ -46,62 +65,64 @@
   <div class="grid"></div>
 </div>
 
-<div class="dashboard-layout">
+<!-- ✅ FIX: Sidebar & overlay DI LUAR .dashboard-layout -->
+<aside class="sidebar glass" id="sidebar">
+  <div class="sidebar-header">
+    <a href="/dashboard" class="sidebar-logo">
+      <div class="logo-icon">A</div>
+      <div class="logo-text">Asyrof<span>OTP</span></div>
+    </a>
+    <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar" type="button">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+  </div>
 
-  <aside class="sidebar glass" id="sidebar">
-    <div class="sidebar-header">
-      <a href="/dashboard" class="sidebar-logo">
-        <div class="logo-icon">A</div>
-        <div class="logo-text">Asyrof<span>OTP</span></div>
-      </a>
-      <button class="collapse-btn" id="collapseBtn" title="Collapse sidebar" type="button">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  <nav class="sidebar-nav">
+    <a href="/dashboard" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span class="nav-label">Home</span>
+    </a>
+    <a href="/nokos" class="nav-item active">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span class="nav-label">Beli Nokos</span>
+    </a>
+    <a href="/inbox" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      <span class="nav-label">Inbox</span>
+    </a>
+    <a href="/deposit" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span class="nav-label">Deposit</span>
+    </a>
+
+    <div class="nav-section-label">Akun</div>
+    <a href="/profile" class="nav-item">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="nav-label">Profile</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="userInitial">
+        <span class="spinner-sm"></span>
+      </div>
+      <div class="user-details">
+        <div class="user-name" id="userName"><span class="skel skel-text"></span></div>
+        <div class="user-balance" id="userBalance"><span class="skel skel-text"></span></div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" title="Keluar" type="button">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
+  </div>
+</aside>
 
-    <nav class="sidebar-nav">
-      <a href="/dashboard" class="nav-item" data-tooltip="Home">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span class="nav-label">Home</span>
-      </a>
-      <a href="/nokos" class="nav-item active" data-tooltip="Beli Nokos">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-        <span class="nav-label">Beli Nokos</span>
-      </a>
-      <a href="/inbox" class="nav-item" data-tooltip="Inbox">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
-        <span class="nav-label">Inbox</span>
-      </a>
-      <a href="/deposit" class="nav-item" data-tooltip="Deposit">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span class="nav-label">Deposit</span>
-      </a>
+<!-- ✅ FIX: Overlay tepat setelah sidebar, DI LUAR .dashboard-layout -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-      <div class="nav-section-label">Akun</div>
-      <a href="/profile" class="nav-item" data-tooltip="Profile">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span class="nav-label">Profile</span>
-      </a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="user-info">
-        <div class="user-avatar" id="userInitial">
-          <span class="spinner-sm"></span>
-        </div>
-        <div class="user-details">
-          <div class="user-name" id="userName"><span class="skel skel-text"></span></div>
-          <div class="user-balance" id="userBalance"><span class="skel skel-text"></span></div>
-        </div>
-        <button class="logout-btn" id="logoutBtn" title="Keluar" type="button">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
-      </div>
-    </div>
-  </aside>
-
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
+<!-- ✅ Konten utama dibungkus sendiri -->
+<div class="dashboard-layout">
   <main class="main-content">
     <div class="topbar glass">
       <div class="topbar-left">
