@@ -17,8 +17,26 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/landing.css">
 <script>
-(function(){try{var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}
-if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}})();
+(function(){
+var perf=window.performance;
+var nav=navigator;
+var hc=nav.hardwareConcurrency||2;
+var dm=nav.deviceMemory||2;
+var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(nav.userAgent);
+var lowEnd=hc<=4||dm<=2||mobile;
+var conn=nav.connection||nav.mozConnection||nav.webkitConnection;
+var slowNet=conn&&(conn.saveData||/2g|slow-2g/.test(conn.effectiveType||''));
+var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+var mode='full';
+if(reduced||slowNet)mode='static';
+else if(lowEnd)mode='lite';
+document.documentElement.setAttribute('data-perf',mode);
+try{
+var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+document.documentElement.setAttribute('data-theme',t);
+}catch(e){}
+if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}
+})();
 </script>
 </head>
 <body>
@@ -39,7 +57,7 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 <div class="wrap nav-in">
 <a href="/" class="brand">
 <div class="brand-mark">A</div>
-<div class="brand-name">Asyrof<span>OTP</span></div>
+<div class="brand-text">Asyrof<span>OTP</span></div>
 </a>
 <ul class="nav-menu">
 <li><a href="#home">Beranda</a></li>
@@ -55,7 +73,6 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 <div class="wrap">
 <div class="hero-grid">
 
-  <!-- LEFT: TEXT -->
   <div class="hero-l">
     <span class="pill glass"><span class="pill-dot"></span>Aktif 24 Jam</span>
     <h1 class="hero-h1">Layanan OTP<br><span class="grad">Cepat & Aman</span></h1>
@@ -78,31 +95,31 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
     </div>
   </div>
 
-  <!-- RIGHT: MULTI-APP OTP DEMO -->
+  <!-- RIGHT: DEMO -->
   <div class="hero-r">
     <div class="demo glass-card" id="demo">
-      <!-- top bar: app switcher -->
+      <!-- App switcher -->
       <div class="demo-top">
         <div class="demo-apps" id="demoApps">
-          <button class="app-chip" data-app="wa" aria-label="WhatsApp">
-            <svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+          <button class="app-chip active" data-app="wa" aria-label="WhatsApp">
+            <svg viewBox="0 0 24 24" class="chip-ic"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" fill="currentColor"/></svg>
           </button>
           <button class="app-chip" data-app="tg" aria-label="Telegram">
-            <svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+            <svg viewBox="0 0 24 24" class="chip-ic"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" fill="currentColor"/></svg>
           </button>
           <button class="app-chip" data-app="sp" aria-label="Shopee">
-            <svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M12 2c2.2 0 4 1.8 4 4v1h3.5c.8 0 1.5.7 1.5 1.5v12c0 .8-.7 1.5-1.5 1.5h-15C3.7 22 3 21.3 3 20.5v-12C3 7.7 3.7 7 4.5 7H8V6c0-2.2 1.8-4 4-4zm0 2c-1.1 0-2 .9-2 2v1h4V6c0-1.1-.9-2-2-2z"/><path d="M9 14.5c.6 1 1.7 1.5 3 1.5s2.4-.5 3-1.5l1.5 1C15.5 17 13.9 18 12 18s-3.5-1-4.5-2.5L9 14.5z" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" class="chip-ic"><path d="M12 2c2.2 0 4 1.8 4 4v1h3.5c.8 0 1.5.7 1.5 1.5v12c0 .8-.7 1.5-1.5 1.5h-15C3.7 22 3 21.3 3 20.5v-12C3 7.7 3.7 7 4.5 7H8V6c0-2.2 1.8-4 4-4zm0 2c-1.1 0-2 .9-2 2v1h4V6c0-1.1-.9-2-2-2z" fill="currentColor"/></svg>
           </button>
           <button class="app-chip" data-app="ig" aria-label="Instagram">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="6"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+            <svg viewBox="0 0 24 24" class="chip-ic" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
           </button>
         </div>
         <div class="demo-time" id="demoTime">0:00</div>
       </div>
 
-      <!-- app screen (yang minta OTP) -->
+      <!-- Screen -->
       <div class="demo-screen">
-        <!-- APP UI -->
+        <!-- App UI -->
         <div class="app-ui" id="appUi">
           <div class="app-bar">
             <div class="app-logo" id="appLogo"></div>
@@ -115,18 +132,19 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
               <div class="app-msg-text">Masukkan kode 6 digit yang dikirim ke nomor kamu</div>
             </div>
             <div class="app-otp-row" id="appOtpRow">
-              <input class="app-otp-cell" readonly value="">
-              <input class="app-otp-cell" readonly value="">
-              <input class="app-otp-cell" readonly value="">
-              <input class="app-otp-cell" readonly value="">
-              <input class="app-otp-cell" readonly value="">
-              <input class="app-otp-cell" readonly value="">
+              <div class="app-otp-cell" data-i="0"></div>
+              <div class="app-otp-cell" data-i="1"></div>
+              <div class="app-otp-cell" data-i="2"></div>
+              <div class="app-otp-cell" data-i="3"></div>
+              <div class="app-otp-cell" data-i="4"></div>
+              <div class="app-otp-cell" data-i="5"></div>
             </div>
-            <button class="app-btn" id="appBtn" type="button">Verifikasi</button>
+            <button class="app-btn" id="appBtn" type="button">Kirim kode ke AsyrofOTP</button>
+            <div class="app-hint" id="appHint">Kode berlaku 5 menit</div>
           </div>
         </div>
 
-        <!-- NOTIF CARD (dari AsyrofOTP) -->
+        <!-- Notif dari AsyrofOTP -->
         <div class="notif glass" id="notif">
           <div class="notif-head">
             <div class="notif-logo">A</div>
@@ -146,27 +164,24 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
               <span class="notif-digit">1</span>
               <span class="notif-digit">4</span>
             </div>
-            <div class="notif-copy" id="notifCopy">
+            <button class="notif-copy" id="notifCopy" type="button">
               <svg class="ic" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
               <span>Copy</span>
-            </div>
+            </button>
           </div>
         </div>
 
-        <!-- CURSOR / TAP INDICATOR -->
-        <div class="tap" id="tap"></div>
-
-        <!-- VERIFIED BADGE -->
+        <!-- Verified overlay -->
         <div class="verified" id="verified">
           <div class="verified-ring"></div>
           <div class="verified-icon">
-            <svg class="ic" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <div class="verified-text">Terverifikasi</div>
         </div>
       </div>
 
-      <!-- progress bar -->
+      <!-- Progress -->
       <div class="demo-progress">
         <div class="demo-progress-fill" id="demoProgress"></div>
       </div>
@@ -186,8 +201,8 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 </div>
 <div class="support-grid">
 <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="support-card support-tg reveal">
-<div class="sc-icon glass">
-<svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+<div class="sc-icon">
+<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
 </div>
 <div class="sc-info">
 <div class="sc-name">Telegram</div>
@@ -196,8 +211,8 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 </div>
 </a>
 <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card support-wa reveal">
-<div class="sc-icon glass">
-<svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+<div class="sc-icon">
+<svg class="ic" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
 </div>
 <div class="sc-info">
 <div class="sc-name">WhatsApp</div>
@@ -222,109 +237,147 @@ if(window.top!==window.self){try{window.top.location=window.self.location}catch(
 <div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
 <h3>Cepat</h3>
 <p>Terima OTP dalam hitungan detik, tanpa delay.</p>
-<div class="stars">
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-</div>
+<div class="stars"><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
 <div class="stars-t">4.9 · 2.847 ulasan</div>
 </div>
 <div class="feat glass-card reveal">
 <div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
 <h3>Aman</h3>
 <p>Data terenkripsi dan tidak dibagikan ke pihak ketiga.</p>
-<div class="stars">
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-</div>
+<div class="stars"><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
 <div class="stars-t">4.8 · 1.562 ulasan</div>
 </div>
 <div class="feat glass-card reveal">
 <div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
 <h3>Support 24/7</h3>
 <p>Tim kami siap membantu kapan saja kamu butuh.</p>
-<div class="stars">
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-</div>
+<div class="stars"><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
 <div class="stars-t">5.0 · 3.219 ulasan</div>
 </div>
 </div>
 </div>
 </section>
 
-<!-- ============ HOW ============ -->
+<!-- ============ HOW (dengan animasi interaktif) ============ -->
 <section class="how" id="how">
 <div class="wrap">
 <div class="sec-head reveal">
 <span class="tag glass">Langkah Mudah</span>
 <h2>Cara Kerjanya</h2>
-<p>Hanya butuh 4 langkah untuk mulai.</p>
+<p>Ikuti langkah interaktif di bawah untuk mulai.</p>
 </div>
-<div class="how-grid">
-<div class="how-step glass-card reveal">
-<div class="how-num">1</div>
-<h3>Pilih Layanan</h3>
-<p>1.700+ layanan digital tersedia.</p>
-<div class="how-visual">
-<div class="hv-apps">
-<span class="hv-chip" style="--c:#25D366">W</span>
-<span class="hv-chip" style="--c:#229ED9">T</span>
-<span class="hv-chip" style="--c:#EE4D2D">S</span>
-<span class="hv-chip" style="--c:#E1306C">I</span>
+
+<div class="how-demo glass-card reveal" id="howDemo">
+  <!-- Left: steps list dengan cursor animation -->
+  <div class="how-steps">
+    <div class="how-step-row" data-step="1">
+      <div class="how-step-num">1</div>
+      <div class="how-step-info">
+        <div class="how-step-t">Pilih Layanan</div>
+        <div class="how-step-d">WhatsApp, Telegram, Shopee, dll</div>
+      </div>
+    </div>
+    <div class="how-step-row" data-step="2">
+      <div class="how-step-num">2</div>
+      <div class="how-step-info">
+        <div class="how-step-t">Pilih Negara</div>
+        <div class="how-step-d">Indonesia, US, UK, Russia, dll</div>
+      </div>
+    </div>
+    <div class="how-step-row" data-step="3">
+      <div class="how-step-num">3</div>
+      <div class="how-step-info">
+        <div class="how-step-t">Isi Nomor</div>
+        <div class="how-step-d">Tempel di aplikasi target</div>
+      </div>
+    </div>
+    <div class="how-step-row" data-step="4">
+      <div class="how-step-num">4</div>
+      <div class="how-step-info">
+        <div class="how-step-t">Terima OTP</div>
+        <div class="how-step-d">Kode masuk ~5 detik</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: preview screen -->
+  <div class="how-preview" id="howPreview">
+
+    <!-- Screen 1: Pilih layanan -->
+    <div class="how-scr" data-scr="1">
+      <div class="how-scr-head">Pilih Layanan</div>
+      <div class="how-app-list">
+        <div class="how-app-item" data-pick="1">
+          <div class="how-app-icon" style="--c:#25D366"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></div>
+          <div class="how-app-name">WhatsApp</div>
+        </div>
+        <div class="how-app-item" data-pick="0">
+          <div class="how-app-icon" style="--c:#229ED9"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></div>
+          <div class="how-app-name">Telegram</div>
+        </div>
+        <div class="how-app-item" data-pick="0">
+          <div class="how-app-icon" style="--c:#EE4D2D"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c2.2 0 4 1.8 4 4v1h3.5c.8 0 1.5.7 1.5 1.5v12c0 .8-.7 1.5-1.5 1.5h-15C3.7 22 3 21.3 3 20.5v-12C3 7.7 3.7 7 4.5 7H8V6c0-2.2 1.8-4 4-4zm0 2c-1.1 0-2 .9-2 2v1h4V6c0-1.1-.9-2-2-2z"/></svg></div>
+          <div class="how-app-name">Shopee</div>
+        </div>
+        <div class="how-app-item" data-pick="0">
+          <div class="how-app-icon" style="--c:#E1306C"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></div>
+          <div class="how-app-name">Instagram</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Pilih negara -->
+    <div class="how-scr" data-scr="2">
+      <div class="how-scr-head">Pilih Negara</div>
+      <div class="how-country-list">
+        <div class="how-country-item" data-pick="0"><span class="how-flag">🇮🇩</span><div class="how-country-info"><div class="how-country-name">Indonesia</div><div class="how-country-code">+62</div></div></div>
+        <div class="how-country-item" data-pick="0"><span class="how-flag">🇺🇸</span><div class="how-country-info"><div class="how-country-name">United States</div><div class="how-country-code">+1</div></div></div>
+        <div class="how-country-item" data-pick="0"><span class="how-flag">🇬🇧</span><div class="how-country-info"><div class="how-country-name">United Kingdom</div><div class="how-country-code">+44</div></div></div>
+        <div class="how-country-item" data-pick="1"><span class="how-flag">🇷🇺</span><div class="how-country-info"><div class="how-country-name">Russia</div><div class="how-country-code">+7</div></div></div>
+      </div>
+    </div>
+
+    <!-- Screen 3: Isi nomor -->
+    <div class="how-scr" data-scr="3">
+      <div class="how-scr-head">Isi Nomor</div>
+      <div class="how-target-app">
+        <div class="how-target-icon" style="--c:#25D366"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg></div>
+        <div class="how-target-info">
+          <div class="how-target-name">WhatsApp</div>
+          <div class="how-target-code">+62 812 3456 7890</div>
+        </div>
+      </div>
+      <div class="how-paste-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Tempel nomor di field di atas
+      </div>
+    </div>
+
+    <!-- Screen 4: OTP -->
+    <div class="how-scr" data-scr="4">
+      <div class="how-scr-head">Kode Terkirim</div>
+      <div class="how-otp-notif">
+        <div class="how-otp-head">
+          <div class="how-otp-logo">A</div>
+          <div class="how-otp-name">AsyrofOTP</div>
+        </div>
+        <div class="how-otp-digits">
+          <span>4</span><span>8</span><span>2</span><span>1</span><span>7</span><span>3</span>
+        </div>
+        <div class="how-otp-note">Salin ke aplikasi WhatsApp</div>
+      </div>
+    </div>
+
+    <!-- Cursor -->
+    <div class="how-cursor" id="howCursor">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor"/></svg>
+    </div>
+
+    <!-- Ripple tap -->
+    <div class="how-tap" id="howTap"></div>
+  </div>
 </div>
-</div>
-</div>
-<div class="how-step glass-card reveal">
-<div class="how-num">2</div>
-<h3>Pilih Negara</h3>
-<p>Dari 100+ negara di seluruh dunia.</p>
-<div class="how-visual">
-<div class="hv-flags">
-<span class="hv-flag">🇮🇩</span>
-<span class="hv-flag">🇺🇸</span>
-<span class="hv-flag">🇬🇧</span>
-<span class="hv-flag">🇷🇺</span>
-</div>
-</div>
-</div>
-<div class="how-step glass-card reveal">
-<div class="how-num">3</div>
-<h3>Gunakan Nomor</h3>
-<p>Tempel nomor di aplikasi target.</p>
-<div class="how-visual">
-<div class="hv-phone">
-<div class="hv-phone-notch"></div>
-<div class="hv-phone-line"></div>
-<div class="hv-phone-line short"></div>
-<div class="hv-phone-cursor"></div>
-</div>
-</div>
-</div>
-<div class="how-step glass-card reveal">
-<div class="how-num">4</div>
-<h3>Terima OTP</h3>
-<p>Kode masuk dalam ~5 detik.</p>
-<div class="how-visual">
-<div class="hv-otp">
-<span class="hv-otp-d">4</span>
-<span class="hv-otp-d">8</span>
-<span class="hv-otp-d">2</span>
-<span class="hv-otp-d">1</span>
-<span class="hv-otp-d">7</span>
-<span class="hv-otp-d">3</span>
-</div>
-</div>
-</div>
-</div>
+
 </div>
 </section>
 
