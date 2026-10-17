@@ -1,17 +1,58 @@
 /* ============================================================
    DASHBOARD.JS — iOS Liquid Glass + Encrypted Cache + Dynamic Copy
+   FIXED: Full touch/click support, browser fallbacks, safe storage
    ============================================================ */
 (function (global) {
   'use strict';
 
   /* ============================================================
-     §1 — CRYPTO (AES-GCM + PBKDF2)
+     §0 — SAFE STORAGE (Safari Private Mode safe)
+     ============================================================ */
+  const SafeStorage = (() => {
+    let ls = null, ss = null;
+    try { ls = window.localStorage; ls.setItem('__t', '1'); ls.removeItem('__t'); } catch (e) { ls = null; }
+    try { ss = window.sessionStorage; ss.setItem('__t', '1'); ss.removeItem('__t'); } catch (e) { ss = null; }
+    const mem = new Map();
+    function wrap(store, prefix) {
+      return {
+        get(k) {
+          try { return store ? store.getItem(prefix + k) : (mem.get(prefix + k) ?? null); }
+          catch (e) { return mem.get(prefix + k) ?? null; }
+        },
+        set(k, v) {
+          try { if (store) store.setItem(prefix + k, v); else mem.set(prefix + k, v); }
+          catch (e) { mem.set(prefix + k, v); }
+        },
+        remove(k) {
+          try { if (store) store.removeItem(prefix + k); else mem.delete(prefix + k); }
+          catch (e) { mem.delete(prefix + k); }
+        },
+        keys() {
+          try { return store ? Object.keys(store) : Array.from(mem.keys()); }
+          catch (e) { return Array.from(mem.keys()); }
+        },
+      };
+    }
+    return {
+      local: wrap(ls, ''),
+      session: wrap(ss, ''),
+      hasLocal: !!ls,
+      hasSession: !!ss,
+    };
+  })();
+
+  /* ============================================================
+     §1 — CRYPTO (AES-GCM + PBKDF2) — dengan fallback non-secure
      ============================================================ */
   const _crypto = (() => {
     const _k = 'ZGFzaGJvYXJkLXNlY3JldC1rZXktMjAyNg==';
     const _s = 'c2FsdC1kYXNoYm9hcmQtdjIwMjYtc2VjdXJl';
     const _i = 100000;
     let _dk = null;
+    const supported = (() => {
+      try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
+      catch (e) { return false; }
+    })();
 
     async function _derive() {
       if (_dk) return _dk;
@@ -42,7 +83,20 @@
       return btoa(s);
     }
 
+    // Fallback: base64 obfuscation (bukan enkripsi, hanya untuk kompatibilitas)
+    function _fallbackSeal(obj) {
+      try { return 'fb:' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); }
+      catch (e) { return null; }
+    }
+    function _fallbackUnseal(b64) {
+      try {
+        const raw = b64.slice(3);
+        return JSON.parse(decodeURIComponent(escape(atob(raw))));
+      } catch (e) { return null; }
+    }
+
     async function seal(obj) {
+      if (!supported) return _fallbackSeal(obj);
       try {
         const key = await _derive();
         const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -53,10 +107,13 @@
         comb.set(iv, 0);
         comb.set(new Uint8Array(c), iv.length);
         return _buf2b(comb.buffer);
-      } catch (e) { return null; }
+      } catch (e) { return _fallbackSeal(obj); }
     }
 
     async function unseal(b64) {
+      if (!b64) return null;
+      if (b64.indexOf('fb:') === 0) return _fallbackUnseal(b64);
+      if (!supported) return null;
       try {
         const key = await _derive();
         const buf = _b2buf(b64);
@@ -69,7 +126,7 @@
       } catch (e) { return null; }
     }
 
-    return { seal, unseal };
+    return { seal, unseal, supported };
   })();
 
   /* ============================================================
@@ -86,12 +143,12 @@
         _mem.delete(key);
       }
       try {
-        const raw = localStorage.getItem(P + key);
+        const raw = SafeStorage.local.get(P + key);
         if (!raw) return null;
         const e = await _crypto.unseal(raw);
         if (!e) return null;
         if (ttl && Date.now() - e.t > ttl) {
-          localStorage.removeItem(P + key);
+          SafeStorage.local.remove(P + key);
           return null;
         }
         _mem.set(key, e);
@@ -104,20 +161,20 @@
       _mem.set(key, e);
       try {
         const s = await _crypto.seal(e);
-        if (s) localStorage.setItem(P + key, s);
+        if (s) SafeStorage.local.set(P + key, s);
       } catch (err) {}
     }
 
     function remove(key) {
       _mem.delete(key);
-      try { localStorage.removeItem(P + key); } catch (e) {}
+      try { SafeStorage.local.remove(P + key); } catch (e) {}
     }
 
     function clear() {
       _mem.clear();
       try {
-        Object.keys(localStorage).forEach(k => {
-          if (k.startsWith(P)) localStorage.removeItem(k);
+        SafeStorage.local.keys().forEach(k => {
+          if (k.startsWith(P)) SafeStorage.local.remove(k);
         });
       } catch (e) {}
     }
@@ -142,19 +199,21 @@
     },
     refreshInterval: 15000,
     refundInterval: 30000,
+    fetchTimeout: 12000,
   };
 
   /* ============================================================
      §4 — DEVICE DETECTION
      ============================================================ */
   const _dev = (() => {
-    const mq = (q) => window.matchMedia(q).matches;
+    const mq = (q) => { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
     const hc = navigator.hardwareConcurrency || 4;
     const conn = navigator.connection || {};
     return {
       mobile: mq('(max-width: 768px)'),
       lowEnd: hc <= 4 || conn.saveData || /2g|slow-2g/.test(conn.effectiveType || ''),
       reduced: mq('(prefers-reduced-motion: reduce)'),
+      touch: ('ontouchstart' in window) || (navigator.maxTouchPoints > 0),
     };
   })();
 
@@ -175,6 +234,8 @@
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (t && t.closest && t.closest('[data-copy]')) return;
+      // Izinkan copy di elemen kode / user-code
+      if (t && t.closest && t.closest('.user-code-display, code, pre')) return;
       e.preventDefault();
     });
     document.addEventListener('cut', (e) => {
@@ -192,7 +253,7 @@
   /* ============================================================
      §6 — AUTH
      ============================================================ */
-  const token = localStorage.getItem('access_token');
+  const token = SafeStorage.local.get('access_token');
   if (!token) {
     location.href = '/login';
     return;
@@ -203,6 +264,14 @@
      ============================================================ */
   function safeJson(res) {
     return res.json().catch(() => ({}));
+  }
+
+  function fetchWithTimeout(url, opts = {}, ms = _cfg.fetchTimeout) {
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), ms) : null;
+    const o = Object.assign({}, opts);
+    if (ctrl) o.signal = ctrl.signal;
+    return fetch(url, o).finally(() => { if (timer) clearTimeout(timer); });
   }
 
   function formatRupiah(n) {
@@ -234,6 +303,26 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
+  async function copyToClipboard(text) {
+    // Modern API (butuh secure context)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try { await navigator.clipboard.writeText(text); return true; } catch (e) {}
+    }
+    // Fallback: execCommand
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  }
+
   /* ============================================================
      §8 — DYNAMIC COPY (random per refresh)
      ============================================================ */
@@ -262,24 +351,9 @@
       'Nokos berkualitas, harga bersahabat. Proses otomatis 24/7.',
       'Butuh nomor buat verifikasi? Semua ada di sini, tinggal pilih.',
     ],
-    sectionStats: [
-      'Statistik Pesanan',
-      'Ringkasan Order',
-      'Data Pesanan',
-      'Aktivitas Kamu',
-    ],
-    sectionQuick: [
-      'Aksi Cepat',
-      'Menu Favorit',
-      'Shortcut',
-      'Mulai Dari Sini',
-    ],
-    sectionTx: [
-      'Transaksi Terakhir',
-      'Riwayat Order',
-      'Pesanan Terbaru',
-      'Aktivitas Terkini',
-    ],
+    sectionStats: ['Statistik Pesanan', 'Ringkasan Order', 'Data Pesanan', 'Aktivitas Kamu'],
+    sectionQuick: ['Aksi Cepat', 'Menu Favorit', 'Shortcut', 'Mulai Dari Sini'],
+    sectionTx: ['Transaksi Terakhir', 'Riwayat Order', 'Pesanan Terbaru', 'Aktivitas Terkini'],
     userCodeHint: [
       'Bagikan ID ini kalau butuh bantuan support',
       'Simpen baik-baik, ini ID unik kamu',
@@ -308,9 +382,7 @@
   function randomizeCopy() {
     const gn = document.getElementById('greetingLine');
     const hn = document.getElementById('greetingName');
-    if (gn && hn) {
-      gn.innerHTML = fillGreeting(hn.textContent);
-    }
+    if (gn && hn) gn.innerHTML = fillGreeting(hn.textContent);
 
     const heroT = document.getElementById('heroTitle');
     if (heroT) heroT.textContent = pick(_copy.heroTitle);
@@ -352,7 +424,7 @@
     if (!el) return;
     const start = Number(el.dataset.value || 0);
     const end = Number(target) || 0;
-    if (start === end) { el.textContent = end; return; }
+    if (start === end) { el.textContent = end; el.dataset.value = end; return; }
     const duration = _dev.reduced ? 0 : 800;
     const t0 = performance.now();
     function step(now) {
@@ -412,6 +484,8 @@
   function showAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
     return new Promise((resolve) => {
       const overlay = document.getElementById('customAlert');
+      if (!overlay) { resolve(window.confirm(message || title || 'OK')); return; }
+
       const iconEl = document.getElementById('customAlertIcon');
       const titleEl = document.getElementById('customAlertTitle');
       const msgEl = document.getElementById('customAlertMessage');
@@ -457,21 +531,21 @@
       const cur = document.documentElement.getAttribute('data-theme') || 'light';
       const nx = cur === 'dark' ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', nx);
-      try { localStorage.setItem('asyrofotp_theme', nx); } catch (e) {}
+      try { SafeStorage.local.set('asyrofotp_theme', nx); } catch (e) {}
       const m = document.querySelector('meta[name="theme-color"]');
       if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
     });
   })();
 
   /* ============================================================
-     §14 — SIDEBAR
+     §14 — SIDEBAR (desktop collapse)
      ============================================================ */
   (function () {
     const sidebar = document.getElementById('sidebar');
     const collapseBtn = document.getElementById('collapseBtn');
     if (!sidebar || !collapseBtn) return;
 
-    const isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+    const isCollapsed = SafeStorage.local.get('sidebar_collapsed') === 'true';
     if (isCollapsed && window.innerWidth > 768) {
       sidebar.classList.add('collapsed');
       document.body.classList.add('sidebar-collapsed');
@@ -481,10 +555,13 @@
       if (window.innerWidth <= 768) return;
       const c = sidebar.classList.toggle('collapsed');
       document.body.classList.toggle('sidebar-collapsed', c);
-      try { localStorage.setItem('sidebar_collapsed', c); } catch (e) {}
+      try { SafeStorage.local.set('sidebar_collapsed', c); } catch (e) {}
     });
   })();
 
+  /* ============================================================
+     §14b — SIDEBAR (mobile toggle) — FULL TOUCH SUPPORT
+     ============================================================ */
   (function () {
     const toggle = document.getElementById('mobileToggle');
     const sidebar = document.getElementById('sidebar');
@@ -492,6 +569,8 @@
     if (!toggle || !sidebar || !overlay) return;
 
     let open = false;
+    let touchMoved = false;
+
     function openSb() {
       if (open) return;
       open = true;
@@ -506,19 +585,46 @@
       overlay.classList.remove('active');
       document.body.style.overflow = '';
     }
-    toggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+
+    // Tap/click pada toggle — support both click & touchend
+    let lastToggleTime = 0;
+    function onToggle(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const now = Date.now();
+      if (now - lastToggleTime < 300) return; // debounce double-fire
+      lastToggleTime = now;
       if (open) closeSb(); else openSb();
-    });
-    overlay.addEventListener('click', closeSb);
+    }
+    toggle.addEventListener('click', onToggle);
+    toggle.addEventListener('touchend', onToggle, { passive: false });
+
+    // Overlay tap
+    function onOverlay(e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      closeSb();
+    }
+    overlay.addEventListener('click', onOverlay);
+    overlay.addEventListener('touchstart', onOverlay, { passive: false });
+
+    // Auto-close saat nav diklik di mobile
     sidebar.querySelectorAll('.nav-item').forEach(l => {
       l.addEventListener('click', () => {
         if (window.innerWidth <= 768) setTimeout(closeSb, 100);
       });
     });
+
+    // Escape key
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && open) closeSb();
+    });
+
+    // Close on resize to desktop
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (window.innerWidth > 768 && open) closeSb();
+      }, 150);
     });
   })();
 
@@ -622,7 +728,7 @@
     if (cached) renderUser(cached);
 
     try {
-      const res = await fetch(_cfg.ep.user, {
+      const res = await fetchWithTimeout(_cfg.ep.user, {
         headers: { Authorization: 'Bearer ' + token }
       });
       if (res.status === 401 || res.status === 403) {
@@ -652,7 +758,6 @@
     if (bp) bp.textContent = formatRupiah(user.balance);
     if (ui) ui.textContent = getInitial(name);
 
-    // Update greeting dynamic
     const gl = document.getElementById('greetingLine');
     if (gl) gl.innerHTML = fillGreeting(name);
 
@@ -668,6 +773,45 @@
      §17 — RENDER DASHBOARD
      ============================================================ */
   let lastTxSig = '';
+
+  function bindTxRows(tbody) {
+    // Gunakan event delegation untuk performa & kompatibilitas
+    if (tbody.dataset.bound) return;
+    tbody.dataset.bound = '1';
+
+    function navigate(row) {
+      const oid = row.dataset.orderId;
+      if (oid) try { SafeStorage.session.set('highlight_order_id', oid); } catch (_) {}
+      location.href = '/inbox';
+    }
+
+    tbody.addEventListener('click', (e) => {
+      const row = e.target.closest('.tx-row');
+      if (row) navigate(row);
+    });
+    // Fallback untuk browser lama / gesture
+    tbody.addEventListener('touchend', (e) => {
+      const row = e.target.closest('.tx-row');
+      if (!row) return;
+      // Hanya navigate kalau tap singkat (bukan scroll)
+      if (e.changedTouches && e.changedTouches[0]) {
+        const t = e.changedTouches[0];
+        if (row._txStartX == null) return;
+        const dx = Math.abs(t.clientX - row._txStartX);
+        const dy = Math.abs(t.clientY - row._txStartY);
+        if (dx < 10 && dy < 10) {
+          e.preventDefault();
+          navigate(row);
+        }
+      }
+    }, { passive: false });
+    tbody.addEventListener('touchstart', (e) => {
+      const row = e.target.closest('.tx-row');
+      if (!row) return;
+      const t = e.changedTouches && e.changedTouches[0];
+      if (t) { row._txStartX = t.clientX; row._txStartY = t.clientY; }
+    }, { passive: true });
+  }
 
   function renderDashboard(data) {
     if (!data) return;
@@ -718,7 +862,7 @@
       const cName = getCountryName(t);
       const oid = String(t.order_id || '').trim();
       return `
-        <tr class="tx-row" data-order-id="${escapeHtml(oid)}">
+        <tr class="tx-row" data-order-id="${escapeHtml(oid)}" role="button" tabindex="0">
           <td>${formatTanggal(t.created_at)}</td>
           <td>
             <div class="tx-service-cell">
@@ -738,13 +882,7 @@
       `;
     }).join('');
 
-    tbody.querySelectorAll('.tx-row').forEach(row => {
-      row.addEventListener('click', () => {
-        const oid = row.dataset.orderId;
-        if (oid) try { sessionStorage.setItem('highlight_order_id', oid); } catch (_) {}
-        location.href = '/inbox';
-      });
-    });
+    bindTxRows(tbody);
 
     tbody.querySelectorAll('img[data-sources]').forEach(img => {
       if (img.dataset.bound) return;
@@ -761,7 +899,7 @@
     if (cached) renderDashboard(cached);
 
     try {
-      const res = await fetch(_cfg.ep.dashboard, {
+      const res = await fetchWithTimeout(_cfg.ep.dashboard, {
         headers: { Authorization: 'Bearer ' + token }
       });
       if (res.status === 401 || res.status === 403) {
@@ -783,7 +921,7 @@
 
   async function checkRefunds(silent = false) {
     try {
-      const res = await fetch(_cfg.ep.refunds, {
+      const res = await fetchWithTimeout(_cfg.ep.refunds, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -820,78 +958,81 @@
      ============================================================ */
   async function handleLogout() {
     try {
-      await fetch(_cfg.ep.logout, {
+      await fetchWithTimeout(_cfg.ep.logout, {
         method: 'POST',
         headers: { Authorization: 'Bearer ' + token }
       });
     } catch (e) {}
     Cache.clear();
     try {
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('refresh_token');
+      SafeStorage.local.remove('access_token');
+      SafeStorage.local.remove('user');
+      SafeStorage.local.remove('refresh_token');
     } catch (e) {}
     location.href = '/landing';
   }
 
   /* ============================================================
-     §21 — EVENT BINDINGS
+     §21 — EVENT BINDINGS (dipindah ke init setelah DOM ready)
      ============================================================ */
-  const refreshBtn = document.getElementById('refreshBtn');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', async function () {
-      this.classList.add('spinning');
-      lastTxSig = '';
-      randomizeCopy();
-      await Promise.all([
-        checkRefunds(false),
-        loadUser(true),
-        loadDashboard(true),
-      ]);
-      setTimeout(() => this.classList.remove('spinning'), 500);
-    });
-  }
+  function bindEvents() {
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function () {
+        this.classList.add('spinning');
+        lastTxSig = '';
+        randomizeCopy();
+        await Promise.all([
+          checkRefunds(false),
+          loadUser(true),
+          loadDashboard(true),
+        ]);
+        setTimeout(() => this.classList.remove('spinning'), 500);
+      });
+    }
 
-  const copyBtn = document.getElementById('copyUserCode');
-  if (copyBtn) {
-    copyBtn.addEventListener('click', async () => {
-      const code = document.getElementById('userCode').textContent;
-      try {
-        await navigator.clipboard.writeText(code);
+    const copyBtn = document.getElementById('copyUserCode');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        const codeEl = document.getElementById('userCode');
+        const code = codeEl ? codeEl.textContent : '';
+        if (!code || code === '—') return;
+        const ok = await copyToClipboard(code);
+        if (!ok) return;
         const orig = copyBtn.innerHTML;
         copyBtn.innerHTML = ICONS.check + ' Copied!';
         setTimeout(() => copyBtn.innerHTML = orig, 1500);
-      } catch (e) {}
-    });
-  }
+      });
+    }
 
-  const userCodeEl = document.getElementById('userCode');
-  if (userCodeEl) {
-    userCodeEl.addEventListener('click', async () => {
-      const code = userCodeEl.textContent;
-      if (!code || code === '—') return;
-      try {
-        await navigator.clipboard.writeText(code);
+    const userCodeEl = document.getElementById('userCode');
+    if (userCodeEl) {
+      userCodeEl.setAttribute('data-copy', '');
+      userCodeEl.addEventListener('click', async () => {
+        const code = userCodeEl.textContent;
+        if (!code || code === '—') return;
+        const ok = await copyToClipboard(code);
+        if (!ok) return;
         const orig = userCodeEl.textContent;
         userCodeEl.textContent = '✓ Tersalin!';
         setTimeout(() => userCodeEl.textContent = orig, 1200);
-      } catch (e) {}
-    });
-  }
-
-  const logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-      const ok = await showAlert({
-        title: 'Keluar Akun?',
-        message: 'Kamu yakin mau keluar dari akun ini?',
-        type: 'warning',
-        okText: 'Ya, Keluar',
-        cancelText: 'Batal',
-        showCancel: true,
       });
-      if (ok) handleLogout();
-    });
+    }
+
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+      logoutBtn.addEventListener('click', async () => {
+        const ok = await showAlert({
+          title: 'Keluar Akun?',
+          message: 'Kamu yakin mau keluar dari akun ini?',
+          type: 'warning',
+          okText: 'Ya, Keluar',
+          cancelText: 'Batal',
+          showCancel: true,
+        });
+        if (ok) handleLogout();
+      });
+    }
   }
 
   /* ============================================================
@@ -918,17 +1059,24 @@
   }
 
   /* ============================================================
-     §23 — INIT
+     §23 — INIT (DOM ready safe)
      ============================================================ */
-  (async function init() {
+  async function init() {
     randomizeCopy();
+    bindEvents();
     await Promise.all([
       loadUser(false),
       loadDashboard(false),
       checkRefunds(false),
     ]);
     startAutoRefresh();
-  })();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
@@ -940,6 +1088,8 @@
     }
   });
 
+  // iOS Safari tidak fire beforeunload — pakai pagehide
+  window.addEventListener('pagehide', stopAutoRefresh);
   window.addEventListener('beforeunload', stopAutoRefresh);
 
 })(window);
