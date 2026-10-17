@@ -5,7 +5,6 @@ var q=function(s,c){return (c||D).querySelector(s)};
 var qa=function(s,c){return Array.prototype.slice.call((c||D).querySelectorAll(s))};
 var PERF=D.documentElement.getAttribute('data-perf')||'full';
 var isStatic=PERF==='static';
-var isLite=PERF==='lite';
 var T={"0":"Platform OTP cepat & aman","1":"Nomor virtual 1700+ layanan","2":"Kode verifikasi instan","3":"Support 24/7 siap bantu"};
 
 function raf(fn){var t=false;return function(){var a=arguments,s=this;if(t)return;t=true;requestAnimationFrame(function(){t=false;fn.apply(s,a)})}}
@@ -131,57 +130,34 @@ if(D.hidden)clearTimeout(tm);else if(started){clearTimeout(tm);tick()}
 })();
 
 // ============================================
-// DEMO MULTI-APP OTP ANIMATION
+// DEMO WHATSAPP VERIFICATION
 // ============================================
 (function(){
 var demo=q('#demo');if(!demo)return;
-var APPS={
-wa:{name:'WhatsApp',letter:'W',color:'#25D366'},
-tg:{name:'Telegram',letter:'T',color:'#229ED9'},
-sp:{name:'Shopee',letter:'S',color:'#EE4D2D'},
-ig:{name:'Instagram',letter:'I',color:'#E1306C'}
-};
-var APP_KEYS=Object.keys(APPS);
-var appIdx=0;
-
 var appUi=q('#appUi');
-var appLogo=q('#appLogo');
-var appTitle=q('#appTitle');
 var appBtn=q('#appBtn');
 var otpCells=qa('.app-otp-cell');
 var notif=q('#notif');
-var notifCode=q('#notifCode');
 var notifCopy=q('#notifCopy');
 var notifDigits=qa('.notif-digit');
 var verified=q('#verified');
 var progressFill=q('#demoProgress');
 var timeEl=q('#demoTime');
-var chips=qa('.app-chip');
 
 var state={started:false,timers:[],progressRaf:null,otp:''};
 
-function clearT(){
-state.timers.forEach(function(t){clearTimeout(t)});state.timers=[];
-if(state.progressRaf){cancelAnimationFrame(state.progressRaf);state.progressRaf=null}
-}
+function clearT(){state.timers.forEach(function(t){clearTimeout(t)});state.timers=[];if(state.progressRaf){cancelAnimationFrame(state.progressRaf);state.progressRaf=null}}
 function later(fn,ms){var id=setTimeout(fn,ms);state.timers.push(id);return id}
-
 function genOtp(){var s='';for(var i=0;i<6;i++)s+=Math.floor(Math.random()*10);return s}
-
-function setApp(k){
-var c=APPS[k];
-appLogo.style.background=c.color;
-appLogo.textContent=c.letter;
-appTitle.textContent=c.name;
-chips.forEach(function(ch){ch.classList.toggle('active',ch.dataset.app===k)});
-}
 function setOtp(code){notifDigits.forEach(function(el,i){el.textContent=code[i]||'0'})}
 
 function reset(){
 otpCells.forEach(function(c){c.textContent='';c.classList.remove('filled')});
-appBtn.disabled=false;appBtn.classList.remove('done');
-notif.classList.remove('on');notifCopy.classList.remove('done');
-notifCopy.querySelector('span').textContent='Copy';
+appBtn.disabled=true;appBtn.classList.remove('done');
+appBtn.textContent='Verifikasi';
+notif.classList.remove('on');
+notifCopy.classList.remove('done');
+notifCopy.querySelector('span').textContent='Salin Kode';
 verified.classList.remove('on');
 if(progressFill)progressFill.style.width='0%';
 }
@@ -208,32 +184,47 @@ state.timers.push(id);
 
 function runSeq(){
 reset();
-var key=APP_KEYS[appIdx];
-setApp(key);
-appIdx=(appIdx+1)%APP_KEYS.length;
 state.otp=genOtp();
 setOtp(state.otp);
 appUi.classList.add('on');
-appBtn.textContent='Kirim kode ke AsyrofOTP';
+runProgress(8500);
 
-later(function(){appBtn.disabled=true;appBtn.textContent='Mengirim...'},600);
+// 0.5s: user klik Verifikasi (minta OTP)
+later(function(){appBtn.disabled=true;appBtn.textContent='Mengirim...'},500);
+
+// 1.5s: notif AsyrofOTP muncul dengan OTP
 later(function(){notif.classList.add('on')},1500);
+
+// 2.6s: user klik Salin Kode
 later(function(){notifCopy.classList.add('done');notifCopy.querySelector('span').textContent='Tersalin'},2600);
+
+// 3.4s: notif hilang
 later(function(){notif.classList.remove('on')},3400);
 
+// 3.8s-4.4s: auto-fill OTP di WhatsApp
 later(function(){
 otpCells.forEach(function(cell,i){
 later(function(){cell.textContent=state.otp[i];cell.classList.add('filled')},i*120);
 });
 },3800);
 
-later(function(){appBtn.disabled=false;appBtn.textContent='Verifikasi'},4600);
-later(function(){appBtn.disabled=true;appBtn.textContent='Memverifikasi...'},5000);
-later(function(){verified.classList.add('on');appBtn.classList.add('done');appBtn.textContent='✓ Terverifikasi'},5800);
+// 4.8s: enable Verifikasi
+later(function(){appBtn.disabled=false;appBtn.textContent='Verifikasi'},4800);
+
+// 5.2s: user klik Verifikasi lagi
+later(function(){appBtn.disabled=true;appBtn.textContent='Memverifikasi...'},5200);
+
+// 6.0s: verified
+later(function(){
+verified.classList.add('on');
+appBtn.classList.add('done');
+appBtn.textContent='✓ Terverifikasi';
+},6000);
+
+// 8.5s: ulang
 later(function(){runSeq()},8500);
 }
 
-// Static fallback
 if(isStatic){
 reset();
 notif.classList.add('on');
@@ -242,23 +233,12 @@ notifCopy.querySelector('span').textContent='Tersalin';
 setOtp('382914');
 otpCells.forEach(function(c,i){c.textContent='382914'[i];c.classList.add('filled')});
 verified.classList.add('on');
-appBtn.classList.add('done');appBtn.textContent='✓ Terverifikasi';
-setApp('wa');
+appBtn.classList.add('done');
+appBtn.textContent='✓ Terverifikasi';
 if(timeEl)timeEl.textContent='0:09';
 return;
 }
 
-// Chip click
-chips.forEach(function(ch){
-ch.addEventListener('click',function(){
-var k=ch.dataset.app;
-var idx=APP_KEYS.indexOf(k);
-if(idx>=0)appIdx=idx;
-clearT();reset();setTimeout(runSeq,80);
-});
-});
-
-// Start saat viewport
 if('IntersectionObserver' in W){
 var io=new IntersectionObserver(function(es){
 es.forEach(function(en){
@@ -277,7 +257,6 @@ startClock();
 runSeq();
 }
 
-// Pause saat hidden
 D.addEventListener('visibilitychange',function(){
 if(D.hidden)clearT();
 else if(state.started){clearT();runSeq()}
@@ -285,7 +264,7 @@ else if(state.started){clearT();runSeq()}
 })();
 
 // ============================================
-// HOW ANIMATION — Cursor interaktif
+// HOW ANIMATION
 // ============================================
 (function(){
 var wrap=q('#howDemo');if(!wrap)return;
@@ -306,30 +285,25 @@ var state={started:false,timers:[]};
 function clearT(){state.timers.forEach(function(t){clearTimeout(t)});state.timers=[]}
 function later(fn,ms){var id=setTimeout(fn,ms);state.timers.push(id);return id}
 
-function moveCursor(x,y,ms){
+function moveCursor(x,y){
 if(!cursor)return;
-cursor.style.transition='left .6s cubic-bezier(.4,0,.2,1),top .6s cubic-bezier(.4,0,.2,1),transform .15s,opacity .3s';
 cursor.style.left=x+'px';
 cursor.style.top=y+'px';
 }
-
 function pressCursor(){
 if(!cursor)return;
 cursor.classList.add('press');
 setTimeout(function(){cursor.classList.remove('press')},150);
 }
-
 function showTap(x,y){
 if(!tap)return;
 tap.style.left=x+'px';tap.style.top=y+'px';
 tap.classList.remove('on');void tap.offsetWidth;tap.classList.add('on');
 }
-
 function setStep(n){
 steps.forEach(function(s){s.classList.toggle('active',s.dataset.step==String(n))});
 scrs.forEach(function(s){s.classList.toggle('on',s.dataset.scr==String(n))});
 }
-
 function getRel(el){
 if(!el||!previewRect)return null;
 var r=el.getBoundingClientRect();
@@ -340,58 +314,41 @@ function runLoop(){
 if(!preview)return;
 previewRect=preview.getBoundingClientRect();
 if(!previewRect.width)return;
-
 if(cursor)cursor.classList.add('on');
 
-// STEP 1: Pilih Layanan
 setStep(1);
 later(function(){
 var items=qa('.how-app-item');
-var target=items[0];
-var p=getRel(target);
-if(p){moveCursor(p.x,p.y,600);later(function(){pressCursor();showTap(p.x,p.y);target.classList.add('picked')},650)}
+var t=items[0];var p=getRel(t);
+if(p){moveCursor(p.x,p.y);later(function(){pressCursor();showTap(p.x,p.y);t.classList.add('picked')},650)}
 },300);
 
-// STEP 2: Pilih Negara
-later(function(){
-setStep(2);
-},2200);
+later(function(){setStep(2)},2400);
 later(function(){
 var items=qa('.how-country-item');
-var target=items[3];
-var p=getRel(target);
-if(p){moveCursor(p.x,p.y,600);later(function(){pressCursor();showTap(p.x,p.y);target.classList.add('picked')},650)}
-},2500);
+var t=items[3];var p=getRel(t);
+if(p){moveCursor(p.x,p.y);later(function(){pressCursor();showTap(p.x,p.y);t.classList.add('picked')},650)}
+},2700);
 
-// STEP 3: Isi Nomor
+later(function(){setStep(3)},4800);
 later(function(){
-setStep(3);
-},4400);
-later(function(){
-var hint=qa('.how-paste-hint')[0];
-var p=getRel(hint);
-if(p){moveCursor(p.x,p.y,600);later(function(){pressCursor();showTap(p.x,p.y)},650)}
-},4700);
+var hint=qa('.how-paste-hint')[0];var p=getRel(hint);
+if(p){moveCursor(p.x,p.y);later(function(){pressCursor();showTap(p.x,p.y)},650)}
+},5100);
 
-// STEP 4: Terima OTP
+later(function(){setStep(4)},7000);
 later(function(){
-setStep(4);
-},6400);
-later(function(){
-var note=qa('.how-otp-note')[0];
-var p=getRel(note);
-if(p){moveCursor(p.x,p.y,600);later(function(){pressCursor();showTap(p.x,p.y)},650)}
-},6700);
+var note=qa('.how-otp-note')[0];var p=getRel(note);
+if(p){moveCursor(p.x,p.y);later(function(){pressCursor();showTap(p.x,p.y)},650)}
+},7300);
 
-// Reset & loop
 later(function(){
 qa('.how-app-item').forEach(function(i){i.classList.remove('picked')});
 qa('.how-country-item').forEach(function(i){i.classList.remove('picked')});
 runLoop();
-},9500);
+},10200);
 }
 
-// Start saat viewport
 if('IntersectionObserver' in W){
 var io=new IntersectionObserver(function(es){
 es.forEach(function(en){
@@ -408,19 +365,11 @@ state.started=true;
 setTimeout(runLoop,300);
 }
 
-// Resize: recalc
-W.addEventListener('resize',function(){
-previewRect=preview?preview.getBoundingClientRect():null;
-});
-
-// Pause saat hidden
+W.addEventListener('resize',function(){previewRect=preview?preview.getBoundingClientRect():null});
 D.addEventListener('visibilitychange',function(){
 if(D.hidden)clearT();
 else if(state.started){clearT();setTimeout(runLoop,300)}
 });
 })();
-
-// BFCACHE
-W.addEventListener('pageshow',function(e){if(e.persisted){}});
 
 })();
