@@ -1,317 +1,277 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="theme-color" content="#2563eb">
-    <meta name="robots" content="index, follow, max-image-preview:large">
-    <meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya.">
-    <title>AsyrofOTP - Layanan OTP Cepat & Terpercaya</title>
-    <link rel="icon" type="image/svg+xml" href="/icon.svg">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://assets.cindigital.id" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/css/core.css">
-    <link rel="stylesheet" href="/css/layout.css">
-    <link rel="stylesheet" href="/css/components.css">
-    <link rel="stylesheet" href="/css/landing.css">
-
-    <!-- 🔒 SECURITY -->
-    <script>
-        (function() {
-            const saved = localStorage.getItem('asyrofotp_theme');
-            const theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.setAttribute('data-theme', theme);
-        })();
-        (function() {
-            if (window.location.protocol === 'view-source:') {
-                document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Akses Ditolak</h1><p>View source tidak diizinkan.</p></div></body>';
-                throw new Error('__VIEW_SOURCE_BLOCKED__');
-            }
-        })();
-        if (window.top !== window.self) {
-            try { window.top.location = window.self.location; } catch (e) {}
-            document.documentElement.innerHTML = '<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔ Dilarang</h1><p>Halaman ini tidak boleh di-embed.</p></div></body>';
-        }
-        (function() {
-            const LOCK_FLAG = 'asyrof_devtools_lock';
-            if (sessionStorage.getItem(LOCK_FLAG) === '1') {
-                document.documentElement.innerHTML = '<head></head><body></body>';
-                function showLockScreen() {
-                    document.body.innerHTML = '<div id="devtoolsLockScreen"><div class="lock-box"><div class="lock-icon">🔒</div><h2>Akses Dibatasi</h2><p>Developer Tools terdeteksi. Konten telah dihapus sementara demi keamanan.</p><p class="lock-hint">Tutup Developer Tools untuk memuat ulang halaman secara normal.</p></div></div><style>html,body{margin:0;padding:0;background:#0f172a;overflow:auto!important;position:static!important;height:auto!important;min-height:100vh!important;width:100%!important;}#devtoolsLockScreen{min-height:100vh;width:100%;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,sans-serif;user-select:none;-webkit-user-select:none;}#devtoolsLockScreen .lock-box{background:#1e293b;border:3px solid #475569;border-radius:20px;padding:40px 32px;max-width:440px;width:100%;text-align:center;box-shadow:8px 8px 0px rgba(0,0,0,.5);box-sizing:border-box;}#devtoolsLockScreen .lock-icon{font-size:3rem;margin-bottom:16px;line-height:1;}#devtoolsLockScreen h2{color:#dc2626;font-size:1.5rem;font-weight:800;margin:0 0 12px;}#devtoolsLockScreen p{color:#cbd5e1;font-size:.95rem;line-height:1.6;margin:0 0 8px;}#devtoolsLockScreen .lock-hint{color:#64748b;font-size:.78rem;font-family:ui-monospace,monospace;margin-top:20px;padding-top:16px;border-top:1px dashed #334155;}</style>';
-                    const T = 200;
-                    setInterval(() => {
-                        const wd = window.outerWidth - window.innerWidth;
-                        const hd = window.outerHeight - window.innerHeight;
-                        if (wd <= T && hd <= T) { sessionStorage.removeItem(LOCK_FLAG); window.location.reload(); }
-                    }, 700);
-                }
-                if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', showLockScreen);
-                else showLockScreen();
-                throw new Error('__DEVTOOLS_LOCK__');
-            }
-        })();
-    </script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0a84ff">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<meta name="description" content="AsyrofOTP — Layanan OTP cepat, aman, dan terpercaya.">
+<title>AsyrofOTP — Layanan OTP Cepat & Terpercaya</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/landing.css">
+<script>
+(function(){try{var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.setAttribute('data-theme',t);}catch(e){}
+if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}})();
+</script>
 </head>
 <body>
 
-    <!-- ===== BACKGROUND ===== -->
-    <div class="bg-stack" aria-hidden="true">
-        <div class="bg-blob bg-blob-1"></div>
-        <div class="bg-blob bg-blob-2"></div>
-        <div class="bg-blob bg-blob-3"></div>
-        <div class="bg-waves" id="bgWaves"></div>
-        <div class="bg-microslats" id="bgMicroslats"></div>
-        <canvas class="bg-cursor-grid" id="cursorGridCanvas"></canvas>
-    </div>
+<div class="bg" aria-hidden="true">
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="grid-overlay"></div>
+</div>
 
-    <!-- Theme toggle -->
-    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Ganti tema">
-        <svg class="icon-svg sun-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-        <svg class="icon-svg moon-icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-    </button>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema">
+<svg class="ic i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+<svg class="ic i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+</button>
 
-    <!-- Navbar -->
-    <nav id="mainNav">
-        <div class="container nav-inner">
-            <a href="/" class="logo">
-                <div class="logo-icon">A</div>
-                <div class="logo-text">Asyrof<span>OTP</span></div>
-            </a>
-            <ul class="nav-links">
-                <li><a href="#beranda">Beranda</a></li>
-                <li><a href="#fitur">Fitur</a></li>
-                <li><a href="#cara-kerja">Cara Kerja</a></li>
-                <li><a href="#faq">FAQ</a></li>
-            </ul>
-        </div>
-    </nav>
+<nav class="nav" id="nav">
+<div class="wrap nav-in">
+<a href="/" class="brand">
+<div class="brand-mark">A</div>
+<div class="brand-name">Asyrof<span>OTP</span></div>
+</a>
+<ul class="nav-menu">
+<li><a href="#home">Beranda</a></li>
+<li><a href="#features">Fitur</a></li>
+<li><a href="#how">Cara Kerja</a></li>
+<li><a href="#faq">FAQ</a></li>
+</ul>
+</div>
+</nav>
 
-    <!-- HERO -->
-    <section class="hero" id="beranda">
-        <div class="container">
-            <div class="hero-inner">
-                <div class="hero-text">
-                    <div class="hero-badge">
-                        <span class="dot"></span>
-                        Layanan Aktif 24 Jam
-                    </div>
-                    <h1 class="tech-title" id="techTitle" aria-label="Digital Mudah Tanpa Perlu Ribet"></h1>
-                    <p class="hero-subtitle">
-                        <span id="textType"></span>
-                        <span class="text-type-cursor" id="textTypeCursor">|</span>
-                    </p>
-                    <div class="hero-buttons">
-                        <a href="/dashboard" class="btn-primary">
-                            <span class="btn-rocket">
-                                <svg class="icon-svg rocket-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
-                                    <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
-                                    <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
-                                    <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
-                                    <circle cx="15" cy="9" r="1.5" fill="currentColor" stroke="none"/>
-                                </svg>
-                            </span>
-                            Mulai Sekarang
-                        </a>
-                        <a href="#cara-kerja" class="btn-outline">
-                            <svg class="icon-svg" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-                            Cara Kerja
-                        </a>
-                    </div>
-                </div>
-                <div class="hero-visual">
-                    <div class="spiral-stage" id="spiralStage" role="list" aria-label="Aplikasi populer"></div>
-                    <div class="spiral-glow"></div>
-                </div>
-            </div>
+<section class="hero" id="home">
+<div class="wrap">
+<div class="hero-grid">
+<div class="hero-l">
+<span class="pill"><span class="pill-dot"></span>Aktif 24 Jam</span>
+<h1 class="hero-h1">Layanan OTP<br><span class="grad">Cepat & Aman</span></h1>
+<p class="hero-p"><span id="typeText"></span><span class="cursor" id="typeCursor">|</span></p>
+<div class="hero-cta">
+<a href="/dashboard" class="btn btn-primary">
+<svg class="ic" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+Mulai Sekarang
+</a>
+<a href="#how" class="btn btn-glass">
+<svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z"/></svg>
+Cara Kerja
+</a>
+</div>
+<div class="hero-stats">
+<div><div class="stat-v">1.700+</div><div class="stat-l">Layanan</div></div>
+<div><div class="stat-v">100+</div><div class="stat-l">Negara</div></div>
+<div><div class="stat-v">5s</div><div class="stat-l">OTP Masuk</div></div>
+<div><div class="stat-v">24/7</div><div class="stat-l">Support</div></div>
+</div>
+</div>
+<div class="hero-r">
+<div class="phone-mock">
+<div class="phone-notch"></div>
+<div class="phone-screen">
+<div class="msg-card">
+<div class="msg-head">
+<div class="msg-avatar">A</div>
+<div>
+<div class="msg-name">AsyrofOTP</div>
+<div class="msg-sub">Baru saja</div>
+</div>
+</div>
+<div class="msg-body">
+<div class="msg-line"></div>
+<div class="msg-line short"></div>
+<div class="otp-bubble">
+<span class="otp-num">382 914</span>
+<svg class="ic otp-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+</div>
+<div class="msg-line tiny"></div>
+</div>
+</div>
+<div class="phone-badge">
+<svg class="ic" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+<span>Verified</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
 
-            <div class="hero-stats">
-                <div class="hero-stat"><div class="hero-stat-value">1.700+</div><div class="hero-stat-label">Layanan</div></div>
-                <div class="hero-stat"><div class="hero-stat-value">100+</div><div class="hero-stat-label">Negara</div></div>
-                <div class="hero-stat"><div class="hero-stat-value">5 Detik</div><div class="hero-stat-label">Rata-rata OTP</div></div>
-                <div class="hero-stat"><div class="hero-stat-value">24/7</div><div class="hero-stat-label">Support</div></div>
-            </div>
-        </div>
-    </section>
+<section class="support" id="support">
+<div class="wrap">
+<div class="sec-head reveal">
+<h2>Butuh Bantuan?</h2>
+<p>Tim support kami siap 24/7 di Telegram & WhatsApp</p>
+</div>
+<div class="support-grid">
+<a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="support-card support-tg reveal">
+<div class="sc-icon">
+<svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+</div>
+<div class="sc-info">
+<div class="sc-name">Telegram</div>
+<div class="sc-id">@AsyrofC</div>
+<div class="sc-cta">Chat<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+</div>
+</a>
+<a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card support-wa reveal">
+<div class="sc-icon">
+<svg class="ic ic-fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</div>
+<div class="sc-info">
+<div class="sc-name">WhatsApp</div>
+<div class="sc-id">@AsyrofC_</div>
+<div class="sc-cta">Chat<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+</div>
+</a>
+</div>
+</div>
+</section>
 
-    <!-- SUPPORT -->
-    <section class="support-section">
-        <div class="container">
-            <div class="support-header reveal">
-                <h2>Butuh Bantuan?</h2>
-                <p>Tim support kami siap 24/7 di Telegram & WhatsApp</p>
-            </div>
-            <div class="support-grid">
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="support-card telegram reveal">
-                    <div class="support-card-inner">
-                        <div class="support-icon">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-                        </div>
-                        <div class="support-info">
-                            <h3>Telegram</h3>
-                            <p>@AsyrofC</p>
-                            <span class="support-cta">Chat Sekarang
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                            </span>
-                        </div>
-                    </div>
-                </a>
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card whatsapp reveal">
-                    <div class="support-card-inner">
-                        <div class="support-icon">
-                            <svg class="icon-svg fill" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                        </div>
-                        <div class="support-info">
-                            <h3>WhatsApp</h3>
-                            <p>@AsyrofC_</p>
-                            <span class="support-cta">Chat Sekarang
-                                <svg class="icon-svg" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                            </span>
-                        </div>
-                    </div>
-                </a>
-            </div>
-        </div>
-    </section>
+<section class="features" id="features">
+<div class="wrap">
+<div class="sec-head reveal">
+<span class="tag">Fitur Unggulan</span>
+<h2>Kenapa Pilih Kami</h2>
+<p>Dirancang untuk kecepatan, keamanan, dan kenyamanan.</p>
+</div>
+<div class="feat-grid">
+<div class="feat reveal">
+<div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+<h3>Cepat</h3>
+<p>Terima OTP dalam hitungan detik, tanpa delay.</p>
+<div class="stars">
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+</div>
+<div class="stars-t">4.9 · 2.847 ulasan</div>
+</div>
+<div class="feat reveal">
+<div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+<h3>Aman</h3>
+<p>Data terenkripsi dan tidak dibagikan ke pihak ketiga.</p>
+<div class="stars">
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+</div>
+<div class="stars-t">4.8 · 1.562 ulasan</div>
+</div>
+<div class="feat reveal">
+<div class="feat-ic"><svg class="ic" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+<h3>Support 24/7</h3>
+<p>Tim kami siap membantu kapan saja kamu butuh.</p>
+<div class="stars">
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+<svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+</div>
+<div class="stars-t">5.0 · 3.219 ulasan</div>
+</div>
+</div>
+</div>
+</section>
 
-    <!-- FEATURES -->
-    <section class="features" id="fitur">
-        <div class="container">
-            <div class="section-header reveal">
-                <div class="section-badge">Fitur Unggulan</div>
-                <h2>Layanan Terbaik Kami</h2>
-                <p>Fitur terbaik untuk solusi digital yang cepat, aman, dan mudah.</p>
-            </div>
-            <div class="features-grid">
-                <div class="feature-card reveal">
-                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
-                    <h3>Fast Receive</h3>
-                    <p>Layanan OTP kami menjamin penerimaan SMS instan tanpa delay atau gangguan jaringan.</p>
-                    <div class="rating-block">
-                        <div class="rating-stars">
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        </div>
-                        <div class="rating-text"><strong>4.9</strong> dari 2.847 ulasan</div>
-                    </div>
-                </div>
-                <div class="feature-card reveal">
-                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
-                    <h3>Terpercaya</h3>
-                    <p>AsyrofOTP berkomitmen untuk menjaga kepercayaan pengguna dengan terus meningkatkan kualitas layanan.</p>
-                    <div class="rating-block">
-                        <div class="rating-stars">
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        </div>
-                        <div class="rating-text"><strong>4.8</strong> dari 1.562 ulasan</div>
-                    </div>
-                </div>
-                <div class="feature-card reveal">
-                    <div class="feature-icon"><svg class="icon-svg" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-                    <h3>Dukungan Prima</h3>
-                    <p>Tim support kami siap membantu 24/7 untuk memastikan kelancaran layanan dan kepuasan pengguna.</p>
-                    <div class="rating-block">
-                        <div class="rating-stars">
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                            <svg class="rating-star filled" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-                        </div>
-                        <div class="rating-text"><strong>5.0</strong> dari 3.219 ulasan</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<section class="how" id="how">
+<div class="wrap">
+<div class="sec-head reveal">
+<span class="tag">Langkah Mudah</span>
+<h2>Cara Kerjanya</h2>
+<p>Hanya butuh 4 langkah untuk mulai.</p>
+</div>
+<div class="how-grid">
+<div class="how-step reveal">
+<div class="how-num">1</div>
+<h3>Pilih Layanan</h3>
+<p>1.700+ layanan digital tersedia.</p>
+</div>
+<div class="how-step reveal">
+<div class="how-num">2</div>
+<h3>Pilih Negara</h3>
+<p>Dari 100+ negara di seluruh dunia.</p>
+</div>
+<div class="how-step reveal">
+<div class="how-num">3</div>
+<h3>Gunakan Nomor</h3>
+<p>Tempel nomor di aplikasi target.</p>
+</div>
+<div class="how-step reveal">
+<div class="how-num">4</div>
+<h3>Terima OTP</h3>
+<p>Kode masuk dalam ~5 detik.</p>
+</div>
+</div>
+</div>
+</section>
 
-    <!-- STEPS -->
-    <section class="steps" id="cara-kerja">
-        <div class="container">
-            <div class="section-header reveal">
-                <div class="section-badge">Langkah Demi Langkah</div>
-                <h2>Bagaimana Cara Kerjanya</h2>
-                <p>4 langkah mudah mendapatkan Jasa OTP secara instan!</p>
-            </div>
-            <div class="steps-grid">
-                <div class="step-card reveal"><div class="step-number">1</div><h3>Pilih Layanan</h3><p>Tersedia lebih dari 1.700 jenis layanan digital yang didukung oleh kami.</p></div>
-                <div class="step-card reveal"><div class="step-number">2</div><h3>Pilih Negara</h3><p>Pilih dari lebih dari 100 negara produsen global yang tersedia di platform kami.</p></div>
-                <div class="step-card reveal"><div class="step-number">3</div><h3>Gunakan Layanan</h3><p>Masukkan dan tunggu hingga pesan text masuk.</p></div>
-                <div class="step-card reveal"><div class="step-number">4</div><h2>Terima Pesan</h2><p>Dapatkan pesan text Anda secara instan - biasanya dalam 5 detik.</p></div>
-            </div>
-        </div>
-    </section>
+<section class="faq" id="faq">
+<div class="wrap">
+<div class="sec-head reveal">
+<span class="tag">FAQ</span>
+<h2>Pertanyaan Umum</h2>
+<p>Beberapa hal yang sering ditanyakan pengguna.</p>
+</div>
+<div class="faq-list">
+<div class="faq-item reveal">
+<button class="faq-q" type="button">Untuk apa layanan ini?<svg class="ic faq-ic" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<div class="faq-a"><div class="faq-a-in">AsyrofOTP menyediakan nomor virtual untuk menerima kode OTP dari berbagai aplikasi dan layanan digital.</div></div>
+</div>
+<div class="faq-item reveal">
+<button class="faq-q" type="button">Bagaimana keamanan saldo?<svg class="ic faq-ic" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<div class="faq-a"><div class="faq-a-in">Top-up lewat berbagai metode pembayaran. Saldo aman dan terenkripsi.</div></div>
+</div>
+<div class="faq-item reveal">
+<button class="faq-q" type="button">Saldo tidak bertambah?<svg class="ic faq-ic" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<div class="faq-a"><div class="faq-a-in">Hubungi support via Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_) dengan bukti pembayaran.</div></div>
+</div>
+<div class="faq-item reveal">
+<button class="faq-q" type="button">Pesanan gagal, saldo terpotong?<svg class="ic faq-ic" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<div class="faq-a"><div class="faq-a-in">Tidak. Saldo otomatis dikembalikan (refund).</div></div>
+</div>
+<div class="faq-item reveal">
+<button class="faq-q" type="button">Apakah layanan ini terpercaya?<svg class="ic faq-ic" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+<div class="faq-a"><div class="faq-a-in">Ya, sudah dipakai ribuan pengguna dan terus meningkatkan kualitas.</div></div>
+</div>
+</div>
+</div>
+</section>
 
-    <!-- FAQ -->
-    <section class="faq" id="faq">
-        <div class="container">
-            <div class="section-header reveal">
-                <div class="section-badge">FAQ</div>
-                <h2>Frequently Asked Questions</h2>
-                <p>Beberapa pertanyaan yang sering di tanyakan oleh pengguna layanan kami.</p>
-            </div>
-            <div class="faq-list">
-                <div class="faq-item reveal">
-                    <button class="faq-question" type="button">Untuk apa ini?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                    <div class="faq-answer"><div class="faq-answer-inner">AsyrofOTP adalah layanan yang menyediakan nomor virtual untuk menerima kode OTP dari berbagai aplikasi dan layanan digital.</div></div>
-                </div>
-                <div class="faq-item reveal">
-                    <button class="faq-question" type="button">Bagaimana proses top-up dan keamanan saldo?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                    <div class="faq-answer"><div class="faq-answer-inner">Top-up saldo dapat dilakukan melalui berbagai metode pembayaran yang tersedia. Saldo Anda aman dan terenkripsi.</div></div>
-                </div>
-                <div class="faq-item reveal">
-                    <button class="faq-question" type="button">Saldo tidak bertambah meskipun pembayaran sudah berhasil?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                    <div class="faq-answer"><div class="faq-answer-inner">Hubungi tim support kami melalui Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_). Sertakan bukti pembayaran.</div></div>
-                </div>
-                <div class="faq-item reveal">
-                    <button class="faq-question" type="button">Pesanan gagal, apakah saldo tetap terpotong?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                    <div class="faq-answer"><div class="faq-answer-inner">Tidak. Jika pesanan gagal, saldo Anda akan dikembalikan secara otomatis (refund).</div></div>
-                </div>
-                <div class="faq-item reveal">
-                    <button class="faq-question" type="button">Apakah layanan ini terpercaya?<svg class="icon-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-                    <div class="faq-answer"><div class="faq-answer-inner">Ya. AsyrofOTP telah digunakan oleh banyak pengguna dan terus meningkatkan kualitas layanan.</div></div>
-                </div>
-            </div>
-        </div>
-    </section>
+<footer class="foot">
+<div class="wrap">
+<div class="foot-in">
+<div class="foot-brand"><div class="brand-mark">A</div>AsyrofOTP</div>
+<ul class="foot-menu">
+<li><a href="#home">Beranda</a></li>
+<li><a href="#features">Fitur</a></li>
+<li><a href="#how">Cara Kerja</a></li>
+<li><a href="#faq">FAQ</a></li>
+</ul>
+</div>
+<div class="foot-copy">© 2026 AsyrofOTP. All rights reserved.</div>
+</div>
+</footer>
 
-    <!-- FOOTER -->
-    <footer>
-        <div class="container">
-            <div class="footer-inner">
-                <div class="footer-logo"><div class="logo-icon">A</div>AsyrofOTP</div>
-                <ul class="footer-links">
-                    <li><a href="#beranda">Beranda</a></li>
-                    <li><a href="#fitur">Fitur</a></li>
-                    <li><a href="#cara-kerja">Cara Kerja</a></li>
-                    <li><a href="#faq">FAQ</a></li>
-                </ul>
-            </div>
-            <div class="footer-copy">
-                &copy; 2026 AsyrofOTP. All rights reserved. | Support via
-                <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" style="color: #229ED9;">Telegram</a> &
-                <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" style="color: #25D366;">WhatsApp</a>
-            </div>
-        </div>
-    </footer>
+<button class="to-top" id="toTop" type="button" aria-label="Ke atas">
+<svg class="ic" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+</button>
 
-    <button class="back-to-top" id="backToTop" type="button" aria-label="Kembali ke atas">
-        <svg class="icon-svg" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
-    </button>
-
-    <script src="/js/landing.js" defer></script>
+<script src="/js/landing.js" defer></script>
 </body>
 </html>
