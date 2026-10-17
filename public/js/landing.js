@@ -9,18 +9,13 @@ var lowEnd=navigator.hardwareConcurrency&&navigator.hardwareConcurrency<=4;
 var reduced=W.matchMedia('(prefers-reduced-motion: reduce)').matches;
 var saveD=navigator.connection&&navigator.connection.saveData;
 var heavy=reduced||saveD||lowEnd;
-var T={
-"0":"Platform OTP cepat & aman",
-"1":"Nomor virtual 1700+ layanan",
-"2":"Kode verifikasi instan",
-"3":"Support 24/7 siap bantu"
-};
+var T={"0":"Platform OTP cepat & aman","1":"Nomor virtual 1700+ layanan","2":"Kode verifikasi instan","3":"Support 24/7 siap bantu"};
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]})}
 function raf(fn){var t=false;return function(){var a=arguments,s=this;if(t)return;t=true;requestAnimationFrame(function(){t=false;fn.apply(s,a)})}}
 function theme(){return D.documentElement.getAttribute('data-theme')||'light'}
 
-// Security: soft — DevTools boleh dibuka, cuma block context-menu & Ctrl+U
+// Security — soft, DevTools boleh
 (function(){
 try{console.log('%c⚠️ STOP!','color:#ff3b30;font-size:20px;font-weight:900');console.log('%cJangan paste apapun di sini. Itu SCAM.','color:#8e8e93;font-size:12px')}catch(e){}
 D.addEventListener('contextmenu',function(e){e.preventDefault()});
@@ -60,7 +55,7 @@ W.dispatchEvent(new CustomEvent('asyrof-theme',{detail:{theme:nx}}));
 });
 })();
 
-// Nav scroll state
+// Nav scroll
 (function(){
 var n=q('#nav');if(!n)return;
 var s=raf(function(){n.classList.toggle('scrolled',W.scrollY>10)});
@@ -140,7 +135,7 @@ if(D.hidden)clearTimeout(tm);else if(started){clearTimeout(tm);tick()}
 });
 })();
 
-// BFCache & visibility
+// BFCache & visibility restart
 W.addEventListener('pageshow',function(e){if(e.persisted)W.dispatchEvent(new CustomEvent('asyrof-restart'))});
 D.addEventListener('visibilitychange',function(){if(!D.hidden)W.dispatchEvent(new CustomEvent('asyrof-restart'))});
 
