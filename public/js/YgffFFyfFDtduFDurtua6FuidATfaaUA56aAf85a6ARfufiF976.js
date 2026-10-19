@@ -1,11 +1,3 @@
-/* ============================================================
-   NOKOS.JS — v4 FIXED
-   - closeSheet animasi smooth
-   - alert z-index di atas bottom sheet
-   - bottom sheet auto-resize per step
-   - app card gak kepotong
-   - empty state loading logo fix
-   ============================================================ */
 (function (global) {
   'use strict';
 
