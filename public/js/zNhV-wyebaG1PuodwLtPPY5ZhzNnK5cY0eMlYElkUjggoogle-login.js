@@ -86,10 +86,11 @@ W.handleGoogleCredential = async function(resp){
 
   google.accounts.id.initialize({
     client_id: "557968626394-ln6638b8opijdn46bc8e8e97249l4je6.apps.googleusercontent.com",
-    callback: handleGoogleCredential
+    callback: handleGoogleCredential,
+    use_fedcm_for_prompt: true // <--- INI TAMBAHANNYA BIAR GAK ERROR
   });
 
-  // Pas tombol custom diklik, munculin popup One Tap (bukan iframe)
+  // Pas tombol custom diklik, munculin popup One Tap
   if (customBtn) {
     customBtn.addEventListener('click', function() {
       google.accounts.id.prompt();
