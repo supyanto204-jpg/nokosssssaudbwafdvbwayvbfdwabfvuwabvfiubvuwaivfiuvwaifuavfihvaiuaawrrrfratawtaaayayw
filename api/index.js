@@ -1,8 +1,3 @@
-// ============================================
-// ASYROFOTP - BACKEND API (FULL v17 - SERVER PREMIUM)
-// PART 1/6: Header, Config, Security, Helpers
-// ============================================
-
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
@@ -11,12 +6,11 @@ const crypto = require('crypto');
 
 const app = express();
 
-// ===== PERFORMANCE =====
 app.disable('x-powered-by');
 app.set('etag', false);
 app.set('trust proxy', 1);
 
-// ===== SECURITY HEADERS =====
+// security headers
 app.use((req, res, next) => {
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -44,9 +38,7 @@ app.use((req, res, next) => {
     next();
 });
 
-/* ============================================
-   ICON PROXY
-   ============================================ */
+// icon proxy — cache 7 hari, retry 3x
 const ICON_CDN_BASE = 'https://assets.cindigital.id/apps';
 const ICON_CACHE = new Map();
 const ICON_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -95,22 +87,14 @@ app.get('/api/icon/:code', async (req, res) => {
 
     try {
         const upstream = await fetchIconWithRetry(`${ICON_CDN_BASE}/${code}.png`, 3);
-
         if (!upstream.ok) {
-            if (upstream.status === 404) {
-                return res.status(404).json({ error: 'Icon not found', code });
-            }
+            if (upstream.status === 404) return res.status(404).json({ error: 'Icon not found', code });
             return res.status(upstream.status).json({ error: 'Upstream error', code });
         }
-
         const buffer = Buffer.from(await upstream.arrayBuffer());
-        if (!buffer || buffer.length === 0) {
-            return res.status(502).json({ error: 'Empty icon response', code });
-        }
-
+        if (!buffer || buffer.length === 0) return res.status(502).json({ error: 'Empty icon response', code });
         const mime = upstream.headers.get('content-type') || 'image/png';
         ICON_CACHE.set(code, { buffer, mime, ts: Date.now() });
-
         res.set('Content-Type', mime);
         res.set('Cache-Control', 'public, max-age=604800, immutable');
         res.send(buffer);
@@ -119,7 +103,7 @@ app.get('/api/icon/:code', async (req, res) => {
     }
 });
 
-// ===== CORS WHITELIST =====
+// cors whitelist
 const ALLOWED_ORIGINS = [
     'https://asyrofotp.vercel.app',
     'https://asyrofotp.com',
@@ -137,13 +121,13 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-signature, x-banana-signature, x-otp1-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-depo1-signature, x-server1-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
 });
 
-// ===== BODY PARSER =====
+// body parser. simpan rawBody buat verify webhook signature
 app.use(express.json({
     verify: (req, res, buf) => { req.rawBody = buf.toString('utf8'); },
     limit: '512kb'
@@ -156,7 +140,7 @@ app.use((err, req, res, next) => {
     next(err);
 });
 
-// ===== LOG SANITIZER =====
+// sanitizer log biar password/token gak muncul di console
 function safeLogBody(body) {
     if (!body || typeof body !== 'object') return body;
     const safe = { ...body };
@@ -172,7 +156,7 @@ function safeLogBody(body) {
     return safe;
 }
 
-// ===== RESPONSE SANITIZER (anti-leak) =====
+// anti-leak. field internal provider gak boleh keluar
 function sanitizeOrderForUser(order) {
     if (!order) return order;
     const { order_id, user_id, payment_reference, notified_at, refund_reason, provider_price, ...rest } = order;
@@ -185,7 +169,6 @@ function sanitizeDepositForUser(dep) {
     return rest;
 }
 
-// ===== DATABASE =====
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
@@ -200,7 +183,6 @@ const pool = new Pool({
 
 pool.on('error', (err) => { console.error('Unexpected pool error:', err.message); });
 
-// ===== ENV =====
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) console.error('⚠️  JWT_SECRET belum di-set!');
 const JWT_SECRET_FINAL = JWT_SECRET || 'asyrofotp-secret-ganti-di-env';
@@ -215,28 +197,28 @@ const API_CDN = process.env.API_CDN;
 const DIBANANA_BASE = 'https://dibanana.id/api/v1';
 const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
-// ===== ENV SMSCode (SERVER PREMIUM) — v1 · IDR =====
+// server2 (v1, IDR). nama env tetap biar gak break deploy lama
 const PREMIUM_BASE = 'https://api.smscode.gg/v1';
 const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 const PREMIUM_WEBHOOK_SECRET = process.env.WEBHOOK_OTP2;
 if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
 if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
-// ===== SERVER CONFIG (hanya 2 server) =====
+// cuma 2 server
 const SERVER_CONFIG = {
     ekonomi: {
-        label: 'Server Ekonomi',
+        label: 'Server 1',
         desc: 'Harga terjangkau, khusus Indonesia',
         badge: 'MURAH',
         countries: ['id'],
-        provider: 'ekonomi',
+        provider: 'server1',
     },
     premium: {
-        label: 'Server Premium',
+        label: 'Server 2',
         desc: 'Semua negara, stok lengkap, real SIM',
         badge: 'PREMIUM',
         countries: null,
-        provider: 'premium',
+        provider: 'server2',
     },
 };
 
@@ -247,6 +229,7 @@ const COUNTRY_NAMES = {
     uk: 'United Kingdom', de: 'Germany', fr: 'France', br: 'Brazil', ng: 'Nigeria',
 };
 
+// depo1 = payment gateway QRIS. nama env tetap biar gak break deploy lama
 const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
@@ -260,22 +243,17 @@ if (!TELEGRAM_BOT_TOKEN) console.error('⚠️  TELEGRAM_BOT_TOKEN belum di-set!
 if (!TELEGRAM_CHANNEL_ID) console.error('⚠️  TELEGRAM_CHANNEL_ID belum di-set!');
 const TELEGRAM_API = TELEGRAM_BOT_TOKEN ? `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}` : null;
 
-// ===== AUTO CONFIG =====
 const ORDER_EXPIRY_MS = 15 * 60 * 1000;
 const REVIVE_GRACE_PERIOD_MS = 60 * 60 * 1000;
-const QRIS_DANA_EXPIRY_MS = 30 * 60 * 1000;
 const PROVIDER_TIMEOUT_MS = 8000;
 const SYNC_INTERVAL_MS = 2 * 60 * 1000;
 
-// ===== PROFIT CONFIG =====
+// profit config
 const MARKUP_PERCENT = 0.10;
 const DEPOSIT_FEE_MIN = 50;
 const DEPOSIT_FEE_MAX = 100;
 const DEPOSIT_FEE_PERCENT = 0.005;
 
-/**
- * Hitung fee deposit kita (Rp50-100).
- */
 function calculateDepositFee(amount) {
     const a = Number(amount) || 0;
     if (a <= 0) return DEPOSIT_FEE_MIN;
@@ -283,24 +261,14 @@ function calculateDepositFee(amount) {
     return Math.max(DEPOSIT_FEE_MIN, Math.min(DEPOSIT_FEE_MAX, fee));
 }
 
-/**
- * ============================================
- * MARKUP 10% PURE — NO BUG, NO TAMBAHAN
- * ============================================
- * price = round(providerPrice * 1.10)
- * Max deviasi 0.5 rupiah dari markup 10% ideal.
- */
+// markup 10% pure, dibulatkan ke rupiah. max deviasi 0.5rp dari ideal
 function applyMarkup(providerPrice) {
     const p = Number(providerPrice) || 0;
     if (p <= 0) return 0;
     return Math.round(p * (1 + MARKUP_PERCENT));
 }
 
-const STATIC_QRIS_DANA = '00020101021126570011ID.DANA.WWW011893600915399681262102099968126210303UMI51440014ID.CO.QRIS.WWW0215ID10254335825880303UMI5204549953033605802ID5912TOKO MoonRed6011KAB. BANTUL6105551856304C670';
-
-// ============================================
-// ===== IN-MEMORY CACHE =====
-// ============================================
+// in-memory cache TTL
 const cache = new Map();
 function cacheGet(key) {
     const item = cache.get(key);
@@ -316,17 +284,9 @@ setInterval(() => {
     for (const [k, v] of cache.entries()) if (now > v.expiresAt) cache.delete(k);
 }, 5 * 60 * 1000);
 
-// ============================================
-// ===== PRICE LOCK CACHE (PERSISTENT — NO TTL) =====
-// ============================================
-// Simpan harga JUAL final per provider ID.
-// Cache TIDAK expired otomatis — cuma DIGANTI saat /prices dipanggil ulang.
-// Artinya: harga yang di-lock = harga terakhir yang user lihat di list.
-//
-// Kenapa? Biar user BAYAR PERSIS sesuai harga di list. Gak ada selisih.
-// Kalau user refresh list → lock update → harga baru.
-//
-// Eviction: FIFO max 10.000 entry (biar gak numpuk selamanya).
+// price lock — persist tanpa TTL, diganti saat /prices dipanggil ulang.
+// tujuan: user bayar persis sesuai harga di list, gak ada selisih.
+// FIFO 10k entries biar gak numpuk selamanya
 const PRICE_LOCK_MAX_SIZE = 10000;
 const priceLockCache = new Map();
 
@@ -356,9 +316,7 @@ function getPriceLock(providerId) {
     return priceLockCache.get(String(providerId)) || null;
 }
 
-// ============================================
-// ===== SERVICE NAME → ICON CODE MAPPING =====
-// ============================================
+// service name → icon code
 function normalizeServiceName(name) {
     return String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
@@ -381,7 +339,7 @@ async function getServiceCodeMap() {
             if (normCode) map[normCode] = code;
         }
         cacheSet(cacheKey, map, 5 * 60 * 1000);
-        console.log(`✅ Service code map (ekonomi): ${Object.keys(map).length} entries`);
+        console.log(`✅ Service code map (server1): ${Object.keys(map).length} entries`);
         return map;
     } catch (err) {
         console.error('Get service code map error:', err.message);
@@ -404,7 +362,7 @@ async function getPremiumServiceCodeMap() {
             map[normalizeServiceName(code)] = code;
         }
         cacheSet(cacheKey, map, 30 * 60 * 1000);
-        console.log(`✅ Service code map (premium): ${Object.keys(map).length} entries`);
+        console.log(`✅ Service code map (server2): ${Object.keys(map).length} entries`);
         return map;
     } catch (err) {
         console.error('Premium service code map error:', err.message);
@@ -424,11 +382,8 @@ async function enrichServicesWithCode(services, server) {
     });
 }
 
-// ============================================
-// ===== STATIC DATA =====
-// ============================================
 const DEPOSIT_METHODS = [
-    { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'qrispy', fee: 0 },
+    { id: 'qrispy', label: 'QRIS Otomatis', desc: 'Bayar pakai QRIS, saldo masuk otomatis', icon: 'depo1', fee: 0 },
 ];
 
 const DEPOSIT_PRESETS = {
@@ -453,9 +408,7 @@ const SERVERS_LIST = Object.entries(SERVER_CONFIG).map(([key, config]) => ({
     provider: config.provider,
 }));
 
-// ============================================
-// ===== RATE LIMITER =====
-// ============================================
+// rate limiter
 const rateLimitStore = new Map();
 
 function rateLimit(maxRequests, windowMs, keyFn) {
@@ -485,69 +438,7 @@ setInterval(() => {
     for (const [key, record] of rateLimitStore.entries()) if (now > record.resetAt) rateLimitStore.delete(key);
 }, 5 * 60 * 1000);
 
-// ============================================
-// ===== QRIS EMVCo CONVERTER =====
-// ============================================
-function crc16(str) {
-    let crc = 0xFFFF;
-    const poly = 0x1021;
-    for (let i = 0; i < str.length; i++) {
-        crc ^= str.charCodeAt(i) << 8;
-        for (let j = 0; j < 8; j++) {
-            crc = (crc & 0x8000) ? ((crc << 1) ^ poly) & 0xFFFF : (crc << 1) & 0xFFFF;
-        }
-    }
-    return crc.toString(16).toUpperCase().padStart(4, '0');
-}
-
-function parseTLV(str) {
-    const result = [];
-    let i = 0;
-    while (i < str.length) {
-        const tag = str.substr(i, 2);
-        const len = parseInt(str.substr(i + 2, 2), 10);
-        const value = str.substr(i + 4, len);
-        result.push({ tag, length: len, value });
-        i += 4 + len;
-    }
-    return result;
-}
-
-function buildTLV(tlvArray) {
-    return tlvArray.map(t => {
-        const len = t.value.length.toString().padStart(2, '0');
-        return t.tag + len + t.value;
-    }).join('');
-}
-
-function toDynamicQRIS(staticQRIS, amount) {
-    if (!staticQRIS || typeof staticQRIS !== 'string') throw new Error('QRIS string tidak valid');
-    if (!amount || amount <= 0) throw new Error('Nominal harus lebih dari 0');
-    let payload = staticQRIS;
-    const crcIndex = payload.lastIndexOf('6304');
-    if (crcIndex === -1) throw new Error('QRIS tidak punya tag CRC (63)');
-    payload = payload.substring(0, crcIndex);
-    let tlv = parseTLV(payload);
-    const tag01 = tlv.find(t => t.tag === '01');
-    if (tag01) tag01.value = '12';
-    else { const idx00 = tlv.findIndex(t => t.tag === '00'); tlv.splice(idx00 + 1, 0, { tag: '01', value: '12' }); }
-    tlv = tlv.filter(t => t.tag !== '54');
-    const tag54 = { tag: '54', value: amount.toString() };
-    const idx58 = tlv.findIndex(t => t.tag === '58');
-    if (idx58 !== -1) tlv.splice(idx58, 0, tag54);
-    else {
-        const idx59 = tlv.findIndex(t => t.tag === '59');
-        if (idx59 !== -1) tlv.splice(idx59, 0, tag54);
-        else tlv.push(tag54);
-    }
-    const rebuilt = buildTLV(tlv);
-    const withCRCHeader = rebuilt + '6304';
-    return withCRCHeader + crc16(withCRCHeader);
-}
-
-// ============================================
-// ===== FETCH HELPERS =====
-// ============================================
+// fetch helper dengan timeout + error normalize
 async function qrispyFetch(endpoint, options = {}) {
     const fullUrl = `${QRISPY_BASE}${endpoint}`;
     const controller = new AbortController();
@@ -562,11 +453,11 @@ async function qrispyFetch(endpoint, options = {}) {
         let data;
         try { data = JSON.parse(text); }
         catch (e) {
-            const err = new Error(`QRISPY error ${res.status}: response bukan JSON`);
+            const err = new Error(`depo1 error ${res.status}: response bukan JSON`);
             err.status = res.status; err.raw = text.substring(0, 500); throw err;
         }
         if (!res.ok || data.status === 'error') {
-            const err = new Error(data.message || 'QRISPY error');
+            const err = new Error(data.message || 'depo1 error');
             err.status = res.status; err.data = data; throw err;
         }
         return data;
@@ -598,9 +489,7 @@ async function dibananaFetch(endpoint, options = {}) {
     } finally { clearTimeout(timeout); }
 }
 
-// ============================================
-// ===== SMSCode (SERVER PREMIUM) FETCH — v1 IDR =====
-// ============================================
+// server2 fetch. v1 money = integer IDR, gak ada konversi
 async function premiumFetch(endpoint, options = {}) {
     if (!PREMIUM_API_KEY) throw new Error('API_SERVER_PREMIUM belum di-set');
     const controller = new AbortController();
@@ -633,7 +522,6 @@ async function premiumFetch(endpoint, options = {}) {
     } finally { clearTimeout(timeout); }
 }
 
-// v1: money = integer IDR langsung. Gak ada konversi.
 function premiumMoneyToIdr(money) {
     if (money == null) return 0;
     return Math.round(Number(money) || 0);
@@ -649,9 +537,7 @@ async function getProviderBalance() {
     }
 }
 
-// ============================================
-// ===== PROVIDER-AGNOSTIC HELPERS =====
-// ============================================
+// provider-agnostic wrapper
 async function providerOrderStatus(order) {
     if (order.server === 'premium') {
         const raw = await premiumFetch(`/orders/${encodeURIComponent(order.order_id)}`);
@@ -702,17 +588,7 @@ async function providerResendOrder(order) {
     });
 }
 
-// ============================================
-// END OF PART 1/6
-// ============================================
-
-// ============================================
-// PART 2/6: Telegram Notif, Helpers, Recaptcha, Sessions
-// ============================================
-
-// ============================================
-// ===== TELEGRAM NOTIF HELPERS =====
-// ============================================
+// telegram notif helpers
 function escapeHtmlNotif(text) {
     if (!text) return '';
     return String(text)
@@ -784,9 +660,6 @@ async function telegramSendMessage(channelId, text, options = {}) {
     }
 }
 
-/**
- * Helper: fetch data user berdasarkan order.user_id.
- */
 async function fetchUserForOrder(order) {
     if (!order || !order.user_id) return null;
     try {
@@ -801,9 +674,7 @@ async function fetchUserForOrder(order) {
     }
 }
 
-/**
- * Notif OTP sukses. Identifier pakai otp_id.
- */
+// notif OTP sukses. identifier pakai otp_id
 async function notifyOtpSuccess(order, user = null) {
     const channelId = TELEGRAM_CHANNEL_OTP_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
@@ -813,7 +684,7 @@ async function notifyOtpSuccess(order, user = null) {
     }
 
     const displayId = order.otp_id || order.order_id || '-';
-    const serverLabel = order.server === 'premium' ? 'Premium' : 'Ekonomi';
+    const serverLabel = order.server === 'premium' ? 'Server 2' : 'Server 1';
 
     const text =
         `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
@@ -851,9 +722,7 @@ async function notifyOtpSuccess(order, user = null) {
     }
 }
 
-/**
- * Notif deposit sukses. Identifier pakai reference_id.
- */
+// notif deposit sukses. identifier pakai reference_id
 async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
@@ -894,9 +763,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
     }
 }
 
-// ============================================
-// ===== GENERAL HELPERS =====
-// ============================================
+// general helpers
 function isValidUsername(username) {
     return /^[a-zA-Z0-9_]{3,20}$/.test(username);
 }
@@ -909,9 +776,7 @@ function signToken(user) {
     );
 }
 
-function generateUniqueCode() {
-    return Math.floor(Math.random() * 900) + 100;
-}
+// generateUniqueCode() DIHAPUS — eksklusif QRIS DANA (MoonRed)
 
 async function generateUniqueReferenceId(maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
@@ -963,9 +828,7 @@ async function logStatusChange({ entityType, entityId, userId = null, oldStatus 
     }
 }
 
-// ============================================
-// ===== RECAPTCHA v3 HELPER =====
-// ============================================
+// recaptcha v3 helper
 async function verifyRecaptcha(token, { minScore = 0.5, expectedAction = null } = {}) {
     if (!token) {
         return { success: false, error: 'Token reCAPTCHA kosong', code: 'MISSING_TOKEN' };
@@ -1041,9 +904,7 @@ async function verifyRecaptcha(token, { minScore = 0.5, expectedAction = null } 
     }
 }
 
-// ============================================
-// ===== TOKEN BLACKLIST =====
-// ============================================
+// token blacklist
 async function isTokenBlacklisted(jti) {
     if (!jti) return false;
     try {
@@ -1069,9 +930,7 @@ async function blacklistToken(jti, expiresAt) {
     }
 }
 
-// ============================================
-// ===== SESSION HELPERS =====
-// ============================================
+// session helpers
 function hashRefreshToken(token) {
     return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -1112,14 +971,7 @@ async function revokeAllUserSessions(userId, exceptSessionId = null) {
     }
 }
 
-// ============================================
-// END OF PART 2/6
-// ============================================
-
-// ============================================
-// PART 3/6: SCHEMA, ensureSchema, withDB, Middleware Auth
-// ============================================
-
+// schema definitions
 const SCHEMA = {
     tables: [
         {
@@ -1278,19 +1130,18 @@ const SCHEMA = {
         },
         {
             name: 'deposits',
+            // unique_code & qris_string dihapus — eksklusif QRIS DANA
             create: `CREATE TABLE IF NOT EXISTS deposits (
                 id SERIAL PRIMARY KEY,
                 user_id UUID REFERENCES users(id) ON DELETE CASCADE,
                 reference_id TEXT UNIQUE,
                 method TEXT NOT NULL,
                 amount BIGINT NOT NULL,
-                unique_code INTEGER,
                 total_amount BIGINT,
                 fee BIGINT DEFAULT 0,
                 status TEXT DEFAULT 'pending',
                 qris_id TEXT,
                 qris_url TEXT,
-                qris_string TEXT,
                 payment_reference TEXT,
                 paid_at TIMESTAMPTZ,
                 expires_at TIMESTAMPTZ,
@@ -1301,12 +1152,10 @@ const SCHEMA = {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );`,
             columns: [
-                { name: 'unique_code', def: 'INTEGER' },
                 { name: 'total_amount', def: 'BIGINT' },
                 { name: 'fee', def: 'BIGINT DEFAULT 0' },
                 { name: 'qris_id', def: 'TEXT' },
                 { name: 'qris_url', def: 'TEXT' },
-                { name: 'qris_string', def: 'TEXT' },
                 { name: 'payment_reference', def: 'TEXT' },
                 { name: 'paid_at', def: 'TIMESTAMPTZ' },
                 { name: 'expires_at', def: 'TIMESTAMPTZ' },
@@ -1400,9 +1249,6 @@ const SCHEMA = {
     ],
 };
 
-// ============================================
-// ===== ENSURE SCHEMA (v17) =====
-// ============================================
 let schemaEnsured = false;
 let schemaPromise = null;
 
@@ -1413,7 +1259,7 @@ async function ensureSchema() {
     schemaPromise = (async () => {
         const start = Date.now();
         try {
-            console.log('🔧 Ensuring schema v17...');
+            console.log('🔧 Ensuring schema...');
 
             await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
                 if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
@@ -1499,7 +1345,7 @@ async function ensureSchema() {
             await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`).catch(() => {});
             await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`).catch(() => {});
 
-            // ===== AUTO-FIX BUG LAMA =====
+            // auto-fix data lama yang stale
             await pool.query(`
                 UPDATE orders SET status = 'expired', updated_at = NOW()
                 WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() - INTERVAL '5 minutes'
@@ -1523,7 +1369,7 @@ async function ensureSchema() {
             `).catch(() => {});
 
             schemaEnsured = true;
-            console.log(`✅ Schema v17 ensured in ${Date.now() - start}ms`);
+            console.log(`✅ Schema ensured in ${Date.now() - start}ms`);
         } catch (err) {
             console.error('❌ Ensure schema failed:', err.message);
             schemaPromise = null;
@@ -1534,9 +1380,7 @@ async function ensureSchema() {
     return schemaPromise;
 }
 
-// ============================================
-// ===== withDB WRAPPER =====
-// ============================================
+// withDB wrapper — pastikan schema siap sebelum handler jalan
 function withDB(handler) {
     return async (req, res, next) => {
         if (!schemaEnsured) {
@@ -1551,7 +1395,7 @@ function withDB(handler) {
     };
 }
 
-// ===== CRON AUTH =====
+// cron auth
 function requireCron(req, res, next) {
     if (!CRON_SECRET) {
         return res.status(500).json({ error: 'CRON_SECRET belum di-set' });
@@ -1562,9 +1406,7 @@ function requireCron(req, res, next) {
     next();
 }
 
-// ============================================
-// ===== MIDDLEWARE AUTH =====
-// ============================================
+// auth middleware
 async function requireAuth(req, res, next) {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -1593,28 +1435,15 @@ function requireAdmin(req, res, next) {
     next();
 }
 
-// ============================================
-// END OF PART 3/6
-// ============================================
-
-// ============================================
-// PART 4/6: Core Business Functions
-// ============================================
-
-// ============================================
-// ===== MARK DEPOSIT PAID (WITH PROFIT FEE) =====
-// ============================================
+// mark deposit paid. dipanggil dari webhook / sync / admin approve
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const saldoMasuk = Number(deposit.amount);
     const totalBayar = Number(receivedAmount) || Number(deposit.total_amount) || saldoMasuk;
 
-    // ===== FEE BREAKDOWN =====
-    // gatewayFee = fee asli dari payment gateway (qrispy dll)
+    // fee = gateway + profit kita (digabung biar user lihat 1 angka)
     const gatewayFee = Math.max(0, totalBayar - saldoMasuk);
-    // ourFee = profit kita (Rp50-100), DIGABUNG biar user lihat sebagai "Biaya QRIS"
     const storedFee = Number(deposit.fee) || 0;
     const ourFee = storedFee > 0 ? storedFee : calculateDepositFee(saldoMasuk);
-    // total fee yang ditampilkan = gateway + profit kita
     const fee = gatewayFee + ourFee;
 
     const paidTime = paidAt ? new Date(paidAt) : new Date();
@@ -1651,7 +1480,7 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
         await client.query(
             `INSERT INTO transactions (user_id, order_id, service_name, status, price)
              VALUES ($1, $2, $3, $4, $5)`,
-            [deposit.user_id, deposit.reference_id, `Deposit ${deposit.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`, 'success', totalBayar]
+            [deposit.user_id, deposit.reference_id, 'Deposit QRIS', 'success', totalBayar]
         );
 
         await client.query(
@@ -1681,31 +1510,15 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
     return { alreadyProcessed: false, saldoMasuk, totalBayar, fee, gatewayFee, ourFee, freshDeposit, userData };
 }
 
-// ============================================
-// ===== SYNC DEPOSIT =====
-// ============================================
+// sync deposit — qrispy only. qris_dana sudah dihapus.
 async function syncDepositStatus(deposit) {
     if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) return deposit;
 
     const now = new Date();
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
 
-    if (deposit.method === 'qris_dana') {
-        if (deposit.status === 'pending' && expiresAt && expiresAt < now) {
-            const upd = await pool.query(
-                `UPDATE deposits SET status = 'expired', updated_at = NOW() 
-                 WHERE id = $1 AND status = 'pending' RETURNING *`,
-                [deposit.id]
-            );
-            if (upd.rows[0]) {
-                await logStatusChange({ entityType: 'deposit', entityId: deposit.reference_id, userId: deposit.user_id, oldStatus: 'pending', newStatus: 'expired', reason: 'expired_qris_dana' });
-            }
-            return upd.rows[0] || deposit;
-        }
-        return deposit;
-    }
-
     if (deposit.method === 'qrispy' && deposit.status === 'pending') {
+        // expired dulu, tapi cek dulu ke provider siapa tau udah dibayar
         if (expiresAt && expiresAt < now) {
             if (deposit.qris_id) {
                 try {
@@ -1770,9 +1583,7 @@ async function syncDepositStatus(deposit) {
     return deposit;
 }
 
-// ============================================
-// ===== REFUND ORDER =====
-// ============================================
+// refund order. idempotent, aman kalau double-call
 async function refundOrder(order, reason = 'auto_refund') {
     const o = order;
 
@@ -1831,9 +1642,7 @@ async function refundOrder(order, reason = 'auto_refund') {
     }
 }
 
-// ============================================
-// ===== AUTO-CANCEL & REFUND =====
-// ============================================
+// cancel + refund. dipakai cron, cek-otp, sync
 async function autoCancelAndRefund(order) {
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
     if (fresh.rows.length === 0) return { refunded: false };
@@ -1879,9 +1688,7 @@ async function autoCancelAndRefund(order) {
     return { refunded: refundRes.refunded, refundedAmount: refundRes.amount, orderId: o.order_id, otpId: o.otp_id };
 }
 
-// ============================================
-// ===== CHECK & REFUND ALL PENDING =====
-// ============================================
+// cek + refund semua order pending milik user
 async function checkAndRefundUserOrders(userId) {
     const refunded = [];
 
@@ -1927,22 +1734,17 @@ async function checkAndRefundUserOrders(userId) {
     return refunded;
 }
 
-// ============================================
-// ===== ORDER LOOKUP HELPER =====
-// ===== Terima otp_id ATAU order_id provider =====
-// ============================================
+// cari order user. terima otp_id atau order_id provider
 async function findUserOrder(userId, identifier) {
     if (!identifier) return null;
     const idStr = String(identifier).trim();
 
-    // Coba by otp_id dulu
     let result = await pool.query(
         'SELECT * FROM orders WHERE otp_id = $1 AND user_id = $2 LIMIT 1',
         [idStr, userId]
     );
     if (result.rows.length > 0) return result.rows[0];
 
-    // Fallback by order_id provider
     result = await pool.query(
         'SELECT * FROM orders WHERE order_id = $1 AND user_id = $2 LIMIT 1',
         [idStr, userId]
@@ -1952,9 +1754,7 @@ async function findUserOrder(userId, identifier) {
     return null;
 }
 
-// ============================================
-// ===== AUTO SYNC ORDER (provider-agnostic) =====
-// ============================================
+// sync 1 order. no-op kalau udah final state
 async function autoSyncOrder(order) {
     if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
         if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
@@ -2025,16 +1825,14 @@ async function autoSyncOrder(order) {
     }
 }
 
-// ============================================
-// ===== AUTO SYNC ALL =====
-// ============================================
+// sync semua — order pending, deposit pending, retry notif gagal
 let autoSyncRunning = false;
 
 async function autoSyncAll() {
     if (autoSyncRunning) return;
     autoSyncRunning = true;
     try {
-        // 1. Sync pending orders
+        // 1. sync order pending
         const pendingOrders = await pool.query(
             `SELECT * FROM orders 
              WHERE status = 'pending'
@@ -2050,7 +1848,7 @@ async function autoSyncAll() {
             await Promise.all(chunk.map(o => autoSyncOrder(o).catch(() => null)));
         }
 
-        // 2. Expire pending orders
+        // 2. expire order pending
         const expiredOrders = await pool.query(
             `SELECT * FROM orders WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() LIMIT 20`
         );
@@ -2058,7 +1856,7 @@ async function autoSyncAll() {
             try { await autoCancelAndRefund(o); } catch (e) {}
         }
 
-        // 3. Sync pending deposits
+        // 3. sync deposit pending
         const pendingDeposits = await pool.query(
             `SELECT * FROM deposits 
              WHERE status = 'pending' AND created_at > NOW() - INTERVAL '2 hours'
@@ -2073,7 +1871,7 @@ async function autoSyncAll() {
             await Promise.all(chunk.map(d => syncDepositStatus(d).catch(() => null)));
         }
 
-        // 4. Retry notif OTP yang gagal
+        // 4. retry notif OTP yang gagal
         const unnotifiedOrders = await pool.query(
             `SELECT * FROM orders 
              WHERE status IN ('received', 'success', 'confirmed') 
@@ -2090,7 +1888,7 @@ async function autoSyncAll() {
             await new Promise(r => setTimeout(r, 50));
         }
 
-        // 5. Retry notif deposit yang gagal
+        // 5. retry notif deposit yang gagal
         const unnotifiedDeposits = await pool.query(
             `SELECT * FROM deposits 
              WHERE status = 'success' AND notified_at IS NULL
@@ -2117,9 +1915,7 @@ async function autoSyncAll() {
     }
 }
 
-// ============================================
-// ===== WEBHOOK LOGGER =====
-// ============================================
+// webhook logger — simpan event apa pun (valid/invalid) buat audit
 async function logWebhookEvent({
     source, eventType, signatureValid, req, payload, processed,
     processNote, relatedEntityType, relatedEntityId
@@ -2148,17 +1944,7 @@ async function logWebhookEvent({
     }
 }
 
-// ============================================
-// END OF PART 4/6
-// ============================================
-
-// ============================================
-// PART 5A/6: Routes User (Auth, User, Deposit, Webhook)
-// ============================================
-
-// ============================================
-// ===== HEALTH =====
-// ============================================
+// health
 app.get('/api/health', withDB(async (req, res) => {
     try {
         const result = await pool.query('SELECT NOW() as time');
@@ -2167,7 +1953,7 @@ app.get('/api/health', withDB(async (req, res) => {
         const base = { status: 'ok', time: result.rows[0].time };
         if (wantsDetail) {
             Object.assign(base, {
-                version: 'v17-server-premium',
+                version: 'v18-depo1-only',
                 hasDibananaKey: !!DIBANANA_API_KEY,
                 hasPremiumKey: !!PREMIUM_API_KEY,
                 hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
@@ -2199,9 +1985,7 @@ app.get('/api/health', withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== AUTH ROUTES =====
-// ============================================
+// auth routes
 app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: 'Username wajib diisi' });
@@ -2383,9 +2167,7 @@ app.get('/api/auth/sessions', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== USER ROUTES =====
-// ============================================
+// user routes
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
@@ -2475,9 +2257,7 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== DEPOSIT ROUTES =====
-// ============================================
+// deposit routes
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({ methods: DEPOSIT_METHODS });
 });
@@ -2495,8 +2275,8 @@ app.post('/api/deposit/generate-ref', requireAuth, userRateLimit(20, 60 * 1000),
     }
 }));
 
-// ===== QRISPY SAVE (WITH HIDDEN FEE) =====
-app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
+// simpan deposit QRIS (via depo1). path `/save` biar netral, gak bawa nama provider.
+app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -2520,7 +2300,6 @@ app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), 
             });
         }
 
-        // ===== FEE PROFIT KITA (Rp50-100) =====
         const ourFee = calculateDepositFee(Number(amount));
 
         await pool.query(
@@ -2553,52 +2332,12 @@ app.post('/api/deposit/qrispy-save', requireAuth, userRateLimit(10, 60 * 1000), 
             },
         });
     } catch (err) {
-        console.error('qrispy-save error:', err.message);
+        console.error('deposit/save error:', err.message);
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
 }));
 
-app.post('/api/deposit/qris-dana', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
-    const { amount } = req.body;
-    if (!amount || amount < 1000) return res.status(400).json({ error: 'Minimal deposit Rp1.000' });
-    if (amount > 10000000) return res.status(400).json({ error: 'Maksimal deposit Rp10.000.000' });
-
-    try {
-        const uniqueCode = generateUniqueCode();
-        const ourFee = calculateDepositFee(Number(amount));
-        const totalAmount = Number(amount) + uniqueCode + ourFee;
-        const referenceId = await generateUniqueReferenceId();
-        const dynamicQRIS = toDynamicQRIS(STATIC_QRIS_DANA, totalAmount);
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(dynamicQRIS)}`;
-        const expiredAt = new Date(Date.now() + QRIS_DANA_EXPIRY_MS);
-
-        await pool.query(
-            `INSERT INTO deposits (user_id, reference_id, method, amount, unique_code, total_amount, fee, status, qris_string, qris_url, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [req.user.id, referenceId, 'qris_dana', Number(amount), uniqueCode, totalAmount, uniqueCode + ourFee, 'pending', dynamicQRIS, qrImageUrl, expiredAt]
-        );
-
-        await logStatusChange({
-            entityType: 'deposit', entityId: referenceId, userId: req.user.id,
-            oldStatus: null, newStatus: 'pending', reason: 'qris_dana_created',
-            metadata: { amount: Number(amount), unique_code: uniqueCode, total_amount: totalAmount, our_fee: ourFee },
-        });
-
-        res.json({
-            message: 'QRIS DANA berhasil dibuat',
-            deposit: {
-                reference_id: referenceId, method: 'qris_dana',
-                amount: Number(amount), unique_code: uniqueCode,
-                total_amount: totalAmount, fee: uniqueCode + ourFee,
-                qris_string: dynamicQRIS, qris_url: qrImageUrl,
-                expired_at: expiredAt.toISOString(),
-                expires_in_seconds: Math.floor(QRIS_DANA_EXPIRY_MS / 1000),
-            },
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-}));
+// /api/deposit/qris-dana DIHAPUS — pakai /api/deposit/save (qrispy via depo1) saja
 
 app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
@@ -2664,7 +2403,7 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
             return res.status(400).json({ error: 'Deposit belum expired. Tunggu sampai waktu habis.', expires_at: deposit.expires_at });
         }
 
-        if (deposit.method === 'qrispy' && deposit.qris_id) {
+        if (deposit.qris_id) {
             try {
                 const data = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (data.data?.status === 'paid') {
@@ -2713,7 +2452,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
             return res.status(400).json({ error: 'Deposit sudah kedaluwarsa, tidak bisa dibatalkan' });
         }
 
-        if (deposit.method === 'qrispy' && deposit.qris_id) {
+        if (deposit.qris_id) {
             try {
                 const statusData = await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/status`);
                 if (statusData.data?.status === 'paid') {
@@ -2735,7 +2474,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
             try {
                 await qrispyFetch(`/api/payment/qris/${deposit.qris_id}/cancel`, { method: 'POST' });
             } catch (err) {
-                console.error('QRISPY cancel error:', err.message);
+                console.error('depo1 cancel error:', err.message);
             }
         }
 
@@ -2829,19 +2568,17 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== WEBHOOK QRISPY =====
-// ============================================
-app.post('/api/webhook/qrispy', withDB(async (req, res) => {
+// webhook depo1 (QRIS)
+app.post('/api/webhook/depo1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
-        const signature = req.headers['x-qrispy-signature'];
+        const signature = req.headers['x-depo1-signature'];
         if (!signature) {
-            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
+            await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
             return res.status(401).json({ error: 'No signature' });
         }
         if (!QRISPY_WEBHOOK_SECRET) {
-            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
+            await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
@@ -2854,7 +2591,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
         const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
-            await logWebhookEvent({ source: 'qrispy', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
+            await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
             return res.status(401).json({ error: 'Invalid signature' });
         }
         signatureValid = true;
@@ -2870,7 +2607,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
             );
 
             if (result.rows.length === 0) {
-                await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'DEPOSIT_NOT_FOUND' });
+                await logWebhookEvent({ source: 'depo1', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'DEPOSIT_NOT_FOUND' });
                 return res.json({ status: 'ok', message: 'Deposit not found' });
             }
 
@@ -2878,7 +2615,7 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
             const markResult = await markDepositPaid(deposit, received_amount || amount, paid_at);
 
             if (markResult.alreadyProcessed) {
-                await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ALREADY_PROCESSED', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
+                await logWebhookEvent({ source: 'depo1', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ALREADY_PROCESSED', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
                 return res.json({ status: 'ok', message: 'Already processed' });
             }
 
@@ -2896,22 +2633,20 @@ app.post('/api/webhook/qrispy', withDB(async (req, res) => {
                 }
             }
 
-            await logWebhookEvent({ source: 'qrispy', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'DEPOSIT_MARKED_PAID', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
+            await logWebhookEvent({ source: 'depo1', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'DEPOSIT_MARKED_PAID', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
         } else {
-            await logWebhookEvent({ source: 'qrispy', eventType: event || 'unknown', signatureValid: true, req, payload: req.body, processed: true, processNote: 'EVENT_IGNORED' });
+            await logWebhookEvent({ source: 'depo1', eventType: event || 'unknown', signatureValid: true, req, payload: req.body, processed: true, processNote: 'EVENT_IGNORED' });
         }
 
         res.json({ status: 'ok' });
     } catch (err) {
         console.error('Webhook error:', err.message);
-        await logWebhookEvent({ source: 'qrispy', signatureValid, req, payload: req.body, processed: false, processNote: 'ERROR: ' + err.message }).catch(() => {});
+        await logWebhookEvent({ source: 'depo1', signatureValid, req, payload: req.body, processed: false, processNote: 'ERROR: ' + err.message }).catch(() => {});
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
-// ============================================
-// ===== WEBHOOK OTP1 (dibanana · ekonomi) =====
-// ============================================
+// webhook otp1 (server1)
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -2920,7 +2655,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
-        const signature = req.headers['x-banana-signature'] || req.headers['x-otp1-signature'];
+        const signature = req.headers['x-server1-signature'] || req.headers['x-otp1-signature'];
         if (!signature) {
             await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
             return res.status(401).json({ error: 'No signature' });
@@ -3112,17 +2847,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// END OF PART 5A/6
-// ============================================
-
-// ============================================
-// PART 5B/6: Webhook OTP2, CekOTP, Nokos Routes
-// ============================================
-
-// ============================================
-// ===== WEBHOOK OTP2 (SERVER PREMIUM · SMSCode v1) =====
-// ============================================
+// webhook otp2 (server2). header x-webhook-signature = "sha256={HMAC(body, secret)}"
 app.post('/api/webhook/otp2', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -3131,7 +2856,6 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
-        // SMSCode: header = "sha256={HMAC-SHA256(body, webhook_secret)}"
         const signature = req.headers['x-webhook-signature'];
         if (!signature) {
             await logWebhookEvent({ source: 'otp2', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
@@ -3152,7 +2876,6 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
         }
         signatureValid = true;
 
-        // Payload SMSCode: { event, timestamp, data: { order_id, phone_number, otp_code, otp_message, sms_revision, ... } }
         const { event, data } = req.body || {};
         if (!data || !data.order_id) {
             await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: false, processNote: 'MISSING_ORDER_ID' });
@@ -3170,7 +2893,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
         const otpCode = data.otp_code || null;
         const fullSms = data.otp_message || null;
 
-        // ---- Event: order.otp_received ----
+        // otp received
         if (event === 'order.otp_received' && (otpCode || fullSms)) {
             const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
             let revived = false;
@@ -3214,7 +2937,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
                                 );
                                 await client.query('COMMIT');
                                 revived = true;
-                                console.log(`🔄 Order ${order.order_id} revived via webhook (premium)`);
+                                console.log(`🔄 Order ${order.order_id} revived via webhook (server2)`);
                             }
                         } catch (err) {
                             await client.query('ROLLBACK').catch(() => {});
@@ -3292,7 +3015,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.status(200).json({ status: 'ok', message: 'received', revived });
         }
 
-        // ---- Event: order.completed ----
+        // completed
         if (event === 'order.completed') {
             if (order.status !== 'success' && order.status !== 'received') {
                 await pool.query(
@@ -3309,7 +3032,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.json({ status: 'ok' });
         }
 
-        // ---- Event: order.expired ----
+        // expired
         if (event === 'order.expired') {
             if (!['expired', 'refunded'].includes(order.status)) {
                 await pool.query(
@@ -3332,7 +3055,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.json({ status: 'ok' });
         }
 
-        // ---- Event: order.canceled ----
+        // canceled
         if (event === 'order.canceled') {
             if (!['cancelled', 'refunded'].includes(order.status)) {
                 await pool.query(
@@ -3355,7 +3078,6 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.json({ status: 'ok' });
         }
 
-        // Event lain — ignore
         await logWebhookEvent({ source: 'otp2', eventType: event || 'unknown', signatureValid: true, req, payload: req.body, processed: true, processNote: 'EVENT_IGNORED' });
         res.json({ status: 'ok' });
 
@@ -3366,9 +3088,7 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== CEK OTP =====
-// ============================================
+// cek OTP. terima order_id atau otp_id
 app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async (req, res) => {
     const { order_id, otp_id } = req.body;
     if (!order_id && !otp_id) return res.status(400).json({ error: 'order_id atau otp_id wajib' });
@@ -3538,9 +3258,7 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
     }
 }));
 
-// ============================================
-// ===== NOKOS STATS / LOGS / CHECK REFUNDS =====
-// ============================================
+// nokos stats / check refunds
 app.post('/api/nokos/check-refunds', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     try {
         const refunded = await checkAndRefundUserOrders(req.user.id);
@@ -3633,9 +3351,7 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== NOKOS SERVERS / SERVICES / COUNTRIES =====
-// ============================================
+// nokos — servers, services, countries
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
 });
@@ -3732,9 +3448,7 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== PRICES WITH PRICE LOCK (provider-agnostic) ⭐ =====
-// ============================================
+// harga per provider. lock harga jual per provider ID
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -3757,7 +3471,7 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
                 const providerId = String(p.id || p.provider_id || '').trim();
                 if (providerId && sellPrice > 0) {
                     setPriceLock(providerId, sellPrice, providerPrice, {
-                        server, service, country, provider: 'ekonomi',
+                        server, service, country, provider: 'server1',
                     });
                 }
                 return { ...p, price_idr: sellPrice, _provider_price: providerPrice };
@@ -3787,37 +3501,37 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
             const products = await premiumFetch(`/catalog/products?${params.toString()}`);
 
             providers = (products || [])
-    .filter(p => p.active !== false)  // ← skip product yang inactive
-    .map(p => {
-        const providerPrice = premiumMoneyToIdr(p.price);
-        const sellPrice = applyMarkup(providerPrice);
-        const providerId = String(p.id || p.product_id || '').trim();
-        const stockVal = Number(p.available) || 0;  // ← SMSCode pakai "available"
+                .filter(p => p.active !== false)
+                .map(p => {
+                    const providerPrice = premiumMoneyToIdr(p.price);
+                    const sellPrice = applyMarkup(providerPrice);
+                    const providerId = String(p.id || p.product_id || '').trim();
+                    const stockVal = Number(p.available) || 0;
 
-        if (providerId && sellPrice > 0) {
-            setPriceLock(providerId, sellPrice, providerPrice, {
-                server, service, country, provider: 'premium',
-                product_id: providerId,
-                catalog_product_id: p.catalog_product_id || null,
-                operator_id: p.operator_id || null,
-            });
-        }
+                    if (providerId && sellPrice > 0) {
+                        setPriceLock(providerId, sellPrice, providerPrice, {
+                            server, service, country, provider: 'server2',
+                            product_id: providerId,
+                            catalog_product_id: p.catalog_product_id || null,
+                            operator_id: p.operator_id || null,
+                        });
+                    }
 
-        return {
-            id: providerId,
-            provider_id: providerId,
-            product_id: providerId,
-            catalog_product_id: p.catalog_product_id || null,
-            operator_id: p.operator_id || null,
-            operator_name: p.operator_name || null,
-            name: p.name || `${serviceObj.name} ${countryObj.name}`,
-            available: stockVal,
-            stock: stockVal,              // ← FRONTEND EXPECT 'stock'
-            active: p.active !== false,
-            price_idr: sellPrice,
-            _provider_price: providerPrice,
-        };
-    });
+                    return {
+                        id: providerId,
+                        provider_id: providerId,
+                        product_id: providerId,
+                        catalog_product_id: p.catalog_product_id || null,
+                        operator_id: p.operator_id || null,
+                        operator_name: p.operator_name || null,
+                        name: p.name || `${serviceObj.name} ${countryObj.name}`,
+                        available: stockVal,
+                        stock: stockVal,
+                        active: p.active !== false,
+                        price_idr: sellPrice,
+                        _provider_price: providerPrice,
+                    };
+                });
         }
 
         const response = { server, service, country, providers };
@@ -3834,9 +3548,7 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== NOKOS ORDER PREVIEW (PRICE LOCK) ⭐ =====
-// ============================================
+// preview harga. pakai lock kalau ada, fallback kalau gak ada
 app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { id, server, service, country, provider_price } = req.body;
 
@@ -3896,7 +3608,7 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
                 }
                 sellPrice = applyMarkup(providerPrice);
                 setPriceLock(id, sellPrice, providerPrice, {
-                    server, service, country, provider: 'premium',
+                    server, service, country, provider: 'server2',
                     product_id: id,
                     catalog_product_id: match.catalog_product_id || null,
                     operator_id: match.operator_id || null,
@@ -3914,7 +3626,7 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
                     return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
                 }
                 sellPrice = applyMarkup(providerPrice);
-                setPriceLock(id, sellPrice, providerPrice, { server, service, country, provider: 'ekonomi' });
+                setPriceLock(id, sellPrice, providerPrice, { server, service, country, provider: 'server1' });
                 source = 'fallback_fresh';
             }
         }
@@ -3948,9 +3660,7 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
     }
 }));
 
-// ============================================
-// ===== NOKOS CREATE ORDER (PRICE LOCK, provider-agnostic) ⭐ =====
-// ============================================
+// create order. pakai price lock kalau ada
 app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
     const {
@@ -3985,7 +3695,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
         }
 
-        // ===== Kirim order ke provider =====
+        // kirim order ke provider
         let data;
         if (isEkonomi) {
             try {
@@ -4015,7 +3725,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             phoneNumber = data.phone_number || null;
 
         } else if (isPremium) {
-            // SMSCode v1: POST /orders/create dengan product_id
             const idemKey = 'ord_' + crypto.randomBytes(16).toString('hex');
             try {
                 data = await premiumFetch('/orders/create', {
@@ -4051,7 +3760,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ===== Ambil harga jual dari lock cache =====
+        // ambil harga jual dari lock cache
         const lockKey = String(id || '').trim();
         if (lockKey) {
             const locked = getPriceLock(lockKey);
@@ -4062,7 +3771,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             price = lockedPrice;
             usedLock = true;
 
-            // ===== GUARD: provider harga > lock → rugi, CANCEL =====
+            // provider harga > lock → rugi, cancel
             if (providerPrice > lockedPrice) {
                 console.warn(`⚠️ RUGI: provider=${providerPrice} > locked=${lockedPrice}. Cancel order.`);
                 try {
@@ -4087,7 +3796,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
         console.log(`💰 Order ${providerOrderId} (${server}): provider=${providerPrice}, jual=${price}, profit=${profit} ${usedLock ? '[LOCKED]' : '[FALLBACK]'}`);
 
-        // ===== Guard expected_price (cuma kalau TIDAK pakai lock) =====
+        // guard expected_price cuma kalau tidak pakai lock
         if (!usedLock && expected_price && Number(expected_price) > 0) {
             const diff = Math.abs(price - Number(expected_price));
             const tolerance = Number(expected_price) * 0.01;
@@ -4276,7 +3985,7 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
     }
 }));
 
-// ===== NOKOS CHECK STATUS ORDER (provider-agnostic) =====
+// cek status order
 app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -4387,7 +4096,7 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ===== NOKOS RESEND (provider-agnostic) =====
+// resend SMS
 app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -4402,8 +4111,8 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
             return res.json({
                 order_type: 'deposit', otp_id: null,
                 status: `deposit_${d.status}`, service: 'Deposit',
-                service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
-                country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA',
+                service_name: 'Deposit QRIS',
+                country: null, country_name: 'QRIS',
                 phone_number: null, otp_code: null, full_sms: null, price: d.amount,
                 qris_id: d.qris_id, qris_url: d.qris_url,
                 total_amount: d.total_amount, fee: d.fee,
@@ -4447,7 +4156,7 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
     }
 }));
 
-// ===== CONFIRM OTP ORDER =====
+// konfirmasi OTP diterima
 app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, res) => {
     const { orderId } = req.params;
     const client = await pool.connect();
@@ -4505,7 +4214,7 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     }
 }));
 
-// ===== NOKOS CANCEL ORDER (provider-agnostic) =====
+// cancel order manual
 app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { orderId } = req.params;
     try {
@@ -4549,7 +4258,7 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
     }
 }));
 
-// ===== NOKOS LIST ORDERS =====
+// list orders (nokos + deposit)
 app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
@@ -4572,9 +4281,9 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
             const mapped = rows.rows.map(d => ({
                 order_id: d.reference_id, otp_id: null,
                 order_type: 'deposit', server: null, service: 'Deposit',
-                service_name: `Deposit ${d.method === 'qrispy' ? 'QRIS' : 'QRIS DANA'}`,
-                icon_code: d.method === 'qrispy' ? 'qris' : 'dana',
-                country: null, country_name: d.method === 'qrispy' ? 'QRIS' : 'DANA', country_flag: null,
+                service_name: 'Deposit QRIS',
+                icon_code: 'qris',
+                country: null, country_name: 'QRIS', country_flag: null,
                 operator: null, phone_number: null, otp_code: null, otp_code_2: null, full_sms: null,
                 price: d.amount, status: `deposit_${d.status}`,
                 expires_in: d.expires_at ? Math.max(0, Math.floor((new Date(d.expires_at) - Date.now()) / 1000)) : 0,
@@ -4635,7 +4344,7 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// ===== NOKOS SYNC BATCH (provider-agnostic) =====
+// sync batch order (max 10)
 app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { order_ids } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
@@ -4714,17 +4423,7 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
     }
 }));
 
-// ============================================
-// END OF PART 5B/6
-// ============================================
-
-// ============================================
-// PART 6/6: Admin, Cron, Error Handler, Startup
-// ============================================
-
-// ============================================
-// ===== ADMIN MIDDLEWARE & HELPERS =====
-// ============================================
+// admin middleware & helpers
 const ADMIN_USERNAMES = ['asyrofc'];
 const ADMIN_USER_CODES = ['SRF2667442394'];
 
@@ -4841,9 +4540,7 @@ async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action
     );
 }
 
-// ============================================
-// ===== ADMIN STATS =====
-// ============================================
+// admin stats
 app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
         const [usersRes, ordersRes, depositsRes, balanceRes, pendingDepositsRes, pendingOrdersRes] = await Promise.all([
@@ -4871,9 +4568,7 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
     }
 }));
 
-// ============================================
-// ===== ADMIN PROFIT REPORT =====
-// ============================================
+// admin profit report
 app.get('/api/admin/profit', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const days = Math.min(365, Math.max(1, parseInt(req.query.days) || 30));
 
@@ -4930,9 +4625,7 @@ app.get('/api/admin/profit', requireAuth, requireAdminFlex, withDB(async (req, r
     }
 }));
 
-// ============================================
-// ===== ADMIN PRICE LOCK MONITOR =====
-// ============================================
+// admin price lock monitor
 app.get('/api/admin/price-locks', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const limit = Math.min(500, Math.max(1, parseInt(req.query.limit) || 100));
 
@@ -4971,9 +4664,7 @@ app.get('/api/admin/price-locks', requireAuth, requireAdminFlex, withDB(async (r
     }
 }));
 
-// ============================================
-// ===== ADMIN USERS LIST =====
-// ============================================
+// admin users list
 app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
     const search = String(req.query.search || '').trim().toLowerCase();
@@ -5043,9 +4734,7 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
     }
 }));
 
-// ============================================
-// ===== ADMIN USER DETAIL =====
-// ============================================
+// admin user detail
 app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     if (!userId) return res.status(400).json({ error: 'User ID wajib' });
@@ -5103,7 +4792,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                 [userId]
             ),
             pool.query(
-                `SELECT reference_id, method, amount, total_amount, unique_code, fee, status, 
+                `SELECT reference_id, method, amount, total_amount, fee, status, 
                         qris_url, paid_at, expires_at, created_at
                  FROM deposits WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
                 [userId]
@@ -5148,9 +4837,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
     }
 }));
 
-// ============================================
-// ===== ADMIN EDIT USER BALANCE =====
-// ============================================
+// admin edit user balance
 app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { mode, amount, note } = req.body;
@@ -5237,7 +4924,7 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
     }
 }));
 
-// ===== ADMIN ROLE / STATUS / RESET PASSWORD =====
+// admin role / status / reset password
 app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { role } = req.body;
@@ -5328,9 +5015,7 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, w
     }
 }));
 
-// ============================================
-// ===== ADMIN ORDERS LIST =====
-// ============================================
+// admin orders list
 app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
     const status = String(req.query.status || '').trim();
@@ -5413,7 +5098,7 @@ app.get('/api/admin/orders', requireAuth, requireAdminFlex, withDB(async (req, r
     }
 }));
 
-// ===== ADMIN ORDER DETAIL =====
+// admin order detail
 app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const orderId = String(req.params.orderId || '').trim();
 
@@ -5454,9 +5139,7 @@ app.get('/api/admin/order/:orderId', requireAuth, requireAdminFlex, withDB(async
     }
 }));
 
-// ============================================
-// ===== ADMIN UPDATE ORDER STATUS =====
-// ============================================
+// admin update order status
 const ALLOWED_ORDER_STATUSES = [
     'pending', 'success', 'received', 'confirmed',
     'cancelled', 'expired', 'failed', 'refunded'
@@ -5631,9 +5314,7 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
     }
 }));
 
-// ============================================
-// ===== ADMIN DEPOSITS LIST =====
-// ============================================
+// admin deposits list
 app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
     const status = String(req.query.status || '').trim();
@@ -5691,7 +5372,6 @@ app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req,
                 amount: Number(d.amount) || 0,
                 total_amount: Number(d.total_amount) || 0,
                 fee: Number(d.fee) || 0,
-                unique_code: d.unique_code ? Number(d.unique_code) : null,
             })),
             total,
             page,
@@ -5704,7 +5384,7 @@ app.get('/api/admin/deposits', requireAuth, requireAdminFlex, withDB(async (req,
     }
 }));
 
-// ===== ADMIN DEPOSIT DETAIL =====
+// admin deposit detail
 app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
 
@@ -5744,9 +5424,7 @@ app.get('/api/admin/deposit/:referenceId', requireAuth, requireAdminFlex, withDB
     }
 }));
 
-// ============================================
-// ===== ADMIN UPDATE DEPOSIT STATUS =====
-// ============================================
+// admin update deposit status
 const ALLOWED_DEPOSIT_STATUSES = ['pending', 'success', 'cancelled', 'expired', 'failed', 'refunded'];
 
 app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
@@ -5892,9 +5570,7 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
     }
 }));
 
-// ============================================
-// ===== ADMIN APPROVE DEPOSIT (legacy) =====
-// ============================================
+// admin approve deposit (legacy)
 app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
 
@@ -6017,9 +5693,7 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
     }
 }));
 
-// ============================================
-// ===== ADMIN AUDIT LOG =====
-// ============================================
+// admin audit log
 app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 50, 200);
 
@@ -6047,20 +5721,16 @@ app.get('/api/admin/audit-log', requireAuth, requireAdminFlex, withDB(async (req
     }
 }));
 
-// ============================================
-// ===== ADMIN SERVER BALANCE =====
-// ============================================
+// admin server balance
 app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
         const provider = String(req.query.provider || 'ekonomi').toLowerCase();
 
         if (provider === 'premium') {
-            // SMSCode v1: tidak ada endpoint balance publik di docs — pakai /balance
-            // Kalau SMSCode tidak menyediakan /balance, return not-supported
             const data = await premiumFetch('/balance');
             const balance = Number(data?.balance) || 0;
             return res.json({
-                provider: 'premium',
+                provider: 'server2',
                 currency: data?.currency || 'IDR',
                 balance,
                 raw: data,
@@ -6068,7 +5738,7 @@ app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async
         }
 
         const data = await dibananaFetch('/balance');
-        res.json({ provider: 'ekonomi', raw: data });
+        res.json({ provider: 'server1', raw: data });
     } catch (err) {
         const isClientErr = err.status && err.status >= 400 && err.status < 500;
         res.status(isClientErr ? err.status : 500).json({
@@ -6078,9 +5748,7 @@ app.get('/api/admin/server-balance', requireAuth, requireAdminFlex, withDB(async
     }
 }));
 
-// ============================================
-// ===== ADMIN TEST NOTIF =====
-// ============================================
+// admin test notif
 app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type = 'otp' } = req.body;
 
@@ -6143,7 +5811,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━━━\n` +
                 `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
-                `<u>• Server:</u> <b>Premium</b>\n` +
+                `<u>• Server:</u> <b>Server 2</b>\n` +
                 `<u>• Service:</u> <b>${escapeHtmlNotif(fakeOrder.service_name)}</b>\n` +
                 `<u>• Country:</u> <b>${escapeHtmlNotif(fakeOrder.country_name)}</b>\n` +
                 `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</b>\n` +
@@ -6164,7 +5832,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 `<u>• User:</u> <b>testuser</b>\n` +
                 `<u>• User Code:</u> <code>SRF0000000001</code>\n` +
                 `<u>• Reference:</u> <code>${escapeHtmlNotif(fakeRef)}</code>\n` +
-                `<u>• Method:</u> <b>qrispy</b>\n` +
+                `<u>• Method:</u> <b>QRIS Otomatis</b>\n` +
                 `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(10000)}</b>\n` +
                 `<u>• Total Bayar:</u> <b>${toRupiahNotif(10000)}</b>\n` +
                 `<u>• Fee:</u> <b>${toRupiahNotif(0)}</b>\n` +
@@ -6181,9 +5849,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
     }
 }));
 
-// ============================================
-// ===== ADMIN BACKFILL NOTIF =====
-// ============================================
+// admin backfill notif
 app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const {
         type = 'all',
@@ -6310,9 +5976,7 @@ app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(asy
     }
 }));
 
-// ============================================
-// ===== ADMIN RESET NOTIF =====
-// ============================================
+// admin reset notif
 app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type, key } = req.body;
 
@@ -6354,9 +6018,7 @@ app.post('/api/admin/reset-notif', requireAuth, requireAdminFlex, withDB(async (
     }
 }));
 
-// ============================================
-// ===== ADMIN WEBHOOK MONITOR =====
-// ============================================
+// admin webhook monitor
 app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 1));
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 100));
@@ -6520,9 +6182,7 @@ app.get('/api/admin/webhook-monitor', requireAuth, requireAdminFlex, withDB(asyn
     }
 }));
 
-// ============================================
-// ===== ADMIN KIRIM ULANG NOTIF ORDER =====
-// ============================================
+// admin kirim ulang notif order
 app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const otpId = String(req.params.otpId || '').trim();
     const forceResend = req.body?.force === true;
@@ -6586,9 +6246,7 @@ app.post('/api/admin/notif-order/:otpId', requireAuth, requireAdminFlex, withDB(
     }
 }));
 
-// ============================================
-// ===== ADMIN KIRIM ULANG NOTIF DEPOSIT =====
-// ============================================
+// admin kirim ulang notif deposit
 app.post('/api/admin/notif-deposit/:referenceId', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const referenceId = String(req.params.referenceId || '').trim();
     const forceResend = req.body?.force === true;
@@ -6662,9 +6320,7 @@ app.post('/api/admin/notif-deposit/:referenceId', requireAuth, requireAdminFlex,
     }
 }));
 
-// ============================================
-// ===== ADMIN BATCH KIRIM NOTIF =====
-// ============================================
+// admin batch kirim notif
 app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { type, ids } = req.body;
 
@@ -6744,9 +6400,7 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
     });
 }));
 
-// ============================================
-// ===== CRON ENDPOINTS =====
-// ============================================
+// cron endpoints
 app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
     try {
         const result = await pool.query(
@@ -6936,7 +6590,7 @@ app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) =
     }
 }));
 
-// ===== CRON AUTO SYNC ALL =====
+// cron auto sync all
 app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     try {
         await autoSyncAll();
@@ -6946,7 +6600,7 @@ app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     }
 }));
 
-// ===== CRON SYNC STATS =====
+// cron sync stats
 app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
     try {
         const [ordersPending, depositsPending, ordersNotified, depositsNotified] = await Promise.all([
@@ -6968,9 +6622,7 @@ app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
     }
 }));
 
-// ============================================
-// ===== GLOBAL ERROR HANDLER + 404 =====
-// ============================================
+// global error handler + 404
 app.use((err, req, res, next) => {
     const status = err?.status || 500;
     const safeErr = {
@@ -6991,14 +6643,12 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint tidak ditemukan' });
 });
 
-// ============================================
-// ===== STARTUP WARMUP + BACKGROUND AUTO SYNC =====
-// ============================================
+// startup warmup + background auto sync
 (async () => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready v17 (SERVER PREMIUM · SMSCode v1)');
+        console.log('🚀 Server ready v18 (depo1 only, qris dana removed)');
         console.log(`💰 Markup nokos: ${MARKUP_PERCENT * 100}% PURE (round to rupiah)`);
         console.log(`💰 Fee deposit: Rp${DEPOSIT_FEE_MIN}-${DEPOSIT_FEE_MAX}`);
         console.log(`🔒 Price lock: persistent (no TTL), max ${PRICE_LOCK_MAX_SIZE} entries`);
@@ -7017,7 +6667,7 @@ app.use((req, res) => {
     }
 })();
 
-// ===== CLEANUP INTERVAL =====
+// cleanup berkala
 setInterval(async () => {
     try {
         await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`);
