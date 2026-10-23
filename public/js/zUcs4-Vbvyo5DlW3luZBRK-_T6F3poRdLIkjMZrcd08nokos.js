@@ -107,9 +107,6 @@ var _cfg = {
     cekotp: '/api/cekotp',
     logout: '/api/auth/logout'
   },
-  // server 2 (premium) langsung smscode, bukan lewat backend
-  smscodeBase: 'https://api.smscode.gg/v1',
-  smscodeKey: 'da303966286507311b5f8260cd7ae743df424b57d4b66eb44fa66e0d036ebdcf',
   ttl: {
     user: 5 * 60 * 1000,
     servers: 10 * 60 * 1000,
@@ -182,9 +179,8 @@ function formatTanggal(iso) {
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// ── fetch helpers ────────────────────────────────────────────────
-// server 1 (ekonomi) → lewat backend, pakai user JWT
-function backendFetch(path, opts) {
+// fetch ke backend pakai user JWT
+function apiFetch(path, opts) {
   opts = opts || {};
   var headers = Object.assign({
     'Authorization': 'Bearer ' + token,
@@ -193,170 +189,6 @@ function backendFetch(path, opts) {
   return fetch(path, Object.assign({}, opts, { headers: headers }));
 }
 
-// server 2 (premium) → langsung smscode, pakai smscode api key
-async function smscodeFetch(path, opts) {
-  opts = opts || {};
-  var headers = Object.assign({
-    'Authorization': 'Bearer ' + _cfg.smscodeKey,
-    'Accept': 'application/json'
-  }, opts.headers || {});
-  var res = await fetch(_cfg.smscodeBase + path, Object.assign({}, opts, { headers: headers }));
-  if (!res.ok) {
-    var err = await res.json().catch(function () { return {}; });
-    var msg = (err.error && err.error.message) || ('smscode error ' + res.status);
-    throw new Error(msg);
-  }
-  return res;
-}
-
-// ── catalog fetchers (beda origin per server) ─────────────────────
-async function fetchServers() {
-  // server list statis dari backend, butuh user JWT
-  var res = await backendFetch(_cfg.ep.servers);
-  var data = await safeJson(res);
-  return data.servers || [];
-}
-
-async function fetchServices(server) {
-  if (server === 'premium') {
-    var res = await smscodeFetch('/catalog/services');
-    var data = await safeJson(res);
-    return (data.data || []).filter(function (s) { return s.active !== false; }).map(function (s) {
-      return { code: s.code, name: s.name, _id: s.id };
-    });
-  }
-  var res1 = await backendFetch(_cfg.ep.services + '?server=' + encodeURIComponent(server));
-  var d1 = await safeJson(res1);
-  return d1.services || [];
-}
-
-async function fetchCountries(server, service) {
-  if (server === 'premium') {
-    var res = await smscodeFetch('/catalog/countries');
-    var data = await safeJson(res);
-    return (data.data || []).filter(function (c) { return c.active !== false; }).map(function (c) {
-      return {
-        code: String(c.code || '').toLowerCase(),
-        name: c.name || c.code,
-        dial_code: c.dial_code || null,
-        emoji: c.emoji || null,
-        _id: c.id
-      };
-    });
-  }
-  var res1 = await backendFetch(
-    _cfg.ep.countries + '?server=' + encodeURIComponent(server) + '&service=' + encodeURIComponent(service)
-  );
-  var d1 = await safeJson(res1);
-  return d1.countries || [];
-}
-
-// untuk premium: fetch semua produk sekaligus (bisa dipakai bareng untuk harga semua negara)
-async function fetchAllPremiumProducts(service) {
-  // 1. resolve service code → id
-  var sRes = await smscodeFetch('/catalog/services');
-  var sData = await safeJson(sRes);
-  var serviceObj = (sData.data || []).find(function (s) {
-    return String(s.code || '').toLowerCase() === String(service).toLowerCase();
-  });
-  if (!serviceObj) return { serviceId: null, products: [], countryMap: {} };
-
-  // 2. resolve semua country code → id
-  var cRes = await smscodeFetch('/catalog/countries');
-  var cData = await safeJson(cRes);
-  var countryMap = {};
-  (cData.data || []).forEach(function (c) {
-    if (c.active === false) return;
-    countryMap[String(c.code || '').toLowerCase()] = {
-      id: c.id,
-      code: String(c.code || '').toLowerCase(),
-      name: c.name || c.code
-    };
-  });
-
-  // 3. fetch SEMUA produk untuk service ini (sekali request, limit max)
-  //    /catalog/products?platform_id=X&limit=10000
-  var pRes = await smscodeFetch(
-    '/catalog/products?platform_id=' + serviceObj.id + '&limit=10000&page=1&sort=price_asc'
-  );
-  var pData = await safeJson(pRes);
-  var products = (pData.data || []).filter(function (p) { return p.active !== false; });
-
-  return { serviceId: serviceObj.id, products: products, countryMap: countryMap };
-}
-
-// untuk premium: dari products list, group per country, ambil min price
-function groupProductsByCountry(products, countryMap) {
-  // countryMap: { code → { id, code, name } }
-  // products: [{ id, country_id, price, available, ... }]
-  var idToCode = {};
-  Object.keys(countryMap).forEach(function (code) {
-    idToCode[countryMap[code].id] = code;
-  });
-  var grouped = {};
-  products.forEach(function (p) {
-    var code = idToCode[p.country_id];
-    if (!code) return;
-    if (!grouped[code]) grouped[code] = [];
-    grouped[code].push(p);
-  });
-  return grouped;
-}
-
-async function fetchPrices(server, service, country) {
-  if (server === 'premium') {
-    // langsung smscode: butuh country_id + platform_id
-    var cRes = await smscodeFetch('/catalog/countries');
-    var cData = await safeJson(cRes);
-    var countryObj = (cData.data || []).find(function (c) {
-      return String(c.code || '').toLowerCase() === String(country).toLowerCase();
-    });
-    if (!countryObj) return { providers: [] };
-
-    var sRes = await smscodeFetch('/catalog/services');
-    var sData = await safeJson(sRes);
-    var serviceObj = (sData.data || []).find(function (s) {
-      return String(s.code || '').toLowerCase() === String(service).toLowerCase();
-    });
-    if (!serviceObj) return { providers: [] };
-
-    var prodRes = await smscodeFetch(
-      '/catalog/products?country_id=' + countryObj.id +
-      '&platform_id=' + serviceObj.id +
-      '&limit=500&page=1&sort=price_asc'
-    );
-    var prodData = await safeJson(prodRes);
-    var products = (prodData.data || []).filter(function (p) { return p.active !== false; });
-
-    var providers = products.map(function (p) {
-      return {
-        id: String(p.id),
-        provider_id: String(p.id),
-        product_id: String(p.id),
-        catalog_product_id: p.catalog_product_id,
-        operator_id: p.operator_id,
-        operator_name: p.operator_name,
-        name: p.name,
-        available: p.available || 0,
-        stock: p.available || 0,
-        active: p.active !== false,
-        price_idr: p.price
-      };
-    });
-
-    return { providers: providers };
-  }
-
-  var res1 = await backendFetch(
-    _cfg.ep.prices + '?server=' + encodeURIComponent(server) +
-    '&service=' + encodeURIComponent(service) +
-    '&country=' + encodeURIComponent(country)
-  );
-  var d1 = await safeJson(res1);
-  return d1;
-}
-
-// ── copy randomization ──────────────────────────────────────────
 var _copy = {
   pageSubtitle: [
     'Nomor OTP langsung, kode OTP muncul sendiri',
@@ -431,7 +263,6 @@ var activeState = {
 
 var ORDER_ID_MAP = new Map();
 var PROVIDER_RAW_MAP = new Map();
-var COUNTRY_MIN_PRICE = new Map();
 
 var servicesCache = [];
 var autoSyncInterval = null;
@@ -726,7 +557,7 @@ async function loadProfile(force) {
     if (cached) renderUser(cached);
   }
   try {
-    var res = await backendFetch(_cfg.ep.user);
+    var res = await apiFetch(_cfg.ep.user);
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     var user = await safeJson(res);
     if (user && !user.error) {
@@ -752,8 +583,8 @@ function renderUser(user) {
 
 async function fetchActiveOrders() {
   var responses = await Promise.all([
-    backendFetch(_cfg.ep.orders + '?status=pending&limit=50'),
-    backendFetch(_cfg.ep.orders + '?status=success&limit=20')
+    apiFetch(_cfg.ep.orders + '?status=pending&limit=50'),
+    apiFetch(_cfg.ep.orders + '?status=success&limit=20')
   ]);
   var pRaw = await safeJson(responses[0]);
   var sRaw = await safeJson(responses[1]);
@@ -1309,8 +1140,7 @@ function goToStep(step) {
   }
 }
 
-// ── STEP 1: Server ───────────────────────────────────────────────
-// server list statis di backend → tetap user token
+// STEP 1: server list (dari backend)
 async function renderServerStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML = '<div class="loading-block"><span class="spinner"></span><span>Memuat server...</span></div>';
@@ -1318,7 +1148,9 @@ async function renderServerStep() {
   var cached = await Cache.get('servers', _cfg.ttl.servers);
   if (cached && cached.length > 0) renderServers(cached);
   try {
-    var servers = await fetchServers();
+    var res = await apiFetch(_cfg.ep.servers);
+    var data = await safeJson(res);
+    var servers = data.servers || [];
     if (servers.length > 0) await Cache.set('servers', servers);
     renderServers(servers);
   } catch (err) {
@@ -1358,15 +1190,13 @@ function renderServers(servers) {
       state.requiresOperator = card.dataset.operator === 'true';
       state.service = null;
       state.country = null;
-      COUNTRY_MIN_PRICE.clear();
       goToStep(2);
     });
   });
   adjustSheetHeight();
 }
 
-// ── STEP 2: Aplikasi ─────────────────────────────────────────────
-// server 1 → backend /services · server 2 → smscode /catalog/services
+// STEP 2: aplikasi (dari backend, server 1 dan server 2 sama)
 async function renderAppStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1388,7 +1218,9 @@ async function renderAppStep() {
     renderApps(servicesCache);
   }
   try {
-    servicesCache = await fetchServices(state.server);
+    var res = await apiFetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server));
+    var data = await safeJson(res);
+    servicesCache = data.services || [];
     if (servicesCache.length > 0) await Cache.set(ck, servicesCache);
     renderApps(servicesCache);
     var search = document.getElementById('appSearch');
@@ -1436,16 +1268,13 @@ function renderApps(services) {
       state.serviceName = btn.dataset.name;
       state.country = null;
       state.operator = 'any';
-      COUNTRY_MIN_PRICE.clear();
       goToStep(3);
     });
   });
   adjustSheetHeight();
 }
 
-// ── STEP 3: Negara ───────────────────────────────────────────────
-// server 1 → backend /countries (sudah include info)
-// server 2 → smscode /catalog/countries + fetch SEMUA harga barengan (1x /catalog/products?platform_id=X)
+// STEP 3: negara (dari backend)
 async function renderCountryStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1470,13 +1299,14 @@ async function renderCountryStep() {
   var ck = 'countries_' + state.server + '_' + state.service;
   var cached = await Cache.get(ck, _cfg.ttl.countries);
   if (cached && cached.length > 0) renderCountries(cached);
-
   try {
-    var countries = await fetchCountries(state.server, state.service);
+    var res = await apiFetch(
+      _cfg.ep.countries + '?server=' + encodeURIComponent(state.server) + '&service=' + encodeURIComponent(state.service)
+    );
+    var data = await safeJson(res);
+    var countries = data.countries || [];
     if (countries.length > 0) await Cache.set(ck, countries);
     renderCountries(countries);
-
-    // search listener
     var search = document.getElementById('countrySearch');
     if (search) {
       search.addEventListener('input', function (e) {
@@ -1487,12 +1317,6 @@ async function renderCountryStep() {
         renderCountries(f);
       });
     }
-
-    // ── premium: fetch SEMUA produk (1 request) → group per country → isi COUNTRY_MIN_PRICE
-    if (state.server === 'premium') {
-      // tampilkan loading dulu di tiap card yang belum punya price
-      loadPremiumAllPrices(state.service, countries, ck);
-    }
   } catch (err) {
     if (!cached) {
       var c = document.getElementById('countryContent');
@@ -1501,70 +1325,6 @@ async function renderCountryStep() {
         adjustSheetHeight();
       }
     }
-  }
-}
-
-// server 2: 1 request ke /catalog/products?platform_id=X → group per country → min price
-// hasilnya langsung isi COUNTRY_MIN_PRICE, render ulang country list
-async function loadPremiumAllPrices(service, countries, ck) {
-  try {
-    // resolve service id + country id map
-    var svcListRes = await smscodeFetch('/catalog/services');
-    var svcList = await safeJson(svcListRes);
-    var svcObj = (svcList.data || []).find(function (s) {
-      return String(s.code || '').toLowerCase() === String(service).toLowerCase();
-    });
-    if (!svcObj) return;
-
-    var cListRes = await smscodeFetch('/catalog/countries');
-    var cList = await safeJson(cListRes);
-    var codeById = {};
-    (cList.data || []).forEach(function (c) {
-      codeById[c.id] = String(c.code || '').toLowerCase();
-    });
-
-    // 1 request ambil semua produk untuk service ini (limit max 10000)
-    var prodRes = await smscodeFetch(
-      '/catalog/products?platform_id=' + svcObj.id + '&limit=10000&page=1&sort=price_asc'
-    );
-    var prodData = await safeJson(prodRes);
-    var products = (prodData.data || []).filter(function (p) { return p.active !== false; });
-
-    // group per country: country_id → min price
-    var grouped = {};
-    products.forEach(function (p) {
-      var code = codeById[p.country_id];
-      if (!code) return;
-      var price = Number(p.price) || Infinity;
-      if (!grouped[code] || price < grouped[code]) grouped[code] = price;
-    });
-
-    // isi COUNTRY_MIN_PRICE
-    Object.keys(grouped).forEach(function (code) {
-      COUNTRY_MIN_PRICE.set(code, grouped[code]);
-    });
-
-    // tambahkan code yang tidak punya produk → 0 (stok habis)
-    countries.forEach(function (co) {
-      var code = String(co.code || '').toLowerCase();
-      if (COUNTRY_MIN_PRICE.get(code) === undefined) COUNTRY_MIN_PRICE.set(code, 0);
-    });
-
-    // render ulang dengan min price
-    renderCountries(countries);
-
-    // cache per-country biar step 4 bisa langsung
-    // simpan ringkasan min price ke cache country (bukan per price, cukup utk step 3)
-    try {
-      var enriched = countries.map(function (co) {
-        var code = String(co.code || '').toLowerCase();
-        var minP = COUNTRY_MIN_PRICE.get(code);
-        return Object.assign({}, co, { _min_price: minP });
-      });
-      await Cache.set(ck, enriched);
-    } catch (e) {}
-  } catch (err) {
-    console.warn('premium price fetch error:', err.message);
   }
 }
 
@@ -1579,26 +1339,17 @@ function renderCountries(countries) {
   c.innerHTML =
     '<div class="country-list">' +
       countries.map(function (co) {
-        var code = String(co.code || '').toLowerCase();
-        var minP = COUNTRY_MIN_PRICE.get(code);
-        var meta = 'Kode: ' + escapeHtml((co.code || '').toUpperCase());
-        if (minP !== undefined && minP > 0) {
-          meta = 'Mulai ' + formatRupiah(minP) + ' · ' + escapeHtml((co.code || '').toUpperCase());
-        } else if (minP === 0) {
-          meta = 'Stok habis';
-        }
-        return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '"' + (minP === 0 ? ' disabled style="opacity:.5;cursor:not-allowed"' : '') + '>' +
+        return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '">' +
           '<div class="country-flag">' + renderFlag(co.code) + '</div>' +
           '<div class="country-info">' +
             '<div class="country-name">' + escapeHtml(co.name) + '</div>' +
-            '<div class="country-meta">' + meta + '</div>' +
+            '<div class="country-meta">Kode: ' + escapeHtml((co.code || '').toUpperCase()) + '</div>' +
           '</div>' +
           '<div class="country-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>' +
         '</button>';
       }).join('') +
     '</div>';
   c.querySelectorAll('.country-item').forEach(function (item) {
-    if (item.disabled) return;
     item.addEventListener('click', function () {
       state.country = item.dataset.country;
       state.countryName = item.dataset.name;
@@ -1612,9 +1363,7 @@ function renderCountries(countries) {
   adjustSheetHeight();
 }
 
-// ── STEP 4: Harga ────────────────────────────────────────────────
-// server 1 → backend /prices
-// server 2 → smscode /catalog/products?country_id=X&platform_id=Y
+// STEP 4: harga (dari backend)
 async function renderPriceStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1652,7 +1401,12 @@ async function renderPriceStep() {
     renderPrices(state.providers);
   }
   try {
-    var data = await fetchPrices(state.server, state.service, state.country);
+    var res = await apiFetch(
+      _cfg.ep.prices + '?server=' + encodeURIComponent(state.server) +
+      '&service=' + encodeURIComponent(state.service) +
+      '&country=' + encodeURIComponent(state.country)
+    );
+    var data = await safeJson(res);
     var raw = data.providers || [];
     PROVIDER_RAW_MAP.clear();
     raw.forEach(function (p) {
@@ -1661,10 +1415,8 @@ async function renderPriceStep() {
         PROVIDER_RAW_MAP.set(pid, {
           id: p.id,
           provider_id: p.provider_id,
-          provider_price: p.price_idr,
-          price: p.price_idr,
-          catalog_product_id: p.catalog_product_id,
-          operator_id: p.operator_id
+          provider_price: p.provider_price,
+          price: p.price
         });
       }
     });
@@ -1744,10 +1496,6 @@ async function confirmPurchase(pid, priceData, btn) {
   placeOrder(pid, priceData, btn);
 }
 
-// ── CREATE ORDER ─────────────────────────────────────────────────
-// selalu lewat backend /api/nokos/order (deduct saldo + reCAPTCHA).
-// server 2 kirim catalog_product_id + max_price (backend route ke smscode).
-// server 1 kirim id = product id dibanana.
 async function placeOrder(pid, priceData, btn) {
   var orig = btn.innerHTML;
   btn.disabled = true;
@@ -1756,18 +1504,14 @@ async function placeOrder(pid, priceData, btn) {
     var raw = PROVIDER_RAW_MAP.get(pid) || {};
     var expected = Number(priceData.price_idr || priceData.price || 0);
     var body = {
-      server: state.server,
-      service: state.service,
-      country: state.country,
-      service_name: state.serviceName,
-      country_flag: state.country,
+      server: state.server, service: state.service, country: state.country,
+      service_name: state.serviceName, country_flag: state.country,
       expected_price: expected
     };
-    if (state.server === 'premium') {
-      // smscode: kirim catalog_product_id + max_price (harga cap = harga yang user lihat)
-      body.catalog_product_id = raw.catalog_product_id;
-      body.max_price = expected;
-      if (raw.operator_id) body.operator_id = raw.operator_id;
+    if (state.requiresOperator) {
+      body.provider_id = raw.provider_id || raw.id;
+      body.provider_price = raw.provider_price || raw.price;
+      body.operator = state.operator || 'any';
     } else {
       body.id = raw.id || pid;
     }
@@ -1812,12 +1556,11 @@ document.addEventListener('keydown', function (e) {
 
 async function handleLogout() {
   try {
-    await backendFetch(_cfg.ep.logout, { method: 'POST' });
+    await apiFetch(_cfg.ep.logout, { method: 'POST' });
   } catch (e) {}
   Cache.clear();
   ORDER_ID_MAP.clear();
   PROVIDER_RAW_MAP.clear();
-  COUNTRY_MIN_PRICE.clear();
   try {
     localStorage.removeItem('access_token');
     localStorage.removeItem('user');
