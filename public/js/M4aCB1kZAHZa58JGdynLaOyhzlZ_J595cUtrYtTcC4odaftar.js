@@ -1,7 +1,3 @@
-/* ============================================================
-   DAFTAR.JS — All-in-one: crypto + cache + API + form
-   F12 dibolehkan. Security via crypto + cache, bukan lock screen.
-   ============================================================ */
 (function (global) {
   'use strict';
 
@@ -74,7 +70,7 @@
   })();
 
   /* ============================================================
-     §2 — API CACHE (memory + persistent + dedupe + negative)
+     §2 — API CACHE
      ============================================================ */
   const _api = (() => {
     const P = 'aotp_c_';
@@ -180,7 +176,7 @@
   };
 
   /* ============================================================
-     §4 — DEVICE DETECTION
+     §4 — DEVICE
      ============================================================ */
   const _dev = (() => {
     const mq = (q) => window.matchMedia(q).matches;
@@ -198,16 +194,14 @@
   }
 
   /* ============================================================
-     §5 — ANTI-BYPASS (minimal, F12 dibolehkan)
+     §5 — CONSOLE WARNING
      ============================================================ */
   (function () {
-    // Console warning
     try {
       console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
       console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
     } catch (e) {}
 
-    // Block copy/cut di luar input
     document.addEventListener('copy', (e) => {
       const t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
@@ -219,7 +213,6 @@
       e.preventDefault();
     });
 
-    // Clean URL
     try {
       const clean = location.origin + location.pathname;
       if (location.search) history.replaceState(null, '', clean);
@@ -253,23 +246,45 @@
   })();
 
   /* ============================================================
-     §7 — THEME
+     §7 — THEME (light -> dark -> system)
      ============================================================ */
   (function () {
     const btn = document.getElementById('themeBtn');
     if (!btn) return;
-    btn.addEventListener('click', () => {
-      const cur = document.documentElement.getAttribute('data-theme') || 'light';
-      const nx = cur === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', nx);
-      try { localStorage.setItem('asyrofotp_theme', nx); } catch (e) {}
+
+    const root = document.documentElement;
+    const mq = global.matchMedia ? global.matchMedia('(prefers-color-scheme: dark)') : null;
+
+    const resolve = (p) => p === 'system' ? (mq && mq.matches ? 'dark' : 'light') : p;
+    const paintMeta = (t) => {
       const m = document.querySelector('meta[name="theme-color"]');
-      if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
+      if (m) m.setAttribute('content', t === 'dark' ? '#0a0b0d' : '#0a84ff');
+    };
+    const setPref = (p, save) => {
+      root.setAttribute('data-theme-pref', p);
+      const r = resolve(p);
+      root.setAttribute('data-theme', r);
+      paintMeta(r);
+      if (save) { try { localStorage.setItem('asyrofotp_theme_pref', p); } catch (e) {} }
+    };
+
+    btn.addEventListener('click', () => {
+      const cur = root.getAttribute('data-theme-pref') || 'system';
+      const next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
+      setPref(next, true);
     });
+
+    if (mq) {
+      const onChange = () => {
+        if (root.getAttribute('data-theme-pref') === 'system') setPref('system', false);
+      };
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
   })();
 
   /* ============================================================
-     §8 — RECAPTCHA
+     §8 — RECAPTCHA WAIT
      ============================================================ */
   function _waitRecap() {
     return new Promise((resolve) => {
@@ -478,7 +493,7 @@
   }
 
   /* ============================================================
-     §15 — CHECK USERNAME (cached + deduped)
+     §15 — CHECK USERNAME
      ============================================================ */
   async function checkUser(name) {
     if (userState.ac) userState.ac.abort();
@@ -682,7 +697,6 @@
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Registrasi gagal');
 
-      // Invalidate cache username ini biar gak available lagi
       _api.invalidate('chk:' + username.toLowerCase());
 
       updateSteps(6);
