@@ -4977,20 +4977,31 @@ app.get('/api/admin/price-locks', requireAuth, requireAdminFlex, withDB(async (r
 app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { page, limit, offset } = parsePagination(req, 20, 100);
     const search = String(req.query.search || '').trim().toLowerCase();
+    const requestedStatus = String(req.query.status || '').trim().toLowerCase();
+    const requestedRole = String(req.query.role || '').trim().toLowerCase();
 
     try {
         const params = [];
-        let where = '';
+        const filters = [];
 
         if (search) {
             params.push(`%${search}%`);
-            where = `WHERE (
-                LOWER(username) LIKE $1 OR
-                LOWER(COALESCE(name, '')) LIKE $1 OR
-                LOWER(COALESCE(user_code, '')) LIKE $1 OR
-                CAST(id AS TEXT) LIKE $1
-            )`;
+            filters.push(`(
+                LOWER(u.username) LIKE $1 OR
+                LOWER(COALESCE(u.name, '')) LIKE $1 OR
+                LOWER(COALESCE(u.user_code, '')) LIKE $1 OR
+                CAST(u.id AS TEXT) LIKE $1
+            )`);
         }
+        if (['active', 'banned'].includes(requestedStatus)) {
+            params.push(requestedStatus);
+            filters.push(`u.status = $${params.length}`);
+        }
+        if (['user', 'admin'].includes(requestedRole)) {
+            params.push(requestedRole);
+            filters.push(`u.role = $${params.length}`);
+        }
+        const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
 
         const listQuery = `
             SELECT 
@@ -5009,7 +5020,7 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
             LIMIT $${params.length + 1} OFFSET $${params.length + 2}
         `;
 
-        const countQuery = `SELECT COUNT(*) AS c FROM users ${where}`;
+        const countQuery = `SELECT COUNT(*) AS c FROM users u ${where}`;
 
         const [listRes, countRes] = await Promise.all([
             pool.query(listQuery, [...params, limit, offset]),
@@ -7027,3 +7038,4 @@ setInterval(async () => {
 }, 60 * 60 * 1000);
 
 module.exports = app;
+
