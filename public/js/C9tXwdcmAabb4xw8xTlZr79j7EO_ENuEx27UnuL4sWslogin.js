@@ -52,6 +52,7 @@ try{localStorage.setItem(STORE_KEY,_enc(JSON.stringify(obj)));return true}catch(
 function _patch(p){return _write(Object.assign({},_read()||{},p))}
 function _clear(){try{localStorage.removeItem(STORE_KEY)}catch(e){}}
 
+// redirect kalau sudah login
 (function(){
 var tk=null;
 try{tk=localStorage.getItem('access_token')}catch(e){}
@@ -73,6 +74,7 @@ localStorage.removeItem('refresh_token');
 .catch(function(){clearTimeout(timer)});
 })();
 
+// theme: light -> dark -> system
 (function(){
 var b=_c('#themeBtn');
 if(!b)return;
