@@ -7,7 +7,7 @@
   "redirects": [
     { "source": "/", "destination": "/landing", "permanent": false },
     { "source": "/y38A7aoen7eQSP8FabEBuu0JxjlHBRVtlKF6FfpKK4Elanding.html", "destination": "/landing", "permanent": true },
-    { "source": "/login.html", "destination": "/login", "permanent": true },
+    { "source": "/eUBaNwZun8QPhphV9xE7X_REtQpYRp4wwrOdMb8LBgQlogin.html", "destination": "/login", "permanent": true },
     { "source": "/admin.html", "destination": "/admin", "permanent": true },
     { "source": "/daftar.html", "destination": "/daftar", "permanent": true },
     { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true },
@@ -21,7 +21,7 @@
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
     { "source": "/landing", "destination": "public/y38A7aoen7eQSP8FabEBuu0JxjlHBRVtlKF6FfpKK4Elanding.html" },
-    { "source": "/login", "destination": "/public/login.html" },
+    { "source": "/login", "destination": "/public/eUBaNwZun8QPhphV9xE7X_REtQpYRp4wwrOdMb8LBgQlogin.html" },
     { "source": "/admin", "destination": "/public/admin.html" },
     { "source": "/daftar", "destination": "/public/daftar.html" },
     { "source": "/dashboard", "destination": "/public/dashboard.html" },
