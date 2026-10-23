@@ -1,0 +1,1683 @@
+(function (global) {
+'use strict';
+
+// AES-GCM. fallback null kalau subtle crypto gak ada
+var _crypto = (function () {
+  var _k = 'bm9rb3Mtc2VjcmV0LWtleS0yMDI2LWFzeXJvZg==';
+  var _s = 'c2FsdC1ub2tvcy12MjAyNi1zZWN1cmU=';
+  var _i = 100000;
+  var _dk = null;
+
+  async function _derive() {
+    if (_dk) return _dk;
+    var enc = new TextEncoder();
+    var base = await crypto.subtle.importKey('raw', enc.encode(atob(_k)), { name: 'PBKDF2' }, false, ['deriveKey']);
+    _dk = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: enc.encode(atob(_s)), iterations: _i, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
+    return _dk;
+  }
+  function _b2buf(b64) {
+    var bin = atob(b64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u.buffer;
+  }
+  function _buf2b(buf) {
+    var b = new Uint8Array(buf), s = '';
+    for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+    return btoa(s);
+  }
+  async function seal(obj) {
+    try {
+      var key = await _derive();
+      var iv = crypto.getRandomValues(new Uint8Array(12));
+      var c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+      var comb = new Uint8Array(iv.length + c.byteLength);
+      comb.set(iv, 0);
+      comb.set(new Uint8Array(c), iv.length);
+      return _buf2b(comb.buffer);
+    } catch (e) { return null; }
+  }
+  async function unseal(b64) {
+    try {
+      var key = await _derive();
+      var buf = _b2buf(b64);
+      var iv = buf.slice(0, 12);
+      var data = buf.slice(12);
+      var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, data);
+      return JSON.parse(new TextDecoder().decode(plain));
+    } catch (e) { return null; }
+  }
+  return { seal: seal, unseal: unseal };
+})();
+
+// cache dua lapis: memori + storage terenkripsi
+var Cache = (function () {
+  var P = 'aotp_n_';
+  var _mem = new Map();
+  async function get(key, ttl) {
+    if (_mem.has(key)) {
+      var e = _mem.get(key);
+      if (!ttl || Date.now() - e.t < ttl) return e.v;
+      _mem.delete(key);
+    }
+    try {
+      var raw = localStorage.getItem(P + key);
+      if (!raw) return null;
+      var e2 = await _crypto.unseal(raw);
+      if (!e2) return null;
+      if (ttl && Date.now() - e2.t > ttl) { localStorage.removeItem(P + key); return null; }
+      _mem.set(key, e2);
+      return e2.v;
+    } catch (err) { return null; }
+  }
+  async function set(key, v) {
+    var e = { t: Date.now(), v: v };
+    _mem.set(key, e);
+    try {
+      var s = await _crypto.seal(e);
+      if (s) localStorage.setItem(P + key, s);
+    } catch (err) {}
+  }
+  function remove(key) {
+    _mem.delete(key);
+    try { localStorage.removeItem(P + key); } catch (e) {}
+  }
+  function clear() {
+    _mem.clear();
+    try {
+      Object.keys(localStorage).forEach(function (k) {
+        if (k.indexOf(P) === 0) localStorage.removeItem(k);
+      });
+    } catch (e) {}
+  }
+  return { get: get, set: set, remove: remove, clear: clear };
+})();
+
+var _cfg = {
+  rk: '6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg',
+  ep: {
+    user: '/api/user',
+    servers: '/api/nokos/servers',
+    services: '/api/nokos/services',
+    countries: '/api/nokos/countries',
+    prices: '/api/nokos/prices',
+    orders: '/api/nokos/orders',
+    order: '/api/nokos/order',
+    cekotp: '/api/cekotp',
+    logout: '/api/auth/logout'
+  },
+  ttl: {
+    user: 5 * 60 * 1000,
+    servers: 10 * 60 * 1000,
+    services: 10 * 60 * 1000,
+    countries: 10 * 60 * 1000,
+    prices: 2 * 60 * 1000,
+    orders: 30 * 1000
+  },
+  autoSync: 5000,
+  otpCheck: 10000,
+  profileSync: 30000,
+  activeLimit: 2
+};
+
+// deteksi device
+var _dev = (function () {
+  function mq(q) { return window.matchMedia(q).matches; }
+  var hc = navigator.hardwareConcurrency || 4;
+  var conn = navigator.connection || {};
+  return {
+    mobile: mq('(max-width: 768px)'),
+    lowEnd: hc <= 4 || conn.saveData || /2g|slow-2g/.test(conn.effectiveType || ''),
+    reduced: mq('(prefers-reduced-motion: reduce)')
+  };
+})();
+if (_dev.reduced || _dev.lowEnd) {
+  document.documentElement.setAttribute('data-perf', 'lite');
+}
+
+// security nudge + strip query
+(function () {
+  try {
+    console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
+    console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
+  } catch (e) {}
+  document.addEventListener('copy', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (t && t.closest && t.closest('[data-copy]')) return;
+    e.preventDefault();
+  });
+  document.addEventListener('cut', function (e) {
+    var t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+  });
+  try {
+    var clean = location.origin + location.pathname;
+    if (location.search) history.replaceState(null, '', clean);
+  } catch (e) {}
+})();
+
+var token = localStorage.getItem('access_token');
+if (!token) { location.href = '/login'; return; }
+
+function safeJson(res) { return res.json().catch(function () { return {}; }); }
+function formatRupiah(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
+function getInitial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
+function escapeHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, function (ch) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+  });
+}
+function formatTanggal(iso) {
+  if (!iso) return '—';
+  try {
+    return new Date(iso).toLocaleString('id-ID', {
+      day: '2-digit', month: 'short', year: '2-digit',
+      hour: '2-digit', minute: '2-digit'
+    });
+  } catch (e) { return '—'; }
+}
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// copy random per sesi biar gak keliatan template
+var _copy = {
+  pageSubtitle: [
+    'Nomor OTP langsung, kode OTP muncul sendiri',
+    'Verifikasi akun tanpa ribet, OTP masuk otomatis',
+    'Nokos ready 24 jam, refund otomatis kalau gagal',
+    'Beli nomor, tunggu OTP, selesai. Gampang kan?',
+    'Pilih server, aplikasi, negara. OTP langsung nongol'
+  ],
+  heroTitle: [
+    'Beli Nokos', 'Gas Order Nokos', 'Pilih Nomor Kamu',
+    'Mulai Beli Nokos', 'Nokos Ready 24 Jam'
+  ],
+  heroDesc: [
+    'Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri. Expired 15 menit, auto refund kalau kode ga masuk.',
+    'Dapetin nomor virtual buat verifikasi akun. Cepet, murah, otomatis. Kalau gagal, saldo balik penuh.',
+    'Verifikasi akun tanpa ribet. Nokos ready 24 jam, refund otomatis kalau kode ga masuk dalam 15 menit.',
+    'Beli nomor OTP dalam hitungan detik. OTP langsung masuk inbox kamu. Auto refund kalau gagal.',
+    'Butuh nomor buat verifikasi? Semua ada di sini. Pilih server, aplikasi, negara — langsung order.'
+  ],
+  sectionActive: [
+    'Pesanan Aktif', 'Order Kamu Sekarang',
+    'Aktivitas Terkini', 'Pesanan Berjalan'
+  ],
+  ctaText: [
+    'Pesan Nomor Sekarang', 'Beli Nokos Sekarang',
+    'Gas Order', 'Mulai Beli', 'Pilih Nomor'
+  ],
+  sheetStep1: ['Mau pakai server yang mana?', 'Pilih server dulu ya', 'Server mana yang cocok?'],
+  sheetStep2: ['Mau beli nomor untuk aplikasi apa?', 'Pilih aplikasi target', 'Aplikasi apa nih?'],
+  sheetStep3: ['Mau nomor dari negara mana?', 'Pilih negara', 'Negara mana yang kamu mau?'],
+  sheetStep4: ['Pilih harga yang sesuai', 'Pilih opsi harga', 'Harga mana yang cocok?']
+};
+
+function randomizeCopy() {
+  var ps = document.getElementById('pageSubtitle');
+  if (ps) ps.textContent = pick(_copy.pageSubtitle);
+  var ht = document.getElementById('heroTitle');
+  if (ht) ht.textContent = pick(_copy.heroTitle);
+  var hd = document.getElementById('heroDesc');
+  if (hd) hd.textContent = pick(_copy.heroDesc);
+  var sat = document.getElementById('sectionActiveTitle');
+  if (sat) sat.textContent = pick(_copy.sectionActive);
+  var ct = document.getElementById('ctaText');
+  if (ct) ct.textContent = pick(_copy.ctaText);
+}
+
+var ICONS = {
+  check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  close: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  info: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+  warning: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  server: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
+  copy: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+  clock: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  refresh: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
+  key: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>',
+  checkCircle: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  ban: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+  phone: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+};
+
+// state form (wizard step 1-4)
+var state = {
+  step: 1, server: null, serverLabel: null, requiresOperator: false,
+  service: null, serviceName: null, country: null, countryName: null,
+  operator: 'any', providers: [], filter: 'sukses'
+};
+
+var activeState = {
+  page: 1, limit: _cfg.activeLimit, totalPages: 1, allOrders: [],
+  countdownIntervals: {}, hasRenderedOnce: false, initialLoadDone: false
+};
+
+var ORDER_ID_MAP = new Map();
+var PROVIDER_RAW_MAP = new Map();
+
+// cache country → harga termurah (khusus premium, biar country list bisa nunjukin "mulai Rp X")
+var COUNTRY_MIN_PRICE = new Map();
+
+var servicesCache = [];
+var autoSyncInterval = null;
+var otpCheckInterval = null;
+var profileSyncInterval = null;
+var _loadActiveAbort = null;
+var _loadActiveInFlight = false;
+
+var ALLOWED_ORDER_FIELDS = new Set([
+  'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
+  'price_idr', 'price', 'service', 'service_name',
+  'country', 'country_name', 'country_flag', 'operator', 'server',
+  'expires_in', 'expired_at', 'created_at', 'updated_at',
+  'received_at', 'refunded_at', 'refunded_amount', '_bucket'
+]);
+var ALLOWED_PROVIDER_FIELDS = new Set([
+  'id', 'provider_id', 'provider_price', 'price_idr', 'price',
+  'stock', 'available', 'active', 'name', 'operator',
+  'product_id', 'catalog_product_id', 'operator_id', 'operator_name'
+]);
+function sanitizeOrder(order) {
+  if (!order || typeof order !== 'object') return order;
+  var clean = {};
+  for (var key of Object.keys(order)) {
+    if (ALLOWED_ORDER_FIELDS.has(key)) clean[key] = order[key];
+  }
+  return clean;
+}
+function sanitizeProvider(provider) {
+  if (!provider || typeof provider !== 'object') return provider;
+  var clean = {};
+  for (var key of Object.keys(provider)) {
+    if (ALLOWED_PROVIDER_FIELDS.has(key)) clean[key] = provider[key];
+  }
+  return clean;
+}
+
+function getServiceDisplayName(order) {
+  return String(order && (order.service_name || order.service) || 'Layanan OTP').trim();
+}
+
+var COUNTRY_NAMES = {
+  id: 'Indonesia', ru: 'Rusia', us: 'Amerika Serikat', my: 'Malaysia', vn: 'Vietnam',
+  ph: 'Filipina', th: 'Thailand', sg: 'Singapura', in: 'India', cn: 'Tiongkok',
+  jp: 'Jepang', kr: 'Korea Selatan', uk: 'Britania Raya', gb: 'Britania Raya',
+  de: 'Jerman', fr: 'Prancis', br: 'Brasil', ng: 'Nigeria', pk: 'Pakistan',
+  bd: 'Bangladesh', tr: 'Turki', es: 'Spanyol', it: 'Italia', nl: 'Belanda',
+  au: 'Australia', ca: 'Kanada', mx: 'Meksiko', ar: 'Argentina', za: 'Afrika Selatan',
+  sa: 'Arab Saudi', ae: 'Uni Emirat Arab', pl: 'Polandia', ua: 'Ukraina',
+  ro: 'Rumania', kh: 'Kamboja', la: 'Laos', mm: 'Myanmar', tw: 'Taiwan',
+  hk: 'Hong Kong', nz: 'Selandia Baru', ch: 'Swiss', se: 'Swedia', no: 'Norwegia',
+  fi: 'Finlandia', be: 'Belgia', pt: 'Portugal', eg: 'Mesir', ke: 'Kenya', gh: 'Ghana'
+};
+function getCountryName(order) {
+  var code = String(order && (order.country || order.country_name) || '').trim().toLowerCase();
+  var supplied = String(order && order.country_name || '').trim();
+  if (supplied && supplied.toLowerCase() !== code) return supplied;
+  if (COUNTRY_NAMES[code]) return COUNTRY_NAMES[code];
+  if (/^[a-z]{2}$/i.test(code)) {
+    try {
+      var loc = new Intl.DisplayNames(['id'], { type: 'region' }).of(code.toUpperCase());
+      return loc && loc.toLowerCase() !== code ? loc : 'Negara tidak diketahui';
+    } catch (_) { return 'Negara tidak diketahui'; }
+  }
+  return supplied || 'Negara tidak diketahui';
+}
+function getOtpId(order) {
+  var id = String(order && order.otp_id || '').trim();
+  if (id) return id;
+  var seed = [order && order.created_at, order && order.service, order && order.phone_number].join('|');
+  var hash = 2166136261;
+  for (var i = 0; i < seed.length; i++) {
+    hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
+  }
+  return 'OTP' + (hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0');
+}
+
+function countryCodeToTwemoji(code) {
+  var c = (code || '').toUpperCase();
+  if (c.length !== 2) return null;
+  return c.split('').map(function (ch) { return (0x1F1E6 + ch.charCodeAt(0) - 65).toString(16); }).join('-');
+}
+function getFlagSources(code) {
+  var c = (code || '').toLowerCase();
+  if (!/^[a-z]{2}$/.test(c)) return [];
+  var tw = countryCodeToTwemoji(code);
+  return [
+    tw ? 'https://cdn.jsdelivr.net/gh/twitter/twemoji@latest/assets/svg/' + tw + '.svg' : null,
+    'https://flagcdn.com/w40/' + c + '.png'
+  ].filter(Boolean);
+}
+function renderFlag(code, cls) {
+  cls = cls || 'flag-img';
+  var sources = getFlagSources(code);
+  if (sources.length === 0) {
+    return '<div class="' + cls + '" style="display:flex;align-items:center;justify-content:center;background:var(--gl-bd2);color:var(--txt3);font-size:0.55rem;font-weight:800">' + escapeHtml((code || '??').toUpperCase()) + '</div>';
+  }
+  var attr = JSON.stringify(sources).replace(/"/g, '&quot;');
+  return '<img class="' + cls + '" src="' + sources[0] + '" alt="' + escapeHtml(code) + '" loading="lazy" data-sources="' + attr + '" data-idx="0">';
+}
+window._handleFlagErr = function (img) {
+  try {
+    var sources = JSON.parse(img.dataset.sources || '[]');
+    var idx = parseInt(img.dataset.idx || '0', 10);
+    var next = idx + 1;
+    if (next < sources.length) {
+      img.dataset.idx = next.toString();
+      img.src = sources[next];
+    } else {
+      var code = (img.alt || '??').toUpperCase();
+      var ph = document.createElement('div');
+      ph.className = img.className;
+      ph.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--gl-bd2);color:var(--txt3);font-size:0.55rem;font-weight:800;';
+      ph.textContent = code;
+      img.replaceWith(ph);
+    }
+  } catch (e) { img.style.display = 'none'; }
+};
+
+function fallbackCopy(text, onOk) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  try {
+    var ok = document.execCommand('copy');
+    if (ok && typeof onOk === 'function') onOk();
+  } catch (e) {}
+  document.body.removeChild(ta);
+}
+function copyToClipboard(text, btnEl) {
+  function onOk() {
+    if (!btnEl) return;
+    var orig = btnEl.innerHTML;
+    btnEl.innerHTML = ICONS.check;
+    setTimeout(function () { btnEl.innerHTML = orig; }, 1200);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(onOk).catch(function () { fallbackCopy(text, onOk); });
+  } else fallbackCopy(text, onOk);
+}
+
+function showAlert(opts) {
+  return new Promise(function (resolve) {
+    var title = opts.title, message = opts.message;
+    var type = opts.type || 'info';
+    var okText = opts.okText || 'OK';
+    var showCancel = opts.showCancel || false;
+    var cancelText = opts.cancelText || 'Batal';
+
+    var overlay = document.getElementById('customAlert');
+    var iconEl = document.getElementById('customAlertIcon');
+    var titleEl = document.getElementById('customAlertTitle');
+    var msgEl = document.getElementById('customAlertMessage');
+    var actionsEl = document.getElementById('customAlertActions');
+
+    iconEl.className = 'custom-alert-icon ' + type;
+    iconEl.innerHTML = ICONS[type] || ICONS.info;
+    titleEl.textContent = title || 'Informasi';
+    msgEl.textContent = message || '';
+
+    actionsEl.innerHTML = '';
+    if (showCancel) {
+      var b = document.createElement('button');
+      b.className = 'btn';
+      b.type = 'button';
+      b.textContent = cancelText;
+      b.addEventListener('click', function () {
+        overlay.classList.remove('active');
+        resolve(false);
+      });
+      actionsEl.appendChild(b);
+    }
+    var ok = document.createElement('button');
+    ok.className = 'btn-primary';
+    ok.type = 'button';
+    ok.textContent = okText;
+    ok.addEventListener('click', function () {
+      overlay.classList.remove('active');
+      resolve(true);
+    });
+    actionsEl.appendChild(ok);
+    overlay.classList.add('active');
+  });
+}
+
+// theme toggle
+(function () {
+  var btn = document.getElementById('themeBtn');
+  if (!btn) return;
+  btn.addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    var nx = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nx);
+    try { localStorage.setItem('asyrofotp_theme', nx); } catch (e) {}
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
+  });
+})();
+
+// sidebar desktop + mobile
+(function () {
+  var sidebar = document.getElementById('sidebar');
+  var collapseBtn = document.getElementById('collapseBtn');
+  if (!sidebar || !collapseBtn) return;
+  var isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
+  if (isCollapsed && window.innerWidth > 768) {
+    sidebar.classList.add('collapsed');
+    document.body.classList.add('sidebar-collapsed');
+  }
+  collapseBtn.addEventListener('click', function () {
+    if (window.innerWidth <= 768) return;
+    var c = sidebar.classList.toggle('collapsed');
+    document.body.classList.toggle('sidebar-collapsed', c);
+    try { localStorage.setItem('sidebar_collapsed', c); } catch (e) {}
+  });
+})();
+
+(function () {
+  var toggle = document.getElementById('mobileToggle');
+  var sidebar = document.getElementById('sidebar');
+  var overlay = document.getElementById('sidebarOverlay');
+  if (!toggle || !sidebar || !overlay) return;
+  var open = false;
+  function openSb() {
+    if (open) return;
+    open = true;
+    sidebar.classList.add('open');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeSb() {
+    if (!open) return;
+    open = false;
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  toggle.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation();
+    if (open) closeSb(); else openSb();
+  });
+  overlay.addEventListener('click', closeSb);
+  sidebar.querySelectorAll('.nav-item').forEach(function (l) {
+    l.addEventListener('click', function () {
+      if (window.innerWidth <= 768) setTimeout(closeSb, 100);
+    });
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && open) closeSb();
+  });
+})();
+
+// recaptcha v3
+function waitForRecaptcha() {
+  return new Promise(function (resolve) {
+    if (window.grecaptcha && window.grecaptcha.execute) return resolve();
+    var n = 0;
+    var t = setInterval(function () {
+      n++;
+      if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(t); resolve(); }
+      else if (n >= 50) { clearInterval(t); resolve(); }
+    }, 100);
+  });
+}
+async function getRecaptchaToken(action) {
+  try {
+    await waitForRecaptcha();
+    if (!window.grecaptcha || !window.grecaptcha.execute) return null;
+    return await new Promise(function (resolve) {
+      grecaptcha.ready(function () {
+        grecaptcha.execute(_cfg.rk, { action: action }).then(resolve).catch(function () { resolve(null); });
+      });
+      setTimeout(function () { resolve(null); }, 8000);
+    });
+  } catch (e) { return null; }
+}
+async function securePost(url, body, action) {
+  body = body || {};
+  action = action || 'nokos';
+  var rc = await getRecaptchaToken(action);
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    body: JSON.stringify(Object.assign({}, body, { recaptcha_token: rc }))
+  });
+}
+
+async function loadProfile(force) {
+  if (!force) {
+    var cached = await Cache.get('user', _cfg.ttl.user);
+    if (cached) renderUser(cached);
+  }
+  try {
+    var res = await fetch(_cfg.ep.user, { headers: { Authorization: 'Bearer ' + token } });
+    if (res.status === 401 || res.status === 403) { handleLogout(); return; }
+    var user = await safeJson(res);
+    if (user && !user.error) {
+      await Cache.set('user', user);
+      renderUser(user);
+    }
+  } catch (e) {}
+}
+function renderUser(user) {
+  if (!user) return;
+  var name = user.name || user.username || '—';
+  var nameEl = document.getElementById('userName');
+  var balEl = document.getElementById('userBalance');
+  var iniEl = document.getElementById('userInitial');
+  var pillEl = document.getElementById('balancePill');
+  var sheetEl = document.getElementById('sheetBalance');
+  if (nameEl) nameEl.textContent = name;
+  if (balEl) balEl.textContent = formatRupiah(user.balance);
+  if (iniEl) iniEl.textContent = getInitial(name);
+  if (pillEl) pillEl.textContent = formatRupiah(user.balance);
+  if (sheetEl) sheetEl.textContent = formatRupiah(user.balance);
+}
+
+async function fetchActiveOrders() {
+  var responses = await Promise.all([
+    fetch(_cfg.ep.orders + '?status=pending&limit=50', { headers: { Authorization: 'Bearer ' + token } }),
+    fetch(_cfg.ep.orders + '?status=success&limit=20', { headers: { Authorization: 'Bearer ' + token } })
+  ]);
+  var pRaw = await safeJson(responses[0]);
+  var sRaw = await safeJson(responses[1]);
+  var pData = pRaw && pRaw.data || pRaw || {};
+  var sData = sRaw && sRaw.data || sRaw || {};
+  var now = Date.now();
+  var FIVE_MIN = 5 * 60 * 1000;
+  var pending = (pData.orders || []).map(function (o) { return Object.assign({}, sanitizeOrder(o), { _bucket: 'pending' }); });
+  var recent = (sData.orders || [])
+    .filter(function (o) {
+      var t = o.updated_at || o.created_at || o.confirmed_at;
+      if (!t) return false;
+      var ts = new Date(t).getTime();
+      return Number.isFinite(ts) && (now - ts) <= FIVE_MIN;
+    })
+    .map(function (o) { return Object.assign({}, sanitizeOrder(o), { _bucket: 'success' }); });
+  var merged = pending.concat(recent);
+  merged.sort(function (a, b) {
+    if (a._bucket !== b._bucket) return a._bucket === 'pending' ? -1 : 1;
+    var ta = new Date(a.updated_at || a.created_at || 0).getTime();
+    var tb = new Date(b.updated_at || b.created_at || 0).getTime();
+    return tb - ta;
+  });
+  return merged;
+}
+
+async function loadActiveOrders() {
+  var cached = await Cache.get('orders', _cfg.ttl.orders);
+  if (cached && Array.isArray(cached) && cached.length > 0) {
+    activeState.allOrders = cached;
+    renderActiveOrders(cached);
+  }
+  if (_loadActiveInFlight) return;
+  _loadActiveInFlight = true;
+  if (_loadActiveAbort) _loadActiveAbort.abort();
+  _loadActiveAbort = new AbortController();
+  try {
+    var merged = await fetchActiveOrders();
+    merged.forEach(function (o) {
+      var otpId = String(o.otp_id || '').trim();
+      var realId = String(o.raw_id || o.order_id || '').trim();
+      if (otpId && realId) ORDER_ID_MAP.set(otpId, realId);
+    });
+    activeState.allOrders = merged;
+    var safe = merged.map(function (o) {
+      var rest = Object.assign({}, o);
+      delete rest.raw_id;
+      delete rest.order_id;
+      return rest;
+    });
+    if (safe.length > 0) await Cache.set('orders', safe);
+    else Cache.remove('orders');
+    renderActiveOrders(merged);
+    activeState.initialLoadDone = true;
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    if (activeState.allOrders.length === 0) {
+      var c = document.getElementById('activeOrders');
+      if (c) {
+        c.className = '';
+        c.innerHTML =
+          '<div class="empty-orders">' +
+            '<div class="icon-box">' + ICONS.warning + '</div>' +
+            '<h3>Gagal memuat pesanan</h3>' +
+            '<p>' + escapeHtml(err.message || 'Coba refresh halaman') + '</p>' +
+          '</div>';
+      }
+    }
+  } finally {
+    _loadActiveAbort = null;
+    _loadActiveInFlight = false;
+  }
+}
+
+function getDeadline(key, expiresIn) {
+  var k = 'aotp_cd_' + key;
+  var now = Date.now();
+  try {
+    var s = sessionStorage.getItem(k);
+    if (s) {
+      var d = parseInt(s, 10);
+      if (Number.isFinite(d) && d > now) return d;
+      sessionStorage.removeItem(k);
+    }
+  } catch (e) {}
+  if (expiresIn > 0) {
+    var dd = now + expiresIn * 1000;
+    try { sessionStorage.setItem(k, String(dd)); } catch (e) {}
+    return dd;
+  }
+  return 0;
+}
+function clearDeadline(key) {
+  try { sessionStorage.removeItem('aotp_cd_' + key); } catch (e) {}
+}
+
+function buildCard(o) {
+  var isSuccess = o._bucket === 'success' || o.status === 'success' || o.status === 'received' || o.status === 'confirmed';
+  var isPending = o.status === 'pending' && !isSuccess;
+  var hasOtp = o.otp_code && o.otp_code.trim();
+  var otpId = getOtpId(o);
+  var hasApiId = Boolean(o.order_id || o.raw_id);
+  var svcName = getServiceDisplayName(o);
+  var cName = getCountryName(o);
+  var expiresIn = Number(o.expires_in || 0);
+  var hasValidCd = isPending && !hasOtp && expiresIn > 0;
+  var priceIdr = Number(o.price_idr != null ? o.price_idr : (o.price != null ? o.price : 0));
+  var created = formatTanggal(o.created_at);
+  if ((o.order_id || o.raw_id) && otpId) ORDER_ID_MAP.set(otpId, o.order_id || o.raw_id);
+  var cardClass = isSuccess ? 'is-success' : (isPending ? 'is-pending' : 'is-expired');
+  var badgeClass = isSuccess ? 'success' : (isPending ? 'warning' : 'gray');
+  var badgeLabel = isSuccess ? 'Berhasil' : (isPending ? (hasOtp ? 'OTP Masuk' : 'Pending') : 'Expired');
+  var displayInitial = getInitial(svcName);
+
+  var cdHtml = '';
+  if (hasValidCd) {
+    var deadline = getDeadline(otpId, expiresIn);
+    var rem = Math.max(0, Math.floor((deadline - Date.now()) / 1000));
+    var m = Math.floor(rem / 60);
+    var s = rem % 60;
+    var t = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+    cdHtml = '<div class="aoc-countdown" data-ref="' + escapeHtml(otpId) + '" data-deadline="' + deadline + '">' + ICONS.clock + '<span class="countdown-text">' + t + '</span> tersisa</div>';
+  }
+
+  return '' +
+    '<div class="aoc-card glass-card ' + cardClass + '" ' +
+         'data-ref="' + escapeHtml(otpId) + '" ' +
+         'data-bucket="' + escapeHtml(o._bucket || '') + '" ' +
+         'data-status="' + escapeHtml(o.status || '') + '" ' +
+         'data-has-id="' + (hasApiId ? '1' : '0') + '" ' +
+         'data-sig="">' +
+      '<div class="aoc-header">' +
+        '<div class="aoc-card-number">' + escapeHtml(displayInitial) + '</div>' +
+        '<div class="aoc-title-wrap">' +
+          '<div class="aoc-title">' +
+            escapeHtml(svcName) +
+            (o.operator ? ' <span class="badge info" style="font-size:0.58rem">' + escapeHtml(o.operator) + '</span>' : '') +
+          '</div>' +
+          '<div class="aoc-ref"><span class="otp-id">' + escapeHtml(otpId) + '</span></div>' +
+        '</div>' +
+        '<span class="badge ' + badgeClass + '">' + badgeLabel + '</span>' +
+      '</div>' +
+      (hasOtp ?
+        '<div class="aoc-otp">' +
+          '<div class="aoc-otp-icon">' + ICONS.key + '</div>' +
+          '<div class="aoc-otp-info">' +
+            '<div class="aoc-otp-label">Kode OTP</div>' +
+            '<div class="aoc-otp-value">' + escapeHtml(o.otp_code) + '</div>' +
+          '</div>' +
+          '<button class="aoc-otp-copy" type="button" data-copy="' + escapeHtml(o.otp_code) + '" title="Copy OTP">' + ICONS.copy + '</button>' +
+        '</div>' : '') +
+      '<div class="aoc-body">' +
+        '<div class="aoc-field">' +
+          '<span class="aoc-field-label">Nomor</span>' +
+          '<span class="aoc-field-value">' +
+            escapeHtml(o.phone_number || '—') +
+            (o.phone_number ? ' <button class="aoc-otp-copy" style="width:22px;height:22px" type="button" data-copy="' + escapeHtml(o.phone_number) + '" title="Copy">' + ICONS.copy + '</button>' : '') +
+          '</span>' +
+        '</div>' +
+        '<div class="aoc-field">' +
+          '<span class="aoc-field-label">Negara</span>' +
+          '<span class="aoc-field-value">' +
+            '<span class="country-inline">' + renderFlag(o.country, 'flag-img') + escapeHtml(cName) + '</span>' +
+          '</span>' +
+        '</div>' +
+        '<div class="aoc-field">' +
+          '<span class="aoc-field-label">Harga</span>' +
+          '<span class="aoc-field-value price">' + formatRupiah(priceIdr) + '</span>' +
+        '</div>' +
+        '<div class="aoc-field">' +
+          '<span class="aoc-field-label">Dibuat</span>' +
+          '<span class="aoc-field-value" style="font-size:0.7rem">' + created + '</span>' +
+        '</div>' +
+      '</div>' +
+      cdHtml +
+      '<div class="aoc-actions">' +
+        (isPending && hasApiId ?
+          (hasOtp ?
+            '<button class="btn-mini" type="button" data-resend="' + escapeHtml(otpId) + '">' + ICONS.refresh + ' Resend</button>' +
+            '<button class="btn-mini primary" type="button" data-confirm="' + escapeHtml(otpId) + '">' + ICONS.checkCircle + ' Konfirmasi</button>' :
+            '<button class="btn-mini danger" type="button" data-cancel="' + escapeHtml(otpId) + '">' + ICONS.ban + ' Batalkan</button>'
+          ) :
+          '<a href="/inbox" class="btn-mini primary" style="text-decoration:none">' + ICONS.info + ' Lihat Detail</a>'
+        ) +
+      '</div>' +
+    '</div>';
+}
+
+function bindCard(card) {
+  card.querySelectorAll('[data-copy]').forEach(function (btn) {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      copyToClipboard(btn.dataset.copy, btn);
+    });
+  });
+  card.querySelectorAll('[data-resend]').forEach(function (btn) {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      var id = ORDER_ID_MAP.get(btn.dataset.resend) || btn.dataset.resend;
+      resendOrder(id, btn);
+    });
+  });
+  card.querySelectorAll('[data-confirm]').forEach(function (btn) {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      var id = ORDER_ID_MAP.get(btn.dataset.confirm) || btn.dataset.confirm;
+      confirmOrder(id, btn);
+    });
+  });
+  card.querySelectorAll('[data-cancel]').forEach(function (btn) {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      var id = ORDER_ID_MAP.get(btn.dataset.cancel) || btn.dataset.cancel;
+      cancelOrder(id, btn);
+    });
+  });
+  card.querySelectorAll('img[data-sources]').forEach(function (img) {
+    if (img.dataset.bound) return;
+    img.dataset.bound = '1';
+    img.addEventListener('error', function () { window._handleFlagErr(this); });
+  });
+}
+
+function renderActiveOrders(orders) {
+  var container = document.getElementById('activeOrders');
+  var countEl = document.getElementById('activeCount');
+  var pagEl = document.getElementById('activeOrdersPagination');
+  if (!container) return;
+  var hasOrders = Array.isArray(orders) && orders.length > 0;
+  if (!hasOrders) {
+    if (activeState.allOrders.length > 0) return;
+    container.className = '';
+    container.innerHTML =
+      '<div class="empty-orders">' +
+        '<div class="icon-box">' + ICONS.phone + '</div>' +
+        '<h3>Belum ada pesanan aktif</h3>' +
+        '<p>Nomor yang kamu beli bakal muncul di sini beserta kode OTP-nya.</p>' +
+      '</div>';
+    if (countEl) countEl.style.display = 'none';
+    if (pagEl) pagEl.style.display = 'none';
+    return;
+  }
+  activeState.hasRenderedOnce = true;
+  if (countEl) {
+    countEl.textContent = orders.length;
+    countEl.style.display = 'inline-flex';
+  }
+  var total = orders.length;
+  activeState.totalPages = Math.max(1, Math.ceil(total / activeState.limit));
+  if (activeState.page > activeState.totalPages) activeState.page = activeState.totalPages;
+  var start = (activeState.page - 1) * activeState.limit;
+  var pageOrders = orders.slice(start, start + activeState.limit);
+
+  if (!container.classList.contains('active-orders')) container.className = 'active-orders';
+  var emptyEl = container.querySelector('.empty-orders');
+  if (emptyEl) emptyEl.remove();
+
+  var existing = new Map();
+  container.querySelectorAll(':scope > .aoc-card').forEach(function (card) {
+    var id = card.dataset.ref;
+    if (id) existing.set(id, card);
+  });
+  var frag = document.createDocumentFragment();
+  pageOrders.forEach(function (o, idx) {
+    var otpId = getOtpId(o);
+    var key = otpId || ('fb-' + idx);
+    var tmp = document.createElement('div');
+    tmp.innerHTML = buildCard(o).trim();
+    var newCard = tmp.firstElementChild;
+    var newSig = [
+      o.status || '',
+      (o.otp_code || '').trim(),
+      (o.phone_number || '').trim(),
+      (o.service || '').trim(),
+      o._bucket || ''
+    ].join('|');
+    var old = existing.get(key);
+    var oldSig = old ? old.dataset.sig || '' : null;
+    if (old && oldSig === newSig) {
+      frag.appendChild(old);
+      existing.delete(key);
+      return;
+    }
+    if (old) {
+      old.remove();
+      if (activeState.countdownIntervals[key]) {
+        clearInterval(activeState.countdownIntervals[key]);
+        delete activeState.countdownIntervals[key];
+      }
+      clearDeadline(key);
+      existing.delete(key);
+    }
+    newCard.dataset.sig = newSig;
+    bindCard(newCard);
+    frag.appendChild(newCard);
+  });
+  existing.forEach(function (card, id) {
+    card.remove();
+    if (activeState.countdownIntervals[id]) {
+      clearInterval(activeState.countdownIntervals[id]);
+      delete activeState.countdownIntervals[id];
+    }
+    clearDeadline(id);
+  });
+  container.appendChild(frag);
+
+  if (activeState.totalPages > 1) {
+    pagEl.style.display = 'flex';
+    pagEl.innerHTML =
+      '<button class="page-btn" type="button" data-page="' + (activeState.page - 1) + '" ' + (activeState.page <= 1 ? 'disabled' : '') + '>Prev</button>' +
+      '<span class="page-info">Halaman ' + activeState.page + ' dari ' + activeState.totalPages + '</span>' +
+      '<button class="page-btn" type="button" data-page="' + (activeState.page + 1) + '" ' + (activeState.page >= activeState.totalPages ? 'disabled' : '') + '>Next</button>';
+    pagEl.querySelectorAll('.page-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var p = Number(btn.dataset.page);
+        if (p >= 1 && p <= activeState.totalPages) {
+          activeState.page = p;
+          renderActiveOrders(activeState.allOrders);
+        }
+      });
+    });
+  } else {
+    pagEl.style.display = 'none';
+  }
+  startCountdowns();
+}
+
+function startCountdowns() {
+  Object.values(activeState.countdownIntervals).forEach(clearInterval);
+  activeState.countdownIntervals = {};
+  document.querySelectorAll('.aoc-countdown').forEach(function (el) {
+    var ref = el.dataset.ref;
+    var deadline = parseInt(el.dataset.deadline || '0', 10);
+    var textEl = el.querySelector('.countdown-text');
+    if (!deadline) {
+      if (textEl) textEl.textContent = 'EXPIRED';
+      el.classList.add('expired');
+      return;
+    }
+    function tick() {
+      var rem = Math.floor((deadline - Date.now()) / 1000);
+      if (rem <= 0) {
+        el.classList.add('expired');
+        if (textEl) textEl.textContent = 'EXPIRED';
+        if (activeState.countdownIntervals[ref]) clearInterval(activeState.countdownIntervals[ref]);
+        clearDeadline(ref);
+        setTimeout(function () {
+          Cache.remove('orders');
+          loadActiveOrders();
+        }, 500);
+        return;
+      }
+      var m = Math.floor(rem / 60);
+      var s = rem % 60;
+      if (textEl) textEl.textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+    }
+    tick();
+    activeState.countdownIntervals[ref] = setInterval(tick, 1000);
+  });
+}
+
+async function syncPendingOrders() {
+  var pending = activeState.allOrders.filter(function (o) {
+    return o._bucket === 'pending' && o.status === 'pending' && !(o.otp_code && o.otp_code.trim());
+  });
+  if (pending.length === 0) return;
+  var results = await Promise.allSettled(
+    pending.map(function (o) {
+      var otpId = String(o.otp_id || '').trim();
+      var realId = ORDER_ID_MAP.get(otpId) || o.order_id || o.raw_id;
+      return securePost(_cfg.ep.cekotp, { order_id: realId, otp_id: otpId }, 'cekotp').then(function (r) { return safeJson(r); });
+    })
+  );
+  var hasUpdate = false;
+  for (var r of results) {
+    if (r.status !== 'fulfilled') continue;
+    var data = r.value;
+    if (!data) continue;
+    if (data.updated || data.otp_code || data.status !== 'pending') {
+      hasUpdate = true;
+      if (data.otp_code) {
+        Cache.remove('user');
+        loadProfile(true);
+      }
+    }
+  }
+  if (hasUpdate) {
+    Cache.remove('orders');
+    loadActiveOrders();
+  }
+}
+
+function startAutoSync() {
+  if (autoSyncInterval) clearInterval(autoSyncInterval);
+  autoSyncInterval = setInterval(function () {
+    if (!document.hidden) loadActiveOrders();
+  }, _cfg.autoSync);
+  if (otpCheckInterval) clearInterval(otpCheckInterval);
+  otpCheckInterval = setInterval(function () {
+    if (!document.hidden) syncPendingOrders();
+  }, _cfg.otpCheck);
+  if (profileSyncInterval) clearInterval(profileSyncInterval);
+  profileSyncInterval = setInterval(function () {
+    if (!document.hidden) loadProfile(false);
+  }, _cfg.profileSync);
+}
+function stopAutoSync() {
+  if (autoSyncInterval) { clearInterval(autoSyncInterval); autoSyncInterval = null; }
+  if (otpCheckInterval) { clearInterval(otpCheckInterval); otpCheckInterval = null; }
+  if (profileSyncInterval) { clearInterval(profileSyncInterval); profileSyncInterval = null; }
+}
+
+async function resendOrder(orderId, btn) {
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+  try {
+    var res = await securePost(_cfg.ep.order + '/' + encodeURIComponent(orderId) + '/resend', {}, 'resend');
+    var data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Gagal resend');
+    await showAlert({ title: 'Resend Berhasil', message: 'SMS resend berhasil dikirim. Tunggu kode OTP masuk.', type: 'success' });
+    Cache.remove('orders');
+    loadActiveOrders();
+  } catch (err) {
+    await showAlert({ title: 'Gagal Resend', message: err.message, type: 'danger' });
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+async function confirmOrder(orderId, btn) {
+  var ok = await showAlert({
+    title: 'Konfirmasi Sukses',
+    message: 'Yakin order ini sudah sukses? Setelah dikonfirmasi, order akan dianggap selesai dan tidak bisa dibatalkan.',
+    type: 'success', okText: 'Ya, Konfirmasi', showCancel: true
+  });
+  if (!ok) return;
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+  try {
+    var res = await securePost(_cfg.ep.order + '/' + encodeURIComponent(orderId) + '/confirm', {}, 'confirm');
+    var data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
+    await showAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
+    Cache.remove('orders');
+    loadActiveOrders();
+  } catch (err) {
+    await showAlert({ title: 'Gagal Konfirmasi', message: err.message, type: 'danger' });
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+async function cancelOrder(orderId, btn) {
+  var ok = await showAlert({
+    title: 'Batalkan Pesanan',
+    message: 'Yakin mau batalkan pesanan ini? Saldo akan dikembalikan sesuai kebijakan.',
+    type: 'warning', okText: 'Ya, Batalkan', showCancel: true
+  });
+  if (!ok) return;
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+  try {
+    var res = await securePost(_cfg.ep.order + '/' + encodeURIComponent(orderId) + '/cancel', {}, 'cancel');
+    var data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Gagal batalkan');
+    await showAlert({ title: 'Dibatalkan', message: 'Pesanan berhasil dibatalkan. Saldo sudah dikembalikan.', type: 'success' });
+    Cache.remove('user');
+    Cache.remove('orders');
+    loadProfile(true);
+    loadActiveOrders();
+  } catch (err) {
+    await showAlert({ title: 'Gagal', message: err.message, type: 'danger' });
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+// bottom sheet
+var _sheetClosing = false;
+
+function openSheet() {
+  var overlay = document.getElementById('sheetOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('closing');
+  overlay.classList.add('active');
+  document.body.classList.add('sheet-open');
+  document.body.style.overflow = 'hidden';
+  _sheetClosing = false;
+}
+function closeSheet() {
+  var overlay = document.getElementById('sheetOverlay');
+  if (!overlay || _sheetClosing) return;
+  _sheetClosing = true;
+  overlay.classList.add('closing');
+  setTimeout(function () {
+    overlay.classList.remove('active', 'closing');
+    document.body.classList.remove('sheet-open');
+    document.body.style.overflow = '';
+    _sheetClosing = false;
+  }, 280);
+}
+function adjustSheetHeight() {
+  var sheet = document.getElementById('bottomSheet');
+  var body = document.getElementById('sheetBody');
+  if (!sheet || !body) return;
+  body.style.maxHeight = '';
+  var headerEl = sheet.querySelector('.sheet-header');
+  var handleEl = sheet.querySelector('.sheet-handle');
+  var headerH = headerEl ? headerEl.offsetHeight : 0;
+  var handleH = handleEl ? handleEl.offsetHeight : 0;
+  var padding = 24;
+  var maxBodyH = window.innerHeight * 0.88 - headerH - handleH - padding;
+  var contentH = body.scrollHeight;
+  var targetH = Math.min(contentH, maxBodyH);
+  body.style.maxHeight = targetH + 'px';
+}
+
+document.getElementById('btnOrder').addEventListener('click', function () {
+  openSheet();
+  goToStep(1);
+});
+document.getElementById('sheetOverlay').addEventListener('click', function (e) {
+  if (e.target.id === 'sheetOverlay') closeSheet();
+});
+
+function goToStep(step) {
+  state.step = step;
+  var body = document.getElementById('sheetBody');
+  var stepEl = document.getElementById('sheetStep');
+  var titleEl = document.getElementById('sheetTitle');
+  if (body) body.scrollTop = 0;
+  if (step === 1) {
+    stepEl.textContent = 'Langkah 1 · Pilih Server';
+    titleEl.textContent = pick(_copy.sheetStep1);
+    renderServerStep();
+  } else if (step === 2) {
+    stepEl.textContent = 'Langkah 2 · Pilih Aplikasi';
+    titleEl.textContent = pick(_copy.sheetStep2);
+    renderAppStep();
+  } else if (step === 3) {
+    stepEl.textContent = 'Langkah 3 · Pilih Negara';
+    titleEl.textContent = pick(_copy.sheetStep3);
+    renderCountryStep();
+  } else if (step === 4) {
+    stepEl.textContent = 'Langkah 4 · Pilih Harga';
+    titleEl.textContent = pick(_copy.sheetStep4);
+    renderPriceStep();
+  }
+}
+
+async function renderServerStep() {
+  var body = document.getElementById('sheetBody');
+  body.innerHTML = '<div class="loading-block"><span class="spinner"></span><span>Memuat server...</span></div>';
+  adjustSheetHeight();
+  var cached = await Cache.get('servers', _cfg.ttl.servers);
+  if (cached && cached.length > 0) renderServers(cached);
+  try {
+    var res = await fetch(_cfg.ep.servers, { headers: { Authorization: 'Bearer ' + token } });
+    var data = await safeJson(res);
+    var servers = data.servers || [];
+    if (servers.length > 0) await Cache.set('servers', servers);
+    renderServers(servers);
+  } catch (err) {
+    if (!cached) {
+      body.innerHTML = '<div class="empty-block"><h3>Gagal memuat server</h3><p>' + escapeHtml(err.message) + '</p></div>';
+      adjustSheetHeight();
+    }
+  }
+}
+
+function renderServers(servers) {
+  var body = document.getElementById('sheetBody');
+  if (!servers || servers.length === 0) {
+    body.innerHTML = '<div class="empty-block"><h3>Belum ada server</h3><p>Coba lagi nanti.</p></div>';
+    adjustSheetHeight();
+    return;
+  }
+  body.innerHTML =
+    '<div class="server-list">' +
+      servers.map(function (s) {
+        return '<button class="server-card" type="button" data-server="' + escapeHtml(s.id) + '" data-label="' + escapeHtml(s.label) + '" data-operator="' + s.requiresOperator + '">' +
+          '<div class="server-icon">' + ICONS.server + '</div>' +
+          '<div class="server-info">' +
+            '<div class="server-title">' + escapeHtml(s.label) +
+              (s.badge ? ' <span class="server-badge">' + escapeHtml(s.badge) + '</span>' : '') +
+            '</div>' +
+            '<div class="server-desc">' + escapeHtml(s.desc || '') + '</div>' +
+          '</div>' +
+          '<div class="server-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>' +
+        '</button>';
+      }).join('') +
+    '</div>';
+  body.querySelectorAll('.server-card').forEach(function (card) {
+    card.addEventListener('click', function () {
+      state.server = card.dataset.server;
+      state.serverLabel = card.dataset.label;
+      state.requiresOperator = card.dataset.operator === 'true';
+      state.service = null;
+      state.country = null;
+      COUNTRY_MIN_PRICE.clear();
+      goToStep(2);
+    });
+  });
+  adjustSheetHeight();
+}
+
+async function renderAppStep() {
+  var body = document.getElementById('sheetBody');
+  body.innerHTML =
+    '<button class="sheet-back" type="button" id="backBtn">' +
+      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Server' +
+    '</button>' +
+    '<div class="sheet-search">' +
+      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+      '<input type="text" class="form-control" id="appSearch" placeholder="Cari nama aplikasi...">' +
+    '</div>' +
+    '<div id="appContent"><div class="loading-block"><span class="spinner"></span><span>Memuat aplikasi...</span></div></div>';
+  adjustSheetHeight();
+  document.getElementById('backBtn').addEventListener('click', function () { goToStep(1); });
+
+  var ck = 'services_' + state.server;
+  var cached = await Cache.get(ck, _cfg.ttl.services);
+  if (cached && cached.length > 0) {
+    servicesCache = cached;
+    renderApps(servicesCache);
+  }
+  try {
+    var res = await fetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server), { headers: { Authorization: 'Bearer ' + token } });
+    var data = await safeJson(res);
+    servicesCache = data.services || [];
+    if (servicesCache.length > 0) await Cache.set(ck, servicesCache);
+    renderApps(servicesCache);
+    var search = document.getElementById('appSearch');
+    if (search) {
+      search.addEventListener('input', function (e) {
+        var q = e.target.value.toLowerCase().trim();
+        var f = servicesCache.filter(function (s) {
+          return (s.name || '').toLowerCase().indexOf(q) !== -1 || (s.code || '').toLowerCase().indexOf(q) !== -1;
+        });
+        renderApps(f);
+      });
+    }
+  } catch (err) {
+    if (!cached) {
+      var c = document.getElementById('appContent');
+      if (c) {
+        c.innerHTML = '<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>' + escapeHtml(err.message) + '</p></div>';
+        adjustSheetHeight();
+      }
+    }
+  }
+}
+
+function renderApps(services) {
+  var c = document.getElementById('appContent');
+  if (!c) return;
+  if (!services || services.length === 0) {
+    c.innerHTML = '<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Server ini belum punya aplikasi tersedia.</p></div>';
+    adjustSheetHeight();
+    return;
+  }
+  c.innerHTML =
+    '<div class="app-grid">' +
+      services.map(function (s) {
+        var ini = getInitial(s.name);
+        return '<button class="app-card" type="button" data-service="' + escapeHtml(s.code) + '" data-name="' + escapeHtml(s.name) + '">' +
+          '<div class="app-list-number">' + escapeHtml(ini) + '</div>' +
+          '<div class="name">' + escapeHtml(s.name) + '</div>' +
+        '</button>';
+      }).join('') +
+    '</div>';
+  c.querySelectorAll('.app-card').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      state.service = btn.dataset.service;
+      state.serviceName = btn.dataset.name;
+      state.country = null;
+      state.operator = 'any';
+      COUNTRY_MIN_PRICE.clear();
+      goToStep(3);
+    });
+  });
+  adjustSheetHeight();
+}
+
+async function renderCountryStep() {
+  var body = document.getElementById('sheetBody');
+  body.innerHTML =
+    '<button class="sheet-back" type="button" id="backBtn">' +
+      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Aplikasi' +
+    '</button>' +
+    '<div class="app-selected-card">' +
+      '<div class="app-list-number">' + escapeHtml(getInitial(state.serviceName)) + '</div>' +
+      '<div class="info">' +
+        '<div class="name">' + escapeHtml(state.serviceName || '') + '</div>' +
+        '<div class="sub">Aplikasi yang dipilih</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sheet-search">' +
+      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+      '<input type="text" class="form-control" id="countrySearch" placeholder="Cari nama negara...">' +
+    '</div>' +
+    '<div id="countryContent"><div class="loading-block"><span class="spinner"></span><span>Memuat negara...</span></div></div>';
+  adjustSheetHeight();
+  document.getElementById('backBtn').addEventListener('click', function () { goToStep(2); });
+
+  var ck = 'countries_' + state.server + '_' + state.service;
+  var cached = await Cache.get(ck, _cfg.ttl.countries);
+  if (cached && cached.length > 0) renderCountries(cached);
+  try {
+    var res = await fetch(
+      _cfg.ep.countries + '?server=' + encodeURIComponent(state.server) + '&service=' + encodeURIComponent(state.service),
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    var data = await safeJson(res);
+    var countries = data.countries || [];
+    if (countries.length > 0) await Cache.set(ck, countries);
+    renderCountries(countries);
+    var search = document.getElementById('countrySearch');
+    if (search) {
+      search.addEventListener('input', function (e) {
+        var q = e.target.value.toLowerCase().trim();
+        var f = countries.filter(function (c) {
+          return (c.name || '').toLowerCase().indexOf(q) !== -1 || (c.code || '').toLowerCase().indexOf(q) !== -1;
+        });
+        renderCountries(f);
+      });
+    }
+  } catch (err) {
+    if (!cached) {
+      var c = document.getElementById('countryContent');
+      if (c) {
+        c.innerHTML = '<div class="empty-block"><h3>Gagal memuat negara</h3><p>' + escapeHtml(err.message) + '</p></div>';
+        adjustSheetHeight();
+      }
+    }
+  }
+}
+
+// BONUS: pre-fetch harga termurah per negara untuk server premium (paralel, dibatasi 3)
+// supaya di country list bisa tampil "Mulai Rp X" dan country tanpa stok di-mark
+async function prefetchPremiumMinPrices(server, service, countries) {
+  if (server !== 'premium') return;
+  if (!countries || countries.length === 0) return;
+  var toFetch = countries.slice(0, 30);
+  var concurrency = 3;
+  var idx = 0;
+  async function worker() {
+    while (idx < toFetch.length) {
+      var i = idx++;
+      var co = toFetch[i];
+      var code = String(co.code || '').toLowerCase();
+      if (!code) continue;
+      var ck = 'prices_' + server + '_' + service + '_' + code;
+      var cached = await Cache.get(ck, _cfg.ttl.prices);
+      if (cached && cached.length > 0) {
+        var minP = Math.min.apply(null, cached.map(function (p) { return Number(p.price_idr) || Infinity; }));
+        if (isFinite(minP)) COUNTRY_MIN_PRICE.set(code, minP);
+        continue;
+      }
+      try {
+        var res = await fetch(
+          _cfg.ep.prices + '?server=' + encodeURIComponent(server) +
+          '&service=' + encodeURIComponent(service) +
+          '&country=' + encodeURIComponent(code),
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        var data = await safeJson(res);
+        var providers = (data.providers || []).filter(function (p) { return p.active !== false; });
+        if (providers.length > 0) {
+          var minPrice = Math.min.apply(null, providers.map(function (p) { return Number(p.price_idr) || Infinity; }));
+          if (isFinite(minPrice)) COUNTRY_MIN_PRICE.set(code, minPrice);
+          var safe = providers.map(function (p) { return sanitizeProvider(p); });
+          await Cache.set(ck, safe);
+        } else {
+          COUNTRY_MIN_PRICE.set(code, 0);
+        }
+      } catch (e) {}
+    }
+  }
+  var workers = [];
+  for (var w = 0; w < concurrency; w++) workers.push(worker());
+  await Promise.all(workers);
+  renderCountries(countries);
+}
+
+function renderCountries(countries) {
+  var c = document.getElementById('countryContent');
+  if (!c) return;
+  if (!countries || countries.length === 0) {
+    c.innerHTML = '<div class="empty-block"><h3>Belum ada negara</h3><p>Server ini belum punya negara tersedia.</p></div>';
+    adjustSheetHeight();
+    return;
+  }
+  c.innerHTML =
+    '<div class="country-list">' +
+      countries.map(function (co) {
+        var code = String(co.code || '').toLowerCase();
+        var minP = COUNTRY_MIN_PRICE.get(code);
+        var meta = 'Kode: ' + escapeHtml((co.code || '').toUpperCase());
+        if (minP !== undefined && minP > 0) {
+          meta = 'Mulai ' + formatRupiah(minP) + ' · ' + escapeHtml((co.code || '').toUpperCase());
+        } else if (minP === 0) {
+          meta = 'Stok habis';
+        }
+        return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '"' + (minP === 0 ? ' disabled style="opacity:.5;cursor:not-allowed"' : '') + '>' +
+          '<div class="country-flag">' + renderFlag(co.code) + '</div>' +
+          '<div class="country-info">' +
+            '<div class="country-name">' + escapeHtml(co.name) + '</div>' +
+            '<div class="country-meta">' + meta + '</div>' +
+          '</div>' +
+          '<div class="country-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>' +
+        '</button>';
+      }).join('') +
+    '</div>';
+  c.querySelectorAll('.country-item').forEach(function (item) {
+    if (item.disabled) return;
+    item.addEventListener('click', async function () {
+      state.country = item.dataset.country;
+      state.countryName = item.dataset.name;
+      state.operator = 'any';
+      // untuk premium, kalau belum ada harga cached → fetch dulu sebelum masuk step 4
+      if (state.server === 'premium') {
+        var ck = 'prices_premium_' + state.service + '_' + String(state.country).toLowerCase();
+        var cached = await Cache.get(ck, _cfg.ttl.prices);
+        if (!cached || cached.length === 0) {
+          goToStep(4);
+          return;
+        }
+      }
+      goToStep(4);
+    });
+  });
+  c.querySelectorAll('img[data-sources]').forEach(function (img) {
+    img.addEventListener('error', function () { window._handleFlagErr(this); });
+  });
+  adjustSheetHeight();
+  if (state.server === 'premium') {
+    prefetchPremiumMinPrices(state.server, state.service, countries);
+  }
+}
+
+async function renderPriceStep() {
+  var body = document.getElementById('sheetBody');
+  body.innerHTML =
+    '<button class="sheet-back" type="button" id="backBtn">' +
+      '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Negara' +
+    '</button>' +
+    '<div class="app-selected-card">' +
+      '<div class="app-list-number">' + escapeHtml(getInitial(state.serviceName)) + '</div>' +
+      '<div class="info">' +
+        '<div class="name">' + escapeHtml(state.serviceName || '') + '</div>' +
+        '<div class="sub"><span class="country-inline">' + renderFlag(state.country) + ' ' + escapeHtml(state.countryName || '') + '</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="sheet-tabs">' +
+      '<button class="sheet-tab active" type="button" data-filter="sukses">Paling Sukses</button>' +
+      '<button class="sheet-tab" type="button" data-filter="murah">Termurah</button>' +
+    '</div>' +
+    '<div id="priceContent"><div class="loading-block"><span class="spinner"></span><span>Memuat harga...</span></div></div>';
+  adjustSheetHeight();
+  document.getElementById('backBtn').addEventListener('click', function () { goToStep(3); });
+
+  document.querySelectorAll('.sheet-tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.sheet-tab').forEach(function (t) { t.classList.remove('active'); });
+      tab.classList.add('active');
+      state.filter = tab.dataset.filter;
+      renderPrices(state.providers);
+    });
+  });
+
+  var ck = 'prices_' + state.server + '_' + state.service + '_' + state.country;
+  var cached = await Cache.get(ck, _cfg.ttl.prices);
+  if (cached && cached.length > 0) {
+    state.providers = cached;
+    renderPrices(state.providers);
+  }
+  try {
+    var res = await fetch(
+      _cfg.ep.prices + '?server=' + encodeURIComponent(state.server) +
+      '&service=' + encodeURIComponent(state.service) +
+      '&country=' + encodeURIComponent(state.country),
+      { headers: { Authorization: 'Bearer ' + token } }
+    );
+    var data = await safeJson(res);
+    var raw = data.providers || [];
+    PROVIDER_RAW_MAP.clear();
+    raw.forEach(function (p) {
+      var pid = String(p.id || p.provider_id || '').trim();
+      if (pid) {
+        PROVIDER_RAW_MAP.set(pid, {
+          id: p.id, provider_id: p.provider_id,
+          provider_price: p.provider_price, price: p.price
+        });
+      }
+    });
+    var providers = raw.map(function (p) {
+      var clean = sanitizeProvider(p);
+      clean._pid = String(p.id || p.provider_id || '').trim();
+      return clean;
+    });
+    state.providers = providers;
+    if (providers.length > 0) await Cache.set(ck, providers);
+    renderPrices(providers);
+  } catch (err) {
+    if (!cached) {
+      var c = document.getElementById('priceContent');
+      if (c) {
+        c.innerHTML = '<div class="empty-block"><h3>Gagal memuat harga</h3><p>' + escapeHtml(err.message) + '</p></div>';
+        adjustSheetHeight();
+      }
+    }
+  }
+}
+
+function renderPrices(providers) {
+  var c = document.getElementById('priceContent');
+  if (!c) return;
+  var list = (providers || []).filter(function (p) { return p.active !== false; });
+  if (list.length === 0) {
+    c.innerHTML = '<div class="empty-block"><h3>Stok habis</h3><p>Belum ada stok tersedia untuk kombinasi ini.</p></div>';
+    adjustSheetHeight();
+    return;
+  }
+  var sorted = list.slice();
+  if (state.filter === 'murah') sorted.sort(function (a, b) { return a.price_idr - b.price_idr; });
+  else sorted.sort(function (a, b) { return (b.stock || 0) - (a.stock || 0); });
+  var svcIni = getInitial(state.serviceName);
+  c.innerHTML =
+    '<div class="price-list">' +
+      sorted.map(function (p, i) {
+        var stock = Number(p.stock) || Number(p.available) || 0;
+        var sc = stock === 0 ? 'out' : (stock < 50 ? 'low' : '');
+        return '<div class="price-item">' +
+          '<div class="app-list-number">' + escapeHtml(svcIni) + '</div>' +
+          '<div class="price-info">' +
+            '<div class="price-title">Opsi ' + (i + 1) +
+              ' <span class="price-stock ' + sc + '">' + stock + ' stok</span>' +
+            '</div>' +
+            '<div class="price-meta">' + escapeHtml(state.countryName || '') + '</div>' +
+          '</div>' +
+          '<div class="price-right">' +
+            '<div class="price-amount">' + formatRupiah(p.price_idr) + '</div>' +
+            '<button class="btn-primary" type="button" data-buy-pid="' + escapeHtml(p._pid || '') + '"' + (stock === 0 ? ' disabled' : '') + '>' +
+              '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>' +
+              ' ORDER' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  c.querySelectorAll('[data-buy-pid]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pid = btn.dataset.buyPid;
+      var p = sorted.find(function (x) { return String(x._pid) === String(pid); });
+      if (p) confirmPurchase(pid, p, btn);
+    });
+  });
+  adjustSheetHeight();
+}
+
+async function confirmPurchase(pid, priceData, btn) {
+  var price = Number(priceData.price_idr || priceData.price || 0);
+  var ok = await showAlert({
+    title: 'Konfirmasi Pembelian',
+    message: 'Beli nomor ' + state.serviceName + ' dari ' + state.countryName + ' dengan harga ' + formatRupiah(price) + '? Saldo akan langsung terpotong.',
+    type: 'warning', okText: 'Ya, Beli', showCancel: true, cancelText: 'Batal'
+  });
+  if (!ok) return;
+  placeOrder(pid, priceData, btn);
+}
+
+async function placeOrder(pid, priceData, btn) {
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span>';
+  try {
+    var raw = PROVIDER_RAW_MAP.get(pid) || {};
+    var expected = Number(priceData.price_idr || priceData.price || 0);
+    var body = {
+      server: state.server, service: state.service, country: state.country,
+      service_name: state.serviceName, country_flag: state.country,
+      expected_price: expected
+    };
+    if (state.requiresOperator) {
+      body.provider_id = raw.provider_id || raw.id;
+      body.provider_price = raw.provider_price || raw.price;
+      body.operator = state.operator || 'any';
+    } else {
+      body.id = raw.id || pid;
+    }
+    var res = await securePost(_cfg.ep.order, body, 'order');
+    var data = await safeJson(res);
+    if (!res.ok) {
+      var code = data.code || '';
+      if (code === 'PRICE_CHANGED') throw new Error('Harga berubah jadi ' + formatRupiah(data.actual) + '. Silakan pilih ulang.');
+      if (code === 'INSUFFICIENT_USER_BALANCE') throw new Error('Saldo kamu tidak cukup. Silakan deposit dulu.');
+      if (code === 'INSUFFICIENT_BALANCE' || code === 'INSUFFICIENT_PROVIDER_BALANCE') throw new Error('Server sedang sibuk, coba lagi nanti.');
+      throw new Error(data.error || 'Order gagal');
+    }
+    closeSheet();
+    PROVIDER_RAW_MAP.clear();
+    Cache.remove('user');
+    Cache.remove('orders');
+    document.getElementById('modalSuccess').classList.add('active');
+    setTimeout(function () {
+      loadProfile(true);
+      loadActiveOrders();
+    }, 500);
+  } catch (err) {
+    await showAlert({ title: 'Order Gagal', message: err.message || 'Terjadi kesalahan', type: 'danger' });
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+document.addEventListener('click', function (e) {
+  if (e.target.classList && e.target.classList.contains('modal-overlay')) {
+    e.target.classList.remove('active');
+  }
+});
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') {
+    var m = document.querySelector('.modal-overlay.active');
+    if (m) m.classList.remove('active');
+    var s = document.getElementById('sheetOverlay');
+    if (s && s.classList.contains('active')) closeSheet();
+  }
+});
+
+async function handleLogout() {
+  try {
+    await fetch(_cfg.ep.logout, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + token }
+    });
+  } catch (e) {}
+  Cache.clear();
+  ORDER_ID_MAP.clear();
+  PROVIDER_RAW_MAP.clear();
+  COUNTRY_MIN_PRICE.clear();
+  try {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('refresh_token');
+  } catch (e) {}
+  location.href = '/landing';
+}
+document.getElementById('logoutBtn').addEventListener('click', async function () {
+  var ok = await showAlert({
+    title: 'Keluar Akun?',
+    message: 'Kamu yakin mau keluar dari akun ini?',
+    type: 'warning', okText: 'Ya, Keluar', cancelText: 'Batal', showCancel: true
+  });
+  if (ok) handleLogout();
+});
+
+(function initEmptyState() {
+  var c = document.getElementById('activeOrders');
+  if (!c) return;
+  c.className = '';
+  c.innerHTML =
+    '<div class="empty-orders">' +
+      '<div class="icon-box"><span class="spinner" style="width:24px;height:24px;border-width:2.5px"></span></div>' +
+      '<h3>Memuat pesanan...</h3>' +
+      '<p>Sedang mengambil data pesanan aktif kamu.</p>' +
+    '</div>';
+})();
+
+(async function () {
+  randomizeCopy();
+  await Promise.allSettled([loadProfile(false), loadActiveOrders()]);
+  startAutoSync();
+})();
+
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) {
+    loadProfile(false);
+    loadActiveOrders();
+    syncPendingOrders();
+  }
+});
+window.addEventListener('beforeunload', function () {
+  stopAutoSync();
+  Object.values(activeState.countdownIntervals).forEach(clearInterval);
+  if (_loadActiveAbort) _loadActiveAbort.abort();
+});
+
+})(window);
