@@ -2048,48 +2048,142 @@ app.get('/api/health', withDB(async (req, res) => {
     }
 }));
 
-app.get('/api/auth/google/callback', async (req, res) => {
-    const { code } = req.query;
-    if (!code) return res.redirect('/login?error=no_code');
+// 1. ENDPOINT BUAT MINTA URL LOGIN (Dipanggil dari Frontend)
+app.get('/api/auth/google/url', withDB(async (req, res) => {
+    try {
+        // Bikin code_verifier (string random)
+        const codeVerifier = crypto.randomBytes(32).toString('base64url');
+        
+        // Bikin code_challenge (hash dari verifier)
+        const codeChallenge = crypto.createHash('sha256')
+            .update(codeVerifier)
+            .digest('base64url');
+
+        // Simpen code_verifier ke database sementara (pake tabel sessions atau bikin tabel baru)
+        // Di sini gw pake tabel sessions biar simpel
+        const stateId = crypto.randomBytes(16).toString('hex');
+        await pool.query(
+            'INSERT INTO sessions (user_id, refresh_token_hash, jti, expires_at) VALUES (NULL, $1, $2, NOW() + INTERVAL \'5 minutes\')',
+            [stateId, codeVerifier] // Simpen verifier di kolom jti sementara
+        );
+
+        const clientId = process.env.CLIENT_ID_GOOGLE_LOGIN;
+        // PASTIIN INI SAMA DENGAN DI GOOGLE CONSOLE
+        const redirectUri = 'https://asyrofotp.vercel.app/api/auth/google/callback';
+        
+        const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
+            'client_id=' + encodeURIComponent(clientId) +
+            '&redirect_uri=' + encodeURIComponent(redirectUri) +
+            '&response_type=code' +
+            '&scope=email%20profile' +
+            '&prompt=select_account' +
+            '&state=' + stateId + // Kirim stateId biar tau verifier mana yang dipake
+            '&code_challenge=' + codeChallenge +
+            '&code_challenge_method=S256';
+
+        res.json({ url: authUrl });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+
+// 2. ENDPOINT CALLBACK (Yang ditembak sama Google)
+app.get('/api/auth/google/callback', withDB(async (req, res) => {
+    const { code, state } = req.query;
+    if (!code || !state) return res.redirect('/login?error=missing_code');
 
     try {
-        // 1. Tuker Code ke Google buat dapet Access Token
+        // 1. Ambil code_verifier dari DB berdasarkan state
+        const sessionRes = await pool.query('SELECT jti FROM sessions WHERE refresh_token_hash = $1 LIMIT 1', [state]);
+        if (sessionRes.rows.length === 0) throw new Error('Sesi verifikasi hilang atau expired.');
+        
+        const codeVerifier = sessionRes.rows[0].jti;
+
+        // Hapus state dari DB biar gak bisa dipake 2x
+        await pool.query('DELETE FROM sessions WHERE refresh_token_hash = $1', [state]);
+
+        const redirectUri = 'https://asyrofotp.vercel.app/api/auth/google/callback'; // HARUS SAMA
+
+        // 2. Tuker Code ke Google
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
                 code: code,
                 client_id: process.env.CLIENT_ID_GOOGLE_LOGIN,
-                client_secret: process.env.CLIENT_SECRET_GOOGLE_LOGIN, // LO HARUS SIMPEN INI DI ENV VERCEL
-                redirect_uri: 'https://asyrofotp.vercel.app/login', // Harus sama persis
-                grant_type: 'authorization_code'
+                client_secret: process.env.CLIENT_SECRET_GOOGLE_LOGIN,
+                redirect_uri: redirectUri,
+                grant_type: 'authorization_code',
+                code_verifier: codeVerifier // <--- INI WAJIB
             })
         });
 
         const tokenData = await tokenRes.json();
-        if (!tokenData.access_token) throw new Error('Gagal dapet token dari Google');
+        if (!tokenData.access_token) {
+            console.error('Google Error Detail:', tokenData);
+            throw new Error('Gagal dapet token dari Google');
+        }
 
-        // 2. Pake Access Token buat ngambil data User
+        // 3. Pake Access Token buat ngambil data User
         const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: { Authorization: `Bearer ${tokenData.access_token}` }
         });
-        
         const googleUser = await userRes.json();
-        if (!googleUser.id || !googleUser.email) throw new Error('Gagal dapet email dari Google');
-
-        // (Di sini lo copy logika simpen user ke DB kayak endpoint /api/auth/google yang lama)
-        // Misal: cari user by google_id, kalo gak ada insert, terus bikin session JWT.
         
-        // Simulasi sukses: Redirect balik ke frontend bawa token (atau set cookie)
-        // Karena ini backend lu, lo harus bikin session JWT dan ngirim balik ke frontend.
-        // (Contoh gampang: redirect ke /login?token=JWT)
-        res.redirect('/dashboard'); // <--- Sesuaikan sama logic sukses lo
+        if (!googleUser.id || !googleUser.email) throw new Error('Gagal dapet email');
+
+        // 4. CARI / SIMPEN USER KE DATABASE
+        const googleId = String(googleUser.id);
+        const email = String(googleUser.email).toLowerCase();
+        const displayName = String(googleUser.name || '').trim() || email.split('@')[0];
+
+        let userResDb = await pool.query('SELECT * FROM users WHERE google_id = $1 LIMIT 1', [googleId]);
+        let user = userResDb.rows[0];
+
+        if (!user) {
+            // Cek email (kalau user lama login pake password)
+            userResDb = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1 LIMIT 1', [email]);
+            user = userResDb.rows[0];
+            
+            if (user) {
+                await pool.query('UPDATE users SET google_id = $1 WHERE id = $2 AND google_id IS NULL', [googleId, user.id]);
+            } else {
+                // Bikin user baru
+                const base = email.split('@')[0].replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'user';
+                let candidate = base.length >= 3 ? base : base + '000';
+                const randomHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+                
+                const ins = await pool.query(
+                    `INSERT INTO users (username, password_hash, name, email, google_id) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+                    [candidate, randomHash, displayName, email, googleId]
+                );
+                user = ins.rows[0];
+            }
+        }
+
+        if (user.status === 'banned') return res.redirect('/login?error=banned');
+
+        // 5. BIKIN SESSION JWT & SET COOKIE
+        const token = signToken(user);
+        
+        // Set cookie biar frontend otomatis login
+        res.cookie('token', token, { 
+            httpOnly: true, 
+            secure: true, 
+            sameSite: 'lax',
+            maxAge: 30 * 60 * 1000 
+        });
+
+        // 6. REDIRECT KE DASHBOARD
+        res.redirect('/dashboard');
 
     } catch (err) {
         console.error('Google Redirect Error:', err.message);
         res.redirect('/login?error=failed');
     }
-});
+}));
 
 // auth routes
 app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
