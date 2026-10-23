@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0a84ff">
 <meta name="robots" content="noindex,nofollow">
@@ -18,30 +17,22 @@
 <script>
 (function(){
   var d=document.documentElement;
-  var hc=navigator.hardwareConcurrency||2;
-  var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-  var sn=c&&(c.saveData||/2g|slow-2g/.test(c.effectiveType||''));
-  var r=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  d.setAttribute('data-perf',(r||sn||hc<=4||m)?'lite':'full');
-
+  d.setAttribute('data-perf',
+    (matchMedia('(prefers-reduced-motion: reduce)').matches ||
+     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) ? 'lite' : 'full');
   try{
-    var pref=localStorage.getItem('asyrofotp_theme_pref');
-    if(!pref){
-      var old=localStorage.getItem('asyrofotp_theme');
-      pref = old==='light'||old==='dark' ? old : 'system';
-    }
-    var resolved = pref==='system'
-      ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-      : pref;
-    d.setAttribute('data-theme',resolved);
-    d.setAttribute('data-theme-pref',pref);
+    var p=localStorage.getItem('asyrofotp_theme_pref');
+    if(!p){var o=localStorage.getItem('asyrofotp_theme');p=(o==='light'||o==='dark')?o:'system';}
+    d.setAttribute('data-theme-pref',p);
+    d.setAttribute('data-theme',p==='system'
+      ?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p);
   }catch(e){
-    d.setAttribute('data-theme','light');
     d.setAttribute('data-theme-pref','system');
+    d.setAttribute('data-theme','light');
   }
 })();
 </script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
@@ -89,9 +80,7 @@
           <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
           <button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon" aria-hidden="true">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
       </div>
@@ -99,18 +88,14 @@
       <div class="row-between">
         <label class="remember">
           <input type="checkbox" id="rememberMe">
-          <span class="check-box" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          </span>
+          <span class="check-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
           <span>Ingat saya</span>
         </label>
         <a href="/forgot" class="link-forgot">Lupa password?</a>
       </div>
 
       <div class="status" id="statusRow" aria-live="polite">
-        <div class="status-bar" id="statusBar">
-          <div class="status-bar-fill" id="statusBarFill"></div>
-        </div>
+        <div class="status-bar" id="statusBar"><div class="status-bar-fill" id="statusBarFill"></div></div>
         <span class="status-label" id="statusLabel">Menunggu</span>
       </div>
 
@@ -120,9 +105,25 @@
       </button>
     </form>
 
-    <div class="auth-foot">
-      Belum punya akun? <a href="/daftar">Daftar gratis</a>
+    <div class="divider"><span>atau</span></div>
+
+    <div class="google-wrap">
+      <div id="g_id_onload"
+           data-client_id="GANTI_DENGAN_CLIENT_ID"
+           data-callback="handleGoogleCredential"
+           data-auto_prompt="false"
+           data-ux_mode="popup"></div>
+      <div class="g_id_signin"
+           data-type="standard"
+           data-size="large"
+           data-theme="outline"
+           data-text="signin_with"
+           data-shape="rectangular"
+           data-logo_alignment="left"
+           data-width="336"></div>
     </div>
+
+    <div class="auth-foot">Belum punya akun? <a href="/daftar">Daftar gratis</a></div>
 
     <div class="recaptcha-note">
       Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a>
@@ -131,5 +132,6 @@
 </div>
 
 <script src="/js/C9tXwdcmAabb4xw8xTlZr79j7EO_ENuEx27UnuL4sWslogin.js" defer></script>
+<script src="/js/google-login.js" defer></script>
 </body>
 </html>
