@@ -15,66 +15,6 @@
     }
     return { local: wrap(ls,''), session: wrap(ss,'') };
   })();
-  const _crypto = (() => {
-    const _k = 'cHJvZmlsZS1zZWNyZXQta2V5LTIwMjYtYXN5cm9m';
-    const _s = 'c2FsdC1wcm9maWxlLXYyMDI2LXNlY3VyZQ==';
-    const _i = 100000;
-    let _dk = null;
-    const supported = (() => {
-      try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
-      catch(e) { return false; }
-    })();
-    async function _derive() {
-      if (_dk) return _dk;
-      const enc = new TextEncoder();
-      const base = await crypto.subtle.importKey('raw', enc.encode(atob(_k)), { name: 'PBKDF2' }, false, ['deriveKey']);
-      _dk = await crypto.subtle.deriveKey(
-        { name: 'PBKDF2', salt: enc.encode(atob(_s)), iterations: _i, hash: 'SHA-256' },
-        base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
-      );
-      return _dk;
-    }
-    function _b2buf(b64) {
-      const bin = atob(b64);
-      const u = new Uint8Array(bin.length);
-      for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      return u.buffer;
-    }
-    function _buf2b(buf) {
-      const b = new Uint8Array(buf);
-      let s = '';
-      for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-      return btoa(s);
-    }
-    function _fbSeal(obj) { try { return 'fb:' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); } catch(e) { return null; } }
-    function _fbUnseal(b64) { try { return JSON.parse(decodeURIComponent(escape(atob(b64.slice(3))))); } catch(e) { return null; } }
-    async function seal(obj) {
-      if (!supported) return _fbSeal(obj);
-      try {
-        const key = await _derive();
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
-        const comb = new Uint8Array(iv.length + c.byteLength);
-        comb.set(iv, 0);
-        comb.set(new Uint8Array(c), iv.length);
-        return _buf2b(comb.buffer);
-      } catch(e) { return _fbSeal(obj); }
-    }
-    async function unseal(b64) {
-      if (!b64) return null;
-      if (b64.indexOf('fb:') === 0) return _fbUnseal(b64);
-      if (!supported) return null;
-      try {
-        const key = await _derive();
-        const buf = _b2buf(b64);
-        const iv = buf.slice(0, 12);
-        const data = buf.slice(12);
-        const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, data);
-        return JSON.parse(new TextDecoder().decode(plain));
-      } catch(e) { return null; }
-    }
-    return { seal, unseal };
-  })();
   const Cache = (() => {
     const P = 'aotp_p_';
     const _mem = new Map();
@@ -87,7 +27,7 @@
       try {
         const raw = SafeStorage.local.get(P + key);
         if (!raw) return null;
-        const e = await _crypto.unseal(raw);
+        const e = JSON.parse(raw);
         if (!e) return null;
         if (ttl && Date.now() - e.t > ttl) { SafeStorage.local.remove(P + key); return null; }
         _mem.set(key, e);
@@ -98,8 +38,7 @@
       const e = { t: Date.now(), v };
       _mem.set(key, e);
       try {
-        const s = await _crypto.seal(e);
-        if (s) SafeStorage.local.set(P + key, s);
+        SafeStorage.local.set(P + key, JSON.stringify(e));
       } catch(err) {}
     }
     function remove(key) {
@@ -332,6 +271,78 @@
     chartOrder: { range: 7, data: null },
     chartSaldo: { range: 7, data: null },
   };
+  let avatarModules;
+  let currentAvatar;
+  let avatarSeed;
+  function getAvatarModules() {
+    if (!avatarModules) {
+      avatarModules = Promise.all([
+        import('https://esm.sh/@dicebear/core@10.7.0'),
+        import('https://esm.sh/@dicebear/styles@10.7.0/lorelei.json'),
+        import('https://esm.sh/@dicebear/converter@10.7.0'),
+      ]).then(([core, styleModule, converter]) => ({
+        Avatar: core.Avatar,
+        Style: core.Style,
+        style: new core.Style(styleModule.default || styleModule),
+        toPng: converter.toPng,
+      }));
+    }
+    return avatarModules;
+  }
+  async function renderAvatar(user) {
+    const seed = String(user.user_code || user.username || 'asyrofotp-user');
+    avatarSeed = seed;
+    try {
+      const { Avatar, style } = await getAvatarModules();
+      const avatar = new Avatar(style, { seed, size: 160, backgroundColor: ['#e8f3ff'] });
+      if (avatarSeed !== seed) return;
+      currentAvatar = avatar;
+      const source = avatar.toDataUri();
+      ['profileAvatar', 'userInitial'].forEach((id) => {
+        const target = $(id);
+        if (!target) return;
+        const image = document.createElement('img');
+        image.src = source;
+        image.alt = 'Avatar ' + String(user.username || 'pengguna');
+        image.width = id === 'profileAvatar' ? 112 : 40;
+        image.height = image.width;
+        image.decoding = 'async';
+        image.style.cssText = 'display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit';
+        target.replaceChildren(image);
+      });
+      const download = $('downloadAvatarBtn');
+      if (download) download.disabled = false;
+      const status = $('avatarStatus');
+      if (status) status.textContent = 'Avatar konsisten dibuat di perangkat ini dengan DiceBear.';
+    } catch (error) {
+      const status = $('avatarStatus');
+      if (status) status.textContent = 'Avatar ilustrasi tidak tersedia. Inisial akun tetap digunakan.';
+    }
+  }
+  (function bindAvatarDownload() {
+    const button = $('downloadAvatarBtn');
+    if (!button) return;
+    button.addEventListener('click', async () => {
+      if (!currentAvatar || button.disabled) return;
+      const original = button.textContent;
+      button.disabled = true;
+      button.textContent = 'Menyiapkan PNG…';
+      try {
+        const { toPng } = await getAvatarModules();
+        const png = await toPng(currentAvatar, { size: 512 }).toDataUri();
+        const link = document.createElement('a');
+        link.href = png;
+        link.download = 'avatar-' + String(avatarSeed).replace(/[^a-z0-9_-]/gi, '-') + '.png';
+        link.click();
+      } catch (error) {
+        const status = $('avatarStatus');
+        if (status) status.textContent = 'PNG gagal dibuat. Coba lagi setelah koneksi tersedia.';
+      } finally {
+        button.disabled = false;
+        button.textContent = original;
+      }
+    });
+  })();
   async function loadUser(force = false) {
     if (!force) {
       const cached = await Cache.get('user', _cfg.ttl.user);
@@ -361,6 +372,7 @@
     set('userInitial', initial);
     set('balancePill', bal);
     set('profileAvatar', initial);
+    renderAvatar(user);
     set('profileName', name);
     set('profileUsername', '@' + (user.username || ''));
     set('infoUsername', '@' + (user.username || ''));
@@ -830,3 +842,4 @@
   window.addEventListener('beforeunload', _cleanup);
 
 })(window);
+
