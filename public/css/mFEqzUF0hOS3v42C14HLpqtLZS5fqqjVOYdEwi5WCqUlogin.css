@@ -236,12 +236,38 @@ a:focus-visible,button:focus-visible,input:focus-visible,label:focus-visible{
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ---- divider + google ---- */
-.divider{display:flex;align-items:center;gap:12px;margin:20px 0 16px;color:var(--txt3);font-size:.75rem}
-.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:20px 0 16px;
+  color:var(--txt3);
+  font-size:.75rem;
+}
+.divider::before,
+.divider::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:var(--border);
+}
 
-.google-wrap{display:flex;justify-content:center;width:100%}
-.google-wrap>div{width:100%}
-.google-wrap iframe{margin:0 auto;border-radius:6px}
+.google-wrap{
+  display:block;
+  width:100%;
+  min-height:44px;
+  position:relative;
+}
+.google-wrap > div{
+  width:100% !important;
+  display:flex;
+  justify-content:center;
+}
+.google-wrap iframe{
+  margin:0 auto !important;
+  border-radius:6px !important;
+  max-width:100% !important;
+}
 
 .google-fallback{
   width:100%;
