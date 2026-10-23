@@ -1,101 +1,133 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0a84ff">
+<meta name="robots" content="noindex,nofollow">
+<title>Masuk — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/mFEqzUF0hOS3v42C14HLpqtLZS5fqqjVOYdEwi5WCqUlogin.css">
+<script>
 (function(){
-'use strict';
-
-var D=document, W=window;
-var q=function(s,c){return (c||D).querySelector(s)};
-
-// ==========================================
-// 1. TANGKAP TOKEN DARI URL (HASIL REDIRECT BACKEND)
-// ==========================================
-(function checkToken() {
-    var urlParams = new URLSearchParams(W.location.search);
-    var token = urlParams.get('token');
-    
-    if (token) {
-        try {
-            // Simpen token ke localStorage
-            localStorage.setItem('access_token', token);
-            
-            // Kalau backend ngirim refresh_token, simpen juga
-            var refresh = urlParams.get('refresh');
-            if(refresh) localStorage.setItem('refresh_token', refresh);
-            
-            // Bersihin URL biar token gak keliatan di address bar
-            W.history.replaceState(null, '', W.location.pathname);
-            
-            // Lempar user ke dashboard
-            W.location.replace('/dashboard');
-        } catch(e) {
-            console.error('Gagal nyimpen token:', e);
-        }
-    }
-})();
-
-// ==========================================
-// 2. ELEMENTS & FUNGSI ALERT
-// ==========================================
-var customBtn = q('#customGoogleBtn');
-var alertEl = q('#alert');
-var alertText = q('#alert-text');
-var alertIcon = q('#alertIcon');
-
-var ICONS={
-error:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-success:'<polyline points="20 6 9 17 4 12"/>',
-info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>'
-};
-
-function showAlert(msg,type){
-  type=type||'error';
-  if(!alertEl)return;
-  alertEl.className='alert show '+type;
-  if(alertText)alertText.textContent=msg;
-  if(alertIcon)alertIcon.innerHTML=ICONS[type]||ICONS.error;
-}
-
-// ==========================================
-// 3. TANGKAP ERROR DARI URL (KALAU GAGAL LOGIN)
-// ==========================================
-W.addEventListener('load', function() {
-  var urlParams = new URLSearchParams(W.location.search);
-  var error = urlParams.get('error');
-  if (error) {
-    if(error === 'banned') { showAlert('Akun kamu diblokir.', 'error'); }
-    else if (error === 'failed') { showAlert('Login Google gagal. Silakan coba lagi.', 'error'); }
-    else { showAlert('Terjadi kesalahan saat login Google.', 'error'); }
-    
-    // Bersihin URL biar pesan error gak nempel terus
-    W.history.replaceState(null, '', W.location.pathname);
+  var d=document.documentElement;
+  d.setAttribute('data-perf',
+    (matchMedia('(prefers-reduced-motion: reduce)').matches ||
+     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) ? 'lite' : 'full');
+  try{
+    var p=localStorage.getItem('asyrofotp_theme_pref');
+    if(!p){var o=localStorage.getItem('asyrofotp_theme');p=(o==='light'||o==='dark')?o:'system';}
+    d.setAttribute('data-theme-pref',p);
+    d.setAttribute('data-theme',p==='system'
+      ?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p);
+  }catch(e){
+    d.setAttribute('data-theme-pref','system');
+    d.setAttribute('data-theme','light');
   }
-});
-
-// ==========================================
-// 4. KLIK TOMBOL GOOGLE (MINTA URL & REDIRECT)
-// ==========================================
-if (customBtn) {
-  customBtn.addEventListener('click', async function() {
-    // Ubah tombol jadi loading
-    var originalText = customBtn.innerHTML;
-    customBtn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border:2px solid rgba(0,0,0,0.2);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite; display:inline-block; vertical-align:middle; margin-right:8px;"></span> <span>Menghubungkan...</span>';
-    customBtn.disabled = true;
-
-    try {
-        // Minta URL login ke backend (endpoint /api/auth/google/url)
-        var res = await fetch('/api/auth/google/url');
-        var data = await res.json();
-        
-        if (data.url) {
-            // Lempar user ke halaman login Google
-            W.location.href = data.url;
-        } else {
-            throw new Error('Gagal memuat URL login Google.');
-        }
-    } catch (e) {
-        alert(e.message || 'Terjadi kesalahan sistem.');
-        customBtn.innerHTML = originalText;
-        customBtn.disabled = false;
-    }
-  });
-}
-
 })();
+</script>
+<script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
+</head>
+<body>
+
+<a href="/" class="back-btn" aria-label="Kembali ke beranda">
+  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+  <span>Beranda</span>
+</a>
+
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema: terang, gelap, ikuti sistem">
+  <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+</button>
+
+<div class="auth-wrap">
+  <div class="auth-brand">
+    <div class="brand-mark" aria-hidden="true">A</div>
+    <div class="brand-txt">Asyrof<span>OTP</span></div>
+  </div>
+
+  <div class="auth-card" id="loginCard">
+    <div class="auth-head">
+      <h1>Masuk</h1>
+      <p>Masukkan username dan password akunmu.</p>
+    </div>
+
+    <div class="alert" id="alert" role="alert" aria-live="polite">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span id="alert-text"></span>
+    </div>
+
+    <form id="loginForm" autocomplete="on" novalidate>
+      <div class="field">
+        <label class="label" for="username">Username</label>
+        <div class="input-box">
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="label" for="password">Password</label>
+        <div class="input-box">
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="row-between">
+        <label class="remember">
+          <input type="checkbox" id="rememberMe">
+          <span class="check-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span>Ingat saya</span>
+        </label>
+        <a href="/forgot" class="link-forgot">Lupa password?</a>
+      </div>
+
+      <div class="status" id="statusRow" aria-live="polite">
+        <div class="status-bar" id="statusBar"><div class="status-bar-fill" id="statusBarFill"></div></div>
+        <span class="status-label" id="statusLabel">Menunggu</span>
+      </div>
+
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span id="btnText">Masuk</span>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+    </form>
+
+    <div class="divider"><span>atau</span></div>
+
+    <!-- Tombol Custom Google -->
+    <div class="google-wrap">
+      <button type="button" class="google-btn" id="customGoogleBtn">
+        <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        <span>Masuk dengan Google</span>
+      </button>
+    </div>
+
+    <div class="auth-foot">Belum punya akun? <a href="/daftar">Daftar gratis</a></div>
+
+    <div class="recaptcha-note">
+      Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+    </div>
+  </div>
+</div>
+
+<script src="/js/C9tXwdcmAabb4xw8xTlZr79j7EO_ENuEx27UnuL4sWslogin.js" defer></script>
+<script src="/js/zNhV-wyebaG1PuodwLtPPY5ZhzNnK5cY0eMlYElkUjggoogle-login.js" defer></script>
+</body>
+</html>
