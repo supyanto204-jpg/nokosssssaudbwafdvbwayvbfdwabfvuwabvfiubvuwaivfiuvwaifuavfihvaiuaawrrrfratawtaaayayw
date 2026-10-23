@@ -15,37 +15,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/IqBeRiLs3WGlbOPstmFeWMs58C23GV2nzqYlAW+EPy+etbynrI8Iaw.css">
+<link rel="stylesheet" href="/css/PypBwtTPfKCpHPTC_5rE42yXnFXTAO6mnP9h5GZkcu8+EPy+etbynrI8Iawprofile.css">
 <script>
+// set data-perf + theme sebelum paint biar gak flicker
 (function(){
   var d = document.documentElement;
-  try {
+  try{
     var hc = navigator.hardwareConcurrency || 4;
     var m = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     var c = navigator.connection || {};
     var sn = c.saveData || /2g|slow-2g/.test(c.effectiveType || '');
     var r = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var mode = 'full';
-    if (r || sn || hc <= 4 || m) mode = 'lite';
-    d.setAttribute('data-perf', mode);
-  } catch(e) { d.setAttribute('data-perf', 'lite'); }
-  try {
+    d.setAttribute('data-perf', (r||sn||hc<=4||m) ? 'lite' : 'full');
+  }catch(e){ d.setAttribute('data-perf','lite'); }
+  try{
     var saved = null;
-    try { saved = localStorage.getItem('asyrofotp_theme'); } catch(_) {}
+    try{ saved = localStorage.getItem('asyrofotp_theme'); }catch(_){}
     var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
     d.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
-  } catch(e) {}
-  try {
-    if (window.top !== window.self) {
-      try { window.top.location = window.self.location; } catch (e) {
-        document.addEventListener('DOMContentLoaded', function() {
+  }catch(e){}
+  try{
+    if(window.top !== window.self){
+      try{ window.top.location = window.self.location; }
+      catch(e){
+        document.addEventListener('DOMContentLoaded', function(){
           document.body.innerHTML =
-            '<div style="position:fixed;inset:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:99999;">' +
-            '<div><h1 style="font-size:48px;margin:0 0 12px;">⛔</h1><p style="opacity:.7;font-size:14px;margin:0;">Buka halaman ini di browser, bukan di dalam app.</p></div></div>';
+            '<div style="position:fixed;inset:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:99999">' +
+            '<div><h1 style="font-size:48px;margin:0 0 12px">⛔</h1><p style="opacity:.7;font-size:14px;margin:0">Buka halaman ini di browser, bukan di dalam app.</p></div></div>';
         });
       }
     }
-  } catch(e) {}
+  }catch(e){}
 })();
 </script>
 </head>
@@ -58,7 +58,6 @@
   <div class="grid"></div>
 </div>
 
-<!-- SIDEBAR -->
 <aside class="sidebar glass" id="sidebar">
   <div class="sidebar-header">
     <a href="/dashboard" class="sidebar-logo">
@@ -133,20 +132,18 @@
       </div>
     </div>
 
-    <!-- PROFILE HERO -->
     <div class="profile-hero glass-card reveal">
       <div class="profile-avatar" id="profileAvatar"><span class="spinner-sm"></span></div>
       <div class="profile-meta">
-        <h2 id="profileName"><span class="skel skel-text" style="width:150px;height:24px;"></span></h2>
-        <div class="username" id="profileUsername"><span class="skel skel-text-sm" style="width:120px;"></span></div>
-        <button class="user-code-badge" id="profileCodeBadge" style="display:none;" title="Klik untuk copy" type="button">
+        <h2 id="profileName"><span class="skel skel-text" style="width:150px;height:24px"></span></h2>
+        <div class="username" id="profileUsername"><span class="skel skel-text-sm" style="width:120px"></span></div>
+        <button class="user-code-badge" id="profileCodeBadge" style="display:none" title="Klik untuk copy" type="button">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
           <span id="profileCodeText">—</span>
         </button>
       </div>
     </div>
 
-    <!-- INFO -->
     <div class="info-card glass-card reveal">
       <div class="card-header">
         <div>
@@ -165,9 +162,9 @@
         </div>
         <div class="info-row">
           <span class="info-row-label">User ID</span>
-          <span class="info-row-value primary" style="display:flex;align-items:center;gap:8px;">
+          <span class="info-row-value primary" style="display:flex;align-items:center;gap:8px">
             <span id="infoUserCode"><span class="skel skel-text-sm"></span></span>
-            <button class="copy-inline-btn" type="button" id="btnCopyUserCode" title="Copy User ID" style="display:none;">
+            <button class="copy-inline-btn" type="button" id="btnCopyUserCode" title="Copy User ID" style="display:none">
               <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
           </span>
@@ -179,12 +176,11 @@
       </div>
     </div>
 
-    <!-- ACTIONS -->
     <div class="info-card glass-card reveal">
       <div class="card-header">
         <div>
           <h2>Pengaturan</h2>
-          <p>Kelola nama & password kamu</p>
+          <p>Kelola nama &amp; password kamu</p>
         </div>
       </div>
       <div class="action-row">
@@ -219,7 +215,6 @@
   </main>
 </div>
 
-<!-- MOBILE TASKBAR -->
 <nav class="mobile-taskbar glass" aria-label="Navigasi utama">
   <div class="mobile-taskbar-inner">
     <a href="/dashboard" class="taskbar-item"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="taskbar-label">Home</span></a>
@@ -230,7 +225,6 @@
   </div>
 </nav>
 
-<!-- MODAL EDIT NAME -->
 <div class="modal-overlay" id="modalName">
   <div class="modal glass-card">
     <div class="modal-icon">
@@ -255,7 +249,6 @@
   </div>
 </div>
 
-<!-- MODAL CHANGE PASSWORD -->
 <div class="modal-overlay" id="modalPassword">
   <div class="modal glass-card">
     <div class="modal-icon">
@@ -271,7 +264,7 @@
           <input type="password" class="form-control" id="inputOldPassword" placeholder="••••••••" required autocomplete="current-password">
           <button type="button" class="password-toggle" data-toggle="inputOldPassword" aria-label="Toggle password">
             <svg class="ic eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
       </div>
@@ -281,7 +274,7 @@
           <input type="password" class="form-control" id="inputNewPassword" placeholder="Minimal 6 karakter" required minlength="6" autocomplete="new-password">
           <button type="button" class="password-toggle" data-toggle="inputNewPassword" aria-label="Toggle password">
             <svg class="ic eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
         <div class="pwd-strength" id="pwdStrength">
@@ -294,7 +287,7 @@
           <input type="password" class="form-control" id="inputNewPassword2" placeholder="Ulangi password baru" required autocomplete="new-password">
           <button type="button" class="password-toggle" data-toggle="inputNewPassword2" aria-label="Toggle password">
             <svg class="ic eye-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            <svg class="ic eye-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
           </button>
         </div>
       </div>
@@ -309,7 +302,7 @@
   </div>
 </div>
 
-<script src="/js/eU67lvzIBVunuaz2YEqedpdIR6z6kNfkydCj1+wiENWW4RhRzxQsJg.js" defer></script>
+<script src="/js/lFgL50OlihDedF_B4fr72ydgu0IqjWHDpiUh9qpBKlQprofile.js" defer></script>
 
 </body>
 </html>
