@@ -15,44 +15,37 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/nokos.css">
+<link rel="stylesheet" href="/css/Ydmi-dgt3fDTT4JqSuDUvXR7yCitiSZ2aaNq7ZkCTVsnokos.css">
 <script>
+// set data-perf + theme sebelum paint biar gak flicker
 (function(){
-  var d=document.documentElement;
-  try {
-    var hc=navigator.hardwareConcurrency||4;
-    var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    var c=navigator.connection||{};
-    var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
-    var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var mode='full';
-    if(r||sn||hc<=4||m)mode='lite';
-    d.setAttribute('data-perf',mode);
-  } catch(e) { d.setAttribute('data-perf','lite'); }
-
-  try {
-    var saved=null;
-    try { saved=localStorage.getItem('asyrofotp_theme'); } catch(_) {}
-    var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-    d.setAttribute('data-theme',saved||(prefersDark?'dark':'light'));
-  } catch(e) {}
-
-  // Anti-iframe: JANGAN hancurkan DOM
-  try {
-    if(window.top!==window.self){
-      try{window.top.location=window.self.location}catch(e){
-        document.addEventListener('DOMContentLoaded',function(){
+  var d = document.documentElement;
+  try{
+    var hc = navigator.hardwareConcurrency || 4;
+    var m = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    var c = navigator.connection || {};
+    var sn = c.saveData || /2g|slow-2g/.test(c.effectiveType || '');
+    var r = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    d.setAttribute('data-perf', (r||sn||hc<=4||m) ? 'lite' : 'full');
+  }catch(e){ d.setAttribute('data-perf','lite'); }
+  try{
+    var saved = null;
+    try{ saved = localStorage.getItem('asyrofotp_theme'); }catch(_){}
+    var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    d.setAttribute('data-theme', saved || (prefersDark ? 'dark' : 'light'));
+  }catch(e){}
+  try{
+    if(window.top !== window.self){
+      try{ window.top.location = window.self.location; }
+      catch(e){
+        document.addEventListener('DOMContentLoaded', function(){
           document.body.innerHTML =
-            '<div style="position:fixed;inset:0;background:#000;color:#fff;' +
-            'font-family:system-ui,sans-serif;display:flex;align-items:center;' +
-            'justify-content:center;text-align:center;padding:20px;z-index:99999;">' +
-            '<div><h1 style="font-size:48px;margin:0 0 12px;">⛔</h1>' +
-            '<p style="opacity:.7;font-size:14px;margin:0;">Buka halaman ini di browser bukan di dalam app.</p></div>' +
-            '</div>';
+            '<div style="position:fixed;inset:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:99999">' +
+            '<div><h1 style="font-size:48px;margin:0 0 12px">⛔</h1><p style="opacity:.7;font-size:14px;margin:0">Buka halaman ini di browser, bukan di dalam app.</p></div></div>';
         });
       }
     }
-  } catch(e) {}
+  }catch(e){}
 })();
 </script>
 </head>
@@ -65,7 +58,6 @@
   <div class="grid"></div>
 </div>
 
-<!--  SIDEBAR — child langsung <body> -->
 <aside class="sidebar glass" id="sidebar">
   <div class="sidebar-header">
     <a href="/dashboard" class="sidebar-logo">
@@ -151,11 +143,11 @@
     <div class="section-title">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <span id="sectionActiveTitle">Pesanan Aktif</span>
-      <span class="badge info" id="activeCount" style="display:none;">0</span>
+      <span class="badge info" id="activeCount" style="display:none">0</span>
     </div>
 
     <div id="activeOrders"></div>
-    <div class="active-orders-pagination" id="activeOrdersPagination" style="display:none;"></div>
+    <div class="active-orders-pagination" id="activeOrdersPagination" style="display:none"></div>
 
     <div class="cta-wrap">
       <button class="btn-cta" id="btnOrder" type="button">
@@ -188,7 +180,7 @@
     <footer class="site-footer">
       <div class="footer-links">
         <a href="/ketentuan">Ketentuan Layanan</a>
-        <a href="/syarat">Syarat & Refund</a>
+        <a href="/syarat">Syarat &amp; Refund</a>
         <a href="/dashboard">Dashboard</a>
         <a href="/inbox">Inbox</a>
       </div>
@@ -197,7 +189,6 @@
   </main>
 </div>
 
-<!-- BOTTOM SHEET -->
 <div class="bottom-sheet-overlay" id="sheetOverlay">
   <div class="bottom-sheet glass" id="bottomSheet">
     <div class="sheet-handle"></div>
@@ -215,7 +206,6 @@
   </div>
 </div>
 
-<!-- SUCCESS MODAL -->
 <div class="modal-overlay" id="modalSuccess">
   <div class="modal glass-card">
     <div class="success-modal">
@@ -223,9 +213,9 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
       <h2>Order Berhasil!</h2>
-      <p style="color:var(--txt2);font-size:0.9rem;margin-top:8px;">Nomor kamu sudah siap. Tunggu OTP masuk ya.</p>
-      <div style="display:flex;gap:10px;margin-top:24px;">
-        <a href="/inbox" class="btn-primary" style="width:100%;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+      <p style="color:var(--txt2);font-size:0.9rem;margin-top:8px">Nomor kamu sudah siap. Tunggu OTP masuk ya.</p>
+      <div style="display:flex;gap:10px;margin-top:24px">
+        <a href="/inbox" class="btn-primary" style="width:100%;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
           Lihat Inbox
         </a>
@@ -234,7 +224,6 @@
   </div>
 </div>
 
-<!-- MOBILETASKBAR -->
 <nav class="mobile-taskbar glass" aria-label="Navigasi utama">
   <div class="mobile-taskbar-inner">
     <a href="/dashboard" class="taskbar-item" data-page="dashboard">
@@ -262,7 +251,6 @@
   </div>
 </nav>
 
-<!-- CUSTOM ALERT -->
 <div class="custom-alert-overlay" id="customAlert">
   <div class="custom-alert glass-card">
     <div class="custom-alert-icon info" id="customAlertIcon">
@@ -276,7 +264,7 @@
   </div>
 </div>
 
-<script src="/js/YgffFFyfFDtduFDurtua6FuidATfaaUA56aAf85a6ARfufiF976.js" defer></script>
+<script src="/js/zUcs4-Vbvyo5DlW3luZBRK-_T6F3poRdLIkjMZrcd08nokos.js" defer></script>
 
 </body>
 </html>
