@@ -315,6 +315,11 @@ body.sidebar-open .topbar { z-index: 10; }
   font: inherit; font-size: 0.9rem; color: var(--txt);
   min-width: 0;
 }
+.admin-filters { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 16px; }
+.admin-filters select,.admin-filters input { min-height:44px; border:1px solid var(--gl-bd2); border-radius:10px; padding:0 12px; color:var(--txt); background:var(--gl-bg); font:inherit; }
+.admin-filters button { min-height:44px; }
+.admin-filters .filter-spacer { flex:1; }
+@media (max-width:600px) { .admin-filters>* { flex:1 1 100%; } .admin-filters .filter-spacer { display:none; } }
 
 /* Content cards */
 #content { display: flex; flex-direction: column; gap: 10px; }
@@ -789,6 +794,18 @@ body.sidebar-open .topbar { z-index: 10; }
       <input type="search" id="searchInput" placeholder="Cari user / order / deposit...">
     </div>
 
+    <div class="admin-filters" id="adminFilters" aria-label="Filter data">
+      <select id="statusFilter" aria-label="Filter status">
+        <option value="">Semua status</option><option value="pending">Pending</option><option value="success">Sukses</option><option value="failed">Gagal</option><option value="cancelled">Dibatalkan</option><option value="expired">Kedaluwarsa</option><option value="banned">Banned</option><option value="active">Aktif</option>
+      </select>
+      <select id="roleFilter" aria-label="Filter role">
+        <option value="">Semua role</option><option value="user">User</option><option value="admin">Admin</option>
+      </select>
+      <input id="serverFilter" type="search" placeholder="Server (orders)" aria-label="Filter server order">
+      <span class="filter-spacer"></span>
+      <button class="btn" id="exportPageBtn" type="button">Ekspor halaman CSV</button>
+    </div>
+
     <div id="content">
       <div class="empty-block"><div class="spinner-sm"></div><p>Memuat...</p></div>
     </div>
@@ -1035,6 +1052,10 @@ body.sidebar-open .topbar { z-index: 10; }
     limit: 20,
     totalPages: 1,
     isLoading: false,
+    status: '',
+    role: '',
+    server: '',
+    currentRows: [],
   };
 
   /* §9 — STATS */
@@ -1052,6 +1073,12 @@ body.sidebar-open .topbar { z-index: 10; }
   function loadTab() {
     const searchBar = $('searchBar');
     if (searchBar) searchBar.style.display = (state.tab === 'tools' || state.tab === 'audit' || state.tab === 'monitor') ? 'none' : 'flex';
+    const filters = $('adminFilters');
+    if (filters) filters.style.display = ['users', 'orders', 'deposits'].includes(state.tab) ? 'flex' : 'none';
+    $('roleFilter').hidden = state.tab !== 'users';
+    $('serverFilter').hidden = state.tab !== 'orders';
+    $('statusFilter').hidden = !['users', 'orders', 'deposits'].includes(state.tab);
+    $('exportPageBtn').disabled = !state.currentRows.length;
     $('pagination').hidden = true;
 
     if (state.tab === 'users') loadUsers();
@@ -1093,10 +1120,16 @@ body.sidebar-open .topbar { z-index: 10; }
   /* §12 — USERS */
   async function loadUsers() {
     const c = $('content');
+    state.currentRows = [];
+    $('exportPageBtn').disabled = true;
     c.innerHTML = loadingBlock('Memuat users...');
     try {
       const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
+      if (state.status) q.set('status', state.status);
+      if (state.role) q.set('role', state.role);
       const data = await api('/api/admin/users?' + q);
+      state.currentRows = data.users || [];
+      $('exportPageBtn').disabled = !state.currentRows.length;
       if (!data.users || data.users.length === 0) { c.innerHTML = emptyBlock('Belum ada user'); return; }
       c.innerHTML = data.users.map(u => {
         const banned = u.status === 'banned';
@@ -1352,10 +1385,16 @@ body.sidebar-open .topbar { z-index: 10; }
   /* §18 — ORDERS */
   async function loadOrders() {
     const c = $('content');
+    state.currentRows = [];
+    $('exportPageBtn').disabled = true;
     c.innerHTML = loadingBlock('Memuat orders...');
     try {
       const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
+      if (state.status) q.set('status', state.status);
+      if (state.server) q.set('server', state.server);
       const data = await api('/api/admin/orders?' + q);
+      state.currentRows = data.orders || [];
+      $('exportPageBtn').disabled = !state.currentRows.length;
       if (!data.orders || data.orders.length === 0) { c.innerHTML = emptyBlock('Belum ada order'); return; }
       c.innerHTML = data.orders.map(o => {
         const cls = ['success','received','confirmed'].includes(o.status) ? 'success'
@@ -1462,10 +1501,15 @@ body.sidebar-open .topbar { z-index: 10; }
   /* §19 — DEPOSITS */
   async function loadDeposits() {
     const c = $('content');
+    state.currentRows = [];
+    $('exportPageBtn').disabled = true;
     c.innerHTML = loadingBlock('Memuat deposits...');
     try {
       const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
+      if (state.status) q.set('status', state.status);
       const data = await api('/api/admin/deposits?' + q);
+      state.currentRows = data.deposits || [];
+      $('exportPageBtn').disabled = !state.currentRows.length;
       if (!data.deposits || data.deposits.length === 0) { c.innerHTML = emptyBlock('Belum ada deposit'); return; }
       c.innerHTML = data.deposits.map(d => {
         const cls = d.status === 'success' ? 'success'
@@ -1901,6 +1945,7 @@ body.sidebar-open .topbar { z-index: 10; }
       state.tab = t.dataset.tab;
       state.page = 1;
       state.search = '';
+      state.currentRows = [];
       const s = $('searchInput'); if (s) s.value = '';
       loadTab();
     });
@@ -1915,6 +1960,38 @@ body.sidebar-open .topbar { z-index: 10; }
       state.page = 1;
       loadTab();
     }, 400);
+  });
+
+  function applyFilters() {
+    state.status = $('statusFilter').value;
+    state.role = $('roleFilter').value;
+    state.server = $('serverFilter').value.trim();
+    state.page = 1;
+    loadTab();
+  }
+  ['statusFilter', 'roleFilter'].forEach(id => $(id)?.addEventListener('change', applyFilters));
+  $('serverFilter')?.addEventListener('input', () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(applyFilters, 350);
+  });
+  $('exportPageBtn')?.addEventListener('click', () => {
+    const columns = state.tab === 'users'
+      ? [['username', 'username'], ['name', 'nama'], ['role', 'role'], ['status', 'status'], ['balance', 'saldo'], ['user_code', 'kode_user'], ['created_at', 'dibuat']]
+      : state.tab === 'orders'
+        ? [['order_id', 'order_id'], ['username', 'username'], ['service_name', 'layanan'], ['country_name', 'negara'], ['status', 'status'], ['price', 'harga'], ['created_at', 'dibuat']]
+        : [['reference_id', 'referensi'], ['username', 'username'], ['status', 'status'], ['amount', 'jumlah'], ['method', 'metode'], ['created_at', 'dibuat']];
+    const quote = (value) => {
+      let cell = String(value ?? '');
+      if (/^[=+\-@\t\r]/.test(cell)) cell = "'" + cell;
+      return '"' + cell.replace(/"/g, '""') + '"';
+    };
+    const csv = [columns.map(([, label]) => quote(label)).join(','), ...state.currentRows.map(row => columns.map(([key]) => quote(row[key])).join(','))].join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `admin-${state.tab}-halaman-${state.page}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
   /* §27 — REFRESH */
@@ -1974,3 +2051,4 @@ body.sidebar-open .topbar { z-index: 10; }
 
 </body>
 </html>
+
