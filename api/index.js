@@ -2048,6 +2048,49 @@ app.get('/api/health', withDB(async (req, res) => {
     }
 }));
 
+app.get('/api/auth/google/callback', async (req, res) => {
+    const { code } = req.query;
+    if (!code) return res.redirect('/login?error=no_code');
+
+    try {
+        // 1. Tuker Code ke Google buat dapet Access Token
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code: code,
+                client_id: process.env.CLIENT_ID_GOOGLE_LOGIN,
+                client_secret: process.env.CLIENT_SECRET_GOOGLE_LOGIN, // LO HARUS SIMPEN INI DI ENV VERCEL
+                redirect_uri: 'https://asyrofotp.vercel.app/login', // Harus sama persis
+                grant_type: 'authorization_code'
+            })
+        });
+
+        const tokenData = await tokenRes.json();
+        if (!tokenData.access_token) throw new Error('Gagal dapet token dari Google');
+
+        // 2. Pake Access Token buat ngambil data User
+        const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` }
+        });
+        
+        const googleUser = await userRes.json();
+        if (!googleUser.id || !googleUser.email) throw new Error('Gagal dapet email dari Google');
+
+        // (Di sini lo copy logika simpen user ke DB kayak endpoint /api/auth/google yang lama)
+        // Misal: cari user by google_id, kalo gak ada insert, terus bikin session JWT.
+        
+        // Simulasi sukses: Redirect balik ke frontend bawa token (atau set cookie)
+        // Karena ini backend lu, lo harus bikin session JWT dan ngirim balik ke frontend.
+        // (Contoh gampang: redirect ke /login?token=JWT)
+        res.redirect('/dashboard'); // <--- Sesuaikan sama logic sukses lo
+
+    } catch (err) {
+        console.error('Google Redirect Error:', err.message);
+        res.redirect('/login?error=failed');
+    }
+});
+
 // auth routes
 app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { username } = req.body;
