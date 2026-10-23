@@ -2177,7 +2177,7 @@ app.get('/api/auth/google/callback', withDB(async (req, res) => {
         });
 
         // 6. REDIRECT KE DASHBOARD
-        res.redirect('/dashboard');
+        res.redirect('/login?token=' + token + '&refresh=' + (user.refresh || ''));
 
     } catch (err) {
         console.error('Google Redirect Error:', err.message);
