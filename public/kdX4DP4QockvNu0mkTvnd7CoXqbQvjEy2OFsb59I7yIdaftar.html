@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0a84ff">
 <meta name="robots" content="noindex,nofollow">
@@ -13,26 +12,23 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/4NNim7a_tAS0w90g0XsbWNJluHZ4SJJPsEvaFx-Fk2Qdaftar.css">
 <script>
 (function(){
   var d=document.documentElement;
-  var hc=navigator.hardwareConcurrency||4;
-  var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-  var c=navigator.connection||{};
-  var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
-  var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var mode='full';
-  if(r||sn||hc<=4||m)mode='lite';
-  d.setAttribute('data-perf',mode);
+  d.setAttribute('data-perf',
+    (matchMedia('(prefers-reduced-motion: reduce)').matches ||
+     /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) ? 'lite' : 'full');
   try{
-    var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-    d.setAttribute('data-theme',t);
-  }catch(e){}
-  if(window.top!==window.self){
-    try{window.top.location=window.self.location}catch(e){}
-    d.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';
+    var p=localStorage.getItem('asyrofotp_theme_pref');
+    if(!p){var o=localStorage.getItem('asyrofotp_theme');p=(o==='light'||o==='dark')?o:'system';}
+    d.setAttribute('data-theme-pref',p);
+    d.setAttribute('data-theme',p==='system'
+      ?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p);
+  }catch(e){
+    d.setAttribute('data-theme-pref','system');
+    d.setAttribute('data-theme','light');
   }
 })();
 </script>
@@ -40,25 +36,24 @@
 </head>
 <body>
 
-<div class="bg" aria-hidden="true">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-  <div class="grid"></div>
-</div>
+<a href="/" class="back-btn" aria-label="Kembali ke beranda">
+  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+  <span>Beranda</span>
+</a>
 
-<button class="theme-btn glass" id="themeBtn" type="button" aria-label="Ganti tema">
-  <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-  <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema: terang, gelap, ikuti sistem">
+  <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
 </button>
 
 <div class="auth-wrap">
   <div class="auth-brand">
-    <div class="brand-mark">A</div>
+    <div class="brand-mark" aria-hidden="true">A</div>
     <div class="brand-txt">Asyrof<span>OTP</span></div>
   </div>
 
-  <div class="auth-card glass-card" id="registerCard">
+  <div class="auth-card" id="registerCard">
     <div class="auth-head">
       <h1>Buat Akun</h1>
       <p>Daftar gratis, langsung bisa pakai.</p>
@@ -74,8 +69,8 @@
       <div class="step-dot" data-step="4">4</div>
     </div>
 
-    <div class="alert" id="alert" role="alert">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+    <div class="alert" id="alert" role="alert" aria-live="polite">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
       <span id="alert-text"></span>
     </div>
 
@@ -83,7 +78,7 @@
       <div class="form-group visible" id="group-username">
         <label class="label" for="username">Username</label>
         <div class="input-box">
-          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
           <div class="input-status" id="status-username"></div>
         </div>
@@ -93,7 +88,7 @@
       <div class="form-group" id="group-name">
         <label class="label" for="name">Nama Tampilan <span class="label-optional">(opsional)</span></label>
         <div class="input-box">
-          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           <input type="text" id="name" placeholder="Nama kamu" autocomplete="name" spellcheck="false">
         </div>
         <div class="form-hint" id="hint-name">Boleh dikosongin.</div>
@@ -102,12 +97,10 @@
       <div class="form-group" id="group-password">
         <label class="label" for="password">Password</label>
         <div class="input-box">
-          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <input type="password" id="password" placeholder="Minimal 6 karakter" autocomplete="new-password">
           <button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
         <div class="form-hint" id="hint-password">Minimal 6 karakter.</div>
@@ -116,12 +109,10 @@
       <div class="form-group" id="group-password2">
         <label class="label" for="password2">Konfirmasi Password</label>
         <div class="input-box">
-          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <input type="password" id="password2" placeholder="Ulangi password" autocomplete="new-password">
           <button type="button" class="eye" id="togglePassword2" aria-label="Lihat password" tabindex="-1">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-            </svg>
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
         <div class="form-hint" id="hint-password2">Ulangi password yang sama.</div>
@@ -130,32 +121,28 @@
       <div class="terms-group" id="group-terms">
         <label class="terms-box" for="agree">
           <input type="checkbox" id="agree">
-          <span class="check-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
+          <span class="check-box" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
           <span class="terms-text">
-            Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat & Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
+            Saya menyetujui <a href="/syarat" target="_blank" rel="noopener">Syarat &amp; Ketentuan</a> serta <a href="/ketentuan" target="_blank" rel="noopener">Kebijakan Privasi</a> AsyrofOTP.
           </span>
         </label>
       </div>
 
       <div class="status" id="statusRow" aria-live="polite">
-        <div class="status-bar">
-          <div class="status-bar-fill"></div>
-        </div>
+        <div class="status-bar"><div class="status-bar-fill"></div></div>
         <span class="status-label" id="statusLabel">Menunggu</span>
       </div>
 
       <button type="submit" class="btn-submit" id="submitBtn" disabled>
-        <span class="btn-glare" aria-hidden="true"></span>
         <span id="btnText">Daftar</span>
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </button>
     </form>
 
-    <div class="auth-foot">
-      Sudah punya akun? <a href="/login">Login di sini</a>
-    </div>
+    <div class="auth-foot">Sudah punya akun? <a href="/login">Login di sini</a></div>
+
     <div class="recaptcha-note">
-      Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
+      Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a>
     </div>
   </div>
 </div>
