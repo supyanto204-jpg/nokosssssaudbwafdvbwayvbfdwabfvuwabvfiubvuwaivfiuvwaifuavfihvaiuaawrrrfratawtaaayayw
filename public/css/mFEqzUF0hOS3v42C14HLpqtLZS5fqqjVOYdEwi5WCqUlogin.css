@@ -227,6 +227,33 @@ a:focus-visible,button:focus-visible,input:focus-visible,label:focus-visible{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+.divider{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:20px 0 16px;
+  color:var(--txt3);
+  font-size:.75rem;
+}
+.divider::before,
+.divider::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:var(--border);
+}
+
+.google-wrap{
+  display:flex;
+  justify-content:center;
+  width:100%;
+}
+.google-wrap > div{width:100%}
+.google-wrap iframe{
+  margin:0 auto;
+  border-radius:6px;
+}
+
 .auth-foot{font-size:.8125rem;color:var(--txt2);margin-top:16px}
 .auth-foot a{color:var(--txt);text-decoration:underline;text-underline-offset:2px}
 
