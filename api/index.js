@@ -2065,44 +2065,37 @@ app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req
 }));
 
 app.post('/api/auth/forgot', withDB(async (req, res) => {
-    const { email, puzzle_x } = req.body;
+    const { email, cf_token } = req.body;
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const device = req.headers['x-device-id'] || 'unknown';
 
-    // 1. Validasi Puzzle (toleransi geser min 40px)
-    if (!puzzle_x || Number(puzzle_x) < 40) {
-        return res.status(400).json({ error: 'Verifikasi keamanan gagal. Geser puzzle dengan benar.' });
-    }
-
+    // 1. Validasi Input Dasar
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Format email tidak valid' });
     }
 
-    try {
-            // ==========================================
-    // CEK TURNSTILE TOKEN (Anti Robot)
-    // ==========================================
-    const { cf_token } = req.body;
     if (!cf_token) {
         return res.status(400).json({ error: 'Verifikasi keamanan (Turnstile) wajib diisi.' });
     }
 
-    const cfForm = new URLSearchParams();
-    cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY); // Pastiin masukin ini ke Vercel
-    cfForm.append('response', cf_token);
-    cfForm.append('remoteip', ip); // ip udah didefinisikan di atasnya
+    try {
+        // 2. CEK TURNSTILE TOKEN (Anti Robot)
+        const cfForm = new URLSearchParams();
+        cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY); 
+        cfForm.append('response', cf_token);
+        cfForm.append('remoteip', ip);
 
-    const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        body: cfForm
-    });
-    const cfData = await cfRes.json();
+        const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: cfForm
+        });
+        const cfData = await cfRes.json();
 
-    if (!cfData.success) {
-        return res.status(400).json({ error: 'Verifikasi keamanan gagal. Kamu terdeteksi sebagai robot.' });
-    }
-    // ==========================================
-        // 2. Cek Rate Limit (Maksimal 3 request per 1 jam berdasarkan IP atau Device)
+        if (!cfData.success) {
+            return res.status(400).json({ error: 'Verifikasi keamanan gagal. Kamu terdeteksi sebagai robot.' });
+        }
+
+        // 3. Cek Rate Limit (Maksimal 3 request per 1 jam berdasarkan IP atau Device)
         const checkLimit = await pool.query(
             `SELECT COUNT(*) as total FROM rate_limits 
              WHERE (ip_address = $1 OR device_id = $2) 
@@ -2117,13 +2110,13 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
             });
         }
 
-        // 3. Catat request ke DB
+        // 4. Catat request ke DB
         await pool.query(
             `INSERT INTO rate_limits (ip_address, device_id, action) VALUES ($1, $2, $3)`,
             [ip, device, 'forgot_password']
         );
 
-        // 4. Cari user dan kirim email
+        // 5. Cari user dan kirim email
         const uRes = await pool.query('SELECT id, username FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
         
         if (uRes.rows.length > 0) {
