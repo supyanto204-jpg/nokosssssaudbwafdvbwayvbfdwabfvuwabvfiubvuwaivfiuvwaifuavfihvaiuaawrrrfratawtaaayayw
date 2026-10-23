@@ -13,113 +13,121 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/mFEqzUF0hOS3v42C14HLpqtLZS5fqqjVOYdEwi5WCqUlogin.css">
 <script>
 (function(){
-var d=document.documentElement;
-var hc=navigator.hardwareConcurrency||2;
-var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-var le=hc<=4||m;
-var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
-var sn=c&&(c.saveData||/2g|slow-2g/.test(c.effectiveType||''));
-var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-var mode='full';
-if(r||sn)mode='lite';
-else if(le)mode='lite';
-d.setAttribute('data-perf',mode);
-try{
-var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
-d.setAttribute('data-theme',t);
-}catch(e){}
-if(window.top!==window.self){try{window.top.location=window.self.location}catch(e){}d.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;"><div style="text-align:center;"><h1>⛔</h1></div></body>';}
+  var d=document.documentElement;
+  var hc=navigator.hardwareConcurrency||2;
+  var m=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var c=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
+  var sn=c&&(c.saveData||/2g|slow-2g/.test(c.effectiveType||''));
+  var r=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  d.setAttribute('data-perf',(r||sn||hc<=4||m)?'lite':'full');
+
+  try{
+    var pref=localStorage.getItem('asyrofotp_theme_pref');
+    if(!pref){
+      var old=localStorage.getItem('asyrofotp_theme');
+      pref = old==='light'||old==='dark' ? old : 'system';
+    }
+    var resolved = pref==='system'
+      ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    d.setAttribute('data-theme',resolved);
+    d.setAttribute('data-theme-pref',pref);
+  }catch(e){
+    d.setAttribute('data-theme','light');
+    d.setAttribute('data-theme-pref','system');
+  }
 })();
 </script>
 <script src="https://www.google.com/recaptcha/api.js?render=6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg" async defer></script>
 </head>
 <body>
 
-<div class="bg" aria-hidden="true">
-<div class="orb orb-1"></div>
-<div class="orb orb-2"></div>
-<div class="orb orb-3"></div>
-<div class="grid"></div>
-</div>
+<a href="/" class="back-btn" aria-label="Kembali ke beranda">
+  <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+  <span>Beranda</span>
+</a>
 
-<button class="theme-btn glass" id="themeBtn" type="button" aria-label="Ganti tema">
-<svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-<svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema: terang, gelap, ikuti sistem">
+  <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
 </button>
 
 <div class="auth-wrap">
-<div class="auth-brand">
-<div class="brand-mark">A</div>
-<div class="brand-txt">Asyrof<span>OTP</span></div>
-</div>
+  <div class="auth-brand">
+    <div class="brand-mark" aria-hidden="true">A</div>
+    <div class="brand-txt">Asyrof<span>OTP</span></div>
+  </div>
 
-<div class="auth-card glass-card" id="loginCard">
-<div class="auth-head">
-<h1>Masuk</h1>
-<p>Senang melihatmu lagi. Yuk lanjut.</p>
-</div>
+  <div class="auth-card" id="loginCard">
+    <div class="auth-head">
+      <h1>Masuk</h1>
+      <p>Masukkan username dan password akunmu.</p>
+    </div>
 
-<div class="alert" id="alert" role="alert">
-<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-<span id="alert-text"></span>
-</div>
+    <div class="alert" id="alert" role="alert" aria-live="polite">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="alertIcon" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span id="alert-text"></span>
+    </div>
 
-<form id="loginForm" autocomplete="on" novalidate>
-<div class="field">
-<label class="label" for="username">Username</label>
-<div class="input-box">
-<svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-<input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
-</div>
-</div>
+    <form id="loginForm" autocomplete="on" novalidate>
+      <div class="field">
+        <label class="label" for="username">Username</label>
+        <div class="input-box">
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
+        </div>
+      </div>
 
-<div class="field">
-<label class="label" for="password">Password</label>
-<div class="input-box">
-<svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-<input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
-<button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
-<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon">
-<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-</svg>
-</button>
-</div>
-</div>
+      <div class="field">
+        <label class="label" for="password">Password</label>
+        <div class="input-box">
+          <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <input type="password" id="password" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="eye" id="togglePassword" aria-label="Lihat password" tabindex="-1">
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="eyeIcon" aria-hidden="true">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+      </div>
 
-<div class="row-between">
-<label class="remember">
-<input type="checkbox" id="rememberMe">
-<span class="check-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span>
-<span>Ingat saya</span>
-</label>
-<a href="/forgot" class="link-forgot">Lupa password?</a>
-</div>
+      <div class="row-between">
+        <label class="remember">
+          <input type="checkbox" id="rememberMe">
+          <span class="check-box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </span>
+          <span>Ingat saya</span>
+        </label>
+        <a href="/forgot" class="link-forgot">Lupa password?</a>
+      </div>
 
-<div class="status" id="statusRow" aria-live="polite">
-<div class="status-bar" id="statusBar">
-<div class="status-bar-fill" id="statusBarFill"></div>
-</div>
-<span class="status-label" id="statusLabel">Menunggu</span>
-</div>
+      <div class="status" id="statusRow" aria-live="polite">
+        <div class="status-bar" id="statusBar">
+          <div class="status-bar-fill" id="statusBarFill"></div>
+        </div>
+        <span class="status-label" id="statusLabel">Menunggu</span>
+      </div>
 
-<button type="submit" class="btn-submit" id="submitBtn">
-<span class="btn-glare" aria-hidden="true"></span>
-<span id="btnText">Masuk</span>
-<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-</button>
-</form>
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span id="btnText">Masuk</span>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </button>
+    </form>
 
-<div class="auth-foot">
-Belum punya akun? <a href="/daftar">Daftar gratis</a>
-</div>
-<div class="recaptcha-note">
-Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener">Terms</a>
-</div>
-</div>
+    <div class="auth-foot">
+      Belum punya akun? <a href="/daftar">Daftar gratis</a>
+    </div>
+
+    <div class="recaptcha-note">
+      Dilindungi reCAPTCHA · <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Privacy</a> · <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer">Terms</a>
+    </div>
+  </div>
 </div>
 
 <script src="/js/C9tXwdcmAabb4xw8xTlZr79j7EO_ENuEx27UnuL4sWslogin.js" defer></script>
