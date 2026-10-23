@@ -23,12 +23,18 @@ function showAlert(msg,type){
   if(alertIcon)alertIcon.innerHTML=ICONS[type]||ICONS.error;
 }
 
-// Tangkap error dari Google (kalau user batalin login atau ada error di URL)
+// Tangkap error dari backend kalau redirect gagal
 W.addEventListener('load', function() {
   var urlParams = new URLSearchParams(W.location.search);
   var error = urlParams.get('error');
   if (error) {
-    showAlert('Login Google dibatalkan atau gagal. Silakan coba lagi.', 'error');
+    if(error === 'banned') {
+        showAlert('Akun kamu diblokir.', 'error');
+    } else if (error === 'failed') {
+        showAlert('Login Google gagal. Silakan coba lagi.', 'error');
+    } else {
+        showAlert('Terjadi kesalahan saat login Google.', 'error');
+    }
     // Bersihin URL biar gak error terus
     W.history.replaceState(null, '', W.location.pathname);
   }
@@ -36,22 +42,28 @@ W.addEventListener('load', function() {
 
 // Pas tombol Google diklik
 if (customBtn) {
-  customBtn.addEventListener('click', function() {
-    var clientId = "557968626394-ln6638b8opijdn46bc8e8e97249l4je6.apps.googleusercontent.com";
-    
-    // Arahin ke endpoint backend lo (BUKAN ke halaman /login)
-    var redirectUri = W.location.origin + "/api/auth/google/callback";
-    
-    // Bikin URL Authorization Google
-    var authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" + 
-      "client_id=" + encodeURIComponent(clientId) +
-      "&redirect_uri=" + encodeURIComponent(redirectUri) +
-      "&response_type=code" +
-      "&scope=email%20profile" +
-      "&prompt=select_account";
+  customBtn.addEventListener('click', async function() {
+    // Ubah teks tombol sebentar
+    var originalText = customBtn.innerHTML;
+    customBtn.innerHTML = '<span class="spinner" style="width:16px;height:16px;border:2px solid rgba(0,0,0,0.2);border-top-color:currentColor;border-radius:50%;animation:spin .7s linear infinite;"></span> <span>Menghubungkan...</span>';
+    customBtn.disabled = true;
 
-    // Lempar user ke halaman login Google
-    W.location.href = authUrl;
+    try {
+        // Minta URL login ke backend
+        var res = await fetch('/api/auth/google/url');
+        var data = await res.json();
+        
+        if (data.url) {
+            // Lempar user ke halaman login Google
+            W.location.href = data.url;
+        } else {
+            throw new Error('Gagal memuat URL login Google.');
+        }
+    } catch (e) {
+        alert(e.message || 'Terjadi kesalahan sistem.');
+        customBtn.innerHTML = originalText;
+        customBtn.disabled = false;
+    }
   });
 }
 
