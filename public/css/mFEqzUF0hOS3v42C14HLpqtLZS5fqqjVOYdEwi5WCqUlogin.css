@@ -252,42 +252,18 @@ a:focus-visible,button:focus-visible,input:focus-visible,label:focus-visible{
   background:var(--border);
 }
 
-.google-wrap{
-  display:block;
-  width:100%;
-  min-height:44px;
-  position:relative;
+/* Wrapper biar iframe Google gak nabrak teks lain */
+.google-wrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
 }
-.google-wrap > div{
-  width:100% !important;
-  display:flex;
-  justify-content:center;
+.google-wrap > div {
+  width: 100% !important;
+  display: flex;
+  justify-content: center;
 }
-.google-wrap iframe{
-  margin:0 auto !important;
-  border-radius:6px !important;
-  max-width:100% !important;
-}
-
-.google-fallback{
-  width:100%;
-  height:40px;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  border:1px solid var(--border);
-  background:var(--bg);
-  color:var(--txt);
-  font:500 14px/1 var(--font);
-  border-radius:6px;
-  cursor:pointer;
-  transition:background-color .15s,border-color .15s;
-}
-.google-fallback:hover{background:var(--surface);border-color:var(--border-strong)}
-.google-fallback svg{width:18px;height:18px}
-.google-wrap.failed .google-fallback{display:flex}
-.google-wrap.failed > div:not(.google-fallback){display:none}
 
 /* ---- foot ---- */
 .auth-foot{font-size:.8125rem;color:var(--txt2);margin-top:16px}
