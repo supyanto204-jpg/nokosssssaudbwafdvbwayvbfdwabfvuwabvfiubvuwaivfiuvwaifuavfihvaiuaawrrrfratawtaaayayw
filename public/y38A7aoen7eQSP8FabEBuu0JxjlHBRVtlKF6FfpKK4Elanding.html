@@ -7,48 +7,39 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0a84ff">
 <meta name="robots" content="index,follow,max-image-preview:large">
-<meta name="description" content="AsyrofOTP — Terima kode OTP dari 1.700+ aplikasi dalam hitungan detik.">
-<title>AsyrofOTP — OTP Masuk 5 Detik, 1.700+ Aplikasi</title>
+<meta name="description" content="AsyrofOTP — nomor virtual untuk menerima kode verifikasi dari 1.700+ layanan. Kode masuk rata-rata 5 detik, refund otomatis kalau pesanan gagal.">
+<title>AsyrofOTP — nomor virtual untuk kode verifikasi</title>
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://flagcdn.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/dMosaeNBcD16abtKAPRkENv7cEubwbHTh6li1gNbzSIlanding.css">
 <script>
-// set data-perf + theme sebelum paint biar gak flicker
 (function(){
   var hc=navigator.hardwareConcurrency||2;
   var mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
   var conn=navigator.connection||navigator.mozConnection||navigator.webkitConnection;
   var slowNet=conn&&(conn.saveData||/2g|slow-2g/.test(conn.effectiveType||''));
-  var reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
   var mode=(reduced||slowNet||hc<=4||mobile)?'lite':'full';
   document.documentElement.setAttribute('data-perf',mode);
   try{
-    var t=localStorage.getItem('asyrofotp_theme')||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    var t=localStorage.getItem('asyrofotp_theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
     document.documentElement.setAttribute('data-theme',t);
   }catch(e){}
-  if(window.top!==window.self){
-    try{window.top.location=window.self.location}catch(e){}
-    document.documentElement.innerHTML='<body style="background:#000;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><div style="text-align:center"><h1>⛔</h1></div></body>';
-  }
 })();
 </script>
 </head>
 <body>
 
-<div class="bg" aria-hidden="true">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-</div>
+<div class="bg" aria-hidden="true"></div>
 
 <nav class="nav glass" id="nav">
   <div class="wrap nav-in">
-    <a href="/" class="brand">
-      <div class="brand-mark">A</div>
+    <a href="/" class="brand" aria-label="AsyrofOTP, beranda">
+      <div class="brand-mark" aria-hidden="true">A</div>
       <div class="brand-text">Asyrof<span>OTP</span></div>
     </a>
     <ul class="nav-menu">
@@ -58,8 +49,8 @@
       <li><a href="#faq">FAQ</a></li>
     </ul>
     <button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema">
-      <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-      <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+      <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
     </button>
   </div>
 </nav>
@@ -69,26 +60,26 @@
     <div class="hero-grid">
 
       <div class="hero-l">
-        <span class="pill glass"><span class="pill-dot"></span>Online 24 Jam · 1.700+ Aplikasi</span>
-        <h1 class="hero-h1">Kode OTP Datang,<br><span class="grad">Kamu Tinggal Verifikasi</span></h1>
+        <span class="pill glass"><span class="pill-dot"></span>1.700+ layanan · kode rata-rata 5 detik</span>
+        <h1 class="hero-h1">Nomor untuk terima kode verifikasi,<br><span class="grad">tanpa pakai nomor pribadi.</span></h1>
         <p class="hero-p"><span id="typeText"></span><span class="cursor" id="typeCursor">|</span></p>
 
         <div class="hero-cta">
           <a href="/dashboard" class="btn btn-primary">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Coba Sekarang
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            Buka dashboard
           </a>
           <a href="#how" class="btn btn-glass glass">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z" fill="currentColor"/></svg>
-            Lihat Cara Kerja
+            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m10 8 6 4-6 4z" fill="currentColor"/></svg>
+            Cara kerja
           </a>
         </div>
 
         <div class="hero-stats glass-card">
           <div><div class="stat-v">1.700+</div><div class="stat-l">Layanan</div></div>
           <div><div class="stat-v">100+</div><div class="stat-l">Negara</div></div>
-          <div><div class="stat-v">5 detik</div><div class="stat-l">OTP Masuk</div></div>
-          <div><div class="stat-v">24/7</div><div class="stat-l">Support</div></div>
+          <div><div class="stat-v">5 detik</div><div class="stat-l">Kode masuk</div></div>
+          <div><div class="stat-v">Refund</div><div class="stat-l">Otomatis</div></div>
         </div>
       </div>
 
@@ -97,7 +88,7 @@
           <div class="demo-status">
             <div class="ds-left">
               <div class="ds-logo">
-                <svg viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                <svg viewBox="0 0 24 24" fill="white" aria-hidden="true"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
               </div>
               <span class="ds-title">WhatsApp</span>
             </div>
@@ -107,14 +98,14 @@
           <div class="demo-screen">
             <div class="app-ui on" id="appUi">
               <div class="app-country">
-                <img class="ac-flag-img" src="https://flagcdn.com/w40/id.png" alt="ID" loading="lazy">
+                <img class="ac-flag-img" src="https://flagcdn.com/w40/id.png" alt="Indonesia" loading="lazy">
                 <span class="ac-code">+62</span>
-                <span class="ac-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
+                <span class="ac-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></span>
               </div>
               <div class="app-number">812 3456 7890</div>
               <div class="app-instruction">
-                <div class="ai-label">VERIFIKASI NOMOR</div>
-                <div class="ai-text">Masukkan kode 6 digit yang dikirim ke nomor kamu</div>
+                <div class="ai-label">Verifikasi nomor</div>
+                <div class="ai-text">Masukkan kode 6 digit yang dikirim ke nomor ini.</div>
               </div>
               <div class="app-otp-row">
                 <div class="app-otp-cell"></div><div class="app-otp-cell"></div><div class="app-otp-cell"></div>
@@ -140,8 +131,8 @@
                   <span class="notif-digit">9</span><span class="notif-digit">1</span><span class="notif-digit">4</span>
                 </div>
                 <button class="notif-copy" id="notifCopy" type="button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  <span>Salin Kode</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <span>Salin kode</span>
                 </button>
               </div>
             </div>
@@ -149,9 +140,9 @@
             <div class="verified" id="verified">
               <div class="verified-ring"></div>
               <div class="verified-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
-              <div class="verified-text">Nomor Terverifikasi</div>
+              <div class="verified-text">Nomor terverifikasi</div>
               <div class="verified-sub">+62 812 3456 7890</div>
             </div>
           </div>
@@ -167,19 +158,19 @@
 <section class="support" id="support">
   <div class="wrap">
     <div class="sec-head reveal">
-      <h2>Butuh Bantuan Cepat?</h2>
-      <p>Kami standby 24/7 di Telegram &amp; WhatsApp. Chat aja, langsung dibalas.</p>
+      <h2>Butuh bantuan?</h2>
+      <p>Chat lewat Telegram atau WhatsApp. Kami balas dari jam 08.00–23.00 WIB.</p>
     </div>
     <div class="support-grid">
       <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer" class="support-card support-tg reveal">
-        <div class="sc-icon"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/telegram.svg" alt="Telegram" width="32" height="32" loading="lazy"></div>
+        <div class="sc-icon"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/telegram.svg" alt="" width="32" height="32" loading="lazy"></div>
         <div class="sc-info"><div class="sc-name">Telegram</div><div class="sc-id">@AsyrofC</div></div>
-        <div class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+        <div class="sc-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
       </a>
       <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer" class="support-card support-wa reveal">
-        <div class="sc-icon"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="WhatsApp" width="32" height="32" loading="lazy"></div>
+        <div class="sc-icon"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="32" height="32" loading="lazy"></div>
         <div class="sc-info"><div class="sc-name">WhatsApp</div><div class="sc-id">@AsyrofC_</div></div>
-        <div class="sc-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
+        <div class="sc-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></div>
       </a>
     </div>
   </div>
@@ -188,58 +179,34 @@
 <section class="features" id="features">
   <div class="wrap">
     <div class="sec-head reveal">
-      <span class="tag glass">Kenapa Kami</span>
-      <h2>Dibikin Simpel, Hasilnya Cepat</h2>
-      <p>Semua yang kamu butuh buat verifikasi, ada di sini.</p>
+      <span class="tag glass">Fitur</span>
+      <h2>Yang kamu dapat</h2>
+      <p>Empat hal yang bikin pesanan OTP selesai tanpa drama.</p>
     </div>
     <div class="feat-grid">
 
       <div class="feat glass-card reveal">
         <div class="feat-ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
         </div>
-        <h3>Kilat</h3>
-        <p>Rata-rata kode OTP masuk dalam 5 detik. Gak perlu nunggu lama.</p>
-        <div class="stars">
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </div>
-        <div class="stars-t">4.9 · 2.847 ulasan</div>
+        <h3>Kode masuk rata-rata 5 detik</h3>
+        <p>Dihitung dari pesanan dibuat sampai kode muncul di inbox. Kalau lebih dari 10 menit, pesanan otomatis gagal dan saldo kembali.</p>
       </div>
 
       <div class="feat glass-card reveal">
         <div class="feat-ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
-        <h3>Aman</h3>
-        <p>Data terenkripsi end-to-end. Nomor &amp; kode kamu gak pernah bocor.</p>
-        <div class="stars">
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </div>
-        <div class="stars-t">4.8 · 1.562 ulasan</div>
+        <h3>Nomor pribadi tidak dipakai</h3>
+        <p>Nomor asli kamu tidak pernah dikirim ke layanan tujuan. Yang dipakai nomor virtual dari pool AsyrofOTP.</p>
       </div>
 
       <div class="feat glass-card reveal">
         <div class="feat-ic">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v5h5"/></svg>
         </div>
-        <h3>Support 24/7</h3>
-        <p>Ada kendala? Tim kami siap bantu kapan aja lewat chat.</p>
-        <div class="stars">
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-          <svg class="star f" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-        </div>
-        <div class="stars-t">5.0 · 3.219 ulasan</div>
+        <h3>Refund otomatis</h3>
+        <p>Pesanan gagal atau kedaluwarsa dikembalikan 100% ke saldo tanpa perlu chat support.</p>
       </div>
 
     </div>
@@ -249,9 +216,9 @@
 <section class="how" id="how">
   <div class="wrap">
     <div class="sec-head reveal">
-      <span class="tag glass">4 Langkah</span>
-      <h2>Cuma Butuh 4 Langkah</h2>
-      <p>Dari pilih aplikasi sampai verifikasi — semua cepat dan simpel.</p>
+      <span class="tag glass">Alur</span>
+      <h2>Empat langkah</h2>
+      <p>Dari pilih aplikasi sampai kode masuk.</p>
     </div>
 
     <div class="how-demo glass-card reveal" id="howDemo">
@@ -259,29 +226,29 @@
         <div class="how-step-row active" data-step="1">
           <div class="how-step-num">1</div>
           <div class="how-step-info">
-            <div class="how-step-t">Pilih Aplikasi</div>
+            <div class="how-step-t">Pilih aplikasi</div>
             <div class="how-step-d">WhatsApp, Telegram, Shopee, dll</div>
           </div>
         </div>
         <div class="how-step-row" data-step="2">
           <div class="how-step-num">2</div>
           <div class="how-step-info">
-            <div class="how-step-t">Pilih Negara</div>
-            <div class="how-step-d">Indonesia, US, UK, Russia</div>
+            <div class="how-step-t">Pilih negara</div>
+            <div class="how-step-d">Indonesia, US, UK, Rusia</div>
           </div>
         </div>
         <div class="how-step-row" data-step="3">
           <div class="how-step-num">3</div>
           <div class="how-step-info">
-            <div class="how-step-t">Tempel Nomor</div>
-            <div class="how-step-d">Salin nomor ke aplikasi target</div>
+            <div class="how-step-t">Salin nomor</div>
+            <div class="how-step-d">Tempel ke aplikasi tujuan</div>
           </div>
         </div>
         <div class="how-step-row" data-step="4">
           <div class="how-step-num">4</div>
           <div class="how-step-info">
-            <div class="how-step-t">Terima Kode</div>
-            <div class="how-step-d">OTP masuk otomatis ke inbox</div>
+            <div class="how-step-t">Terima kode</div>
+            <div class="how-step-d">Kode muncul di inbox</div>
           </div>
         </div>
       </div>
@@ -289,53 +256,53 @@
       <div class="how-preview" id="howPreview">
 
         <div class="how-scr on" data-scr="1">
-          <div class="how-scr-head">Pilih Aplikasi</div>
+          <div class="how-scr-head">Pilih aplikasi</div>
           <div class="how-app-list">
             <div class="how-app-item" data-app="wa">
-              <div class="how-app-icon" style="--c:#25D366"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="20" height="20"></div>
+              <div class="how-app-icon" style="--c:#1f9d55"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="20" height="20"></div>
               <div class="how-app-name">WhatsApp</div>
             </div>
             <div class="how-app-item" data-app="tg">
-              <div class="how-app-icon" style="--c:#229ED9"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/telegram.svg" alt="" width="20" height="20"></div>
+              <div class="how-app-icon" style="--c:#1c8fc4"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/telegram.svg" alt="" width="20" height="20"></div>
               <div class="how-app-name">Telegram</div>
             </div>
             <div class="how-app-item" data-app="sp">
-              <div class="how-app-icon" style="--c:#EE4D2D"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/shopee.svg" alt="" width="20" height="20"></div>
+              <div class="how-app-icon" style="--c:#d94f2a"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/shopee.svg" alt="" width="20" height="20"></div>
               <div class="how-app-name">Shopee</div>
             </div>
             <div class="how-app-item" data-app="ig">
-              <div class="how-app-icon" style="--c:#E1306C"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/instagram.svg" alt="" width="20" height="20"></div>
+              <div class="how-app-icon" style="--c:#c13584"><img src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/instagram.svg" alt="" width="20" height="20"></div>
               <div class="how-app-name">Instagram</div>
             </div>
           </div>
         </div>
 
         <div class="how-scr" data-scr="2">
-          <div class="how-scr-head">Pilih Negara</div>
+          <div class="how-scr-head">Pilih negara</div>
           <div class="how-country-list">
             <div class="how-country-item" data-cc="id">
-              <img class="how-flag" src="https://flagcdn.com/w40/id.png" alt="ID" loading="lazy">
+              <img class="how-flag" src="https://flagcdn.com/w40/id.png" alt="" loading="lazy">
               <div class="how-country-info"><div class="how-country-name">Indonesia</div><div class="how-country-code">+62</div></div>
             </div>
             <div class="how-country-item" data-cc="us">
-              <img class="how-flag" src="https://flagcdn.com/w40/us.png" alt="US" loading="lazy">
+              <img class="how-flag" src="https://flagcdn.com/w40/us.png" alt="" loading="lazy">
               <div class="how-country-info"><div class="how-country-name">United States</div><div class="how-country-code">+1</div></div>
             </div>
             <div class="how-country-item" data-cc="gb">
-              <img class="how-flag" src="https://flagcdn.com/w40/gb.png" alt="GB" loading="lazy">
+              <img class="how-flag" src="https://flagcdn.com/w40/gb.png" alt="" loading="lazy">
               <div class="how-country-info"><div class="how-country-name">United Kingdom</div><div class="how-country-code">+44</div></div>
             </div>
             <div class="how-country-item" data-cc="ru">
-              <img class="how-flag" src="https://flagcdn.com/w40/ru.png" alt="RU" loading="lazy">
+              <img class="how-flag" src="https://flagcdn.com/w40/ru.png" alt="" loading="lazy">
               <div class="how-country-info"><div class="how-country-name">Russia</div><div class="how-country-code">+7</div></div>
             </div>
           </div>
         </div>
 
         <div class="how-scr" data-scr="3">
-          <div class="how-scr-head">Tempel Nomor</div>
+          <div class="how-scr-head">Salin nomor</div>
           <div class="how-target-app">
-            <div class="how-target-icon" id="howTargetIcon" style="--c:#25D366">
+            <div class="how-target-icon" id="howTargetIcon" style="--c:#1f9d55">
               <img id="howTargetImg" src="https://cdn.jsdelivr.net/npm/simple-icons@13/icons/whatsapp.svg" alt="" width="22" height="22">
             </div>
             <div class="how-target-info">
@@ -344,13 +311,13 @@
             </div>
           </div>
           <div class="how-paste-hint">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-            Tempel nomor di field di atas
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            Tempel nomor di field aplikasi tujuan
           </div>
         </div>
 
         <div class="how-scr" data-scr="4">
-          <div class="how-scr-head">Kode Terkirim</div>
+          <div class="how-scr-head">Kode terkirim</div>
           <div class="how-otp-notif">
             <div class="how-otp-head">
               <div class="how-otp-logo">A</div>
@@ -365,10 +332,10 @@
 
       </div>
 
-      <div class="how-cursor" id="howCursor">
-        <svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="#0a84ff" stroke="white" stroke-width="1.5"/></svg>
+      <div class="how-cursor" id="howCursor" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" fill="currentColor" stroke="none"/></svg>
       </div>
-      <div class="how-tap" id="howTap"></div>
+      <div class="how-tap" id="howTap" aria-hidden="true"></div>
     </div>
 
   </div>
@@ -378,39 +345,27 @@
   <div class="wrap">
     <div class="sec-head reveal">
       <span class="tag glass">FAQ</span>
-      <h2>Sering Ditanyakan</h2>
-      <p>Beberapa pertanyaan yang paling sering muncul.</p>
+      <h2>Pertanyaan yang sering muncul</h2>
+      <p>Tiga hal yang paling sering ditanyakan.</p>
     </div>
     <div class="faq-list">
       <div class="faq-item glass-card reveal">
-        <button class="faq-q" type="button">Ini buat apa sih?
-          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="faq-q" type="button">Saldo bisa ditarik tunai?
+          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <div class="faq-a"><div class="faq-a-in">Buat terima kode OTP dari aplikasi yang butuh verifikasi nomor (WhatsApp, Telegram, Shopee, dll) tanpa pakai nomor pribadi.</div></div>
+        <div class="faq-a"><div class="faq-a-in">Tidak. Saldo hanya bisa dipakai untuk membuat pesanan di AsyrofOTP.</div></div>
       </div>
       <div class="faq-item glass-card reveal">
-        <button class="faq-q" type="button">Saldo saya aman?
-          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="faq-q" type="button">Sudah bayar, saldo belum masuk?
+          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <div class="faq-a"><div class="faq-a-in">Aman. Semua transaksi terenkripsi dan saldo cuma bisa dipakai di AsyrofOTP. Gak bisa ditarik tunai.</div></div>
+        <div class="faq-a"><div class="faq-a-in">Kirim bukti bayar ke <a href="https://t.me/AsyrofC" target="_blank" rel="noopener noreferrer">Telegram @AsyrofC</a> atau <a href="https://wa.me/AsyrofC_" target="_blank" rel="noopener noreferrer">WhatsApp @AsyrofC_</a>. Kami cek manual.</div></div>
       </div>
       <div class="faq-item glass-card reveal">
-        <button class="faq-q" type="button">Udah bayar tapi saldo belum masuk?
-          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="faq-q" type="button">Pesanan gagal, saldo hangus?
+          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <div class="faq-a"><div class="faq-a-in">Chat support kami di Telegram (@AsyrofC) atau WhatsApp (@AsyrofC_) sambil kirim bukti bayar. Kami bantu cek langsung.</div></div>
-      </div>
-      <div class="faq-item glass-card reveal">
-        <button class="faq-q" type="button">Kalau pesanan gagal, saldo hangus?
-          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <div class="faq-a"><div class="faq-a-in">Nggak. Saldo otomatis dikembalikan 100% (refund) kalau pesanan gagal atau expired.</div></div>
-      </div>
-      <div class="faq-item glass-card reveal">
-        <button class="faq-q" type="button">Ini legit atau scam?
-          <svg class="faq-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        </button>
-        <div class="faq-a"><div class="faq-a-in">Legit. Udah dipakai ribuan pengguna, punya sistem refund otomatis, dan support aktif 24/7.</div></div>
+        <div class="faq-a"><div class="faq-a-in">Tidak. Pesanan gagal atau kedaluwarsa dikembalikan 100% otomatis.</div></div>
       </div>
     </div>
   </div>
@@ -419,20 +374,20 @@
 <footer class="foot">
   <div class="wrap">
     <div class="foot-in">
-      <div class="foot-brand"><div class="brand-mark">A</div>AsyrofOTP</div>
+      <div class="foot-brand"><div class="brand-mark" aria-hidden="true">A</div>AsyrofOTP</div>
       <ul class="foot-menu">
         <li><a href="#home">Beranda</a></li>
         <li><a href="#features">Fitur</a></li>
-        <li><a href="#how">Cara Kerja</a></li>
+        <li><a href="#how">Cara kerja</a></li>
         <li><a href="#faq">FAQ</a></li>
       </ul>
     </div>
-    <div class="foot-copy">© 2026 AsyrofOTP. Dibikin dengan ☕ di Indonesia.</div>
+    <div class="foot-copy">© 2026 AsyrofOTP</div>
   </div>
 </footer>
 
 <button class="to-top glass" id="toTop" type="button" aria-label="Ke atas">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>
 </button>
 
 <script src="/js/tC5LC33P01OHY2Y0eFGxTGjAXAC0nCgNZNYTil76pdYlanding.js" defer></script>
