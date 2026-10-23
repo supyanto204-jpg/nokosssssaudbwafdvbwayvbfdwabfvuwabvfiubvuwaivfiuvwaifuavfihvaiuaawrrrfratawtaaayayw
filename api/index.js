@@ -1168,6 +1168,17 @@ const SCHEMA = {
             ],
         },
                 {
+            name: 'rate_limits',
+            create: `CREATE TABLE IF NOT EXISTS rate_limits (
+                id SERIAL PRIMARY KEY,
+                ip_address TEXT,
+                device_id TEXT,
+                action TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: []
+        },
+                {
             name: 'password_resets',
             create: `CREATE TABLE IF NOT EXISTS password_resets (
                 id SERIAL PRIMARY KEY,
@@ -2053,67 +2064,87 @@ app.post('/api/auth/check-username', rateLimit(30, 60 * 1000), withDB(async (req
     }
 }));
 
-app.post('/api/auth/forgot', rateLimit(5, 60 * 1000), withDB(async (req, res) => {
-    const { email } = req.body;
-    
-    // Validasi format email basic
+app.post('/api/auth/forgot', withDB(async (req, res) => {
+    const { email, puzzle_x } = req.body;
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const device = req.headers['x-device-id'] || 'unknown';
+
+    // 1. Validasi Puzzle (toleransi geser min 40px)
+    if (!puzzle_x || Number(puzzle_x) < 40) {
+        return res.status(400).json({ error: 'Verifikasi keamanan gagal. Geser puzzle dengan benar.' });
+    }
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Format email tidak valid' });
     }
 
     try {
-        // Cari user berdasarkan email
-        const uRes = await pool.query('SELECT id, username FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
-        
-        // Selalu balas sukses biar gak bisa ditebak email siapa yang terdaftar
-        if (uRes.rows.length === 0) {
-            return res.json({ message: 'Jika email terdaftar, link reset telah dikirim.' });
-        }
-
-        const user = uRes.rows[0];
-        const token = crypto.randomBytes(32).toString('hex');
-        
-        // Hapus token lama user ini (biar cuma 1 token aktif)
-        await pool.query('DELETE FROM password_resets WHERE user_id = $1', [user.id]);
-        
-        // Simpan token baru berlaku 15 menit
-        await pool.query(
-            'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'15 minutes\')',
-            [user.id, token]
+        // 2. Cek Rate Limit (Maksimal 3 request per 1 jam berdasarkan IP atau Device)
+        const checkLimit = await pool.query(
+            `SELECT COUNT(*) as total FROM rate_limits 
+             WHERE (ip_address = $1 OR device_id = $2) 
+               AND action = 'forgot_password' 
+               AND created_at > NOW() - INTERVAL '1 hour'`,
+            [ip, device]
         );
 
-        // Konfigurasi email pake env
-        const transporter = nodemailer.createTransport({
-            service: 'gmail',
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: process.env.APP_PASS_RESET_PASSWORD
-            }
-        });
+        if (Number(checkLimit.rows[0].total) >= 3) {
+            return res.status(429).json({ 
+                error: 'Batas permintaan habis. Coba lagi 1 jam kemudian.' 
+            });
+        }
 
-        const resetLink = `https://asyrofotp.vercel.app/reset?token=${token}`;
+        // 3. Catat request ke DB
+        await pool.query(
+            `INSERT INTO rate_limits (ip_address, device_id, action) VALUES ($1, $2, $3)`,
+            [ip, device, 'forgot_password']
+        );
+
+        // 4. Cari user dan kirim email
+        const uRes = await pool.query('SELECT id, username FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
         
-        await transporter.sendMail({
-            from: `"AsyrofOTP" <${process.env.EMAIL_USER}>`,
-            to: email,
-            subject: 'Reset Password Akun AsyrofOTP',
-            html: `
-                <div style="font-family:sans-serif;padding:20px;color:#333">
-                    <h2>Reset Password</h2>
-                    <p>Halo <b>${user.username}</b>,</p>
-                    <p>Kami menerima permintaan untuk mereset password akun kamu. Klik tombol di bawah ini:</p>
-                    <p><a href="${resetLink}" style="background:#0a84ff;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin:10px 0">Reset Password</a></p>
-                    <p style="font-size:12px;color:#888">Link ini hanya berlaku selama 15 menit. Jika kamu tidak meminta reset password, abaikan email ini.</p>
-                </div>
-            `
-        });
+        if (uRes.rows.length > 0) {
+            const user = uRes.rows[0];
+            const token = crypto.randomBytes(32).toString('hex');
+            
+            await pool.query('DELETE FROM password_resets WHERE user_id = $1', [user.id]);
+            await pool.query(
+                'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'15 minutes\')',
+                [user.id, token]
+            );
 
-        res.json({ message: 'Link reset password telah dikirim ke email kamu.' });
+            const transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.APP_PASS_RESET_PASSWORD
+                }
+            });
+
+            const resetLink = `https://asyrofotp.vercel.app/reset.html?token=${token}`;
+            
+            await transporter.sendMail({
+                from: `"AsyrofOTP" <${process.env.EMAIL_USER}>`,
+                to: email,
+                subject: 'Reset Password Akun AsyrofOTP',
+                html: `
+                    <div style="font-family:sans-serif;padding:20px;color:#333">
+                        <h2>Reset Password</h2>
+                        <p>Halo <b>${user.username}</b>,</p>
+                        <p>Klik tombol di bawah ini untuk mereset password akunmu:</p>
+                        <p><a href="${resetLink}" style="background:#0a84ff;color:#fff;padding:10px 20px;text-decoration:none;border-radius:6px;display:inline-block;margin:10px 0">Reset Password</a></p>
+                        <p style="font-size:12px;color:#888">Link berlaku 15 menit. Abaikan jika kamu tidak meminta reset.</p>
+                    </div>
+                `
+            });
+        }
+
+        // Selalu balas sukses biar gak bisa ditebak email mana yang terdaftar
+        res.json({ message: 'Jika email terdaftar, link reset telah dikirim.' });
 
     } catch (err) {
         console.error('Forgot email error:', err.message);
-        // Biar aman, jangan bocorin detail error ke user
-        res.status(500).json({ error: 'Gagal mengirim email. Pastikan email kamu aktif atau hubungi CS.' });
+        res.status(500).json({ error: 'Gagal memproses permintaan. Coba lagi nanti.' });
     }
 }));
 
