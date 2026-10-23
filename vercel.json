@@ -13,7 +13,7 @@
     { "source": "/dashboard.html", "destination": "/dashboard", "permanent": true },
     { "source": "/nY9hu717CoIbia0AM8Ds4FYu7yjPSWxasRiNZcVwKsYprofile.html", "destination": "/profile", "permanent": true },
     { "source": "/qwaihdaidhuhgGUGguu.html", "destination": "/nokos", "permanent": true },
-    { "source": "/deposit.html", "destination": "/deposit", "permanent": true },
+    { "source": "/ZsWswYiyZaLsi4yjZwClOA7rw8ThvpD6F1vHBd0bf7Edeposit.html", "destination": "/deposit", "permanent": true },
     { "source": "/inbox.html", "destination": "/inbox", "permanent": true },
     { "source": "/ketentuan.html", "destination": "/ketentuan", "permanent": true },
     { "source": "/syarat.html", "destination": "/syarat", "permanent": true }
@@ -27,7 +27,7 @@
     { "source": "/dashboard", "destination": "/public/dashboard.html" },
     { "source": "/profile", "destination": "public/nY9hu717CoIbia0AM8Ds4FYu7yjPSWxasRiNZcVwKsYprofile.html" },
     { "source": "/nokos", "destination": "public/qwaihdaidhuhgGUGguu.html" },
-    { "source": "/deposit", "destination": "/public/deposit.html" },
+    { "source": "/deposit", "destination": "public/ZsWswYiyZaLsi4yjZwClOA7rw8ThvpD6F1vHBd0bf7Edeposit.html" },
     { "source": "/inbox", "destination": "/public/inbox.html" },
     { "source": "/ketentuan", "destination": "/public/ketentuan.html" },
     { "source": "/syarat", "destination": "/public/syarat.html" },
