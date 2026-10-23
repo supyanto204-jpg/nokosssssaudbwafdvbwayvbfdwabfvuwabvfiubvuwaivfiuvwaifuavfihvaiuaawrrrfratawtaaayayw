@@ -1,5 +1,6 @@
 :root{--p:#0a84ff;--p2:#5e5ce6;--p3:#bf5af2;--wa:#25D366;--tg:#229ED9;--ok:#34c759;--warn:#ff9f0a;--txt:#1c1c1e;--txt2:#6e6e73;--txt3:#8e8e93;--bg:#eef2f7;--gl-bg:rgba(255,255,255,.6);--gl-bd:rgba(255,255,255,.7);--gl-bd2:rgba(255,255,255,.4);--gl-sh:0 8px 32px rgba(31,38,135,.12);--gl-in:inset 0 1px 0 rgba(255,255,255,.8);--grad:linear-gradient(135deg,#0a84ff 0%,#5e5ce6 55%,#bf5af2 100%);--grad-h:linear-gradient(90deg,#0a84ff,#5e5ce6,#bf5af2,#0a84ff);--blur:blur(24px) saturate(180%);color-scheme:light}
 [data-theme=dark]{--txt:#f5f5f7;--txt2:#a1a1a6;--txt3:#8e8e93;--bg:#0a0a0c;--gl-bg:rgba(28,28,32,.55);--gl-bd:rgba(255,255,255,.14);--gl-bd2:rgba(255,255,255,.1);--gl-sh:0 8px 32px rgba(0,0,0,.5);--gl-in:inset 0 1px 0 rgba(255,255,255,.1);color-scheme:dark}
+
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;overscroll-behavior-y:none}
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;background:var(--bg);color:var(--txt);line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-x:clip;transition:background-color .3s ease,color .3s ease;letter-spacing:-.01em;min-height:100vh;word-wrap:break-word;overflow-wrap:break-word}
@@ -10,15 +11,11 @@ img{display:block}
 .wrap{max-width:1160px;margin:0 auto;padding:0 24px;position:relative;z-index:2;width:100%}
 .ic{width:20px;height:20px;display:inline-block;vertical-align:middle;flex-shrink:0;pointer-events:none}
 
-/* ============================================
-   GLASS
-   ============================================ */
+/* glass surface. dipakai di card + nav */
 .glass{background:var(--gl-bg);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--gl-bd);box-shadow:var(--gl-sh),var(--gl-in);position:relative}
 .glass-card{background:var(--gl-bg);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border:1px solid var(--gl-bd);box-shadow:var(--gl-sh),var(--gl-in);position:relative;overflow:hidden;border-radius:24px;transition:box-shadow .4s ease,border-color .4s ease}
 
-/* ============================================
-   BACKGROUND
-   ============================================ */
+/* blob background. tiga orb, animasi beda-beda biar gak kerasa repetitif */
 .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
 .orb{position:absolute;border-radius:50%;filter:blur(100px);will-change:transform}
 .orb-1{width:520px;height:520px;background:radial-gradient(circle,rgba(10,132,255,.45) 0%,transparent 70%);top:-10%;left:-10%;animation:orb1 22s ease-in-out infinite}
@@ -31,9 +28,7 @@ img{display:block}
 @keyframes orb2{0%,100%{transform:translate(0,0) scale(1.05)}33%{transform:translate(-60px,40px) scale(.95)}66%{transform:translate(40px,-50px) scale(1.1)}}
 @keyframes orb3{0%,100%{transform:translate(0,0) scale(.95)}50%{transform:translate(-40px,-60px) scale(1.12)}}
 
-/* ============================================
-   NAV
-   ============================================ */
+/* nav. sticky, shadow muncul pas scroll */
 .nav{position:sticky;top:0;z-index:100;border-radius:0;border-left:none;border-right:none;border-top:none;width:100%}
 .nav.scrolled{box-shadow:0 4px 24px rgba(31,38,135,.1);background:rgba(255,255,255,.75)}
 [data-theme=dark] .nav.scrolled{box-shadow:0 4px 24px rgba(0,0,0,.3);background:rgba(20,20,24,.75)}
@@ -61,14 +56,12 @@ img{display:block}
 [data-theme=dark] .theme-btn .i-sun{transform:rotate(-180deg) scale(0);opacity:0}
 [data-theme=dark] .theme-btn .i-moon{transform:rotate(0) scale(1);opacity:1}
 
-/* ============================================
-   HERO
-   ============================================ */
+/* hero */
 .hero{padding:72px 0 56px;position:relative;overflow:visible}
 .hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;min-height:560px}
 .hero-l{max-width:560px;min-width:0;align-self:center;animation:heroLIn .8s cubic-bezier(.2,.8,.2,1) both}
 @keyframes heroLIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.hero-r{min-width:0;align-self:center;animation:heroRIn .9s cubic-bezier(.2,.8,.2,1) .15s both}
+.hero-r{min-width:0;align-self:center;animation:heroRIn .9s cubic-bezier(.2,.8,.2,1) .15s both;display:flex;justify-content:center;align-items:center;position:relative;z-index:1}
 @keyframes heroRIn{from{opacity:0;transform:translateY(20px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
 
 .pill{display:inline-flex;align-items:center;gap:8px;color:var(--p);padding:8px 16px;border-radius:999px;font-size:.82rem;font-weight:600;margin-bottom:20px;max-width:100%}
@@ -80,6 +73,7 @@ img{display:block}
 .cursor{display:inline-block;margin-left:1px;color:var(--p);font-weight:700;animation:blink .8s step-end infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .hero-cta{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:28px;max-width:100%}
+
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:14px 28px;border-radius:999px;font-weight:700;font-size:.95rem;text-decoration:none;border:none;cursor:pointer;transition:transform .25s cubic-bezier(.2,.8,.2,1.4),box-shadow .25s,background-color .25s;letter-spacing:-.01em;-webkit-tap-highlight-color:transparent;text-align:center;white-space:nowrap;position:relative;overflow:hidden}
 .btn .ic{width:18px;height:18px;flex-shrink:0;transition:transform .3s}
 .btn-primary{background:var(--grad);color:#fff;box-shadow:0 6px 24px rgba(10,132,255,.35)}
@@ -95,17 +89,13 @@ img{display:block}
 [data-theme=dark] .btn-primary{box-shadow:0 6px 24px rgba(10,132,255,.25)}
 [data-theme=dark] .btn-primary:hover{box-shadow:0 14px 40px rgba(10,132,255,.4)}
 
-/* STATS */
 .hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:18px 24px;border-radius:20px}
 .hero-stats>div{display:flex;flex-direction:column;gap:3px;text-align:center;position:relative;padding:0 8px;min-width:70px}
 .hero-stats>div:not(:last-child)::after{content:'';position:absolute;right:0;top:18%;height:64%;width:1px;background:var(--gl-bd2)}
 .stat-v{font-size:1.35rem;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.02em;line-height:1.1;white-space:nowrap;display:block}
 .stat-l{font-size:.62rem;color:var(--txt3);font-weight:700;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap;display:block}
 
-/* ============================================
-   DEMO WHATSAPP — fix penempatan
-   ============================================ */
-.hero-r{display:flex;justify-content:center;align-items:center;position:relative;z-index:1}
+/* demo WA di hero. fixed height biar layout gak goyang */
 .demo{position:relative;width:100%;max-width:440px;padding:20px;display:flex;flex-direction:column;gap:14px;border-radius:28px}
 .demo::before{content:'';position:absolute;inset:-1px;border-radius:28px;padding:1px;background:linear-gradient(135deg,rgba(10,132,255,.4),rgba(191,90,242,.3),transparent 60%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
 .demo-status{display:flex;justify-content:space-between;align-items:center;position:relative;z-index:2;gap:8px;flex-shrink:0}
@@ -117,14 +107,12 @@ img{display:block}
 .ds-time{font-family:'JetBrains Mono',monospace;font-size:.8rem;font-weight:700;color:var(--txt2);padding:6px 12px;background:rgba(255,255,255,.4);border-radius:999px;border:1px solid var(--gl-bd2);white-space:nowrap;flex-shrink:0}
 [data-theme=dark] .ds-time{background:rgba(255,255,255,.06)}
 
-/* Fix: demo-screen aspect-ratio lebih pas, tidak terlalu tinggi/rendah */
 .demo-screen{position:relative;width:100%;height:420px;background:rgba(255,255,255,.4);border-radius:20px;border:1px solid var(--gl-bd2);overflow:hidden;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0}
 [data-theme=dark] .demo-screen{background:rgba(28,28,32,.4)}
 
 .app-ui{position:absolute;inset:0;display:flex;flex-direction:column;padding:18px;gap:12px;opacity:0;transition:opacity .4s ease;z-index:2;overflow:hidden}
 .app-ui.on{opacity:1}
 
-/* Fix: app-country pakai flag CDN */
 .app-country{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.5);border:1px solid var(--gl-bd2);border-radius:12px;align-self:flex-start;flex-shrink:0}
 [data-theme=dark] .app-country{background:rgba(255,255,255,.08)}
 .ac-flag-img{width:22px;height:16px;border-radius:3px;object-fit:cover;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.15);border:1px solid var(--gl-bd2)}
@@ -133,12 +121,10 @@ img{display:block}
 .ac-arrow svg{width:14px;height:14px}
 
 .app-number{font-family:'JetBrains Mono',monospace;font-size:1.45rem;font-weight:800;color:var(--txt);letter-spacing:.02em;padding:4px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:0}
-
 .app-instruction{margin-top:2px;flex-shrink:0}
 .ai-label{font-size:.68rem;font-weight:800;color:var(--txt3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
 .ai-text{font-size:.85rem;color:var(--txt2);line-height:1.5;font-weight:500}
 
-/* Fix: OTP row proporsional */
 .app-otp-row{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;justify-content:space-between;margin:8px 0;flex-shrink:0}
 .app-otp-cell{aspect-ratio:1/1.15;background:rgba(255,255,255,.55);border:1.5px solid var(--gl-bd2);border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-weight:800;font-size:1.15rem;color:var(--txt);transition:all .35s cubic-bezier(.2,.8,.2,1.4);min-width:0}
 [data-theme=dark] .app-otp-cell{background:rgba(255,255,255,.08)}
@@ -150,7 +136,6 @@ img{display:block}
 .app-btn.done{background:var(--ok);box-shadow:0 0 28px rgba(52,199,89,.55)}
 .app-hint{font-size:.7rem;color:var(--txt3);text-align:center;font-family:'JetBrains Mono',monospace;margin-top:auto;flex-shrink:0}
 
-/* Notif */
 .notif{position:absolute;top:14px;left:14px;right:14px;border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:11px;opacity:0;transform:translateY(-20px) scale(.92);transition:opacity .45s cubic-bezier(.2,.8,.2,1.4),transform .45s cubic-bezier(.2,.8,.2,1.4);z-index:4;pointer-events:none;box-shadow:0 12px 40px rgba(31,38,135,.2)}
 .notif.on{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
 .notif-head{display:flex;align-items:center;gap:10px;position:relative;z-index:2}
@@ -185,18 +170,13 @@ img{display:block}
 .demo-progress-fill{height:100%;width:0;background:var(--grad-h);background-size:200% 100%;border-radius:2px;transition:width .1s linear;animation:progressShift 3s linear infinite}
 @keyframes progressShift{0%{background-position:0% 50%}100%{background-position:200% 50%}}
 
-/* ============================================
-   SECTIONS
-   ============================================ */
 section{padding:80px 0;position:relative}
 .sec-head{text-align:center;margin-bottom:56px;padding:0 4px}
 .tag{display:inline-block;color:var(--p);padding:7px 16px;border-radius:999px;font-size:.8rem;font-weight:700;margin-bottom:16px;background:rgba(10,132,255,.1);border:1px solid rgba(10,132,255,.15)}
 .sec-head h2{font-size:clamp(1.8rem,3.4vw,2.5rem);font-weight:900;letter-spacing:-.03em;margin-bottom:12px;line-height:1.15;word-wrap:break-word}
 .sec-head p{color:var(--txt2);font-size:1.02rem;max-width:560px;margin:0 auto;font-weight:500;line-height:1.55;word-wrap:break-word}
 
-/* ============================================
-   SUPPORT
-   ============================================ */
+/* card support TG + WA */
 .support-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px;margin:0 auto}
 .support-card{display:flex;align-items:center;gap:16px;padding:24px;border-radius:22px;border:1px solid rgba(255,255,255,.3);box-shadow:0 8px 32px rgba(31,38,135,.15);text-decoration:none;color:#fff;position:relative;overflow:hidden;transition:transform .35s cubic-bezier(.2,.8,.2,1.4),box-shadow .35s;-webkit-tap-highlight-color:transparent;cursor:pointer;min-width:0}
 .support-tg{background:linear-gradient(135deg,#229ED9 0%,#0a84ff 100%)}
@@ -214,9 +194,6 @@ section{padding:80px 0;position:relative}
 .sc-arrow svg{width:18px;height:18px}
 .support-card:hover .sc-arrow{transform:translateX(6px);background:rgba(255,255,255,.4)}
 
-/* ============================================
-   FEATURES
-   ============================================ */
 .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;max-width:1100px;margin:0 auto}
 .feat{padding:32px 28px;transition:transform .35s cubic-bezier(.2,.8,.2,1.4),box-shadow .35s;min-width:0;position:relative}
 .feat::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad);opacity:0;transition:opacity .35s;border-radius:24px 24px 0 0}
@@ -232,9 +209,7 @@ section{padding:80px 0;position:relative}
 .star.f{fill:var(--warn);stroke:var(--warn)}
 .stars-t{margin-top:8px;font-size:.76rem;color:var(--txt3);font-weight:600;font-family:'JetBrains Mono',monospace;position:relative;z-index:2}
 
-/* ============================================
-   HOW — Fix scrollbar & alignment
-   ============================================ */
+/* how it works. scrollbar di-hide karena content-fit */
 .how-demo{display:grid;grid-template-columns:1fr 1.15fr;gap:0;overflow:hidden;border-radius:24px;min-height:400px;position:relative;scrollbar-width:none;-ms-overflow-style:none}
 .how-demo::-webkit-scrollbar{display:none;width:0;height:0}
 .how-steps{padding:24px 20px;display:flex;flex-direction:column;gap:8px;justify-content:center;border-right:1px solid var(--gl-bd2);position:relative;z-index:2;min-width:0}
@@ -247,7 +222,6 @@ section{padding:80px 0;position:relative}
 .how-step-t{font-size:.9rem;font-weight:800;color:var(--txt);letter-spacing:-.01em;margin-bottom:3px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .how-step-d{font-size:.72rem;color:var(--txt3);font-weight:500;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Fix: preview tidak scroll, konten di dalam fit */
 .how-preview{position:relative;overflow:hidden;background:rgba(255,255,255,.25);padding:18px;min-height:400px;display:flex;flex-direction:column;min-width:0}
 [data-theme=dark] .how-preview{background:rgba(28,28,32,.3)}
 .how-scr{position:absolute;inset:18px;display:flex;flex-direction:column;gap:12px;opacity:0;transform:translateY(10px);transition:opacity .45s ease,transform .45s ease;pointer-events:none;overflow:hidden;justify-content:flex-start;min-width:0}
@@ -298,9 +272,7 @@ section{padding:80px 0;position:relative}
 .how-tap.on{animation:howTapPop .7s cubic-bezier(.2,.8,.2,1.4)}
 @keyframes howTapPop{0%{opacity:1;transform:translate(-50%,-50%) scale(.3)}60%{opacity:.6;transform:translate(-50%,-50%) scale(1.6)}100%{opacity:0;transform:translate(-50%,-50%) scale(2)}}
 
-/* ============================================
-   FAQ
-   ============================================ */
+/* faq */
 .faq-list{max-width:760px;margin:0 auto}
 .faq-item{margin-bottom:12px;transition:box-shadow .3s,transform .3s}
 .faq-item:hover{box-shadow:0 12px 32px rgba(31,38,135,.1);transform:translateY(-2px)}
@@ -312,9 +284,6 @@ section{padding:80px 0;position:relative}
 .faq-a-in{padding:0 24px 20px;color:var(--txt2);font-size:.9rem;line-height:1.7;font-weight:500}
 .faq-item.active .faq-a{max-height:400px}
 
-/* ============================================
-   FOOTER
-   ============================================ */
 .foot{background:linear-gradient(180deg,rgba(10,10,12,.95) 0%,rgba(0,0,0,.98) 100%);color:#8e8e93;padding:52px 0 30px;border-top:1px solid rgba(255,255,255,.06);position:relative;z-index:2}
 .foot-in{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:24px}
 .foot-brand{display:flex;align-items:center;gap:10px;color:#fff;font-weight:800;font-size:1.1rem;letter-spacing:-.02em}
@@ -325,26 +294,18 @@ section{padding:80px 0;position:relative}
 .foot-menu a:hover{color:#fff}
 .foot-copy{text-align:center;margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.06);font-size:.8rem;color:#48484a;font-weight:500;line-height:1.5}
 
-/* ============================================
-   TO TOP
-   ============================================ */
 .to-top{position:fixed;bottom:24px;right:24px;width:46px;height:46px;border-radius:50%;color:var(--p);cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transform:translateY(16px);transition:opacity .3s,transform .3s,background-color .25s;-webkit-tap-highlight-color:transparent;z-index:90;padding:0}
 .to-top.on{opacity:1;pointer-events:auto;transform:translateY(0)}
 .to-top:hover{transform:translateY(-3px);background:var(--p);color:#fff;box-shadow:0 8px 24px rgba(10,132,255,.4)}
 .to-top svg{width:20px;height:20px}
 
-/* ============================================
-   REVEAL
-   ============================================ */
 .reveal{opacity:0;transform:translateY(16px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
 .reveal.on{opacity:1;transform:translateY(0)}
 .reveal:nth-child(2){transition-delay:.06s}
 .reveal:nth-child(3){transition-delay:.12s}
 .reveal:nth-child(4){transition-delay:.18s}
 
-/* ============================================
-   RESPONSIVE — TABLET
-   ============================================ */
+/* tablet */
 @media (max-width:1024px){
 .hero{padding:56px 0 44px}
 .hero-grid{gap:40px;min-height:auto}
@@ -355,9 +316,7 @@ section{padding:80px 0;position:relative}
 .feat-grid{gap:18px}
 }
 
-/* ============================================
-   TABLET KECIL (<=900)
-   ============================================ */
+/* tablet kecil */
 @media (max-width:900px){
 .nav-menu{display:none}
 .hero{padding:48px 0 40px}
@@ -378,9 +337,7 @@ section{padding:56px 0}
 .sec-head{margin-bottom:40px}
 }
 
-/* ============================================
-   HP (<=560)
-   ============================================ */
+/* hp */
 @media (max-width:560px){
 .wrap{padding:0 16px}
 
@@ -487,9 +444,7 @@ section{padding:44px 0}
 .theme-btn .ic{width:18px;height:18px}
 }
 
-/* ============================================
-   HP KECIL (<=400)
-   ============================================ */
+/* hp kecil */
 @media (max-width:400px){
 .wrap{padding:0 14px}
 .hero{padding:26px 0 18px}
@@ -517,9 +472,7 @@ section{padding:44px 0}
 .sc-arrow svg{width:13px;height:13px}
 }
 
-/* ============================================
-   PERF MODES
-   ============================================ */
+/* perf mode. matiin animasi berat + backdrop blur dikurangi */
 [data-perf=lite] .orb-2,
 [data-perf=lite] .orb-3{display:none}
 [data-perf=lite] .orb{filter:blur(80px)}
@@ -534,7 +487,7 @@ section{padding:44px 0}
 [data-perf=lite] .support-card::before{animation:none!important}
 [data-perf=lite] .demo-progress-fill{animation:none!important;background:var(--grad)}
 
-/* Hide scrollbar global untuk demo */
+/* hide scrollbar di area demo */
 .demo,.how-demo,.how-preview,.how-scr{scrollbar-width:none;-ms-overflow-style:none}
 .demo::-webkit-scrollbar,.how-demo::-webkit-scrollbar,.how-preview::-webkit-scrollbar,.how-scr::-webkit-scrollbar{display:none;width:0;height:0}
 
