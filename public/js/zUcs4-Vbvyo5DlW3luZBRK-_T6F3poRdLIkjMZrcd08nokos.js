@@ -1196,7 +1196,7 @@ function renderServers(servers) {
   adjustSheetHeight();
 }
 
-// STEP 2: aplikasi (dari backend, server 1 dan server 2 sama)
+// STEP 2: aplikasi (dari backend)
 async function renderAppStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1274,7 +1274,7 @@ function renderApps(services) {
   adjustSheetHeight();
 }
 
-// STEP 3: negara (dari backend)
+// STEP 3: negara (dari backend, sudah include min_price kalau premium)
 async function renderCountryStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1339,17 +1339,32 @@ function renderCountries(countries) {
   c.innerHTML =
     '<div class="country-list">' +
       countries.map(function (co) {
-        return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '">' +
+        var isPremium = state.server === 'premium';
+        var minPrice = co.min_price != null ? Number(co.min_price) : null;
+        var hasPrice = isPremium && Number.isFinite(minPrice) && minPrice > 0;
+        var isSoldOut = isPremium && co.min_price === null;
+
+        var meta = 'Kode: ' + escapeHtml((co.code || '').toUpperCase());
+        if (hasPrice) {
+          meta = 'Mulai ' + formatRupiah(minPrice) + ' · ' + escapeHtml((co.code || '').toUpperCase());
+        } else if (isSoldOut) {
+          meta = 'Stok habis';
+        }
+
+        var disabled = isSoldOut ? ' disabled style="opacity:.5;cursor:not-allowed"' : '';
+
+        return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '"' + disabled + '>' +
           '<div class="country-flag">' + renderFlag(co.code) + '</div>' +
           '<div class="country-info">' +
             '<div class="country-name">' + escapeHtml(co.name) + '</div>' +
-            '<div class="country-meta">Kode: ' + escapeHtml((co.code || '').toUpperCase()) + '</div>' +
+            '<div class="country-meta">' + meta + '</div>' +
           '</div>' +
           '<div class="country-arrow"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg></div>' +
         '</button>';
       }).join('') +
     '</div>';
   c.querySelectorAll('.country-item').forEach(function (item) {
+    if (item.disabled) return;
     item.addEventListener('click', function () {
       state.country = item.dataset.country;
       state.countryName = item.dataset.name;
