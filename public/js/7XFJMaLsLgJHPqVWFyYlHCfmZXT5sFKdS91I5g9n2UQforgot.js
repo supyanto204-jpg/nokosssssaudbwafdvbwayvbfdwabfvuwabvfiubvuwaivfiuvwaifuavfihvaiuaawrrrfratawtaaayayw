@@ -21,7 +21,7 @@ var q=function(s){return D.querySelector(s)};
   });
 })();
 
-// Device ID
+// Device ID (buat rate limit)
 (function(){
   try {
     if(!localStorage.getItem('asyrofotp_device_id')){
@@ -62,9 +62,7 @@ function setStatus(state, label){
   else{ statusRow.classList.add('visible'); }
 }
 
-// ==========================================
-// CLOUDFLARE TURNSTILE CALLBACKS
-// ==========================================
+// Callback Cloudflare
 window.onTurnstileSuccess = function(token) {
   turnstileToken = token;
   isVerified = true;
@@ -79,9 +77,7 @@ window.onTurnstileExpire = function() {
   showAlert('Verifikasi keamanan kedaluwarsa. Centang ulang.', 'error');
 };
 
-// ==========================================
-// FORM SUBMIT
-// ==========================================
+// Submit
 if(!form)return;
 
 form.addEventListener('submit', async function(e){
@@ -119,7 +115,7 @@ form.addEventListener('submit', async function(e){
       },
       body:JSON.stringify({
         email: email,
-        cf_token: turnstileToken // Kirim token ke backend
+        cf_token: turnstileToken
       })
     });
 
