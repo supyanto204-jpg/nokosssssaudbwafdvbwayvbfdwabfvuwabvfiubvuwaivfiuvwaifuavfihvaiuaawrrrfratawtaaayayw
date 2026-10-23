@@ -1,7 +1,7 @@
 (function (global) {
 'use strict';
 
-// AES-GCM. fallback null kalau subtle crypto gak ada
+// AES-GCM wrapper. fallback ke base64 kalau subtle crypto gak ada
 var _crypto = (function () {
   var _k = 'bm9rb3Mtc2VjcmV0LWtleS0yMDI2LWFzeXJvZg==';
   var _s = 'c2FsdC1ub2tvcy12MjAyNi1zZWN1cmU=';
@@ -108,6 +108,9 @@ var _cfg = {
     cekotp: '/api/cekotp',
     logout: '/api/auth/logout'
   },
+  // public catalog API. kosong = same origin.
+  pubBase: '',
+  pubKey: 'da303966286507311b5f8260cd7ae743df424b57d4b66eb44fa66e0d036ebdcf',
   ttl: {
     user: 5 * 60 * 1000,
     servers: 10 * 60 * 1000,
@@ -119,7 +122,8 @@ var _cfg = {
   autoSync: 5000,
   otpCheck: 10000,
   profileSync: 30000,
-  activeLimit: 2
+  activeLimit: 2,
+  prefetchWorkers: 10
 };
 
 // deteksi device
@@ -137,7 +141,7 @@ if (_dev.reduced || _dev.lowEnd) {
   document.documentElement.setAttribute('data-perf', 'lite');
 }
 
-// security nudge + strip query
+// security nudge + strip query string
 (function () {
   try {
     console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
@@ -181,6 +185,17 @@ function formatTanggal(iso) {
   } catch (e) { return '—'; }
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+// fetch khusus catalog (read-only). pakai public key.
+function catalogFetch(path) {
+  var url = (_cfg.pubBase || '') + path;
+  return fetch(url, {
+    headers: {
+      'Authorization': 'Bearer ' + _cfg.pubKey,
+      'Accept': 'application/json'
+    }
+  });
+}
 
 // copy random per sesi biar gak keliatan template
 var _copy = {
@@ -244,7 +259,6 @@ var ICONS = {
   phone: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
 };
 
-// state form (wizard step 1-4)
 var state = {
   step: 1, server: null, serverLabel: null, requiresOperator: false,
   service: null, serviceName: null, country: null, countryName: null,
@@ -1149,7 +1163,7 @@ async function renderServerStep() {
   var cached = await Cache.get('servers', _cfg.ttl.servers);
   if (cached && cached.length > 0) renderServers(cached);
   try {
-    var res = await fetch(_cfg.ep.servers, { headers: { Authorization: 'Bearer ' + token } });
+    var res = await catalogFetch(_cfg.ep.servers);
     var data = await safeJson(res);
     var servers = data.servers || [];
     if (servers.length > 0) await Cache.set('servers', servers);
@@ -1219,7 +1233,7 @@ async function renderAppStep() {
     renderApps(servicesCache);
   }
   try {
-    var res = await fetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server), { headers: { Authorization: 'Bearer ' + token } });
+    var res = await catalogFetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server));
     var data = await safeJson(res);
     servicesCache = data.services || [];
     if (servicesCache.length > 0) await Cache.set(ck, servicesCache);
@@ -1301,9 +1315,8 @@ async function renderCountryStep() {
   var cached = await Cache.get(ck, _cfg.ttl.countries);
   if (cached && cached.length > 0) renderCountries(cached);
   try {
-    var res = await fetch(
-      _cfg.ep.countries + '?server=' + encodeURIComponent(state.server) + '&service=' + encodeURIComponent(state.service),
-      { headers: { Authorization: 'Bearer ' + token } }
+    var res = await catalogFetch(
+      _cfg.ep.countries + '?server=' + encodeURIComponent(state.server) + '&service=' + encodeURIComponent(state.service)
     );
     var data = await safeJson(res);
     var countries = data.countries || [];
@@ -1330,33 +1343,46 @@ async function renderCountryStep() {
   }
 }
 
-// BONUS: pre-fetch harga termurah per negara untuk server premium (paralel, dibatasi 3)
-// supaya di country list bisa tampil "Mulai Rp X" dan country tanpa stok di-mark
+// prefetch harga termurah per negara (khusus premium).
+// 10 worker paralel + throttle 100ms → max ~10 req/detik.
+// re-render tiap 5 negara selesai biar user lihat progres realtime.
 async function prefetchPremiumMinPrices(server, service, countries) {
   if (server !== 'premium') return;
   if (!countries || countries.length === 0) return;
+
   var toFetch = countries.slice(0, 30);
-  var concurrency = 3;
+  var concurrency = _cfg.prefetchWorkers;
   var idx = 0;
+  var doneCount = 0;
+  var lastTick = 0;
+
   async function worker() {
     while (idx < toFetch.length) {
       var i = idx++;
       var co = toFetch[i];
       var code = String(co.code || '').toLowerCase();
       if (!code) continue;
+
+      // throttle global 100ms per request → max ~10 req/detik
+      var now = Date.now();
+      var wait = Math.max(0, 100 - (now - lastTick));
+      lastTick = now + wait;
+      if (wait > 0) await new Promise(function (r) { setTimeout(r, wait); });
+
       var ck = 'prices_' + server + '_' + service + '_' + code;
       var cached = await Cache.get(ck, _cfg.ttl.prices);
       if (cached && cached.length > 0) {
         var minP = Math.min.apply(null, cached.map(function (p) { return Number(p.price_idr) || Infinity; }));
         if (isFinite(minP)) COUNTRY_MIN_PRICE.set(code, minP);
+        doneCount++;
         continue;
       }
+
       try {
-        var res = await fetch(
+        var res = await catalogFetch(
           _cfg.ep.prices + '?server=' + encodeURIComponent(server) +
           '&service=' + encodeURIComponent(service) +
-          '&country=' + encodeURIComponent(code),
-          { headers: { Authorization: 'Bearer ' + token } }
+          '&country=' + encodeURIComponent(code)
         );
         var data = await safeJson(res);
         var providers = (data.providers || []).filter(function (p) { return p.active !== false; });
@@ -1369,8 +1395,12 @@ async function prefetchPremiumMinPrices(server, service, countries) {
           COUNTRY_MIN_PRICE.set(code, 0);
         }
       } catch (e) {}
+
+      doneCount++;
+      if (doneCount % 5 === 0) renderCountries(countries);
     }
   }
+
   var workers = [];
   for (var w = 0; w < concurrency; w++) workers.push(worker());
   await Promise.all(workers);
@@ -1470,11 +1500,10 @@ async function renderPriceStep() {
     renderPrices(state.providers);
   }
   try {
-    var res = await fetch(
+    var res = await catalogFetch(
       _cfg.ep.prices + '?server=' + encodeURIComponent(state.server) +
       '&service=' + encodeURIComponent(state.service) +
-      '&country=' + encodeURIComponent(state.country),
-      { headers: { Authorization: 'Bearer ' + token } }
+      '&country=' + encodeURIComponent(state.country)
     );
     var data = await safeJson(res);
     var raw = data.providers || [];
