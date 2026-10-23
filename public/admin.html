@@ -1078,6 +1078,18 @@ body.sidebar-open .topbar { z-index: 10; }
     $('roleFilter').hidden = state.tab !== 'users';
     $('serverFilter').hidden = state.tab !== 'orders';
     $('statusFilter').hidden = !['users', 'orders', 'deposits'].includes(state.tab);
+    const statusChoices = {
+      users: [['active', 'Aktif'], ['banned', 'Banned']],
+      orders: [['pending', 'Pending'], ['success', 'Sukses'], ['received', 'Diterima'], ['confirmed', 'Terkonfirmasi'], ['failed', 'Gagal'], ['cancelled', 'Dibatalkan'], ['expired', 'Kedaluwarsa'], ['refunded', 'Refund']],
+      deposits: [['pending', 'Pending'], ['success', 'Sukses'], ['failed', 'Gagal'], ['cancelled', 'Dibatalkan'], ['expired', 'Kedaluwarsa'], ['refunded', 'Refund']],
+    };
+    const statusSelect = $('statusFilter');
+    if (statusSelect && statusChoices[state.tab]) {
+      const choices = statusChoices[state.tab];
+      statusSelect.replaceChildren(new Option('Semua status', ''), ...choices.map(([value, label]) => new Option(label, value)));
+      if (!choices.some(([value]) => value === state.status)) state.status = '';
+      statusSelect.value = state.status;
+    }
     $('exportPageBtn').disabled = !state.currentRows.length;
     $('pagination').hidden = true;
 
@@ -1945,6 +1957,11 @@ body.sidebar-open .topbar { z-index: 10; }
       state.tab = t.dataset.tab;
       state.page = 1;
       state.search = '';
+      state.status = '';
+      state.role = '';
+      state.server = '';
+      $('roleFilter').value = '';
+      $('serverFilter').value = '';
       state.currentRows = [];
       const s = $('searchInput'); if (s) s.value = '';
       loadTab();
