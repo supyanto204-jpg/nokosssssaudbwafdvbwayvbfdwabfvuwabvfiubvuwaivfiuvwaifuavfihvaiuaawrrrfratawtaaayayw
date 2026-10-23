@@ -3425,21 +3425,66 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
                 }
             } catch (e) { /* fallback */ }
             countries = (SERVER_CONFIG.ekonomi.countries || []).map(c => ({
-                code: c, name: COUNTRY_NAMES[c] || c.toUpperCase(),
+                code: c,
+                name: COUNTRY_NAMES[c] || c.toUpperCase(),
+                min_price: null,
             }));
 
         } else if (server === 'premium') {
             const raw = await premiumFetch('/catalog/countries');
-            countries = (raw || []).map(c => ({
+            const list = (raw || []).map(c => ({
                 code: String(c.code || '').toLowerCase(),
                 name: c.name || c.code,
                 dial_code: c.dial_code || null,
                 emoji: c.emoji || null,
+                _id: c.id,
             }));
+
+            let minPriceByCountry = {};
+            if (service) {
+                try {
+                    const servicesRaw = await premiumFetch('/catalog/services');
+                    const serviceObj = (servicesRaw || []).find(
+                        s => String(s.code).toLowerCase() === String(service).toLowerCase()
+                    );
+                    if (serviceObj) {
+                        const params = new URLSearchParams({
+                            platform_id: String(serviceObj.id),
+                            limit: '10000',
+                            page: '1',
+                            sort: 'price_asc',
+                        });
+                        const productsRaw = await premiumFetch(`/catalog/products?${params.toString()}`);
+                        const products = (productsRaw || []).filter(p => p.active !== false);
+                        for (const p of products) {
+                            if (p.country_id == null) continue;
+                            const price = Number(p.price) || 0;
+                            if (price <= 0) continue;
+                            const cid = String(p.country_id);
+                            if (!minPriceByCountry[cid] || price < minPriceByCountry[cid]) {
+                                minPriceByCountry[cid] = price;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('premium min price fetch error:', e.message);
+                }
+            }
+
+            countries = list.map(c => {
+                const minPrice = minPriceByCountry[String(c._id)];
+                return {
+                    code: c.code,
+                    name: c.name,
+                    dial_code: c.dial_code,
+                    emoji: c.emoji,
+                    min_price: minPrice != null ? minPrice : null,
+                };
+            });
         }
 
         const response = { server, countries };
-        cacheSet(cacheKey, response, 5 * 60 * 1000);
+        cacheSet(cacheKey, response, server === 'premium' ? 2 * 60 * 1000 : 5 * 60 * 1000);
         res.set('X-Cache', 'MISS');
         res.json(response);
     } catch (err) {
@@ -3447,8 +3492,6 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 }));
-
-// harga per provider. lock harga jual per provider ID
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
