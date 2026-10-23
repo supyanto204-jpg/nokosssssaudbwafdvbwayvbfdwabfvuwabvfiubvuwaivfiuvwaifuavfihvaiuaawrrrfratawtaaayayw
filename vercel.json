@@ -34,7 +34,7 @@
     { "source": "/forgot", "destination": "/public/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html" },
     { "source": "/ketentuan", "destination": "/public/ketentuan.html" },
     { "source": "/syarat", "destination": "/public/syarat.html" },
-    { "source": "/syarat", "destination": "/public/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html" },
+    { "source": "/reset", "destination": "/public/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
