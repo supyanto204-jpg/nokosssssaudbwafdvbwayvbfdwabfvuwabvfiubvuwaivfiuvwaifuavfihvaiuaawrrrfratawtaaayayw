@@ -107,8 +107,8 @@
 
     <div class="divider"><span>atau</span></div>
 
-    <!-- Google Login akan dirender otomatis oleh script di bawah -->
-    <div class="google-wrap" id="googleBtnWrap" style="display: flex; justify-content: center; min-height: 44px;"></div>
+    <!-- Google Login akan dirender otomatis oleh google-login.js -->
+    <div class="google-wrap" id="googleBtnWrap"></div>
 
     <div class="auth-foot">Belum punya akun? <a href="/daftar">Daftar gratis</a></div>
 
@@ -120,32 +120,5 @@
 
 <script src="/js/C9tXwdcmAabb4xw8xTlZr79j7EO_ENuEx27UnuL4sWslogin.js" defer></script>
 <script src="/js/zNhV-wyebaG1PuodwLtPPY5ZhzNnK5cY0eMlYElkUjggoogle-login.js" defer></script>
-
-<!-- Script buat ngerender tombol Google sesuai tema -->
-<script>
-window.onload = function() {
-  if (typeof google === 'undefined' || !google.accounts) return;
-  
-  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  
-  google.accounts.id.initialize({
-    client_id: "557968626394-ln6638b8opijdn46bc8e8e97249l4je6.apps.googleusercontent.com", 
-    callback: handleGoogleCredential // fungsi dari google-login.js
-  });
-
-  google.accounts.id.renderButton(
-    document.getElementById("googleBtnWrap"),
-    { 
-      theme: isDark ? "filled_black" : "outline", 
-      size: "large", 
-      type: "standard",
-      text: "signin_with",
-      shape: "rectangular",
-      logo_alignment: "left",
-      width: 336 
-    }
-  );
-};
-</script>
 </body>
 </html>
