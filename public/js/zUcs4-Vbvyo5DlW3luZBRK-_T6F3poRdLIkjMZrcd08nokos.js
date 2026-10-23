@@ -4,7 +4,7 @@
 // AES-GCM wrapper. fallback ke base64 kalau subtle crypto gak ada
 var _crypto = (function () {
   var _k = 'bm9rb3Mtc2VjcmV0LWtleS0yMDI2LWFzeXJvZg==';
-  var _s = 'c2FsdC1ub2tvcy12MjAyNi1zZWN1cmU=';
+  var _s = 'c2FsdC1ub2tvc3YyMDI2LXNlY3VyZQ=='.replace('v', '-');
   var _i = 100000;
   var _dk = null;
 
@@ -52,7 +52,6 @@ var _crypto = (function () {
   return { seal: seal, unseal: unseal };
 })();
 
-// cache dua lapis: memori + storage terenkripsi
 var Cache = (function () {
   var P = 'aotp_n_';
   var _mem = new Map();
@@ -108,7 +107,6 @@ var _cfg = {
     cekotp: '/api/cekotp',
     logout: '/api/auth/logout'
   },
-  // public catalog API. kosong = same origin.
   pubBase: '',
   pubKey: 'da303966286507311b5f8260cd7ae743df424b57d4b66eb44fa66e0d036ebdcf',
   ttl: {
@@ -126,7 +124,6 @@ var _cfg = {
   prefetchWorkers: 10
 };
 
-// deteksi device
 var _dev = (function () {
   function mq(q) { return window.matchMedia(q).matches; }
   var hc = navigator.hardwareConcurrency || 4;
@@ -141,7 +138,6 @@ if (_dev.reduced || _dev.lowEnd) {
   document.documentElement.setAttribute('data-perf', 'lite');
 }
 
-// security nudge + strip query string
 (function () {
   try {
     console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
@@ -186,7 +182,9 @@ function formatTanggal(iso) {
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// fetch khusus catalog (read-only). pakai public key.
+// catalog fetch: pakai public key dulu, fallback ke user token kalau public key 401/403.
+// dipakai HANYA untuk services/countries/prices (yang hit provider smscode).
+// servers pakai user token (backend middleware requireAuth).
 function catalogFetch(path) {
   var url = (_cfg.pubBase || '') + path;
   return fetch(url, {
@@ -194,10 +192,20 @@ function catalogFetch(path) {
       'Authorization': 'Bearer ' + _cfg.pubKey,
       'Accept': 'application/json'
     }
+  }).then(function (res) {
+    if (res.status === 401 || res.status === 403) {
+      // public key ditolak → fallback user token
+      return fetch(url, {
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Accept': 'application/json'
+        }
+      });
+    }
+    return res;
   });
 }
 
-// copy random per sesi biar gak keliatan template
 var _copy = {
   pageSubtitle: [
     'Nomor OTP langsung, kode OTP muncul sendiri',
@@ -272,8 +280,6 @@ var activeState = {
 
 var ORDER_ID_MAP = new Map();
 var PROVIDER_RAW_MAP = new Map();
-
-// cache country → harga termurah (khusus premium, biar country list bisa nunjukin "mulai Rp X")
 var COUNTRY_MIN_PRICE = new Map();
 
 var servicesCache = [];
@@ -464,7 +470,6 @@ function showAlert(opts) {
   });
 }
 
-// theme toggle
 (function () {
   var btn = document.getElementById('themeBtn');
   if (!btn) return;
@@ -478,7 +483,6 @@ function showAlert(opts) {
   });
 })();
 
-// sidebar desktop + mobile
 (function () {
   var sidebar = document.getElementById('sidebar');
   var collapseBtn = document.getElementById('collapseBtn');
@@ -531,7 +535,6 @@ function showAlert(opts) {
   });
 })();
 
-// recaptcha v3
 function waitForRecaptcha() {
   return new Promise(function (resolve) {
     if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -1083,7 +1086,6 @@ async function cancelOrder(orderId, btn) {
   }
 }
 
-// bottom sheet
 var _sheetClosing = false;
 
 function openSheet() {
@@ -1156,6 +1158,7 @@ function goToStep(step) {
   }
 }
 
+// ✅ SERVER pakai user token (func lama) — backend requireAuth, bukan public
 async function renderServerStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML = '<div class="loading-block"><span class="spinner"></span><span>Memuat server...</span></div>';
@@ -1163,7 +1166,9 @@ async function renderServerStep() {
   var cached = await Cache.get('servers', _cfg.ttl.servers);
   if (cached && cached.length > 0) renderServers(cached);
   try {
-    var res = await catalogFetch(_cfg.ep.servers);
+    var res = await fetch(_cfg.ep.servers, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
     var data = await safeJson(res);
     var servers = data.servers || [];
     if (servers.length > 0) await Cache.set('servers', servers);
@@ -1212,6 +1217,7 @@ function renderServers(servers) {
   adjustSheetHeight();
 }
 
+// ✅ SERVICES pakai public key (catalogFetch)
 async function renderAppStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1290,6 +1296,7 @@ function renderApps(services) {
   adjustSheetHeight();
 }
 
+// ✅ COUNTRIES pakai public key (catalogFetch)
 async function renderCountryStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1343,9 +1350,7 @@ async function renderCountryStep() {
   }
 }
 
-// prefetch harga termurah per negara (khusus premium).
-// 10 worker paralel + throttle 100ms → max ~10 req/detik.
-// re-render tiap 5 negara selesai biar user lihat progres realtime.
+// prefetch harga termurah per negara (khusus premium). 10 worker + throttle 100ms.
 async function prefetchPremiumMinPrices(server, service, countries) {
   if (server !== 'premium') return;
   if (!countries || countries.length === 0) return;
@@ -1363,7 +1368,6 @@ async function prefetchPremiumMinPrices(server, service, countries) {
       var code = String(co.code || '').toLowerCase();
       if (!code) continue;
 
-      // throttle global 100ms per request → max ~10 req/detik
       var now = Date.now();
       var wait = Math.max(0, 100 - (now - lastTick));
       lastTick = now + wait;
@@ -1442,7 +1446,6 @@ function renderCountries(countries) {
       state.country = item.dataset.country;
       state.countryName = item.dataset.name;
       state.operator = 'any';
-      // untuk premium, kalau belum ada harga cached → fetch dulu sebelum masuk step 4
       if (state.server === 'premium') {
         var ck = 'prices_premium_' + state.service + '_' + String(state.country).toLowerCase();
         var cached = await Cache.get(ck, _cfg.ttl.prices);
@@ -1463,6 +1466,7 @@ function renderCountries(countries) {
   }
 }
 
+// ✅ PRICES pakai public key (catalogFetch)
 async function renderPriceStep() {
   var body = document.getElementById('sheetBody');
   body.innerHTML =
@@ -1593,6 +1597,7 @@ async function confirmPurchase(pid, priceData, btn) {
   placeOrder(pid, priceData, btn);
 }
 
+// ✅ ORDER tetap pakai user token + reCAPTCHA (backend env)
 async function placeOrder(pid, priceData, btn) {
   var orig = btn.innerHTML;
   btn.disabled = true;
