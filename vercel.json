@@ -17,22 +17,24 @@
     { "source": "/inbox.html", "destination": "/inbox", "permanent": true },
     { "source": "/ketentuan.html", "destination": "/ketentuan", "permanent": true },
     { "source": "/syarat.html", "destination": "/syarat", "permanent": true },
+    { "source": "/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html", "destination": "/reset", "permanent": true },
     { "source": "/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html", "destination": "/forgot", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
-    { "source": "/landing", "destination": "public/y38A7aoen7eQSP8FabEBuu0JxjlHBRVtlKF6FfpKK4Elanding.html" },
+    { "source": "/landing", "destination": "/public/y38A7aoen7eQSP8FabEBuu0JxjlHBRVtlKF6FfpKK4Elanding.html" },
     { "source": "/login", "destination": "/public/eUBaNwZun8QPhphV9xE7X_REtQpYRp4wwrOdMb8LBgQlogin.html" },
     { "source": "/admin", "destination": "/public/admin.html" },
     { "source": "/daftar", "destination": "/public/kdX4DP4QockvNu0mkTvnd7CoXqbQvjEy2OFsb59I7yIdaftar.html" },
     { "source": "/dashboard", "destination": "/public/dashboard.html" },
-    { "source": "/profile", "destination": "public/nY9hu717CoIbia0AM8Ds4FYu7yjPSWxasRiNZcVwKsYprofile.html" },
-    { "source": "/nokos", "destination": "public/FeWtaqrttoAXrO4wTZ4Ph-2cT4QaUvmlShnVdnS9CjInokos.html" },
-    { "source": "/deposit", "destination": "public/ZsWswYiyZaLsi4yjZwClOA7rw8ThvpD6F1vHBd0bf7Edeposit.html" },
+    { "source": "/profile", "destination": "/public/nY9hu717CoIbia0AM8Ds4FYu7yjPSWxasRiNZcVwKsYprofile.html" },
+    { "source": "/nokos", "destination": "/public/FeWtaqrttoAXrO4wTZ4Ph-2cT4QaUvmlShnVdnS9CjInokos.html" },
+    { "source": "/deposit", "destination": "/public/ZsWswYiyZaLsi4yjZwClOA7rw8ThvpD6F1vHBd0bf7Edeposit.html" },
     { "source": "/inbox", "destination": "/public/inbox.html" },
-    { "source": "/forgot", "destination": "public/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html" },
+    { "source": "/forgot", "destination": "/public/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html" },
     { "source": "/ketentuan", "destination": "/public/ketentuan.html" },
     { "source": "/syarat", "destination": "/public/syarat.html" },
+    { "source": "/syarat", "destination": "/public/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
