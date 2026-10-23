@@ -9,7 +9,6 @@
 <title>Lupa Password — AsyrofOTP</title>
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
-<link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -69,12 +68,23 @@
         </div>
       </div>
 
+      <div class="puzzle-wrap" id="puzzleWrap">
+        <label class="label">Verifikasi Keamanan</label>
+        <div class="puzzle-box">
+          <img id="puzzleImg" src="" alt="Puzzle" class="puzzle-img">
+          <!-- Slot potongan puzzle (visual) -->
+          <div class="puzzle-cutout" id="puzzleCutout"></div>
+        </div>
+        <input type="range" id="slider" class="slider" min="0" max="250" value="0">
+        <div class="puzzle-hint">Geser slider sampai potongan pas.</div>
+      </div>
+
       <div class="status" id="statusRow" aria-live="polite">
         <div class="status-bar"><div class="status-bar-fill" id="statusBarFill"></div></div>
         <span class="status-label" id="statusLabel">Menunggu</span>
       </div>
 
-      <button type="submit" class="btn-submit" id="submitBtn">
+      <button type="submit" class="btn-submit" id="submitBtn" disabled>
         <span id="btnText">Kirim Link Reset</span>
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" id="btnIcon" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </button>
