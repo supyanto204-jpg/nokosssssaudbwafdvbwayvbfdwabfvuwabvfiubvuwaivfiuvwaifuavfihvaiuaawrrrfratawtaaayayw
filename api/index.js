@@ -1167,6 +1167,18 @@ const SCHEMA = {
                 { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
             ],
         },
+                {
+            name: 'password_resets',
+            create: `CREATE TABLE IF NOT EXISTS password_resets (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                used_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: []
+        },
         {
             name: 'deposits',
             // unique_code & qris_string dihapus — eksklusif QRIS DANA
