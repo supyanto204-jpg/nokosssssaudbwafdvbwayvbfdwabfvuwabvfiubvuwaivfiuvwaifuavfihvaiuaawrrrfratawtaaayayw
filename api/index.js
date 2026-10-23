@@ -2079,6 +2079,29 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
     }
 
     try {
+            // ==========================================
+    // CEK TURNSTILE TOKEN (Anti Robot)
+    // ==========================================
+    const { cf_token } = req.body;
+    if (!cf_token) {
+        return res.status(400).json({ error: 'Verifikasi keamanan (Turnstile) wajib diisi.' });
+    }
+
+    const cfForm = new URLSearchParams();
+    cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY); // Pastiin masukin ini ke Vercel
+    cfForm.append('response', cf_token);
+    cfForm.append('remoteip', ip); // ip udah didefinisikan di atasnya
+
+    const cfRes = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        body: cfForm
+    });
+    const cfData = await cfRes.json();
+
+    if (!cfData.success) {
+        return res.status(400).json({ error: 'Verifikasi keamanan gagal. Kamu terdeteksi sebagai robot.' });
+    }
+    // ==========================================
         // 2. Cek Rate Limit (Maksimal 3 request per 1 jam berdasarkan IP atau Device)
         const checkLimit = await pool.query(
             `SELECT COUNT(*) as total FROM rate_limits 
