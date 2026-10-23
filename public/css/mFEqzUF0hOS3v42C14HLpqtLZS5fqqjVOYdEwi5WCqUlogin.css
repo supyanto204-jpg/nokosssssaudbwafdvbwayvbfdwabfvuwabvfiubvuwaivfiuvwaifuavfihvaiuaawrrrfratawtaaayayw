@@ -235,7 +235,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,label:focus-visible{
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ---- divider + google ---- */
+/* ---- divider + custom google button ---- */
 .divider{
   display:flex;
   align-items:center;
@@ -252,42 +252,40 @@ a:focus-visible,button:focus-visible,input:focus-visible,label:focus-visible{
   background:var(--border);
 }
 
-.google-wrap{
-  display:flex;
-  justify-content:center;
-  width:100%;
-  min-height:44px;
-}
-.google-wrap > div{
-  width:100% !important;
-  display:flex;
-  justify-content:center;
-}
-.google-wrap iframe{
-  margin:0 auto !important;
-  border-radius:6px !important;
-  max-width:100% !important;
-  border:none !important;
+.google-wrap {
+  width: 100%;
 }
 
-.google-fallback{
-  width:100%;
-  height:40px;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  gap:8px;
-  border:1px solid var(--border);
-  background:var(--bg);
-  color:var(--txt);
-  font:500 14px/1 var(--font);
-  border-radius:6px;
-  cursor:pointer;
-  transition:background-color .15s,border-color .15s;
+.google-btn {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--txt);
+  font-family: inherit;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.15s;
 }
-.google-fallback:hover{background:var(--surface);border-color:var(--border-strong)}
-.google-wrap.failed .google-fallback{display:flex}
-.google-wrap.failed > div:not(.google-fallback){display:none}
+
+.google-btn:hover {
+  background: var(--surface);
+  border-color: var(--border-strong);
+}
+
+.google-btn:active {
+  transform: scale(0.98);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
 
 /* ---- foot ---- */
 .auth-foot{font-size:.8125rem;color:var(--txt2);margin-top:16px}
