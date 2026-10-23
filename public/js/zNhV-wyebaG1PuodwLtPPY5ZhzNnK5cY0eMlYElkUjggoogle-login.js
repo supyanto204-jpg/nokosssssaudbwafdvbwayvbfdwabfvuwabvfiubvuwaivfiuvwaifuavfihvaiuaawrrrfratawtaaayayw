@@ -9,7 +9,7 @@ var alertText=q('#alert-text');
 var alertIcon=q('#alertIcon');
 var statusRow=q('#statusRow');
 var statusLabel=q('#statusLabel');
-var wrap=q('#googleBtnWrap');
+var customBtn=q('#customGoogleBtn');
 
 var ICONS={
 error:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
@@ -39,7 +39,7 @@ function setStatus(state,label){
   }
 }
 
-// Callback dari Google
+// Callback dari Google (dapet credential / JWT)
 W.handleGoogleCredential = async function(resp){
   if(!resp||!resp.credential){
     showAlert('Login Google gagal. Coba lagi.','error');
@@ -77,70 +77,24 @@ W.handleGoogleCredential = async function(resp){
   }
 };
 
-// Fungsi Render Tombol Google
-function renderGoogleButton() {
-  if (!wrap) return;
-  
-  // Cek apakah script Google udah ke-load
+// Inisialisasi Google One Tap
+(function initGoogle(){
   if (typeof google === 'undefined' || !google.accounts) {
-    setTimeout(renderGoogleButton, 100);
+    setTimeout(initGoogle, 100);
     return;
   }
-
-  // Deteksi tema saat ini (light/dark)
-  var isDark = D.documentElement.getAttribute('data-theme') === 'dark';
-  
-  // Kosongin wrapper dulu sebelum render ulang (biar gak dobel)
-  wrap.innerHTML = '';
 
   google.accounts.id.initialize({
     client_id: "557968626394-ln6638b8opijdn46bc8e8e97249l4je6.apps.googleusercontent.com",
     callback: handleGoogleCredential
   });
 
-  google.accounts.id.renderButton(
-    wrap,
-    { 
-      theme: isDark ? "filled_black" : "outline", 
-      size: "large", 
-      type: "standard",
-      text: "signin_with",
-      shape: "rectangular",
-      logo_alignment: "left",
-      width: 336 
-    }
-  );
-}
-
-// Panggil pertama kali
-renderGoogleButton();
-
-// Pantau kalau user ganti tema, render ulang tombolnya biar warnanya nyatu
-var themeBtn = q('#themeBtn');
-if (themeBtn) {
-  themeBtn.addEventListener('click', function() {
-    // Kasih delay dikit biar atribut data-theme udah berubah
-    setTimeout(renderGoogleButton, 50);
-  });
-}
-
-// Fallback kalau GSI gagal render dalam 8 detik
-(function(){
-  if(!wrap)return;
-  setTimeout(function(){
-    var hasIframe = wrap.querySelector('iframe');
-    // Kalau gak ada iframe DAN gak ada tombol fallback
-    if(hasIframe || wrap.querySelector('.google-fallback')) return; 
-
-    var btn=D.createElement('button');
-    btn.type='button';
-    btn.className='google-fallback';
-    btn.innerHTML='<span>Muat ulang untuk login Google</span>';
-    btn.addEventListener('click',function(){W.location.reload()});
-    wrap.appendChild(btn);
-
-    showAlert('Tombol Google belum siap. Cek koneksi atau muat ulang halaman.','info');
-  },8000);
+  // Pas tombol custom diklik, munculin popup One Tap (bukan iframe)
+  if (customBtn) {
+    customBtn.addEventListener('click', function() {
+      google.accounts.id.prompt();
+    });
+  }
 })();
 
 })();
