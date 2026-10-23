@@ -4,12 +4,34 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Reset Password — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/mFEqzUF0hOS3v42C14HLpqtLZS5fqqjVOYdEwi5WCqUlogin.css">
+<script>
+(function(){
+  var d=document.documentElement;
+  try{
+    var p=localStorage.getItem('asyrofotp_theme_pref');
+    if(!p){var o=localStorage.getItem('asyrofotp_theme');p=(o==='light'||o==='dark')?o:'system';}
+    d.setAttribute('data-theme-pref',p);
+    d.setAttribute('data-theme',p==='system'
+      ?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):p);
+  }catch(e){
+    d.setAttribute('data-theme-pref','system');
+    d.setAttribute('data-theme','light');
+  }
+})();
+</script>
 </head>
 <body>
+
+<button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema: terang, gelap, ikuti sistem">
+  <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+  <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+</button>
 
 <div class="auth-wrap">
   <div class="auth-brand">
@@ -62,6 +84,38 @@
 
 <script>
 (function(){
+  // Theme toggle
+  var themeBtn = document.getElementById('themeBtn');
+  var root = document.documentElement;
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function resolve(p){return p==='system'?(mq&&mq.matches?'dark':'light'):p}
+  function paintMeta(t){
+    var m=document.querySelector('meta[name="theme-color"]');
+    if(m)m.setAttribute('content',t==='dark'?'#0a0b0d':'#0a84ff');
+  }
+  function setPref(p,save){
+    root.setAttribute('data-theme-pref',p);
+    var r=resolve(p);
+    root.setAttribute('data-theme',r);
+    paintMeta(r);
+    if(save){try{localStorage.setItem('asyrofotp_theme_pref',p)}catch(e){}}
+  }
+
+  themeBtn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme-pref')||'system';
+    setPref(cur==='light'?'dark':cur==='dark'?'system':'light',true);
+  });
+
+  if(mq){
+    var onChange=function(){
+      if(root.getAttribute('data-theme-pref')==='system')setPref('system',false);
+    };
+    if(mq.addEventListener)mq.addEventListener('change',onChange);
+    else if(mq.addListener)mq.addListener(onChange);
+  }
+
+  // Logic Reset Password
   var form = document.getElementById('resetForm');
   var passIn = document.getElementById('password');
   var pass2In = document.getElementById('password2');
@@ -73,7 +127,6 @@
   var statusLabel = document.getElementById('statusLabel');
   var statusFill = document.getElementById('statusBarFill');
 
-  // Ambil token dari URL (?token=xxxx)
   var urlParams = new URLSearchParams(window.location.search);
   var token = urlParams.get('token');
 
@@ -133,7 +186,6 @@
       
       btnText.textContent = 'Berhasil';
       
-      // Redirect ke login setelah 2 detik
       setTimeout(function(){ window.location.href = '/login'; }, 2000);
 
     } catch(err) {
