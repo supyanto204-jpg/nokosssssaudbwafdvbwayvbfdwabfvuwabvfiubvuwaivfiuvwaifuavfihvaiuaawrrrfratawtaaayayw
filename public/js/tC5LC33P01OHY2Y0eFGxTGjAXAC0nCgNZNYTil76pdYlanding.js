@@ -6,10 +6,11 @@ var q = function (s, c) { return (c || D).querySelector(s) };
 var qa = function (s, c) { return Array.prototype.slice.call((c || D).querySelectorAll(s)) };
 var reduced = W.matchMedia && W.matchMedia('(prefers-reduced-motion: reduce)').matches;
 var isLite = D.documentElement.getAttribute('data-perf') === 'lite';
+
 var T = {
   "0": "Tanpa nomor pribadi",
-  "1": "1.700+ aplikasi siap verifikasi",
-  "2": "OTP masuk rata-rata 5 detik",
+  "1": "1.700+ layanan siap verifikasi",
+  "2": "Kode masuk rata-rata 5 detik",
   "3": "Refund otomatis kalau gagal"
 };
 
@@ -23,39 +24,15 @@ function raf(fn) {
   }
 }
 
-// --- security nudge. gak real protection, cuma bikin ribet orang iseng
-try {
-  console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
-  console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
-} catch (e) {}
-
-D.addEventListener('contextmenu', function (e) { e.preventDefault() });
-D.addEventListener('keydown', function (e) {
-  var k = e.key;
-  if (e.ctrlKey && (k === 'u' || k === 'U' || k === 's' || k === 'S')) e.preventDefault();
-}, true);
-D.addEventListener('copy', function (e) {
-  var t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  e.preventDefault();
-});
-D.addEventListener('cut', function (e) {
-  var t = e.target;
-  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-  e.preventDefault();
-});
-try {
-  var clean = W.location.origin + W.location.pathname;
-  if (W.location.search) history.replaceState(null, '', clean);
-} catch (e) {}
-
-// token ada? cek dulu, kalau valid langsung lempar ke dashboard
+// session check
 (function () {
   var tk = null;
   try { tk = localStorage.getItem('access_token') } catch (e) {}
   if (!tk) return;
+
   var ctrl = new AbortController();
   var timer = setTimeout(function () { ctrl.abort() }, 5000);
+
   fetch('/api/user', { headers: { Authorization: 'Bearer ' + tk }, signal: ctrl.signal })
     .then(function (r) {
       clearTimeout(timer);
@@ -70,21 +47,48 @@ try {
     .catch(function () { clearTimeout(timer) });
 })();
 
-// theme toggle
+// theme: light -> dark -> system -> light
 (function () {
   var b = q('#themeBtn');
   if (!b) return;
-  b.addEventListener('click', function () {
-    var cur = D.documentElement.getAttribute('data-theme') || 'light';
-    var nx = cur === 'dark' ? 'light' : 'dark';
-    D.documentElement.setAttribute('data-theme', nx);
-    try { localStorage.setItem('asyrofotp_theme', nx) } catch (e) {}
+
+  var root = D.documentElement;
+  var mq = W.matchMedia ? W.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function resolve(pref) {
+    if (pref === 'system') return mq && mq.matches ? 'dark' : 'light';
+    return pref;
+  }
+  function paintMeta(theme) {
     var m = q('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
+    if (m) m.setAttribute('content', theme === 'dark' ? '#0a0b0d' : '#0a84ff');
+  }
+  function setPref(pref, save) {
+    root.setAttribute('data-theme-pref', pref);
+    var resolved = resolve(pref);
+    root.setAttribute('data-theme', resolved);
+    paintMeta(resolved);
+    if (save) {
+      try { localStorage.setItem('asyrofotp_theme_pref', pref) } catch (e) {}
+    }
+  }
+
+  b.addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme-pref') || 'system';
+    var next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
+    setPref(next, true);
   });
+
+  if (mq) {
+    var onOsChange = function () {
+      if (root.getAttribute('data-theme-pref') === 'system') setPref('system', false);
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onOsChange);
+    else if (mq.addListener) mq.addListener(onOsChange);
+  }
 })();
 
-// nav shadow pas scroll
+// nav shadow
 (function () {
   var n = q('#nav');
   if (!n) return;
@@ -92,7 +96,7 @@ try {
   W.addEventListener('scroll', s, { passive: true });
 })();
 
-// faq accordion. satu kebuka, sisanya tutup
+// faq accordion
 qa('.faq-q').forEach(function (b) {
   b.addEventListener('click', function () {
     var it = b.parentElement;
@@ -114,14 +118,14 @@ qa('.faq-q').forEach(function (b) {
   var io = new IntersectionObserver(function (es) {
     es.forEach(function (en, i) {
       if (!en.isIntersecting) return;
-      setTimeout(function () { en.target.classList.add('on') }, i * 50);
+      setTimeout(function () { en.target.classList.add('on') }, i * 60);
       io.unobserve(en.target);
     });
   }, { rootMargin: '0px 0px -60px 0px', threshold: .06 });
   els.forEach(function (e) { io.observe(e) });
 })();
 
-// tombol balik ke atas
+// to-top
 (function () {
   var b = q('#toTop');
   if (!b) return;
@@ -145,11 +149,12 @@ D.addEventListener('click', function (e) {
   W.scrollTo({ top: top, behavior: 'smooth' });
 });
 
-// typing effect di hero
+// typing effect
 (function () {
   var el = q('#typeText');
   var cur = q('#typeCursor');
   if (!el) return;
+
   var arr = Object.keys(T).map(function (k) { return T[k] });
   if (reduced) {
     el.textContent = arr[0];
@@ -192,13 +197,14 @@ D.addEventListener('click', function (e) {
     }, { threshold: .3 });
     io.observe(el);
   } else start();
+
   D.addEventListener('visibilitychange', function () {
     if (D.hidden) clearTimeout(tm);
     else if (started) { clearTimeout(tm); tick() }
   });
 })();
 
-// demo verifikasi WA — animasi looping
+// demo WA loop
 (function () {
   var demo = q('#demo');
   if (!demo) return;
@@ -242,7 +248,7 @@ D.addEventListener('click', function (e) {
     notif.classList.remove('on');
     notifCopy.classList.remove('done');
     var cs = notifCopy.querySelector('span');
-    if (cs) cs.textContent = 'Salin Kode';
+    if (cs) cs.textContent = 'Salin kode';
     verified.classList.remove('on');
     if (progressFill) progressFill.style.width = '0%';
   }
@@ -302,7 +308,6 @@ D.addEventListener('click', function (e) {
     later(function () { st.running = false; runSeq() }, 8500);
   }
 
-  // reduced motion / lite mode — langsung tampil final state
   if (reduced || isLite) {
     reset();
     notif.classList.add('on');
@@ -342,7 +347,7 @@ D.addEventListener('click', function (e) {
   });
 })();
 
-// "how it works" animation — cursor + tap
+// how it works cursor loop
 (function () {
   var wrap = q('#howDemo');
   if (!wrap) return;
@@ -403,10 +408,10 @@ D.addEventListener('click', function (e) {
   }
 
   var appMeta = {
-    wa: { name: 'WhatsApp', icon: 'whatsapp', color: '#25D366' },
-    tg: { name: 'Telegram', icon: 'telegram', color: '#229ED9' },
-    sp: { name: 'Shopee', icon: 'shopee', color: '#EE4D2D' },
-    ig: { name: 'Instagram', icon: 'instagram', color: '#E1306C' }
+    wa: { name: 'WhatsApp', icon: 'whatsapp', color: '#1f9d55' },
+    tg: { name: 'Telegram', icon: 'telegram', color: '#1c8fc4' },
+    sp: { name: 'Shopee', icon: 'shopee', color: '#d94f2a' },
+    ig: { name: 'Instagram', icon: 'instagram', color: '#c13584' }
   };
   var countryMeta = {
     id: { name: 'Indonesia', code: '+62', flag: 'id' },
@@ -453,7 +458,6 @@ D.addEventListener('click', function (e) {
       later(fn, delay);
     }
 
-    // step 1 — pilih app
     setStep(1);
     hideCursor();
     next(function () {
@@ -469,7 +473,6 @@ D.addEventListener('click', function (e) {
       }, 720);
     }, 400);
 
-    // step 2 — pilih negara
     next(function () { setStep(2) }, 2600);
     next(function () {
       if (!chosenCountry) return;
@@ -483,7 +486,6 @@ D.addEventListener('click', function (e) {
       }, 720);
     }, 3000);
 
-    // step 3 — paste nomor
     next(function () { setStep(3) }, 5200);
     next(function () {
       var hint = qa('.how-paste-hint')[0];
@@ -493,7 +495,6 @@ D.addEventListener('click', function (e) {
       next(function () { pressCursor(); showTap(p.x, p.y) }, 720);
     }, 5600);
 
-    // step 4 — terima otp
     next(function () { setStep(4) }, 7800);
     next(function () {
       var note = qa('.how-otp-note')[0];
@@ -503,14 +504,12 @@ D.addEventListener('click', function (e) {
       next(function () { pressCursor(); showTap(p.x, p.y) }, 720);
     }, 8200);
 
-    // ulang dari awal
     next(function () {
       if (token !== st.loopId) return;
       runLoop();
     }, 10800);
   }
 
-  // resize bikin posisi cursor geser, jadi restart
   var rTm = null;
   W.addEventListener('resize', function () {
     clearTimeout(rTm);
