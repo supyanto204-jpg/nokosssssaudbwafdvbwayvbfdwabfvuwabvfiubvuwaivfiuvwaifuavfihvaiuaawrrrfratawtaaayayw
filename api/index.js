@@ -201,6 +201,7 @@ const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 const PREMIUM_BASE = 'https://api.smscode.gg/v1';
 const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 const PREMIUM_WEBHOOK_SECRET = process.env.WEBHOOK_OTP2;
+const SMScode_PUBLIC_KEY = 'da303966286507311b5f8260cd7ae743df424b57d4b66eb44fa66e0d036ebdcf';
 if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
 if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
@@ -314,6 +315,37 @@ function setPriceLock(providerId, sellPrice, providerPrice, meta = {}) {
 function getPriceLock(providerId) {
     if (!providerId) return null;
     return priceLockCache.get(String(providerId)) || null;
+}
+
+async function premiumFetchPublic(endpoint, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+    try {
+        const res = await fetch(`${PREMIUM_BASE}${endpoint}`, {
+            ...options,
+            signal: controller.signal,
+            headers: {
+                'Authorization': `Bearer ${SMScode_PUBLIC_KEY}`,
+                'Content-Type': 'application/json',
+                ...(options.headers || {}),
+            },
+        });
+        let data;
+        try { data = await res.json(); }
+        catch (e) {
+            const err = new Error(`Provider error: ${res.status}`);
+            err.status = res.status;
+            throw err;
+        }
+        if (!res.ok || data.success === false) {
+            const err = new Error(data.error?.message || data.message || 'Provider error');
+            err.status = res.status;
+            err.code = data.error?.code || data.code;
+            err.data = data;
+            throw err;
+        }
+        return data.data;
+    } finally { clearTimeout(timeout); }
 }
 
 // service name → icon code
@@ -3431,8 +3463,28 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
             }));
 
         } else if (server === 'premium') {
-            const raw = await premiumFetch('/catalog/countries');
-            const list = (raw || []).map(c => ({
+            const countriesKey = 'smscode_countries_raw';
+            const servicesKey = 'smscode_services_raw';
+
+            let rawCountries = cacheGet(countriesKey);
+            let rawServices = cacheGet(servicesKey);
+
+            const needFetch = [];
+            if (!rawCountries) needFetch.push(
+                premiumFetchPublic('/catalog/countries').then(d => {
+                    rawCountries = d;
+                    cacheSet(countriesKey, d, 30 * 60 * 1000);
+                })
+            );
+            if (!rawServices) needFetch.push(
+                premiumFetchPublic('/catalog/services').then(d => {
+                    rawServices = d;
+                    cacheSet(servicesKey, d, 30 * 60 * 1000);
+                })
+            );
+            if (needFetch.length > 0) await Promise.allSettled(needFetch);
+
+            const list = (rawCountries || []).map(c => ({
                 code: String(c.code || '').toLowerCase(),
                 name: c.name || c.code,
                 dial_code: c.dial_code || null,
@@ -3442,19 +3494,18 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
 
             let minPriceByCountry = {};
             if (service) {
-                try {
-                    const servicesRaw = await premiumFetch('/catalog/services');
-                    const serviceObj = (servicesRaw || []).find(
-                        s => String(s.code).toLowerCase() === String(service).toLowerCase()
-                    );
-                    if (serviceObj) {
+                const serviceObj = (rawServices || []).find(
+                    s => String(s.code).toLowerCase() === String(service).toLowerCase()
+                );
+                if (serviceObj) {
+                    try {
                         const params = new URLSearchParams({
                             platform_id: String(serviceObj.id),
                             limit: '10000',
                             page: '1',
                             sort: 'price_asc',
                         });
-                        const productsRaw = await premiumFetch(`/catalog/products?${params.toString()}`);
+                        const productsRaw = await premiumFetchPublic(`/catalog/products?${params.toString()}`);
                         const products = (productsRaw || []).filter(p => p.active !== false);
                         for (const p of products) {
                             if (p.country_id == null) continue;
@@ -3465,9 +3516,9 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
                                 minPriceByCountry[cid] = price;
                             }
                         }
+                    } catch (e) {
+                        console.warn('premium min price fetch error:', e.message);
                     }
-                } catch (e) {
-                    console.warn('premium min price fetch error:', e.message);
                 }
             }
 
@@ -3484,7 +3535,9 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
         }
 
         const response = { server, countries };
-        cacheSet(cacheKey, response, server === 'premium' ? 2 * 60 * 1000 : 5 * 60 * 1000);
+        if (countries.length > 0) {
+            cacheSet(cacheKey, response, server === 'premium' ? 2 * 60 * 1000 : 5 * 60 * 1000);
+        }
         res.set('X-Cache', 'MISS');
         res.json(response);
     } catch (err) {
