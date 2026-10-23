@@ -2117,6 +2117,47 @@ app.post('/api/auth/forgot', rateLimit(5, 60 * 1000), withDB(async (req, res) =>
     }
 }));
 
+app.post('/api/auth/reset-password', rateLimit(5, 60 * 1000), withDB(async (req, res) => {
+    const { token, new_password } = req.body;
+
+    if (!token || !new_password) {
+        return res.status(400).json({ error: 'Token dan password baru wajib diisi' });
+    }
+    if (new_password.length < 6) {
+        return res.status(400).json({ error: 'Password minimal 6 karakter' });
+    }
+
+    try {
+        // Cari token yang valid & belum expired
+        const result = await pool.query(
+            `SELECT user_id FROM password_resets 
+             WHERE token = $1 AND expires_at > NOW() AND used_at IS NULL LIMIT 1`,
+            [token]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Token tidak valid atau sudah kedaluwarsa' });
+        }
+
+        const userId = result.rows[0].user_id;
+        const hash = await bcrypt.hash(new_password, 10);
+
+        // 1. Update password user
+        await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, userId]);
+
+        // 2. Tandai token sudah dipakai (biar gak bisa dipake 2x)
+        await pool.query('UPDATE password_resets SET used_at = NOW() WHERE token = $1', [token]);
+
+        // 3. Logout semua device (biar aman)
+        await revokeAllUserSessions(userId);
+
+        res.json({ message: 'Password berhasil diubah. Silakan login.' });
+    } catch (err) {
+        console.error('Reset password error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
 app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res) => {
     const { username, password, name, recaptcha_token } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username dan password wajib diisi' });
