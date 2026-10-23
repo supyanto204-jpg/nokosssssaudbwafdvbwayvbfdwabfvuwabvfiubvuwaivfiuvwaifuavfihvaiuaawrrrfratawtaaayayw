@@ -2,6 +2,7 @@ const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { OAuth2Client } = require('google-auth-library');
 const crypto = require('crypto');
 
 const app = express();
@@ -27,8 +28,8 @@ app.use((req, res, next) => {
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
         "font-src 'self' https://fonts.gstatic.com data:",
         "img-src 'self' data: blob: https:",
-        "connect-src 'self' https://www.google.com https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com https://api.telegram.org",
-        "frame-src https://www.google.com",
+        "connect-src 'self' https://www.google.com https://accounts.google.com https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev https://api.qrserver.com https://api.telegram.org",
+        "frame-src https://www.google.com https://accounts.google.com",
         "frame-ancestors 'none'",
         "base-uri 'self'",
         "form-action 'self'",
@@ -186,6 +187,9 @@ pool.on('error', (err) => { console.error('Unexpected pool error:', err.message)
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) console.error('⚠️  JWT_SECRET belum di-set!');
 const JWT_SECRET_FINAL = JWT_SECRET || 'asyrofotp-secret-ganti-di-env';
+const GOOGLE_CLIENT_ID = process.env.CLIENT_ID_GOOGLE_LOGIN;
+if (!GOOGLE_CLIENT_ID) console.error('⚠️  CLIENT_ID_GOOGLE_LOGIN belum di-set!');
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 const JWT_EXPIRES = '30m';
 const REFRESH_EXPIRES_DAYS = 30;
 const SESSION_MAX_AGE_MS = REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
@@ -1024,6 +1028,8 @@ const SCHEMA = {
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );`,
             columns: [
+                { name: 'google_id', def: 'TEXT' },
+                { name: 'email', def: 'TEXT' },
                 { name: 'user_code', def: 'TEXT' },
                 { name: 'role', def: "TEXT DEFAULT 'user'" },
                 { name: 'status', def: "TEXT DEFAULT 'active'" },
@@ -1253,6 +1259,7 @@ const SCHEMA = {
     ],
     indexes: [
         'CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC)',
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL',
         'CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)',
         'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
         'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
@@ -2121,6 +2128,127 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
         });
     } catch (err) {
         console.error('Login error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) => {
+    if (!GOOGLE_CLIENT_ID) {
+        return res.status(500).json({ error: 'Google login belum dikonfigurasi' });
+    }
+
+    const { credential } = req.body || {};
+    if (!credential || typeof credential !== 'string') {
+        return res.status(400).json({ error: 'credential wajib' });
+    }
+
+    const device = req.headers['x-device-id'] || null;
+
+    try {
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential,
+            audience: GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+
+        if (!payload || !payload.sub || !payload.email) {
+            return res.status(401).json({ error: 'Token Google tidak valid' });
+        }
+        if (payload.email_verified === false) {
+            return res.status(401).json({ error: 'Email Google belum diverifikasi' });
+        }
+
+        const googleId = String(payload.sub);
+        const email = String(payload.email).toLowerCase();
+        const displayName = String(payload.name || '').trim() || email.split('@')[0];
+
+        let userRes = await pool.query(
+            `SELECT id, username, name, balance, role, status, user_code
+             FROM users WHERE google_id = $1 LIMIT 1`,
+            [googleId]
+        );
+        let user = userRes.rows[0] || null;
+        let isNewUser = false;
+
+        if (!user) {
+            userRes = await pool.query(
+                `SELECT id, username, name, balance, role, status, user_code
+                 FROM users WHERE LOWER(email) = $1 LIMIT 1`,
+                [email]
+            );
+            user = userRes.rows[0] || null;
+            if (user) {
+                await pool.query(
+                    `UPDATE users SET google_id = $1, updated_at = NOW() WHERE id = $2 AND google_id IS NULL`,
+                    [googleId, user.id]
+                );
+            }
+        }
+
+        if (!user) {
+            const base = email.split('@')[0].replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'user';
+            let candidate = base.length >= 3 ? base : base + '000';
+
+            for (let i = 0; i < 5; i++) {
+                const exists = await pool.query(
+                    'SELECT 1 FROM users WHERE username = $1 LIMIT 1',
+                    [candidate]
+                );
+                if (exists.rows.length === 0) break;
+                candidate = base.slice(0, 15) + Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+            }
+
+            const randomHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+
+            const insertRes = await pool.query(
+                `INSERT INTO users (username, password_hash, name, email, google_id)
+                 VALUES ($1, $2, $3, $4, $5)
+                 RETURNING id, username, name, balance, role, status, user_code`,
+                [candidate, randomHash, displayName, email, googleId]
+            );
+            user = insertRes.rows[0];
+            isNewUser = true;
+        }
+
+        if (user.status === 'banned') {
+            return res.status(403).json({ error: 'Akun kamu diblokir' });
+        }
+
+        const session = await createSession({
+            userId: user.id,
+            device,
+            userAgent: req.headers['user-agent'] || null,
+            ipAddress: req.ip || req.headers['x-forwarded-for'] || null,
+        });
+
+        await pool.query(
+            `UPDATE users SET last_login_at = NOW(), last_login_ip = $1, last_device = $2 WHERE id = $3`,
+            [req.ip || null, device, user.id]
+        );
+
+        const token = signToken(user);
+
+        res.json({
+            message: isNewUser ? 'Akun berhasil dibuat' : 'Login berhasil!',
+            is_new_user: isNewUser,
+            session: {
+                access_token: token,
+                refresh_token: session.rawRefresh,
+                expires_in: 30 * 60,
+                refresh_expires_at: session.expiresAt.toISOString(),
+            },
+            user: {
+                username: user.username,
+                name: user.name,
+                balance: Number(user.balance) || 0,
+                user_code: user.user_code,
+            },
+        });
+    } catch (err) {
+        if (/audience|Wrong recipient|Token used too late|Invalid token signature/i.test(err.message || '')) {
+            return res.status(401).json({ error: 'Token Google tidak valid atau kedaluwarsa' });
+        }
+        console.error('Google login error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
