@@ -555,7 +555,7 @@ function hideAlert(id) {
     }
     
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-sm"></span> Mengirim verifikasi...';
+    btn.innerHTML = '<span class="spinner-sm"></span> Loading...';
     
     try {
       var res = await securePost(_cfg.ep.linkEmail, { email: email }, 'link_email');
@@ -563,7 +563,7 @@ function hideAlert(id) {
       
       if (!res.ok || data.error) throw new Error(data.error || 'Gagal menyimpan email');
       
-      showAlert('alertEmail', 'Email berhasil ditautkan! Pesan verifikasi telah dikirim.', 'success');
+      showAlert('alertEmail', 'Email berhasil ditautkan!', 'success');
       
       setTimeout(function () {
         closeModal($('modalEmail'));
