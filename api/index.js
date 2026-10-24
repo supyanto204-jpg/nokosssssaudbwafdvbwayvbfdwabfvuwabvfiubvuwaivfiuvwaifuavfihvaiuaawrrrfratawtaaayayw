@@ -7237,10 +7237,6 @@ app.use((req, res) => {
         } else {
             console.warn('⚠️  Telegram notif belum aktif (env belum di-set)');
         }
-        setInterval(() => {
-            autoSyncAll().catch(err => console.error('Background auto-sync error:', err.message));
-        }, SYNC_INTERVAL_MS);
-        setTimeout(() => { autoSyncAll().catch(() => {}); }, 5000);
     } catch (err) {
         console.error('❌ Startup warmup failed:', err.message);
     }
