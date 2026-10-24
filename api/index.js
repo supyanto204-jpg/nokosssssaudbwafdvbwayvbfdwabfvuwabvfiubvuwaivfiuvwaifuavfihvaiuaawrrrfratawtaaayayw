@@ -5416,6 +5416,88 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
     }
 }));
 
+app.post('/api/admin/cleanup-users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { dry_run = false, days = 30 } = req.body || {};
+    const dayNum = Math.min(365, Math.max(1, parseInt(days) || 30));
+
+    try {
+        const previewRes = await pool.query(
+            `SELECT id, username, name, balance, last_login_at, created_at
+             FROM users
+             WHERE balance = 0
+               AND role != 'admin'
+               AND status != 'banned'
+               AND (last_login_at IS NULL OR last_login_at < NOW() - make_interval(days => $1::int))
+             ORDER BY created_at ASC
+             LIMIT 200`,
+            [dayNum]
+        );
+
+        const totalRes = await pool.query(
+            `SELECT COUNT(*) AS c FROM users
+             WHERE balance = 0
+               AND role != 'admin'
+               AND status != 'banned'
+               AND (last_login_at IS NULL OR last_login_at < NOW() - make_interval(days => $1::int))`,
+            [dayNum]
+        );
+
+        const total = Number(totalRes.rows[0].c) || 0;
+        const preview = previewRes.rows;
+
+        if (dry_run) {
+            return res.json({
+                dry_run: true,
+                range_days: dayNum,
+                total_candidates: total,
+                preview: preview.slice(0, 50),
+                message: `Dry run: ${total} user akan dihapus. Tidak ada yang dihapus.`
+            });
+        }
+
+        const ids = preview.map(u => u.id);
+        if (ids.length === 0) {
+            return res.json({
+                dry_run: false,
+                range_days: dayNum,
+                deleted: 0,
+                message: 'Tidak ada user yang memenuhi kriteria.'
+            });
+        }
+
+        const delRes = await pool.query(
+            `DELETE FROM users WHERE id = ANY($1::uuid[]) RETURNING id, username`,
+            [ids]
+        );
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'cleanup_users',
+            targetType: 'bulk',
+            targetId: `deleted_${delRes.rowCount}`,
+            metadata: {
+                range_days: dayNum,
+                deleted_count: delRes.rowCount,
+                total_candidates: total,
+                deleted_usernames: delRes.rows.map(r => r.username).slice(0, 20)
+            }
+        });
+
+        res.json({
+            dry_run: false,
+            range_days: dayNum,
+            deleted: delRes.rowCount,
+            remaining: Math.max(0, total - delRes.rowCount),
+            deleted_preview: delRes.rows.slice(0, 20),
+            message: `${delRes.rowCount} user dihapus.`
+        });
+    } catch (err) {
+        console.error('Cleanup users error:', err.message);
+        res.status(500).json({ error: 'Gagal cleanup user' });
+    }
+}));
+
 // admin edit user balance
 app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
