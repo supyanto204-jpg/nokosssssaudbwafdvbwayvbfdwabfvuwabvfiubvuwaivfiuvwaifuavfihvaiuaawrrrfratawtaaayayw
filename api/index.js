@@ -2698,7 +2698,6 @@ app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(a
 app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withDB(async (req, res) => {
     const { email } = req.body;
 
-    // 1. Validasi format email
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Format email tidak valid' });
     }
@@ -2706,7 +2705,7 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-        // 2. Cek apakah email udah dipake user lain
+        // 1. Cek apakah email udah dipake user LAIN
         const checkEmail = await pool.query(
             'SELECT id FROM users WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
             [cleanEmail, req.user.id]
@@ -2715,33 +2714,73 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
             return res.status(400).json({ error: 'Email sudah terdaftar di akun lain' });
         }
 
-        // 3. Cek apakah user ini udah punya email (biar gak bisa ditimpa sembarangan)
-        const userRes = await pool.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
-        if (userRes.rows[0] && userRes.rows[0].email) {
-            return res.status(400).json({ error: 'Akun kamu sudah memiliki email terdaftar' });
+        // 2. Setup Transporter
+        if (!process.env.EMAIL_USER || !process.env.APP_PASS_RESET_PASSWORD) {
+            console.error('Email env not set');
+            return res.status(500).json({ error: 'Layanan email belum dikonfigurasi' });
         }
 
-        // 4. Update email
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.APP_PASS_RESET_PASSWORD
+            }
+        });
+
+        // 3. Ambil data user buat nama di email
+        const userRes = await pool.query('SELECT username, name FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
+        const user = userRes.rows[0];
+        const displayName = user.name || user.username || 'User';
+
+        // 4. Kirim email verifikasi / notifikasi
+        // Kalau email gak valid, nodemailer bakal throw error (catch di bawah)
+        const mailOptions = {
+            from: `"AsyrofOTP" <${process.env.EMAIL_USER}>`,
+            to: cleanEmail,
+            subject: 'Akun Anda Berhasil Tertaut',
+            html: `
+                <div style="font-family:sans-serif;padding:20px;color:#333;max-width:500px;margin:0 auto;border:1px solid #ddd;border-radius:8px;">
+                    <h2 style="color:#0a84ff;">Halo, ${displayName}!</h2>
+                    <p>Email ini telah berhasil ditautkan ke akun <b>AsyrofOTP</b> Anda.</p>
+                    <p>Dengan email ini, Anda bisa melakukan reset password jika lupa, dan menerima notifikasi penting lainnya.</p>
+                    <p style="margin-top:30px;font-size:12px;color:#888;">Jika Anda tidak merasa melakukan ini, segera hubungi support.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+
+        // 5. Kalau email sukses terkirim, baru update DB
+        const oldEmailRes = await pool.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
+        const oldEmail = oldEmailRes.rows[0] ? oldEmailRes.rows[0].email : null;
+
         await pool.query(
             'UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2',
             [cleanEmail, req.user.id]
         );
 
-        // 5. Log (opsional, biar ada rekam jejak)
+        // 6. Log
         await logStatusChange({
             entityType: 'user',
             entityId: req.user.id,
             userId: req.user.id,
-            oldStatus: null,
+            oldStatus: oldEmail ? 'email_exists' : null,
             newStatus: 'email_linked',
-            reason: 'user_link_email',
-            metadata: { email: cleanEmail }
+            reason: oldEmail ? 'user_change_email' : 'user_link_email',
+            metadata: { old_email: oldEmail, new_email: cleanEmail }
         });
 
-        res.json({ message: 'Email berhasil ditautkan', email: cleanEmail });
+        res.json({ message: 'Email berhasil ditautkan dan pesan verifikasi telah dikirim', email: cleanEmail });
     } catch (err) {
         console.error('Link email error:', err.message);
-        res.status(500).json({ error: 'Server error' });
+        
+        // Handle error spesifik dari Nodemailer (email gak valid / gak ada)
+        if (err.code === 'EENVELOPE' || (err.response && err.response.includes('550'))) {
+            return res.status(400).json({ error: 'Email tidak ditemukan atau tidak valid' });
+        }
+        
+        res.status(500).json({ error: 'Gagal memproses email. Coba lagi nanti.' });
     }
 }));
 
