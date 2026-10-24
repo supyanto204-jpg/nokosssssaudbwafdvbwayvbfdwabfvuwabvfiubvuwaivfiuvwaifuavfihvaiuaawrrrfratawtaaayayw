@@ -1,69 +1,133 @@
 (function (global) {
 'use strict';
 
+// safe storage. fallback ke in-memory kalau localStorage diblokir (safari private)
 var SafeStorage = (function () {
   var ls = null, ss = null;
   try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch (e) { ls = null; }
   try { ss = window.sessionStorage; ss.setItem('__t','1'); ss.removeItem('__t'); } catch (e) { ss = null; }
   var mem = new Map();
-  function wrap(store) {
+  function wrap(store, prefix) {
     return {
-      get: function (k) { try { return store ? store.getItem(k) : (mem.has(k) ? mem.get(k) : null); } catch (e) { return mem.has(k) ? mem.get(k) : null; } },
-      set: function (k, v) { try { if (store) store.setItem(k, v); else mem.set(k, v); } catch (e) { mem.set(k, v); } },
-      remove: function (k) { try { if (store) store.removeItem(k); else mem.delete(k); } catch (e) { mem.delete(k); } }
+      get: function (k) { try { return store ? store.getItem(prefix + k) : (mem.get(prefix + k) ?? null); } catch (e) { return mem.get(prefix + k) ?? null; } },
+      set: function (k, v) { try { if (store) store.setItem(prefix + k, v); else mem.set(prefix + k, v); } catch (e) { mem.set(prefix + k, v); } },
+      remove: function (k) { try { if (store) store.removeItem(prefix + k); else mem.delete(prefix + k); } catch (e) { mem.delete(prefix + k); } },
+      keys: function () { try { return store ? Object.keys(store) : Array.from(mem.keys()); } catch (e) { return Array.from(mem.keys()); } }
     };
   }
-  return { local: wrap(ls), session: wrap(ss) };
+  return { local: wrap(ls, ''), session: wrap(ss, '') };
 })();
 
+// AES-GCM wrapper. fallback ke base64 obfuscation kalau subtle crypto gak ada
+var _crypto = (function () {
+  var _k = 'ZGVwb3NpdC1zZWNyZXQta2V5LTIwMjYtYXN5cm9m';
+  var _s = 'c2FsdC1kZXBvc2l0LXYyMDI2LXNlY3VyZQ==';
+  var _i = 100000;
+  var _dk = null;
+
+  var supported = (function () {
+    try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
+    catch (e) { return false; }
+  })();
+
+  async function _derive() {
+    if (_dk) return _dk;
+    var enc = new TextEncoder();
+    var base = await crypto.subtle.importKey('raw', enc.encode(atob(_k)), { name: 'PBKDF2' }, false, ['deriveKey']);
+    _dk = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: enc.encode(atob(_s)), iterations: _i, hash: 'SHA-256' },
+      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+    );
+    return _dk;
+  }
+  function _b2buf(b64) {
+    var bin = atob(b64), u = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+    return u.buffer;
+  }
+  function _buf2b(buf) {
+    var b = new Uint8Array(buf), s = '';
+    for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
+    return btoa(s);
+  }
+  function _fbSeal(obj) { try { return 'fb:' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); } catch (e) { return null; } }
+  function _fbUnseal(b64) { try { return JSON.parse(decodeURIComponent(escape(atob(b64.slice(3))))); } catch (e) { return null; } }
+
+  async function seal(obj) {
+    if (!supported) return _fbSeal(obj);
+    try {
+      var key = await _derive();
+      var iv = crypto.getRandomValues(new Uint8Array(12));
+      var c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
+      var comb = new Uint8Array(iv.length + c.byteLength);
+      comb.set(iv, 0);
+      comb.set(new Uint8Array(c), iv.length);
+      return _buf2b(comb.buffer);
+    } catch (e) { return _fbSeal(obj); }
+  }
+  async function unseal(b64) {
+    if (!b64) return null;
+    if (b64.indexOf('fb:') === 0) return _fbUnseal(b64);
+    if (!supported) return null;
+    try {
+      var key = await _derive();
+      var buf = _b2buf(b64);
+      var iv = buf.slice(0, 12);
+      var data = buf.slice(12);
+      var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, data);
+      return JSON.parse(new TextDecoder().decode(plain));
+    } catch (e) { return null; }
+  }
+  return { seal: seal, unseal: unseal, supported: supported };
+})();
+
+// cache dua lapis: memori + storage terenkripsi
 var Cache = (function () {
   var P = 'aotp_d_';
-  var mem = new Map();
-  function get(key, ttl) {
-    if (mem.has(key)) {
-      var e = mem.get(key);
+  var _mem = new Map();
+
+  async function get(key, ttl) {
+    if (_mem.has(key)) {
+      var e = _mem.get(key);
       if (!ttl || Date.now() - e.t < ttl) return e.v;
-      mem.delete(key);
+      _mem.delete(key);
     }
     try {
       var raw = SafeStorage.local.get(P + key);
       if (!raw) return null;
-      var parsed = JSON.parse(raw);
-      if (!parsed || !parsed.t) return null;
-      if (ttl && Date.now() - parsed.t > ttl) { SafeStorage.local.remove(P + key); return null; }
-      mem.set(key, parsed);
-      return parsed.v;
-    } catch (e) { return null; }
+      var e2 = await _crypto.unseal(raw);
+      if (!e2) return null;
+      if (ttl && Date.now() - e2.t > ttl) { SafeStorage.local.remove(P + key); return null; }
+      _mem.set(key, e2);
+      return e2.v;
+    } catch (err) { return null; }
   }
-  function set(key, v) {
+  async function set(key, v) {
     var e = { t: Date.now(), v: v };
-    mem.set(key, e);
-    try { SafeStorage.local.set(P + key, JSON.stringify(e)); } catch (err) {}
+    _mem.set(key, e);
+    try {
+      var s = await _crypto.seal(e);
+      if (s) SafeStorage.local.set(P + key, s);
+    } catch (err) {}
   }
   function remove(key) {
-    mem.delete(key);
+    _mem.delete(key);
     try { SafeStorage.local.remove(P + key); } catch (e) {}
   }
   function invalidate(prefix) {
-    mem.forEach(function (_, k) { if (k.indexOf(prefix) === 0) mem.delete(k); });
+    _mem.forEach(function (_, k) { if (k.indexOf(prefix) === 0) _mem.delete(k); });
     try {
-      var keys = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.indexOf(P + prefix) === 0) keys.push(k);
-      }
-      keys.forEach(function (k) { SafeStorage.local.remove(k); });
+      SafeStorage.local.keys().forEach(function (k) {
+        if (k.indexOf(P + prefix) === 0) SafeStorage.local.remove(k);
+      });
     } catch (e) {}
   }
   function clear() {
-    mem.clear();
+    _mem.clear();
     try {
-      var keys = [];
-      for (var i = 0; i < localStorage.length; i++) {
-        var k = localStorage.key(i);
-        if (k && k.indexOf(P) === 0) keys.push(k);
-      }
-      keys.forEach(function (k) { SafeStorage.local.remove(k); });
+      SafeStorage.local.keys().forEach(function (k) {
+        if (k.indexOf(P) === 0) SafeStorage.local.remove(k);
+      });
     } catch (e) {}
   }
   return { get: get, set: set, remove: remove, invalidate: invalidate, clear: clear };
@@ -94,6 +158,7 @@ var _cfg = {
   fetchTimeout: 15000
 };
 
+// deteksi device biar bisa skip animasi berat
 var _dev = (function () {
   function mq(q) { try { return window.matchMedia(q).matches; } catch (e) { return false; } }
   var hc = navigator.hardwareConcurrency || 4;
@@ -105,6 +170,7 @@ var _dev = (function () {
   };
 })();
 
+// security nudge + strip query string
 (function () {
   try {
     console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
@@ -144,9 +210,14 @@ function fetchWithTimeout(url, opts, ms) {
   return fetch(url, o).finally(function () { if (timer) clearTimeout(timer); });
 }
 
-function formatRupiah(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
-function getInitial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
+function formatRupiah(n) {
+  return 'Rp' + (Number(n) || 0).toLocaleString('id-ID');
+}
+function getInitial(name) {
+  return String(name || '?').trim().charAt(0).toUpperCase() || '?';
+}
 
+// icon svg inline. depo1 = qris otomatis (backend sekarang cuma ini)
 var ICONS = {
   depo1: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
   check: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
@@ -161,6 +232,7 @@ var ICONS = {
   download: '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
 };
 
+// recaptcha v3
 function waitForRecaptcha() {
   return new Promise(function (resolve) {
     if (window.grecaptcha && window.grecaptcha.execute) return resolve();
@@ -168,7 +240,7 @@ function waitForRecaptcha() {
     var t = setInterval(function () {
       n++;
       if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(t); resolve(); }
-      else if (n >= 30) { clearInterval(t); resolve(); }
+      else if (n >= 50) { clearInterval(t); resolve(); }
     }, 100);
   });
 }
@@ -180,7 +252,7 @@ async function getRecaptchaToken(action) {
       grecaptcha.ready(function () {
         grecaptcha.execute(_cfg.rk, { action: action }).then(resolve).catch(function () { resolve(null); });
       });
-      setTimeout(function () { resolve(null); }, 6000);
+      setTimeout(function () { resolve(null); }, 8000);
     });
   } catch (e) { return null; }
 }
@@ -195,11 +267,17 @@ async function securePost(url, body, action) {
   });
 }
 
+// custom alert. fallback ke window.confirm kalau overlay gak ada
 function showCustomAlert(opts) {
   return new Promise(function (resolve) {
+    var title = opts.title, message = opts.message;
     var type = opts.type || 'info';
+    var okText = opts.okText || 'OK';
+    var showCancel = opts.showCancel || false;
+    var cancelText = opts.cancelText || 'Batal';
+
     var overlay = $('customAlert');
-    if (!overlay) { resolve(window.confirm(opts.message || opts.title || 'OK')); return; }
+    if (!overlay) { resolve(window.confirm(message || title || 'OK')); return; }
     var iconEl = $('customAlertIcon');
     var titleEl = $('customAlertTitle');
     var msgEl = $('customAlertMessage');
@@ -209,22 +287,22 @@ function showCustomAlert(opts) {
     iconEl.className = 'custom-alert-icon ' + type;
     var iconMap = { success: ICONS.check, warning: ICONS.warning, danger: ICONS.close, error: ICONS.close, info: ICONS.info };
     iconEl.innerHTML = iconMap[type] || ICONS.info;
-    titleEl.textContent = opts.title || 'Informasi';
-    msgEl.textContent = opts.message || '';
+    titleEl.textContent = title || 'Informasi';
+    msgEl.textContent = message || '';
 
     actionsEl.innerHTML = '';
-    if (opts.showCancel) {
+    if (showCancel) {
       var b = document.createElement('button');
       b.className = 'btn';
       b.type = 'button';
-      b.textContent = opts.cancelText || 'Batal';
+      b.textContent = cancelText;
       b.addEventListener('click', function () { overlay.classList.remove('active'); resolve(false); });
       actionsEl.appendChild(b);
     }
     var ok = document.createElement('button');
     ok.className = 'btn btn-primary';
     ok.type = 'button';
-    ok.textContent = opts.okText || 'OK';
+    ok.textContent = okText;
     ok.addEventListener('click', function () { overlay.classList.remove('active'); resolve(true); });
     actionsEl.appendChild(ok);
     overlay.classList.add('active');
@@ -238,60 +316,27 @@ function customConfirm(message, type, title) {
   return showCustomAlert({ title: title || 'Konfirmasi', message: message, type: type || 'warning', okText: 'Ya', showCancel: true, cancelText: 'Batal' });
 }
 
-function lockBody() {
-  var sw = window.innerWidth - document.documentElement.clientWidth;
-  document.body.style.setProperty('--scrollbar-width', sw + 'px');
-  document.body.classList.add('modal-open');
-}
-function unlockBody() {
-  if (!document.querySelector('.modal-overlay.active') && !document.querySelector('.custom-alert-overlay.active')) {
-    document.body.classList.remove('modal-open');
-    document.body.style.removeProperty('--scrollbar-width');
-  }
-}
-
-(function themeInit() {
-  var btn = $('themeBtn');
+// theme toggle
+(function () {
+  var btn = $('themeToggle');
   if (!btn) return;
-  var root = document.documentElement;
-  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
-
-  function resolve(pref) {
-    if (pref === 'system') return (mq && mq.matches) ? 'dark' : 'light';
-    return pref;
-  }
-  function paintMeta(theme) {
-    var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', theme === 'dark' ? '#0a0b0d' : '#0a84ff');
-  }
-  function setPref(pref, save) {
-    root.setAttribute('data-theme-pref', pref);
-    var resolved = resolve(pref);
-    root.setAttribute('data-theme', resolved);
-    paintMeta(resolved);
-    if (save) SafeStorage.local.set('asyrofotp_theme_pref', pref);
-  }
-
   btn.addEventListener('click', function () {
-    var cur = root.getAttribute('data-theme-pref') || 'system';
-    var next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
-    setPref(next, true);
+    var cur = document.documentElement.getAttribute('data-theme') || 'light';
+    var nx = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nx);
+    try { SafeStorage.local.set('asyrofotp_theme', nx); } catch (e) {}
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#0a84ff');
   });
-
-  if (mq) {
-    var onOsChange = function () {
-      if (root.getAttribute('data-theme-pref') === 'system') setPref('system', false);
-    };
-    if (mq.addEventListener) mq.addEventListener('change', onOsChange);
-    else if (mq.addListener) mq.addListener(onOsChange);
-  }
 })();
 
-(function sidebarInit() {
+// sidebar collapse desktop
+(function () {
   var sidebar = $('sidebar');
   var collapseBtn = $('collapseBtn');
   if (!sidebar || !collapseBtn) return;
-  if (SafeStorage.local.get('sidebar_collapsed') === 'true' && window.innerWidth > 768) {
+  var isCollapsed = SafeStorage.local.get('sidebar_collapsed') === 'true';
+  if (isCollapsed && window.innerWidth > 768) {
     sidebar.classList.add('collapsed');
     document.body.classList.add('sidebar-collapsed');
   }
@@ -299,11 +344,12 @@ function unlockBody() {
     if (window.innerWidth <= 768) return;
     var c = sidebar.classList.toggle('collapsed');
     document.body.classList.toggle('sidebar-collapsed', c);
-    SafeStorage.local.set('sidebar_collapsed', c ? 'true' : 'false');
+    try { SafeStorage.local.set('sidebar_collapsed', c); } catch (e) {}
   });
 })();
 
-(function mobileSidebarInit() {
+// sidebar drawer mobile
+(function () {
   var toggle = $('mobileToggle');
   var sidebar = $('sidebar');
   var overlay = $('sidebarOverlay');
@@ -318,7 +364,7 @@ function unlockBody() {
     sidebar.classList.add('open');
     overlay.classList.add('active');
     document.body.classList.add('sidebar-open');
-    lockBody();
+    document.body.style.overflow = 'hidden';
   }
   function closeSb() {
     if (!open) return;
@@ -326,7 +372,7 @@ function unlockBody() {
     sidebar.classList.remove('open');
     overlay.classList.remove('active');
     document.body.classList.remove('sidebar-open');
-    unlockBody();
+    document.body.style.overflow = '';
   }
   function onToggle(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -377,15 +423,17 @@ var state = {
 
 async function loadUser(force) {
   if (!force) {
-    var cached = Cache.get('user', _cfg.ttl.user);
+    var cached = await Cache.get('user', _cfg.ttl.user);
     if (cached) renderUser(cached);
   }
   try {
-    var res = await fetchWithTimeout(_cfg.ep.user, { headers: { Authorization: 'Bearer ' + token } });
+    var res = await fetchWithTimeout(_cfg.ep.user, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     var user = await safeJson(res);
     if (user && !user.error) {
-      Cache.set('user', user);
+      await Cache.set('user', user);
       renderUser(user);
     }
   } catch (e) {}
@@ -403,16 +451,18 @@ function renderUser(user) {
 }
 
 async function loadPresets() {
-  var cached = Cache.get('presets', _cfg.ttl.presets);
+  var cached = await Cache.get('presets', _cfg.ttl.presets);
   if (cached && cached.length > 0) {
     state.presets = cached;
     renderPresets();
   }
   try {
-    var res = await fetchWithTimeout(_cfg.ep.presets, { headers: { Authorization: 'Bearer ' + token } });
+    var res = await fetchWithTimeout(_cfg.ep.presets, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
     var data = await safeJson(res);
     state.presets = data.presets || [];
-    if (state.presets.length > 0) Cache.set('presets', state.presets);
+    if (state.presets.length > 0) await Cache.set('presets', state.presets);
     renderPresets();
   } catch (err) {
     if (!cached) {
@@ -515,27 +565,29 @@ function openModal(id) {
   var m = $(id);
   if (m) {
     m.classList.add('active');
-    lockBody();
+    document.body.style.overflow = 'hidden';
   }
 }
 function closeModal(id) {
   var m = $(id);
   if (m) {
     m.classList.remove('active');
-    unlockBody();
+    if (!document.querySelector('.modal-overlay.active')) document.body.style.overflow = '';
   }
 }
 
 async function loadMethods() {
   var grid = $('methodGrid');
   if (!grid) return;
-  var cached = Cache.get('methods', _cfg.ttl.methods);
+  var cached = await Cache.get('methods', _cfg.ttl.methods);
   if (cached && cached.length > 0) renderMethods(cached);
   try {
-    var res = await fetchWithTimeout(_cfg.ep.methods, { headers: { Authorization: 'Bearer ' + token } });
+    var res = await fetchWithTimeout(_cfg.ep.methods, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
     var data = await safeJson(res);
     var list = data.methods || [];
-    if (list.length > 0) Cache.set('methods', list);
+    if (list.length > 0) await Cache.set('methods', list);
     renderMethods(list);
   } catch (err) {
     if (!cached) {
@@ -600,79 +652,36 @@ async function createDeposit() {
 }
 
 async function createQrispyDeposit() {
-  // 1. Jalanin paralel: minta reference ID & minta QRIS
-  var refPromise = securePost(_cfg.ep.generateRef, {}, 'deposit_ref').then(safeJson);
-  var qrisPromise = fetchWithTimeout(_cfg.qrispyBase + '/api/payment/qris/generate', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ amount: Number(state.amount), payment_reference: 'TEMP' })
-  }).then(safeJson);
-
-  var refData = await refPromise;
-  if (!refData || !refData.reference_id) throw new Error('Gagal generate reference ID');
+  var refRes = await securePost(_cfg.ep.generateRef, {}, 'deposit_ref');
+  var refData = await safeJson(refRes);
+  if (!refRes.ok || !refData.reference_id) throw new Error('Gagal generate reference ID');
   var referenceId = refData.reference_id;
 
-  var qrispyData = await qrisPromise;
-  if (!qrispyData || qrispyData.status === 'error') {
-    throw new Error((qrispyData && qrispyData.message) || 'Gagal membuat QRIS');
+  var qrispyRes = await fetchWithTimeout(_cfg.qrispyBase + '/api/payment/qris/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      amount: Number(state.amount),
+      payment_reference: referenceId
+    })
+  });
+  var qrispyData = await safeJson(qrispyRes);
+  if (!qrispyRes.ok || qrispyData.status === 'error') {
+    throw new Error(qrispyData.message || 'Gagal membuat QRIS');
   }
 
-  // 2. Siapin data state lokal DULU (biar UI bisa langsung render)
-  var d = qrispyData.data;
-  state.deposit = {
+  var saveRes = await securePost(_cfg.ep.save, {
     reference_id: referenceId,
     amount: Number(state.amount),
-    qris_id: d.qris_id,
-    qris_url: d.qris_image_url,
-    expired_at: d.expired_at,
-    expires_in_seconds: d.expires_in_seconds,
-    total_amount: Number(state.amount),
-    fee: 0
-  };
-
-  // 3. LANGSUNG tampilkan QR ke layar (User bisa langsung scan)
+    qris_id: qrispyData.data.qris_id,
+    qris_url: qrispyData.data.qris_image_url,
+    expired_at: qrispyData.data.expired_at,
+    expires_in_seconds: qrispyData.data.expires_in_seconds
+  }, 'deposit_save');
+  var saveData = await safeJson(saveRes);
+  if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
+  state.deposit = saveData.deposit;
   showPaymentPanel();
-
-  // 4. Proses simpan ke database di background (TIDAK nge-block UI)
-  saveDepositToDb(referenceId, d).catch(function (err) {
-    console.warn('Background save deposit gagal:', err);
-    // Di sini lu bisa tambahin logic retry atau simpen ke localStorage
-    // sebagai fallback kalau server down.
-  });
-}
-
-// Fungsi terpisah khusus buat nge-save ke DB
-async function saveDepositToDb(referenceId, qrisData) {
-  try {
-    var saveRes = await securePost(_cfg.ep.save, {
-      reference_id: referenceId,
-      amount: Number(state.amount),
-      qris_id: qrisData.qris_id,
-      qris_url: qrisData.qris_image_url,
-      expired_at: qrisData.expired_at,
-      expires_in_seconds: qrisData.expires_in_seconds
-    }, 'deposit_save');
-
-    var saveData = await safeJson(saveRes);
-    if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan ke DB');
-    
-    // Update state lokal dengan data yang lebih valid dari DB (misal fee, total_amount)
-    if (saveData.deposit) {
-      state.deposit = Object.assign(state.deposit, saveData.deposit);
-      // Kalau fee ternyata udah ada dari DB, update tampilannya
-      updateFeeDisplay();
-    }
-  } catch (err) {
-    // Kalau gagal, coba simpan ke sessionStorage sebagai "Pending Save"
-    // Nanti pas halaman di-load ulang, kita coba simpan lagi.
-    try {
-      var pending = SafeStorage.session.get('pending_deposit_save');
-      var list = pending ? JSON.parse(pending) : [];
-      list.push({ reference_id: referenceId, data: state.deposit });
-      SafeStorage.session.set('pending_deposit_save', JSON.stringify(list));
-    } catch (e) {}
-    throw err;
-  }
 }
 
 function showPaymentPanel() {
@@ -689,30 +698,28 @@ function showPaymentPanel() {
   var totalBayar = Number(d.total_amount) || saldoMasuk;
 
   panelPayment.innerHTML =
-    '<div class="fade-in">' +
-      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' +
-        '<div class="countdown" id="countdown" style="margin-bottom:0;">' + ICONS.clock + '<span id="countdownText">--:--</span></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' +
+      '<div class="countdown" id="countdown" style="margin-bottom:0;">' + ICONS.clock + '<span id="countdownText">--:--</span></div>' +
+    '</div>' +
+    '<div class="qr-display">' +
+      '<div class="qr-total">' +
+        '<div class="label">Total yang harus dibayar</div>' +
+        '<div class="amount" id="qrAmount">' + formatRupiah(totalBayar) + '</div>' +
       '</div>' +
-      '<div class="qr-display">' +
-        '<div class="qr-total">' +
-          '<div class="label">Total yang harus dibayar</div>' +
-          '<div class="amount" id="qrAmount">' + formatRupiah(totalBayar) + '</div>' +
-        '</div>' +
-        '<div class="qr-wrapper"><img src="' + d.qris_url + '" alt="QR Code" id="qrImage" crossorigin="anonymous"></div>' +
-      '</div>' +
-      '<div class="qr-info">' +
-        '<div class="qr-row"><span class="label">Reference ID</span><span class="value">' + d.reference_id + '</span></div>' +
-        '<div class="qr-row"><span class="label">Metode</span><span class="value">' + state.methodLabel + '</span></div>' +
-        '<div class="qr-row"><span class="label">Saldo Top Up</span><span class="value">' + formatRupiah(saldoMasuk) + '</span></div>' +
-        '<div class="qr-row"><span class="label">Fee</span><span class="value" id="qrFee"><span class="inline-loader"></span></span></div>' +
-        '<div class="qr-row total-row"><span class="label">Total Bayar</span><span class="value big" id="qrTotal">' + formatRupiah(totalBayar) + '</span></div>' +
-        '<div class="qr-row"><span class="label">Saldo Diterima</span><span class="value success">' + formatRupiah(saldoMasuk) + '</span></div>' +
-      '</div>' +
-      '<div class="polling-indicator"><span class="spinner-sm"></span><span>Menunggu pembayaran... otomatis cek status</span></div>' +
-      '<div class="payment-actions">' +
-        '<button class="btn-download-qr" id="btnDownloadQr" type="button">' + ICONS.download + ' Download QR</button>' +
-        '<button class="btn-cancel-red" id="btnCancel" type="button">' + ICONS.close + ' Batalkan</button>' +
-      '</div>' +
+      '<div class="qr-wrapper"><img src="' + d.qris_url + '" alt="QR Code" id="qrImage" crossorigin="anonymous"></div>' +
+    '</div>' +
+    '<div class="qr-info">' +
+      '<div class="qr-row"><span class="label">Reference ID</span><span class="value">' + d.reference_id + '</span></div>' +
+      '<div class="qr-row"><span class="label">Metode</span><span class="value">' + state.methodLabel + '</span></div>' +
+      '<div class="qr-row"><span class="label">Saldo Top Up</span><span class="value">' + formatRupiah(saldoMasuk) + '</span></div>' +
+      '<div class="qr-row"><span class="label">Fee</span><span class="value" id="qrFee"><span class="inline-loader"></span></span></div>' +
+      '<div class="qr-row total-row"><span class="label">Total Bayar</span><span class="value big" id="qrTotal">' + formatRupiah(totalBayar) + '</span></div>' +
+      '<div class="qr-row"><span class="label">Saldo Diterima</span><span class="value success">' + formatRupiah(saldoMasuk) + '</span></div>' +
+    '</div>' +
+    '<div class="polling-indicator"><span class="spinner-sm"></span><span>Menunggu pembayaran... otomatis cek status</span></div>' +
+    '<div class="payment-actions">' +
+      '<button class="btn-download-qr" id="btnDownloadQr" type="button">' + ICONS.download + ' Download QR</button>' +
+      '<button class="btn-cancel-red" id="btnCancel" type="button">' + ICONS.close + ' Batalkan</button>' +
     '</div>';
 
   var btnCancel = $('btnCancel'); if (btnCancel) btnCancel.addEventListener('click', cancelDeposit);
@@ -727,22 +734,6 @@ function showPaymentPanel() {
 
   startPolling(d.reference_id);
   fetchQrispyFeeAsync(d.reference_id, d.qris_id, saldoMasuk);
-}
-
-// Fungsi bantuan buat update tampilan fee/total kalau data dari DB baru masuk
-function updateFeeDisplay() {
-  if (!state.deposit) return;
-  var saldoMasuk = Number(state.deposit.amount);
-  var fee = Number(state.deposit.fee) || 0;
-  var totalBayar = Number(state.deposit.total_amount) || saldoMasuk;
-  
-  var feeEl = $('qrFee');
-  var totalEl = $('qrTotal');
-  var amountEl = $('qrAmount');
-  
-  if (feeEl && fee > 0) feeEl.textContent = formatRupiah(fee);
-  if (totalEl && totalBayar !== saldoMasuk) totalEl.textContent = formatRupiah(totalBayar);
-  if (amountEl && totalBayar !== saldoMasuk) amountEl.textContent = formatRupiah(totalBayar);
 }
 
 async function downloadQR() {
@@ -822,7 +813,9 @@ function startPolling(referenceId) {
   stopPolling();
   state.pollingInterval = setInterval(async function () {
     try {
-      var res = await fetchWithTimeout(_cfg.ep.status + '/' + referenceId + '/status', { headers: { Authorization: 'Bearer ' + token } });
+      var res = await fetchWithTimeout(_cfg.ep.status + '/' + referenceId + '/status', {
+        headers: { Authorization: 'Bearer ' + token }
+      });
       var data = await safeJson(res);
       if (data.status === 'success' || (data.deposit && data.deposit.status === 'success')) {
         stopPolling(); stopCountdown(); showSuccess(data.deposit);
@@ -872,9 +865,9 @@ function showExpired() {
   var panelPayment = $('panelPayment');
   if (!panelPayment) return;
   panelPayment.innerHTML =
-    '<div class="fade-in" style="text-align:center;padding:32px 20px;">' +
+    '<div style="text-align:center;padding:32px 20px;">' +
       '<div class="success-icon expired">' + ICONS.clock + '</div>' +
-      '<h2 style="font-size:1.3rem;font-weight:700;margin-bottom:8px;color:var(--txt);">QRIS Kedaluwarsa</h2>' +
+      '<h2 style="font-size:1.3rem;font-weight:800;margin-bottom:8px;color:var(--txt);">QRIS Kedaluwarsa</h2>' +
       '<p style="color:var(--txt2);font-size:0.9rem;margin-bottom:24px;">Waktu pembayaran habis. Status deposit ini udah <strong>EXPIRED</strong>.</p>' +
       '<div class="detail-list" style="text-align:left;margin-bottom:16px;">' +
         '<div class="detail-row"><span class="detail-label">Reference ID</span><span class="detail-value">' + ((state.deposit && state.deposit.reference_id) || '—') + '</span></div>' +
@@ -897,8 +890,6 @@ async function cancelDeposit() {
   resetPanel();
   Cache.invalidate('history_');
   loadHistory(state.historyPage);
-  
-  await customAlert('Deposit berhasil dibatalkan.', 'success', 'Dibatalkan');
 }
 
 function resetPanel() {
@@ -933,7 +924,7 @@ function showSuccess(deposit) {
     '</div>' +
     '<div style="padding:20px;text-align:center;">' +
       '<div class="success-icon">' + ICONS.check + '</div>' +
-      '<h2 style="font-size:1.4rem;font-weight:700;margin-bottom:8px;color:var(--txt);">Deposit Berhasil!</h2>' +
+      '<h2 style="font-size:1.4rem;font-weight:800;margin-bottom:8px;color:var(--txt);">Deposit Berhasil!</h2>' +
       '<p style="color:var(--txt2);font-size:0.9rem;margin-bottom:20px;">Saldo <strong style="color:var(--p);">' + formatRupiah(saldoMasuk) + '</strong> udah masuk ke akun kamu.</p>' +
       '<div class="detail-list" style="text-align:left;">' +
         '<div class="detail-row"><span class="detail-label">Reference ID</span><span class="detail-value">' + (deposit.reference_id || '—') + '</span></div>' +
@@ -972,15 +963,17 @@ async function loadHistory(page) {
   var container = $('historyList');
   if (!container) return;
   var cacheKey = 'history_p' + page;
-  var cached = Cache.get(cacheKey, _cfg.ttl.history);
+  var cached = await Cache.get(cacheKey, _cfg.ttl.history);
   if (cached && cached.deposits) renderHistory(cached, page);
   else renderHistorySkeleton();
 
   try {
-    var res = await fetchWithTimeout(_cfg.ep.history + '?page=' + page + '&limit=' + state.historyLimit, { headers: { Authorization: 'Bearer ' + token } });
+    var res = await fetchWithTimeout(_cfg.ep.history + '?page=' + page + '&limit=' + state.historyLimit, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
     var data = await safeJson(res);
     if (!data.deposits) { renderHistoryEmpty(); return; }
-    Cache.set(cacheKey, data);
+    await Cache.set(cacheKey, data);
     renderHistory(data, page);
     var pendingIds = data.deposits
       .filter(function (d) { return d.status === 'pending'; })
@@ -989,7 +982,7 @@ async function loadHistory(page) {
   } catch (err) {
     if (!cached) {
       container.innerHTML =
-        '<div class="empty-inbox fade-in">' +
+        '<div class="empty-inbox">' +
           '<div class="icon-box">' + ICONS.warning + '</div>' +
           '<h3>Gagal memuat riwayat</h3>' +
           '<p>' + (err.message || 'Coba refresh halaman') + '</p>' +
@@ -1013,7 +1006,7 @@ function renderHistory(data, page) {
   };
 
   var now = Date.now();
-  container.innerHTML = '<div class="history-list fade-in">' + data.deposits.map(function (d) {
+  container.innerHTML = '<div class="history-list">' + data.deposits.map(function (d) {
     var s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
     var methodLabel = 'QRIS Otomatis';
     var created = new Date(d.created_at).getTime();
@@ -1071,10 +1064,10 @@ function renderHistorySkeleton() {
   var container = $('historyList');
   if (!container) return;
   container.innerHTML =
-    '<div class="history-list fade-in">' +
+    '<div class="history-list">' +
       Array(3).fill(0).map(function () {
         return '<div class="history-card" style="pointer-events:none;opacity:0.6;">' +
-          '<div class="history-icon" style="background:var(--surface-2);"><span class="spinner-sm"></span></div>' +
+          '<div class="history-icon" style="background:rgba(10,132,255,0.08);"><span class="spinner-sm"></span></div>' +
           '<div class="history-info">' +
             '<div class="skel" style="height:14px;width:60%;margin-bottom:6px;"></div>' +
             '<div class="skel" style="height:11px;width:80%;"></div>' +
@@ -1093,7 +1086,7 @@ function renderHistoryEmpty() {
   var paginationEl = $('pagination');
   if (!container) return;
   container.innerHTML =
-    '<div class="empty-inbox fade-in">' +
+    '<div class="empty-inbox">' +
       '<div class="icon-box">' + ICONS.wallet + '</div>' +
       '<h3>Belum ada riwayat deposit</h3>' +
       '<p>Deposit pertama kamu bakal muncul di sini.</p>' +
@@ -1108,11 +1101,11 @@ async function syncVisibleDeposits(referenceIds, page) {
     var data = await safeJson(res);
     if (!data.updated || data.updated.length === 0) return;
     var cacheKey = 'history_p' + page;
-    var cached = Cache.get(cacheKey);
+    var cached = await Cache.get(cacheKey);
     if (cached && cached.deposits) {
       var updatedMap = new Map(data.updated.map(function (d) { return [d.reference_id, d]; }));
       cached.deposits = cached.deposits.map(function (d) { return updatedMap.get(d.reference_id) || d; });
-      Cache.set(cacheKey, cached);
+      await Cache.set(cacheKey, cached);
       renderHistory(cached, page);
       var hasSuccess = data.updated.some(function (d) { return d.status === 'success'; });
       if (hasSuccess) {
@@ -1125,7 +1118,7 @@ async function syncVisibleDeposits(referenceIds, page) {
 
 async function showDetailModal(d) {
   var cacheKey = 'history_p' + state.historyPage;
-  var cached = Cache.get(cacheKey);
+  var cached = await Cache.get(cacheKey);
   if (cached && cached.deposits) {
     var fresh = cached.deposits.find(function (x) { return x.reference_id === d.reference_id; });
     if (fresh) d = Object.assign({}, d, fresh);
@@ -1164,7 +1157,7 @@ async function showDetailModal(d) {
       '<div class="modal-title">Detail Deposit</div>' +
       '<button class="modal-close" type="button" data-modal-close>' + ICONS.close + '</button>' +
     '</div>' +
-    '<div class="fade-in" style="padding:20px;">' +
+    '<div style="padding:20px;">' +
       '<div class="detail-header">' +
         '<div class="detail-icon ' + s.class + '">' + s.icon + '</div>' +
         '<h2>' + formatRupiah(saldoMasuk) + '</h2>' +
@@ -1300,9 +1293,11 @@ async function handleLogout() {
     });
   } catch (e) {}
   Cache.clear();
-  SafeStorage.local.remove('access_token');
-  SafeStorage.local.remove('user');
-  SafeStorage.local.remove('refresh_token');
+  try {
+    SafeStorage.local.remove('access_token');
+    SafeStorage.local.remove('user');
+    SafeStorage.local.remove('refresh_token');
+  } catch (e) {}
   location.href = '/landing';
 }
 
@@ -1354,38 +1349,8 @@ document.addEventListener('keydown', function (e) {
       closeModal(active.id);
       if (active.id === 'modalMethod' && !state.method) setStep(1);
     }
-    var alert = document.querySelector('.custom-alert-overlay.active');
-    if (alert) {
-      alert.classList.remove('active');
-      unlockBody();
-    }
   }
 });
-
-async function recoverPendingSaves() {
-  try {
-    var pending = SafeStorage.session.get('pending_deposit_save');
-    if (!pending) return;
-    var list = JSON.parse(pending);
-    if (!Array.isArray(list) || list.length === 0) return;
-    
-    var remaining = [];
-    for (var i = 0; i < list.length; i++) {
-      var item = list[i];
-      try {
-        await securePost(_cfg.ep.save, item.data, 'deposit_save');
-      } catch (e) {
-        remaining.push(item);
-      }
-    }
-    
-    if (remaining.length > 0) {
-      SafeStorage.session.set('pending_deposit_save', JSON.stringify(remaining));
-    } else {
-      SafeStorage.session.remove('pending_deposit_save');
-    }
-  } catch (e) {}
-}
 
 (function init() {
   restoreState();
@@ -1394,7 +1359,6 @@ async function recoverPendingSaves() {
   loadPresets();
   loadMethods();
   loadHistory(1);
-  recoverPendingSaves();
 })();
 
 document.addEventListener('visibilitychange', function () {
