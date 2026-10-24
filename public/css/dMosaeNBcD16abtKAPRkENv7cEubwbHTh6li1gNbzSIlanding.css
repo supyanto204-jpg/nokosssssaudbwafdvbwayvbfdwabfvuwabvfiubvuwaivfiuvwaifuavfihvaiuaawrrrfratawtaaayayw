@@ -1,10 +1,3 @@
-/* =====================================================================
-   AsyrofOTP
-   - Solid, tanpa gradient/glass/blur/shine.
-   - Radius iOS: 14–16px untuk card, 10–12px untuk kontrol, pill 999px.
-   - Animasi spring halus. Hormati prefers-reduced-motion.
-   ===================================================================== */
-
 :root{
   --p:#0a84ff;--p-ink:#ffffff;
   --wa:#1f9d55;--wa-ink:#ffffff;
@@ -51,7 +44,6 @@
 }
 
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-
 html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 
 body{
@@ -453,7 +445,7 @@ summary:focus-visible,
 .notif-copy svg{width:14px;height:14px}
 .notif-copy.done{background:var(--ok)}
 
-/* verified */
+/* verified - tanpa ring hijau */
 .verified{
   position:absolute;inset:0;z-index:5;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -467,21 +459,6 @@ summary:focus-visible,
     transform .5s var(--ease-spring);
 }
 .verified.on{opacity:1;transform:scale(1);pointer-events:auto}
-
-.verified-ring{
-  position:absolute;top:50%;left:50%;
-  width:88px;height:88px;border-radius:50%;
-  border:2px solid var(--ok);
-  transform:translate(-50%,-50%) scale(.6);
-  opacity:0;pointer-events:none;
-}
-.verified.on .verified-ring{
-  animation:ringPulse 1.6s var(--ease-out) infinite;
-}
-@keyframes ringPulse{
-  0%{opacity:.7;transform:translate(-50%,-50%) scale(.7)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(1.6)}
-}
 
 .verified-icon{
   width:64px;height:64px;border-radius:50%;
@@ -978,6 +955,7 @@ section{padding:72px 0;position:relative}
 
 /* ===================== responsive ===================== */
 
+/* Tablet */
 @media (max-width:1024px){
   .hero{padding:44px 0 36px}
   .hero-grid{gap:32px}
@@ -987,13 +965,20 @@ section{padding:72px 0;position:relative}
   .how-preview{min-height:380px}
 }
 
+/* HP: sembunyiin demo & bikin simetris */
 @media (max-width:900px){
   .nav-menu{display:none}
+  
   .hero{padding:40px 0 32px}
-  .hero-grid{grid-template-columns:1fr;gap:32px}
-  .hero-l{max-width:none}
-  .hero-r{justify-content:flex-start}
-  .hero-cta{justify-content:flex-start}
+  .hero-grid{grid-template-columns:1fr;gap:0;text-align:center}
+  .hero-l{max-width:none;display:flex;flex-direction:column;align-items:center}
+  
+  /* Sembunyiin kotak demo WA di HP */
+  .hero-r{display:none}
+  
+  .hero-cta{justify-content:center;width:100%;max-width:440px}
+  .hero-stats{max-width:480px;margin:0 auto}
+  
   .feat-grid{grid-template-columns:1fr;max-width:560px;margin:0 auto}
   .support-grid{grid-template-columns:1fr;max-width:560px}
   .how-demo{grid-template-columns:1fr;min-height:auto}
@@ -1009,13 +994,15 @@ section{padding:72px 0;position:relative}
   .sec-head{margin-bottom:32px}
 }
 
+/* HP Kecil */
 @media (max-width:560px){
   .wrap{padding:0 16px}
   .hero{padding:28px 0 24px}
   .hero-h1{font-size:1.65rem;line-height:1.2;margin-bottom:12px}
   .hero-p{font-size:.88rem;margin-bottom:16px;line-height:1.5}
   .pill{font-size:.7rem;padding:5px 10px;margin-bottom:12px}
-  .hero-cta{flex-direction:column;gap:8px;margin-bottom:16px}
+  
+  .hero-cta{flex-direction:column;gap:8px;margin-bottom:16px;align-items:stretch}
   .btn{width:100%;min-height:44px;font-size:.9rem}
 
   .hero-stats{grid-template-columns:repeat(2,1fr)}
@@ -1112,7 +1099,6 @@ section{padding:72px 0;position:relative}
     transition-duration:.01ms!important;
   }
   .hero-l,.hero-r,.reveal{opacity:1!important;transform:none!important;animation:none!important}
-  .verified.on .verified-ring{animation:none}
 }
 
 @media print{body{display:none!important}}
