@@ -600,6 +600,7 @@ async function createDeposit() {
 }
 
 async function createQrispyDeposit() {
+  // 1. Jalanin paralel: minta reference ID & minta QRIS
   var refPromise = securePost(_cfg.ep.generateRef, {}, 'deposit_ref').then(safeJson);
   var qrisPromise = fetchWithTimeout(_cfg.qrispyBase + '/api/payment/qris/generate', {
     method: 'POST',
@@ -616,19 +617,62 @@ async function createQrispyDeposit() {
     throw new Error((qrispyData && qrispyData.message) || 'Gagal membuat QRIS');
   }
 
-  var saveRes = await securePost(_cfg.ep.save, {
+  // 2. Siapin data state lokal DULU (biar UI bisa langsung render)
+  var d = qrispyData.data;
+  state.deposit = {
     reference_id: referenceId,
     amount: Number(state.amount),
-    qris_id: qrispyData.data.qris_id,
-    qris_url: qrispyData.data.qris_image_url,
-    expired_at: qrispyData.data.expired_at,
-    expires_in_seconds: qrispyData.data.expires_in_seconds
-  }, 'deposit_save');
-  
-  var saveData = await safeJson(saveRes);
-  if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan deposit');
-  state.deposit = saveData.deposit;
+    qris_id: d.qris_id,
+    qris_url: d.qris_image_url,
+    expired_at: d.expired_at,
+    expires_in_seconds: d.expires_in_seconds,
+    total_amount: Number(state.amount),
+    fee: 0
+  };
+
+  // 3. LANGSUNG tampilkan QR ke layar (User bisa langsung scan)
   showPaymentPanel();
+
+  // 4. Proses simpan ke database di background (TIDAK nge-block UI)
+  saveDepositToDb(referenceId, d).catch(function (err) {
+    console.warn('Background save deposit gagal:', err);
+    // Di sini lu bisa tambahin logic retry atau simpen ke localStorage
+    // sebagai fallback kalau server down.
+  });
+}
+
+// Fungsi terpisah khusus buat nge-save ke DB
+async function saveDepositToDb(referenceId, qrisData) {
+  try {
+    var saveRes = await securePost(_cfg.ep.save, {
+      reference_id: referenceId,
+      amount: Number(state.amount),
+      qris_id: qrisData.qris_id,
+      qris_url: qrisData.qris_image_url,
+      expired_at: qrisData.expired_at,
+      expires_in_seconds: qrisData.expires_in_seconds
+    }, 'deposit_save');
+
+    var saveData = await safeJson(saveRes);
+    if (!saveRes.ok) throw new Error(saveData.error || 'Gagal simpan ke DB');
+    
+    // Update state lokal dengan data yang lebih valid dari DB (misal fee, total_amount)
+    if (saveData.deposit) {
+      state.deposit = Object.assign(state.deposit, saveData.deposit);
+      // Kalau fee ternyata udah ada dari DB, update tampilannya
+      updateFeeDisplay();
+    }
+  } catch (err) {
+    // Kalau gagal, coba simpan ke sessionStorage sebagai "Pending Save"
+    // Nanti pas halaman di-load ulang, kita coba simpan lagi.
+    try {
+      var pending = SafeStorage.session.get('pending_deposit_save');
+      var list = pending ? JSON.parse(pending) : [];
+      list.push({ reference_id: referenceId, data: state.deposit });
+      SafeStorage.session.set('pending_deposit_save', JSON.stringify(list));
+    } catch (e) {}
+    throw err;
+  }
 }
 
 function showPaymentPanel() {
@@ -683,6 +727,22 @@ function showPaymentPanel() {
 
   startPolling(d.reference_id);
   fetchQrispyFeeAsync(d.reference_id, d.qris_id, saldoMasuk);
+}
+
+// Fungsi bantuan buat update tampilan fee/total kalau data dari DB baru masuk
+function updateFeeDisplay() {
+  if (!state.deposit) return;
+  var saldoMasuk = Number(state.deposit.amount);
+  var fee = Number(state.deposit.fee) || 0;
+  var totalBayar = Number(state.deposit.total_amount) || saldoMasuk;
+  
+  var feeEl = $('qrFee');
+  var totalEl = $('qrTotal');
+  var amountEl = $('qrAmount');
+  
+  if (feeEl && fee > 0) feeEl.textContent = formatRupiah(fee);
+  if (totalEl && totalBayar !== saldoMasuk) totalEl.textContent = formatRupiah(totalBayar);
+  if (amountEl && totalBayar !== saldoMasuk) amountEl.textContent = formatRupiah(totalBayar);
 }
 
 async function downloadQR() {
@@ -1302,6 +1362,31 @@ document.addEventListener('keydown', function (e) {
   }
 });
 
+async function recoverPendingSaves() {
+  try {
+    var pending = SafeStorage.session.get('pending_deposit_save');
+    if (!pending) return;
+    var list = JSON.parse(pending);
+    if (!Array.isArray(list) || list.length === 0) return;
+    
+    var remaining = [];
+    for (var i = 0; i < list.length; i++) {
+      var item = list[i];
+      try {
+        await securePost(_cfg.ep.save, item.data, 'deposit_save');
+      } catch (e) {
+        remaining.push(item);
+      }
+    }
+    
+    if (remaining.length > 0) {
+      SafeStorage.session.set('pending_deposit_save', JSON.stringify(remaining));
+    } else {
+      SafeStorage.session.remove('pending_deposit_save');
+    }
+  } catch (e) {}
+}
+
 (function init() {
   restoreState();
   updateButton();
@@ -1309,6 +1394,7 @@ document.addEventListener('keydown', function (e) {
   loadPresets();
   loadMethods();
   loadHistory(1);
+  recoverPendingSaves();
 })();
 
 document.addEventListener('visibilitychange', function () {
