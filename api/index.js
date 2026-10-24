@@ -3923,7 +3923,15 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
                 if (service) params.append('service', service);
                 const data = await dibananaFetch(`/countries?${params.toString()}`);
                 if (data.countries) {
-                    const response = { server, countries: data.countries };
+                    const response = {
+                        server,
+                        countries: data.countries.map(c => ({
+                            ...c,
+                            min_price: c.min_price != null && Number(c.min_price) > 0
+                                ? applyMarkup(Number(c.min_price))
+                                : null,
+                        })),
+                    };
                     cacheSet(cacheKey, response, 5 * 60 * 1000);
                     res.set('X-Cache', 'MISS');
                     return res.json(response);
@@ -3996,13 +4004,16 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
             }
 
             countries = list.map(c => {
-                const minPrice = minPriceByCountry[String(c._id)];
+                const rawMin = minPriceByCountry[String(c._id)];
+                const minPrice = (rawMin != null && rawMin > 0)
+                    ? applyMarkup(rawMin)
+                    : null;
                 return {
                     code: c.code,
                     name: c.name,
                     dial_code: c.dial_code,
                     emoji: c.emoji,
-                    min_price: minPrice != null ? minPrice : null,
+                    min_price: minPrice,
                 };
             });
         }
