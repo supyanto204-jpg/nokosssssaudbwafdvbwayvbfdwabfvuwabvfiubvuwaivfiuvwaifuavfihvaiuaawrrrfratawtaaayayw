@@ -425,12 +425,12 @@ const DEPOSIT_METHODS = [
 
 const DEPOSIT_PRESETS = {
     presets: [
+        { amount: 1000, label: 'Rp1.000' },
+        { amount: 5000, label: 'Rp5.000' },
         { amount: 10000, label: 'Rp10.000' },
         { amount: 20000, label: 'Rp20.000' },
         { amount: 50000, label: 'Rp50.000' },
         { amount: 100000, label: 'Rp100.000' },
-        { amount: 200000, label: 'Rp200.000' },
-        { amount: 500000, label: 'Rp500.000' },
     ],
     min: 1000,
     max: 10000000,
@@ -2771,7 +2771,7 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
             metadata: { old_email: oldEmail, new_email: cleanEmail }
         });
 
-        res.json({ message: 'Email berhasil ditautkan dan pesan verifikasi telah dikirim', email: cleanEmail });
+        res.json({ message: 'Email berhasil ditautkan!', email: cleanEmail });
     } catch (err) {
         console.error('Link email error:', err.message);
         
