@@ -3,12 +3,10 @@
 var D=document,W=window;
 var q=function(s,c){return (c||D).querySelector(s)};
 
-// constants
 var STORE_KEY=atob('YXN5cm9mbG9naW5jYWNoZV92MTI=');
 var SALT=atob('c2FsdF9zZWNyZXRfa2V5XzIwMjY=');
 var XORKEY=atob('eG9yX2tleV9hc3lyb2Zfc2VjdXJl');
 
-// crypto helpers
 function enc(str){
 var s=String(str||''),x='';
 for(var i=0;i<s.length;i++)x+=String.fromCharCode(s.charCodeAt(i)^XORKEY.charCodeAt(i%XORKEY.length));
@@ -42,33 +40,24 @@ try{localStorage.setItem(STORE_KEY,enc(JSON.stringify(o)));return true}catch(e){
 }
 function patchCache(p){return writeCache(Object.assign({},readCache()||{},p))}
 
-// redirect kalau sudah login
+// redirect kalau sudah login (jalan instan di background)
 (function(){
 var tk;try{tk=localStorage.getItem('access_token')}catch(e){}
 if(!tk)return;
-var ctrl=new AbortController();
-var t=setTimeout(function(){ctrl.abort()},5000);
-fetch('/api/user',{headers:{Authorization:'Bearer '+tk},signal:ctrl.signal})
+fetch('/api/user',{headers:{Authorization:'Bearer '+tk}})
 .then(function(r){
-clearTimeout(t);
 if(r.ok){W.location.replace('/dashboard');return}
 if(r.status===401||r.status===403){
-try{
-localStorage.removeItem('access_token');
-localStorage.removeItem('user');
-localStorage.removeItem('refresh_token');
-}catch(e){}
+try{localStorage.removeItem('access_token');localStorage.removeItem('user');}catch(e){}
 }
-})
-.catch(function(){clearTimeout(t)});
+}).catch(function(){});
 })();
 
-// theme: light -> dark -> system
+// theme
 (function(){
 var b=q('#themeBtn');if(!b)return;
 var root=D.documentElement;
 var mq=W.matchMedia?W.matchMedia('(prefers-color-scheme: dark)'):null;
-
 function resolve(p){return p==='system'?(mq&&mq.matches?'dark':'light'):p}
 function paintMeta(t){
 var m=q('meta[name="theme-color"]');
@@ -81,12 +70,10 @@ root.setAttribute('data-theme',r);
 paintMeta(r);
 if(save){try{localStorage.setItem('asyrofotp_theme_pref',p)}catch(e){}}
 }
-
 b.addEventListener('click',function(){
 var cur=root.getAttribute('data-theme-pref')||'system';
 setPref(cur==='light'?'dark':cur==='dark'?'system':'light',true);
 });
-
 if(mq){
 var onChange=function(){
 if(root.getAttribute('data-theme-pref')==='system')setPref('system',false);
@@ -96,7 +83,6 @@ else if(mq.addListener)mq.addListener(onChange);
 }
 })();
 
-// elements
 var form=q('#loginForm');
 if(!form)return;
 
@@ -114,7 +100,6 @@ var rememberIn=q('#rememberMe');
 var statusRow=q('#statusRow');
 var statusLabel=q('#statusLabel');
 
-// prefill cache
 (function(){
 var c=readCache();
 if(!c)return;
@@ -128,7 +113,6 @@ patchCache({remember:!!rememberIn.checked});
 });
 }
 
-// alert
 var ICONS={
 info:'<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
 error:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
@@ -143,21 +127,14 @@ if(alertIcon)alertIcon.innerHTML=ICONS[type]||ICONS.info;
 }
 function hideAlert(){if(alertEl)alertEl.className='alert'}
 
-// status
 function setStatus(state,label){
 if(!statusRow)return;
 statusRow.dataset.state=state;
 if(statusLabel&&label)statusLabel.textContent=label;
-if(state==='pending'){
-statusRow.classList.remove('visible');
-statusRow.setAttribute('aria-hidden','true');
-}else{
-statusRow.classList.add('visible');
-statusRow.setAttribute('aria-hidden','false');
-}
+if(state==='pending'){statusRow.classList.remove('visible');statusRow.setAttribute('aria-hidden','true');}
+else{statusRow.classList.add('visible');statusRow.setAttribute('aria-hidden','false');}
 }
 
-// eye toggle
 var EYE_OPEN='<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>';
 var EYE_CLOSED='<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
 var passVisible=false;
@@ -169,7 +146,6 @@ if(eyeIcon)eyeIcon.innerHTML=passVisible?EYE_CLOSED:EYE_OPEN;
 });
 }
 
-// recaptcha
 var RECAPTCHA_KEY='6LdLK9wtAAAAAEkN8PXmZ732lfM-YOSSCF1F7pbg';
 function waitRecaptcha(){
 return new Promise(function(resolve){
@@ -179,11 +155,10 @@ var t=setInterval(function(){
 n++;
 if(W.grecaptcha&&W.grecaptcha.execute){clearInterval(t);resolve()}
 else if(n>=50){clearInterval(t);resolve()}
-},100);
+},50); // 50ms aja, biar cepet
 });
 }
 
-// submit
 form.addEventListener('submit',async function(e){
 e.preventDefault();
 hideAlert();
@@ -201,21 +176,18 @@ submitBtn.disabled=true;
 if(btnText)btnText.textContent='Memproses...';
 var origIcon=btnIcon?btnIcon.outerHTML:'';
 if(btnIcon&&btnIcon.parentNode)btnIcon.outerHTML='<span class="spinner" id="btnIcon"></span>';
-setStatus('running','Memverifikasi kredensial...');
+setStatus('running','Memverifikasi...');
 
 try{
 await waitRecaptcha();
-if(!W.grecaptcha||!W.grecaptcha.execute)throw new Error('Verifikasi keamanan gagal dimuat. Refresh halaman.');
-setStatus('running','Memeriksa keamanan...');
+if(!W.grecaptcha||!W.grecaptcha.execute)throw new Error('Gagal memuat keamanan. Refresh.');
 
 var token=await new Promise(function(resolve,reject){
 W.grecaptcha.ready(function(){
 W.grecaptcha.execute(RECAPTCHA_KEY,{action:'login'}).then(resolve).catch(reject);
 });
-setTimeout(function(){reject(new Error('Timeout verifikasi keamanan'))},10000);
+setTimeout(function(){reject(new Error('Timeout'))},8000);
 });
-
-setStatus('running','Menghubungi server...');
 
 var res=await fetch('/api/auth/login',{
 method:'POST',
@@ -250,7 +222,8 @@ patchCache(cacheNow);
 setStatus('done','Login berhasil!');
 showAlert('Login berhasil! Mengalihkan...','success');
 
-setTimeout(function(){W.location.replace('/dashboard')},800);
+// LANGSUNG PINDAH TANPA DELAY
+W.location.replace('/dashboard');
 
 }catch(err){
 setStatus('failed','Gagal login');
@@ -263,7 +236,6 @@ setTimeout(function(){setStatus('pending','Menunggu')},3000);
 }
 });
 
-// enter di username -> password
 if(userIn){
 userIn.addEventListener('keydown',function(e){
 if(e.key==='Enter'){e.preventDefault();if(passIn)passIn.focus()}
