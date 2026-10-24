@@ -102,7 +102,7 @@
 
 <div class="dashboard-layout">
   <main class="main-content">
-    <div class="topbar">
+    <div class="topbar reveal">
       <div class="topbar-left">
         <h1>Deposit Saldo</h1>
         <p>Top-up saldo buat beli nokos</p>
@@ -124,8 +124,9 @@
       </div>
     </div>
 
+    <!-- layout grid utama: kiri form, kanan info -->
     <div class="deposit-layout">
-      <div class="deposit-card">
+      <div class="deposit-card reveal" style="animation-delay: 0.05s;">
         <div class="step-indicator" id="stepIndicator">
           <div class="step-item active" id="step1">
             <div class="step-icon" id="step1Icon">●</div>
@@ -143,7 +144,7 @@
           </div>
         </div>
 
-        <div id="panelNominal">
+        <div id="panelNominal" class="fade-in">
           <div class="form-title">Mau isi berapa?</div>
           <div class="input-amount-big">
             <div class="prefix">Rp</div>
@@ -162,7 +163,8 @@
         <div id="panelPayment" style="display:none;"></div>
       </div>
 
-      <div class="deposit-sidebar">
+      <!-- Sisi kanan: dibuat flex:1 supaya tarik ke bawah memenuhi ruang kosong -->
+      <div class="deposit-sidebar reveal" style="animation-delay: 0.1s;">
         <div class="side-card banner desktop-only">
           <div class="banner-content">
             <div class="banner-badge">
@@ -202,7 +204,7 @@
       </div>
     </div>
 
-    <div class="history-section">
+    <div class="history-section reveal" style="animation-delay: 0.15s;">
       <div class="section-title">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         <span>Riwayat Deposit</span>
@@ -221,7 +223,7 @@
       <div class="pagination" id="pagination" style="display:none;"></div>
     </div>
 
-    <footer class="site-footer">
+    <footer class="site-footer reveal" style="animation-delay: 0.2s;">
       <div class="site-footer-links">
         <a href="/syarat">Syarat</a>
         <a href="/ketentuan">Ketentuan</a>
@@ -258,6 +260,7 @@
   </div>
 </nav>
 
+<!-- Modal Metode -->
 <div class="modal-overlay" id="modalMethod">
   <div class="modal">
     <div class="modal-header">
@@ -270,14 +273,17 @@
   </div>
 </div>
 
+<!-- Modal Sukses / Notif -->
 <div class="modal-overlay" id="modalPayment">
   <div class="modal" id="modalPaymentContent"></div>
 </div>
 
+<!-- Modal Detail -->
 <div class="modal-overlay" id="modalDetail">
   <div class="modal" id="modalDetailContent"></div>
 </div>
 
+<!-- Custom Alert -->
 <div class="custom-alert-overlay" id="customAlert">
   <div class="custom-alert">
     <div class="custom-alert-icon info" id="customAlertIcon">
