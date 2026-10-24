@@ -2636,9 +2636,16 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
             'SELECT username, name, balance, role, user_code, status, created_at FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
         );
-        if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
         const u = result.rows[0];
-        res.json({
+        
+        // Kirim langsung sebagai JSON string tanpa overhead (lebih cepet buat Vercel)
+        res.set('Content-Type', 'application/json');
+        res.end(JSON.stringify({
             username: u.username,
             name: u.name,
             balance: Number(u.balance) || 0,
@@ -2646,14 +2653,17 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
             user_code: u.user_code,
             status: u.status,
             created_at: u.created_at,
-        });
+        }));
     } catch (err) {
+        console.error('User error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
 
 app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { name } = req.body;
+    
+    // Validasi secepat mungkin sebelum nyentuh DB
     if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Nama minimal 2 karakter' });
     if (name.trim().length > 50) return res.status(400).json({ error: 'Nama maksimal 50 karakter' });
 
@@ -2662,9 +2672,15 @@ app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(a
             'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING username, name, balance, user_code',
             [name.trim(), req.user.id]
         );
-        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+        
+        if (result.rowCount === 0) {
+            return res.status(404).json({ error: 'User tidak ditemukan' });
+        }
+        
         const u = result.rows[0];
-        res.json({
+        
+        res.set('Content-Type', 'application/json');
+        res.end(JSON.stringify({
             message: 'Profil berhasil diupdate',
             user: {
                 username: u.username,
@@ -2672,8 +2688,9 @@ app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(a
                 balance: Number(u.balance) || 0,
                 user_code: u.user_code,
             }
-        });
+        }));
     } catch (err) {
+        console.error('Update user error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -2701,20 +2718,44 @@ app.post('/api/user/change-password', requireAuth, userRateLimit(5, 60 * 1000), 
 
 app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
-        const result = await pool.query(
-            `SELECT service_name, country, country_flag, phone_number, status, price, otp_code, created_at
-             FROM transactions WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
-            [req.user.id]
-        );
-        const transactions = result.rows;
-        const stats = {
-            total: transactions.length,
-            success: transactions.filter(t => t.status === 'success').length,
-            pending: transactions.filter(t => t.status === 'pending').length,
-            failed: transactions.filter(t => t.status === 'failed').length
-        };
-        res.json({ stats, transactions: transactions.slice(0, 5) });
+        // 1. Hitung statistik langsung di database (Super Cepat)
+        const statsRes = await pool.query(`
+            SELECT 
+                COUNT(*) as total,
+                COUNT(*) FILTER (WHERE status = 'success') as success,
+                COUNT(*) FILTER (WHERE status = 'pending') as pending,
+                COUNT(*) FILTER (WHERE status = 'canceled' OR status = 'cancelled') as canceled,
+                COUNT(*) FILTER (WHERE status = 'failed') as failed
+            FROM transactions 
+            WHERE user_id = $1
+        `, [req.user.id]);
+
+        const s = statsRes.rows[0];
+
+        // 2. Cuma tarik 5 data terakhir buat ditampilin (Hemat bandwidth)
+        const recentRes = await pool.query(`
+            SELECT service_name, country, country_flag, phone_number, status, price, otp_code, created_at
+            FROM transactions 
+            WHERE user_id = $1 
+            ORDER BY created_at DESC 
+            LIMIT 5
+        `, [req.user.id]);
+
+        // 3. Kirim respon
+        res.set('Content-Type', 'application/json');
+        res.end(JSON.stringify({
+            stats: {
+                total: Number(s.total) || 0,
+                success: Number(s.success) || 0,
+                pending: Number(s.pending) || 0,
+                canceled: Number(s.canceled) || 0,
+                failed: Number(s.failed) || 0
+            },
+            transactions: recentRes.rows
+        }));
+
     } catch (err) {
+        console.error('Dashboard error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
