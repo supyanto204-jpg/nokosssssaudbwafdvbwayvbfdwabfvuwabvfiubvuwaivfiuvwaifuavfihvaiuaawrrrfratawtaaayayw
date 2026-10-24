@@ -1,122 +1,59 @@
 (function (global) {
 'use strict';
 
-// storage yang aman kalau localStorage diblokir (private mode, dsb)
 var SafeStorage = (function () {
   var ls = null, ss = null;
   try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch (e) { ls = null; }
   try { ss = window.sessionStorage; ss.setItem('__t','1'); ss.removeItem('__t'); } catch (e) { ss = null; }
   var mem = new Map();
-  function wrap(store, prefix) {
+  function wrap(store) {
     return {
-      get: function (k) { try { return store ? store.getItem(prefix + k) : (mem.get(prefix + k) ?? null); } catch (e) { return mem.get(prefix + k) ?? null; } },
-      set: function (k, v) { try { if (store) store.setItem(prefix + k, v); else mem.set(prefix + k, v); } catch (e) { mem.set(prefix + k, v); } },
-      remove: function (k) { try { if (store) store.removeItem(prefix + k); else mem.delete(prefix + k); } catch (e) { mem.delete(prefix + k); } },
-      keys: function () { try { return store ? Object.keys(store) : Array.from(mem.keys()); } catch (e) { return Array.from(mem.keys()); } }
+      get: function (k) { try { return store ? store.getItem(k) : (mem.has(k) ? mem.get(k) : null); } catch (e) { return mem.has(k) ? mem.get(k) : null; } },
+      set: function (k, v) { try { if (store) store.setItem(k, v); else mem.set(k, v); } catch (e) { mem.set(k, v); } },
+      remove: function (k) { try { if (store) store.removeItem(k); else mem.delete(k); } catch (e) { mem.delete(k); } }
     };
   }
-  return { local: wrap(ls, ''), session: wrap(ss, '') };
+  return { local: wrap(ls), session: wrap(ss) };
 })();
 
-// AES-GCM wrapper. fallback ke base64 obfuscation kalau subtle crypto gak ada.
-var _crypto = (function () {
-  var _k = 'cHJvZmlsZS1zZWNyZXQta2V5LTIwMjYtYXN5cm9m';
-  var _s = 'c2FsdC1wcm9maWxlLXYyMDI2LXNlY3VyZQ==';
-  var _i = 100000;
-  var _dk = null;
-
-  var supported = (function () {
-    try { return !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues); }
-    catch (e) { return false; }
-  })();
-
-  async function _derive() {
-    if (_dk) return _dk;
-    var enc = new TextEncoder();
-    var base = await crypto.subtle.importKey('raw', enc.encode(atob(_k)), { name: 'PBKDF2' }, false, ['deriveKey']);
-    _dk = await crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt: enc.encode(atob(_s)), iterations: _i, hash: 'SHA-256' },
-      base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
-    );
-    return _dk;
-  }
-  function _b2buf(b64) {
-    var bin = atob(b64), u = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    return u.buffer;
-  }
-  function _buf2b(buf) {
-    var b = new Uint8Array(buf), s = '';
-    for (var i = 0; i < b.length; i++) s += String.fromCharCode(b[i]);
-    return btoa(s);
-  }
-  function _fbSeal(obj) { try { return 'fb:' + btoa(unescape(encodeURIComponent(JSON.stringify(obj)))); } catch (e) { return null; } }
-  function _fbUnseal(b64) { try { return JSON.parse(decodeURIComponent(escape(atob(b64.slice(3))))); } catch (e) { return null; } }
-
-  async function seal(obj) {
-    if (!supported) return _fbSeal(obj);
-    try {
-      var key = await _derive();
-      var iv = crypto.getRandomValues(new Uint8Array(12));
-      var c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, key, new TextEncoder().encode(JSON.stringify(obj)));
-      var comb = new Uint8Array(iv.length + c.byteLength);
-      comb.set(iv, 0);
-      comb.set(new Uint8Array(c), iv.length);
-      return _buf2b(comb.buffer);
-    } catch (e) { return _fbSeal(obj); }
-  }
-  async function unseal(b64) {
-    if (!b64) return null;
-    if (b64.indexOf('fb:') === 0) return _fbUnseal(b64);
-    if (!supported) return null;
-    try {
-      var key = await _derive();
-      var buf = _b2buf(b64);
-      var iv = buf.slice(0, 12);
-      var data = buf.slice(12);
-      var plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, data);
-      return JSON.parse(new TextDecoder().decode(plain));
-    } catch (e) { return null; }
-  }
-  return { seal: seal, unseal: unseal };
-})();
-
-// cache dua lapis: memori dulu, baru storage terenkripsi
 var Cache = (function () {
   var P = 'aotp_p_';
-  var _mem = new Map();
-
-  async function get(key, ttl) {
-    if (_mem.has(key)) {
-      var e = _mem.get(key);
+  var mem = new Map();
+  function get(key, ttl) {
+    if (mem.has(key)) {
+      var e = mem.get(key);
       if (!ttl || Date.now() - e.t < ttl) return e.v;
-      _mem.delete(key);
+      mem.delete(key);
     }
     try {
       var raw = SafeStorage.local.get(P + key);
       if (!raw) return null;
-      var e2 = await _crypto.unseal(raw);
-      if (!e2) return null;
-      if (ttl && Date.now() - e2.t > ttl) { SafeStorage.local.remove(P + key); return null; }
-      _mem.set(key, e2);
-      return e2.v;
-    } catch (err) { return null; }
+      var parsed = JSON.parse(raw);
+      if (!parsed || !parsed.t) return null;
+      if (ttl && Date.now() - parsed.t > ttl) { SafeStorage.local.remove(P + key); return null; }
+      mem.set(key, parsed);
+      return parsed.v;
+    } catch (e) { return null; }
   }
-  async function set(key, v) {
+  function set(key, v) {
     var e = { t: Date.now(), v: v };
-    _mem.set(key, e);
-    try {
-      var s = await _crypto.seal(e);
-      if (s) SafeStorage.local.set(P + key, s);
-    } catch (err) {}
+    mem.set(key, e);
+    try { SafeStorage.local.set(P + key, JSON.stringify(e)); } catch (err) {}
   }
   function remove(key) {
-    _mem.delete(key);
+    mem.delete(key);
     try { SafeStorage.local.remove(P + key); } catch (e) {}
   }
   function clear() {
-    _mem.clear();
-    try { SafeStorage.local.keys().forEach(function (k) { if (k.indexOf(P) === 0) SafeStorage.local.remove(k); }); } catch (e) {}
+    mem.clear();
+    try {
+      var keys = [];
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf(P) === 0) keys.push(k);
+      }
+      keys.forEach(function (k) { SafeStorage.local.remove(k); });
+    } catch (e) {}
   }
   return { get: get, set: set, remove: remove, clear: clear };
 })();
@@ -127,6 +64,7 @@ var _cfg = {
     user: '/api/user',
     updateName: '/api/user/update',
     changePassword: '/api/user/change-password',
+    linkEmail: '/api/user/link-email',
     logout: '/api/auth/logout',
     orderStats: '/api/nokos/orders/stats',
     saldoActivity: '/api/user/saldo-activity'
@@ -134,29 +72,6 @@ var _cfg = {
   ttl: { user: 5 * 60 * 1000, chart: 2 * 60 * 1000 },
   fetchTimeout: 12000
 };
-
-// security nudge + strip query string
-(function () {
-  try {
-    console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
-    console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
-  } catch (e) {}
-  document.addEventListener('copy', function (e) {
-    var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (t && t.closest && t.closest('[data-copy]')) return;
-    e.preventDefault();
-  });
-  document.addEventListener('cut', function (e) {
-    var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    e.preventDefault();
-  });
-  try {
-    var clean = location.origin + location.pathname;
-    if (location.search) history.replaceState(null, '', clean);
-  } catch (e) {}
-})();
 
 var token = null;
 try { token = SafeStorage.local.get('access_token'); } catch (e) { token = null; }
@@ -175,9 +90,7 @@ function fetchWithTimeout(url, opts, ms) {
   return fetch(url, o).finally(function () { if (timer) clearTimeout(timer); });
 }
 
-function formatRupiah(n) {
-  return 'Rp' + (Number(n) || 0).toLocaleString('id-ID');
-}
+function formatRupiah(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
 function formatRupiahShort(n) {
   var v = Number(n) || 0;
   if (v >= 1e9) return 'Rp' + (v / 1e9).toFixed(1) + 'M';
@@ -185,9 +98,7 @@ function formatRupiahShort(n) {
   if (v >= 1e3) return 'Rp' + (v / 1e3).toFixed(0) + 'rb';
   return 'Rp' + v;
 }
-function getInitial(name) {
-  return String(name || '?').trim().charAt(0).toUpperCase() || '?';
-}
+function getInitial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
 function escapeHtml(v) {
   return String(v ?? '').replace(/[&<>"']/g, function (ch) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
@@ -259,46 +170,77 @@ async function securePost(url, body, action) {
   });
 }
 
-// theme toggle. chart di-redraw karena warna stroke-nya hardcoded per theme
-(function () {
+function lockBody() {
+  var sw = window.innerWidth - document.documentElement.clientWidth;
+  document.body.style.setProperty('--scrollbar-width', sw + 'px');
+  document.body.classList.add('modal-open');
+}
+function unlockBody() {
+  if (!document.querySelector('.modal-overlay.active')) {
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('--scrollbar-width');
+  }
+}
+
+(function themeInit() {
   var btn = $('themeBtn');
   if (!btn) return;
-  btn.addEventListener('click', function () {
-    var cur = document.documentElement.getAttribute('data-theme') || 'light';
-    var nx = cur === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', nx);
-    try { SafeStorage.local.set('asyrofotp_theme', nx); } catch (e) {}
+  var root = document.documentElement;
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function resolve(pref) {
+    if (pref === 'system') return (mq && mq.matches) ? 'dark' : 'light';
+    return pref;
+  }
+  function paintMeta(theme) {
     var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#0a84ff');
-    if (state.chartOrder.data) drawChart('order', state.chartOrder.data);
-    if (state.chartSaldo.data) drawChart('saldo', state.chartSaldo.data);
+    if (m) m.setAttribute('content', theme === 'dark' ? '#0a0b0d' : '#0a84ff');
+  }
+  function setPref(pref, save) {
+    root.setAttribute('data-theme-pref', pref);
+    var resolved = resolve(pref);
+    root.setAttribute('data-theme', resolved);
+    paintMeta(resolved);
+    if (save) SafeStorage.local.set('asyrofotp_theme_pref', pref);
+  }
+
+  btn.addEventListener('click', function () {
+    var cur = root.getAttribute('data-theme-pref') || 'system';
+    var next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
+    setPref(next, true);
   });
+
+  if (mq) {
+    var onOsChange = function () {
+      if (root.getAttribute('data-theme-pref') === 'system') setPref('system', false);
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onOsChange);
+    else if (mq.addListener) mq.addListener(onOsChange);
+  }
 })();
 
-// collapse sidebar. persist state, skip kalau mobile
-(function () {
+(function sidebarInit() {
   var sidebar = $('sidebar');
-  var btn = $('collapseBtn');
-  if (!sidebar || !btn) return;
-  var isCollapsed = SafeStorage.local.get('sidebar_collapsed') === 'true';
-  if (isCollapsed && window.innerWidth > 768) {
+  var collapseBtn = $('collapseBtn');
+  if (!sidebar || !collapseBtn) return;
+  if (SafeStorage.local.get('sidebar_collapsed') === 'true' && window.innerWidth > 768) {
     sidebar.classList.add('collapsed');
     document.body.classList.add('sidebar-collapsed');
   }
-  btn.addEventListener('click', function () {
+  collapseBtn.addEventListener('click', function () {
     if (window.innerWidth <= 768) return;
     var c = sidebar.classList.toggle('collapsed');
     document.body.classList.toggle('sidebar-collapsed', c);
-    try { SafeStorage.local.set('sidebar_collapsed', c); } catch (e) {}
+    SafeStorage.local.set('sidebar_collapsed', c ? 'true' : 'false');
   });
 })();
 
-// sidebar drawer mobile. debounce 300ms biar touchend+click gak double-fire
-(function () {
+(function mobileSidebarInit() {
   var toggle = $('mobileToggle');
   var sidebar = $('sidebar');
   var overlay = $('sidebarOverlay');
   if (!toggle || !sidebar || !overlay) return;
+
   var open = false;
   var lastToggle = 0;
 
@@ -308,7 +250,7 @@ async function securePost(url, body, action) {
     sidebar.classList.add('open');
     overlay.classList.add('active');
     document.body.classList.add('sidebar-open');
-    document.body.style.overflow = 'hidden';
+    lockBody();
   }
   function closeSb() {
     if (!open) return;
@@ -316,7 +258,7 @@ async function securePost(url, body, action) {
     sidebar.classList.remove('open');
     overlay.classList.remove('active');
     document.body.classList.remove('sidebar-open');
-    document.body.style.overflow = '';
+    unlockBody();
   }
   function onToggle(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -358,7 +300,7 @@ var state = {
 
 async function loadUser(force) {
   if (!force) {
-    var cached = await Cache.get('user', _cfg.ttl.user);
+    var cached = Cache.get('user', _cfg.ttl.user);
     if (cached) renderUser(cached);
   }
   try {
@@ -368,7 +310,7 @@ async function loadUser(force) {
     if (res.status === 401 || res.status === 403) { handleLogout(); return; }
     var user = await safeJson(res);
     if (user && !user.error) {
-      await Cache.set('user', user);
+      Cache.set('user', user);
       state.user = user;
       renderUser(user);
     }
@@ -394,6 +336,20 @@ function renderUser(user) {
   set('statSaldoNow', bal);
   var inputName = $('inputName');
   if (inputName) inputName.value = user.name || '';
+
+  var emailEl = $('infoEmail');
+  if (emailEl) {
+    if (user.email) {
+      emailEl.innerHTML = '<span>' + escapeHtml(user.email) + '</span>';
+    } else {
+      emailEl.innerHTML = '<button class="btn btn-primary" id="btnLinkEmail" type="button" style="padding:4px 12px;font-size:0.75rem;min-height:32px;background:var(--surface-2);color:var(--warn);border-color:var(--border);">Tautkan Email</button>';
+      var btnLink = $('btnLinkEmail');
+      if (btnLink) {
+        btnLink.addEventListener('click', function() { openModal('modalEmail'); });
+      }
+    }
+  }
+
   if (user.user_code) {
     var code = String(user.user_code);
     var badge = $('profileCodeBadge');
@@ -405,253 +361,20 @@ function renderUser(user) {
   }
 }
 
-var COLORS = {
-  success: '#34c759',
-  successGlow: 'rgba(52, 199, 89, 0.2)',
-  danger: '#ff3b30',
-  dangerGlow: 'rgba(255, 59, 48, 0.15)',
-  primary: '#0a84ff',
-  primaryGlow: 'rgba(10, 132, 255, 0.2)',
-  grid: 'rgba(142, 142, 147, 0.15)',
-  text: '#8e8e93'
-};
-
-// manual SVG chart. gak pakai lib biar bundle kecil.
-function buildChartSVG(svgEl, series, opts) {
-  opts = opts || {};
-  if (!svgEl) return;
-  var W = 800, H = 260;
-  var padL = 50, padR = 20, padT = 20, padB = 30;
-  var innerW = W - padL - padR;
-  var innerH = H - padT - padB;
-  var allValues = [];
-  series.forEach(function (s) { s.points.forEach(function (p) { allValues.push(p.y); }); });
-  if (allValues.length === 0) { svgEl.innerHTML = ''; return; }
-  var minY = Math.min.apply(null, allValues);
-  var maxY = Math.max.apply(null, allValues);
-  if (minY === maxY) { maxY = minY + 1; minY = Math.max(0, minY - 1); }
-  if (opts.allowNegative && minY > 0) minY = 0;
-  if (opts.allowNegative && maxY < 0) maxY = 0;
-  var rangeY = maxY - minY;
-  var n = series[0].points.length;
-  var stepX = n > 1 ? innerW / (n - 1) : innerW;
-
-  function x(i) { return padL + i * stepX; }
-  function y(v) { return padT + innerH - ((v - minY) / rangeY) * innerH; }
-
-  function buildPath(points) {
-    if (points.length === 0) return '';
-    var d = '';
-    points.forEach(function (p, i) {
-      var px = x(i);
-      var py = y(p.y);
-      if (i === 0) d += 'M ' + px.toFixed(1) + ' ' + py.toFixed(1);
-      else {
-        var prev = points[i - 1];
-        var prevX = x(i - 1);
-        var prevY = y(prev.y);
-        var cx1 = prevX + (px - prevX) / 3;
-        var cy1 = prevY;
-        var cx2 = px - (px - prevX) / 3;
-        var cy2 = py;
-        d += ' C ' + cx1.toFixed(1) + ' ' + cy1.toFixed(1) + ', ' + cx2.toFixed(1) + ' ' + cy2.toFixed(1) + ', ' + px.toFixed(1) + ' ' + py.toFixed(1);
-      }
-    });
-    return d;
-  }
-
-  var gridLines = '';
-  var gridCount = 4;
-  for (var i = 0; i <= gridCount; i++) {
-    var gy = padT + (innerH / gridCount) * i;
-    var val = maxY - (rangeY / gridCount) * i;
-    gridLines += '<line x1="' + padL + '" y1="' + gy.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + gy.toFixed(1) + '" stroke="' + COLORS.grid + '" stroke-width="1" stroke-dasharray="4 4"/>';
-    gridLines += '<text x="' + (padL - 8) + '" y="' + (gy + 4).toFixed(1) + '" fill="' + COLORS.text + '" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="end">' + formatRupiahShort(val) + '</text>';
-  }
-  var xLabels = '';
-  var xStep = Math.max(1, Math.floor(n / 6));
-  for (var i2 = 0; i2 < n; i2 += xStep) {
-    var px2 = x(i2);
-    var p2 = series[0].points[i2];
-    if (p2 && p2.label) {
-      xLabels += '<text x="' + px2.toFixed(1) + '" y="' + (H - 8) + '" fill="' + COLORS.text + '" font-size="10" font-family="JetBrains Mono, monospace" text-anchor="middle">' + escapeHtml(p2.label) + '</text>';
-    }
-  }
-  var seriesSVG = '';
-  series.forEach(function (s) {
-    var pathD = buildPath(s.points);
-    if (!pathD) return;
-    var areaD = pathD + ' L ' + x(n - 1).toFixed(1) + ' ' + (padT + innerH).toFixed(1) + ' L ' + x(0).toFixed(1) + ' ' + (padT + innerH).toFixed(1) + ' Z';
-    seriesSVG +=
-      '<defs><linearGradient id="grad-' + s.id + '" x1="0" y1="0" x2="0" y2="1">' +
-        '<stop offset="0%" stop-color="' + s.color + '" stop-opacity="0.3"/>' +
-        '<stop offset="100%" stop-color="' + s.color + '" stop-opacity="0"/>' +
-      '</linearGradient></defs>' +
-      '<path d="' + areaD + '" fill="url(#grad-' + s.id + ')" />' +
-      '<path d="' + pathD + '" fill="none" stroke="' + s.color + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />';
-    s.points.forEach(function (p, i3) {
-      var px3 = x(i3);
-      var py3 = y(p.y);
-      seriesSVG += '<circle cx="' + px3.toFixed(1) + '" cy="' + py3.toFixed(1) + '" r="3" fill="' + s.color + '" stroke="white" stroke-width="1.5"/>';
-    });
-  });
-  svgEl.innerHTML = gridLines + xLabels + seriesSVG;
-}
-
-async function loadChartOrder(range, force) {
-  range = range || 7;
-  state.chartOrder.range = range;
-  var svgEl = $('chartOrderSvg');
-  var loading = $('chartOrderLoading');
-  var empty = $('chartOrderEmpty');
-  if (loading) loading.style.display = 'flex';
-  if (empty) empty.style.display = 'none';
-  if (svgEl) svgEl.innerHTML = '';
-  var cacheKey = 'chart_order_' + range;
-  if (!force) {
-    var cached = await Cache.get(cacheKey, _cfg.ttl.chart);
-    if (cached) {
-      state.chartOrder.data = cached;
-      renderChartOrder(cached);
-      if (loading) loading.style.display = 'none';
-      return;
-    }
-  }
-  try {
-    var res = await fetchWithTimeout(_cfg.ep.orderStats + '?range=' + range, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    var data = await safeJson(res);
-    state.chartOrder.data = data;
-    await Cache.set(cacheKey, data);
-    renderChartOrder(data);
-  } catch (err) {
-    console.warn('Chart order error:', err);
-    if (empty) empty.style.display = 'flex';
-  } finally {
-    if (loading) loading.style.display = 'none';
-  }
-}
-
-function renderChartOrder(data) {
-  var svgEl = $('chartOrderSvg');
-  var empty = $('chartOrderEmpty');
-  if (!data || !data.labels || data.labels.length === 0) {
-    if (empty) empty.style.display = 'flex';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  var labels = data.labels || [];
-  var successArr = data.success || [];
-  var failedArr = data.failed || [];
-  var successPoints = labels.map(function (l, i) { return { y: successArr[i] || 0, label: l }; });
-  var failedPoints = labels.map(function (l, i) { return { y: failedArr[i] || 0, label: l }; });
-  buildChartSVG(svgEl, [
-    { id: 'success', color: COLORS.success, points: successPoints },
-    { id: 'failed', color: COLORS.danger, points: failedPoints }
-  ]);
-  var total = data.total || 0;
-  var succ = successArr.reduce(function (a, b) { return a + b; }, 0);
-  var fail = failedArr.reduce(function (a, b) { return a + b; }, 0);
-  var rate = total > 0 ? Math.round((succ / total) * 100) : 0;
-  var set = function (id, txt) { var el = $(id); if (el) el.textContent = txt; };
-  set('statTotalOrders', total);
-  set('statSuccessOrders', succ);
-  set('statFailedOrders', fail);
-  set('statSuccessRate', rate + '%');
-}
-
-async function loadChartSaldo(range, force) {
-  range = range || 7;
-  state.chartSaldo.range = range;
-  var svgEl = $('chartSaldoSvg');
-  var loading = $('chartSaldoLoading');
-  var empty = $('chartSaldoEmpty');
-  if (loading) loading.style.display = 'flex';
-  if (empty) empty.style.display = 'none';
-  if (svgEl) svgEl.innerHTML = '';
-  var cacheKey = 'chart_saldo_' + range;
-  if (!force) {
-    var cached = await Cache.get(cacheKey, _cfg.ttl.chart);
-    if (cached) {
-      state.chartSaldo.data = cached;
-      renderChartSaldo(cached);
-      if (loading) loading.style.display = 'none';
-      return;
-    }
-  }
-  try {
-    var res = await fetchWithTimeout(_cfg.ep.saldoActivity + '?range=' + range, {
-      headers: { Authorization: 'Bearer ' + token }
-    });
-    var data = await safeJson(res);
-    state.chartSaldo.data = data;
-    await Cache.set(cacheKey, data);
-    renderChartSaldo(data);
-  } catch (err) {
-    console.warn('Chart saldo error:', err);
-    if (empty) empty.style.display = 'flex';
-  } finally {
-    if (loading) loading.style.display = 'none';
-  }
-}
-
-function renderChartSaldo(data) {
-  var svgEl = $('chartSaldoSvg');
-  var empty = $('chartSaldoEmpty');
-  if (!data || !data.labels || data.labels.length === 0) {
-    if (empty) empty.style.display = 'flex';
-    return;
-  }
-  if (empty) empty.style.display = 'none';
-  var labels = data.labels || [];
-  var balanceArr = data.balance || [];
-  var points = labels.map(function (l, i) { return { y: balanceArr[i] || 0, label: l }; });
-  buildChartSVG(svgEl, [{ id: 'balance', color: COLORS.primary, points: points }], { allowNegative: true });
-  var totalIn = data.total_in || 0;
-  var totalOut = data.total_out || 0;
-  var now = balanceArr.length > 0 ? balanceArr[balanceArr.length - 1] : 0;
-  var set = function (id, txt) { var el = $(id); if (el) el.textContent = txt; };
-  set('statSaldoIn', formatRupiahShort(totalIn));
-  set('statSaldoOut', formatRupiahShort(totalOut));
-  set('statSaldoNow', formatRupiah(now));
-}
-
-// chart tab switcher (7/30/90 hari)
-(function () {
-  var tabsOrder = document.querySelectorAll('#chartOrderTabs .chart-tab');
-  tabsOrder.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      tabsOrder.forEach(function (t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      loadChartOrder(Number(tab.dataset.range), true);
-    });
-  });
-  var tabsSaldo = document.querySelectorAll('#chartSaldoTabs .chart-tab');
-  tabsSaldo.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      tabsSaldo.forEach(function (t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      loadChartSaldo(Number(tab.dataset.range), true);
-    });
-  });
-})();
-
 function openModal(id) {
   var m = $(id);
   if (m) {
     m.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    lockBody();
   }
 }
 function closeModal(el) {
   if (!el) return;
   el.classList.remove('active');
-  if (!document.querySelector('.modal-overlay.active')) document.body.style.overflow = '';
+  unlockBody();
 }
 
-// modal wiring. esc + click luar = tutup
-(function () {
+(function modalInit() {
   var btnEdit = $('btnEditName');
   if (btnEdit) btnEdit.addEventListener('click', function () { openModal('modalName'); });
   var btnPass = $('btnChangePassword');
@@ -676,8 +399,7 @@ function closeModal(el) {
   });
 })();
 
-// toggle password visibility
-(function () {
+(function pwdToggleInit() {
   document.querySelectorAll('.password-toggle').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var input = $(btn.dataset.toggle);
@@ -697,8 +419,7 @@ function closeModal(el) {
   });
 })();
 
-// password strength meter. heuristik 0-4, bukan zxcvbn.
-(function () {
+(function pwdStrengthInit() {
   var input = $('inputNewPassword');
   var meter = $('pwdStrength');
   if (!input || !meter) return;
@@ -734,8 +455,7 @@ function hideAlert(id) {
   if (el) el.classList.remove('show');
 }
 
-// form update nama
-(function () {
+(function formNameInit() {
   var form = $('formName');
   if (!form) return;
   form.addEventListener('submit', async function (e) {
@@ -774,8 +494,7 @@ function hideAlert(id) {
   });
 })();
 
-// form ganti password
-(function () {
+(function formPasswordInit() {
   var form = $('formPassword');
   if (!form) return;
   form.addEventListener('submit', async function (e) {
@@ -812,8 +531,42 @@ function hideAlert(id) {
   });
 })();
 
-// tombol copy user code (badge + inline)
-(function () {
+(function formEmailInit() {
+  var form = $('formEmail');
+  if (!form) return;
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    hideAlert('alertEmail');
+    var email = ($('inputEmail').value || '').trim();
+    var btn = $('btnSaveEmail');
+    var orig = btn.innerHTML;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showAlert('alertEmail', 'Format email tidak valid', 'error');
+      return;
+    }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-sm"></span> Menautkan...';
+    try {
+      var res = await securePost(_cfg.ep.linkEmail, { email: email }, 'link_email');
+      var data = await safeJson(res);
+      if (!res.ok || data.error) throw new Error(data.error || 'Gagal menautkan email');
+      showAlert('alertEmail', 'Email berhasil ditautkan!', 'success');
+      setTimeout(function () {
+        closeModal($('modalEmail'));
+        hideAlert('alertEmail');
+        Cache.remove('user');
+        loadUser(true);
+      }, 1200);
+    } catch (err) {
+      showAlert('alertEmail', err.message || 'Gagal menautkan email', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  });
+})();
+
+(function copyInit() {
   var badge = $('profileCodeBadge');
   if (badge) {
     badge.addEventListener('click', function () {
@@ -840,15 +593,13 @@ async function handleLogout() {
     });
   } catch (e) {}
   Cache.clear();
-  try {
-    SafeStorage.local.remove('access_token');
-    SafeStorage.local.remove('user');
-    SafeStorage.local.remove('refresh_token');
-  } catch (e) {}
+  SafeStorage.local.remove('access_token');
+  SafeStorage.local.remove('user');
+  SafeStorage.local.remove('refresh_token');
   location.href = '/landing';
 }
 
-(function () {
+(function logoutInit() {
   var btn = $('logoutBtn');
   if (!btn) return;
   btn.addEventListener('click', function () {
@@ -858,8 +609,6 @@ async function handleLogout() {
 
 function init() {
   loadUser(false);
-  loadChartOrder(7, false);
-  loadChartSaldo(7, false);
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
