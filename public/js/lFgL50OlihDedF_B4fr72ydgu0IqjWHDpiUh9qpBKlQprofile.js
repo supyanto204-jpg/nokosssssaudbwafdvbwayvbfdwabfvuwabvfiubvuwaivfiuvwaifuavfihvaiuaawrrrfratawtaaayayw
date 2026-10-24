@@ -91,13 +91,6 @@ function fetchWithTimeout(url, opts, ms) {
 }
 
 function formatRupiah(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
-function formatRupiahShort(n) {
-  var v = Number(n) || 0;
-  if (v >= 1e9) return 'Rp' + (v / 1e9).toFixed(1) + 'M';
-  if (v >= 1e6) return 'Rp' + (v / 1e6).toFixed(1) + 'jt';
-  if (v >= 1e3) return 'Rp' + (v / 1e3).toFixed(0) + 'rb';
-  return 'Rp' + v;
-}
 function getInitial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
 function escapeHtml(v) {
   return String(v ?? '').replace(/[&<>"']/g, function (ch) {
@@ -333,16 +326,31 @@ function renderUser(user) {
   set('infoUsername', '@' + (user.username || ''));
   set('infoName', user.name || '—');
   set('infoBalance', bal);
-  set('statSaldoNow', bal);
   var inputName = $('inputName');
   if (inputName) inputName.value = user.name || '';
 
+  // --- LOGIKA EMAIL (Tautkan / Ganti) ---
   var emailEl = $('infoEmail');
   if (emailEl) {
     if (user.email) {
-      emailEl.innerHTML = '<span>' + escapeHtml(user.email) + '</span>';
+      // Udah ada email: tampilin teks + tombol ganti
+      emailEl.innerHTML = 
+        '<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
+          '<span>' + escapeHtml(user.email) + '</span>' +
+          '<button class="btn btn-primary" id="btnChangeEmail" type="button" style="padding:2px 10px;font-size:0.7rem;min-height:28px;background:var(--surface-2);color:var(--txt2);border-color:var(--border);">Ganti</button>' +
+        '</span>';
+      var btnChange = $('btnChangeEmail');
+      if (btnChange) {
+        btnChange.addEventListener('click', function() { 
+          var input = $('inputEmail');
+          if (input) input.value = user.email; // Pre-fill email lama
+          openModal('modalEmail'); 
+        });
+      }
     } else {
-      emailEl.innerHTML = '<button class="btn btn-primary" id="btnLinkEmail" type="button" style="padding:4px 12px;font-size:0.75rem;min-height:32px;background:var(--surface-2);color:var(--warn);border-color:var(--border);">Tautkan Email</button>';
+      // Belum ada email: tampilin tombol tautkan
+      emailEl.innerHTML = 
+        '<button class="btn btn-primary" id="btnLinkEmail" type="button" style="padding:4px 12px;font-size:0.75rem;min-height:32px;background:var(--surface-2);color:var(--warn);border-color:var(--border);">Tautkan Email</button>';
       var btnLink = $('btnLinkEmail');
       if (btnLink) {
         btnLink.addEventListener('click', function() { openModal('modalEmail'); });
@@ -540,23 +548,31 @@ function hideAlert(id) {
     var email = ($('inputEmail').value || '').trim();
     var btn = $('btnSaveEmail');
     var orig = btn.innerHTML;
+    
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showAlert('alertEmail', 'Format email tidak valid', 'error');
       return;
     }
+    
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-sm"></span> Menautkan...';
+    btn.innerHTML = '<span class="spinner-sm"></span> Mengirim verifikasi...';
+    
     try {
       var res = await securePost(_cfg.ep.linkEmail, { email: email }, 'link_email');
       var data = await safeJson(res);
-      if (!res.ok || data.error) throw new Error(data.error || 'Gagal menautkan email');
-      showAlert('alertEmail', 'Email berhasil ditautkan!', 'success');
+      
+      if (!res.ok || data.error) throw new Error(data.error || 'Gagal menyimpan email');
+      
+      showAlert('alertEmail', 'Email berhasil ditautkan! Pesan verifikasi telah dikirim.', 'success');
+      
       setTimeout(function () {
         closeModal($('modalEmail'));
         hideAlert('alertEmail');
+        form.reset();
         Cache.remove('user');
         loadUser(true);
-      }, 1200);
+      }, 2000);
+      
     } catch (err) {
       showAlert('alertEmail', err.message || 'Gagal menautkan email', 'error');
     } finally {
