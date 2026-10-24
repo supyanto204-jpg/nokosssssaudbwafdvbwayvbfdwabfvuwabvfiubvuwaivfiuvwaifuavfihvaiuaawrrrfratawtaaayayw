@@ -14,7 +14,9 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://flagcdn.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/eRPpib65TuiIlwTB_BuiH32-vdZOMRA1Ocnz7HT3sM0inbox.css">
 <script>
 (function(){
@@ -25,47 +27,29 @@
     var c=navigator.connection||{};
     var sn=c.saveData||/2g|slow-2g/.test(c.effectiveType||'');
     var r=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    var mode='full';
-    if(r||sn||hc<=4||m)mode='lite';
-    d.setAttribute('data-perf',mode);
+    d.setAttribute('data-perf',(r||sn||hc<=4||m)?'lite':'full');
   } catch(e) { d.setAttribute('data-perf','lite'); }
-
   try {
-    var saved=null;
-    try { saved=localStorage.getItem('asyrofotp_theme'); } catch(_) {}
-    var prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
-    d.setAttribute('data-theme',saved||(prefersDark?'dark':'light'));
-  } catch(e) {}
-
-  try {
-    if(window.top!==window.self){
-      try{window.top.location=window.self.location}catch(e){
-        document.addEventListener('DOMContentLoaded',function(){
-          document.body.innerHTML =
-            '<div style="position:fixed;inset:0;background:#000;color:#fff;' +
-            'font-family:system-ui,sans-serif;display:flex;align-items:center;' +
-            'justify-content:center;text-align:center;padding:20px;z-index:99999;">' +
-            '<div><h1 style="font-size:48px;margin:0 0 12px;">⛔</h1>' +
-            '<p style="opacity:.7;font-size:14px;margin:0;">Buka halaman ini di browser, bukan di dalam app.</p></div>' +
-            '</div>';
-        });
-      }
+    var pref = localStorage.getItem('asyrofotp_theme_pref');
+    if (!pref) {
+      var old = localStorage.getItem('asyrofotp_theme');
+      pref = (old==='light'||old==='dark') ? old : 'system';
     }
+    var resolved = pref==='system'
+      ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    d.setAttribute('data-theme',resolved);
+    d.setAttribute('data-theme-pref',pref);
+  } catch(e){ d.setAttribute('data-theme','light'); d.setAttribute('data-theme-pref','system'); }
+  try {
+    if(window.top!==window.self){ try{window.top.location=window.self.location}catch(e){} }
   } catch(e) {}
 })();
 </script>
 </head>
 <body>
 
-<div class="bg" aria-hidden="true">
-  <div class="orb orb-1"></div>
-  <div class="orb orb-2"></div>
-  <div class="orb orb-3"></div>
-  <div class="grid"></div>
-</div>
-
-<!-- ✅ SIDEBAR — child langsung <body>, DI LUAR .dashboard-layout -->
-<aside class="sidebar glass" id="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <a href="/dashboard" class="sidebar-logo">
       <div class="logo-icon">A</div>
@@ -75,7 +59,6 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
   </div>
-
   <nav class="sidebar-nav">
     <a href="/dashboard" class="nav-item">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -93,20 +76,18 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       <span class="nav-label">Deposit</span>
     </a>
-
     <div class="nav-section-label">Akun</div>
     <a href="/profile" class="nav-item">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
       <span class="nav-label">Profile</span>
     </a>
   </nav>
-
   <div class="sidebar-footer">
     <div class="user-info">
       <div class="user-avatar" id="userInitial"><span class="spinner-sm"></span></div>
       <div class="user-details">
-        <div class="user-name" id="userName"><span class="skel skel-text"></span></div>
-        <div class="user-balance" id="userBalance"><span class="skel skel-text"></span></div>
+        <div class="user-name" id="userName"><span class="skel"></span></div>
+        <div class="user-balance" id="userBalance"><span class="skel"></span></div>
       </div>
       <button class="logout-btn" id="logoutBtn" title="Keluar" type="button">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -115,13 +96,11 @@
   </div>
 </aside>
 
-<!-- ✅ OVERLAY — child langsung <body>, tepat setelah sidebar -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- ✅ KONTEN UTAMA dibungkus .dashboard-layout -->
 <div class="dashboard-layout">
   <main class="main-content">
-    <div class="topbar glass">
+    <div class="topbar">
       <div class="topbar-left">
         <h1 id="pageTitle">Inbox</h1>
         <p id="pageSubtitle">Riwayat pesanan & kode OTP kamu</p>
@@ -130,14 +109,15 @@
         <button class="icon-btn" id="refreshBtn" title="Refresh" type="button">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         </button>
-        <button class="theme-btn glass" id="themeBtn" type="button" aria-label="Ganti tema">
+        <button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema: terang, gelap, ikuti sistem">
           <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
           <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
         </button>
         <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Buka menu">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
-        <div class="balance-pill glass">
+        <div class="balance-pill">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
           <span class="label">Saldo</span>
           <span class="amount" id="balancePill">—</span>
@@ -147,7 +127,7 @@
 
     <div class="inbox-hero">
       <div class="inbox-hero-icon">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
       </div>
       <div class="inbox-hero-text">
         <h1 id="heroTitle">Inbox</h1>
@@ -178,12 +158,12 @@
         <a href="/syarat">Syarat</a>
         <a href="/ketentuan">Ketentuan</a>
       </div>
-      <span>© 2026 AsyrofOTP. Hak cipta dilindungi.</span>
+      <span>© 2026 AsyrofOTP.</span>
     </footer>
   </main>
 </div>
 
-<nav class="mobile-taskbar glass" aria-label="Navigasi utama">
+<nav class="mobile-taskbar" aria-label="Navigasi utama">
   <div class="mobile-taskbar-inner">
     <a href="/dashboard" class="taskbar-item" data-page="dashboard">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -211,7 +191,7 @@
 </nav>
 
 <div class="custom-alert-overlay" id="customAlert">
-  <div class="custom-alert glass-card">
+  <div class="custom-alert">
     <div class="custom-alert-icon info" id="customAlertIcon">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
     </div>
@@ -224,7 +204,7 @@
 </div>
 
 <div class="detail-modal-overlay" id="detailModal">
-  <div class="detail-modal glass-card" id="detailModalContent"></div>
+  <div class="detail-modal" id="detailModalContent"></div>
 </div>
 
 <script src="/js/MNIzwhprAnJmFA8bWqF4JwaQB7kE4KRKxYxUZrySjZ0inbox.js" defer></script>
