@@ -1,12 +1,16 @@
 (function (global) {
 'use strict';
 
-// AES-GCM wrapper. fallback ke base64 kalau subtle crypto gak ada
+var D = document;
+var q = function (s, c) { return (c || D).querySelector(s); };
+var qa = function (s, c) { return Array.prototype.slice.call((c || D).querySelectorAll(s)); };
+
 var _crypto = (function () {
   var _k = 'bm9rb3Mtc2VjcmV0LWtleS0yMDI2LWFzeXJvZg==';
   var _s = 'c2FsdC1ub2tvc3YyMDI2LXNlY3VyZQ=='.replace('v', '-');
   var _i = 100000;
   var _dk = null;
+  var supported = !!(global.crypto && global.crypto.subtle && global.crypto.getRandomValues);
 
   async function _derive() {
     if (_dk) return _dk;
@@ -29,6 +33,7 @@ var _crypto = (function () {
     return btoa(s);
   }
   async function seal(obj) {
+    if (!supported) return null;
     try {
       var key = await _derive();
       var iv = crypto.getRandomValues(new Uint8Array(12));
@@ -40,6 +45,7 @@ var _crypto = (function () {
     } catch (e) { return null; }
   }
   async function unseal(b64) {
+    if (!supported) return null;
     try {
       var key = await _derive();
       var buf = _b2buf(b64);
@@ -109,20 +115,21 @@ var _cfg = {
   },
   ttl: {
     user: 5 * 60 * 1000,
-    servers: 10 * 60 * 1000,
-    services: 10 * 60 * 1000,
-    countries: 10 * 60 * 1000,
-    prices: 2 * 60 * 1000,
-    orders: 30 * 1000
+    servers: 30 * 60 * 1000,
+    services: 30 * 60 * 1000,
+    countries: 30 * 60 * 1000,
+    prices: 3 * 60 * 1000,
+    orders: 20 * 1000
   },
-  autoSync: 5000,
-  otpCheck: 10000,
+  autoSync: 6000,
+  otpCheck: 8000,
   profileSync: 30000,
-  activeLimit: 2
+  activeLimit: 2,
+  fetchTimeout: 10000
 };
 
 var _dev = (function () {
-  function mq(q) { return window.matchMedia(q).matches; }
+  function mq(qq) { try { return window.matchMedia(qq).matches; } catch (e) { return false; } }
   var hc = navigator.hardwareConcurrency || 4;
   var conn = navigator.connection || {};
   return {
@@ -132,30 +139,8 @@ var _dev = (function () {
   };
 })();
 if (_dev.reduced || _dev.lowEnd) {
-  document.documentElement.setAttribute('data-perf', 'lite');
+  D.documentElement.setAttribute('data-perf', 'lite');
 }
-
-(function () {
-  try {
-    console.log('%c⚠️ STOP!', 'color:#ff3b30;font-size:20px;font-weight:900');
-    console.log('%cJangan paste apapun di sini. Itu SCAM.', 'color:#8e8e93;font-size:12px');
-  } catch (e) {}
-  document.addEventListener('copy', function (e) {
-    var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    if (t && t.closest && t.closest('[data-copy]')) return;
-    e.preventDefault();
-  });
-  document.addEventListener('cut', function (e) {
-    var t = e.target;
-    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-    e.preventDefault();
-  });
-  try {
-    var clean = location.origin + location.pathname;
-    if (location.search) history.replaceState(null, '', clean);
-  } catch (e) {}
-})();
 
 var token = localStorage.getItem('access_token');
 if (!token) { location.href = '/login'; return; }
@@ -164,7 +149,7 @@ function safeJson(res) { return res.json().catch(function () { return {}; }); }
 function formatRupiah(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
 function getInitial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
 function escapeHtml(v) {
-  return String(v ?? '').replace(/[&<>"']/g, function (ch) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
     return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
   });
 }
@@ -179,14 +164,23 @@ function formatTanggal(iso) {
 }
 function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
-// fetch ke backend pakai user JWT
+function fetchWithTimeout(url, opts, ms) {
+  opts = opts || {};
+  ms = ms || _cfg.fetchTimeout;
+  var ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, ms) : null;
+  var o = Object.assign({}, opts);
+  if (ctrl) o.signal = ctrl.signal;
+  return fetch(url, o).finally(function () { if (timer) clearTimeout(timer); });
+}
+
 function apiFetch(path, opts) {
   opts = opts || {};
   var headers = Object.assign({
     'Authorization': 'Bearer ' + token,
     'Accept': 'application/json'
   }, opts.headers || {});
-  return fetch(path, Object.assign({}, opts, { headers: headers }));
+  return fetchWithTimeout(path, Object.assign({}, opts, { headers: headers }));
 }
 
 var _copy = {
@@ -194,28 +188,18 @@ var _copy = {
     'Nomor OTP langsung, kode OTP muncul sendiri',
     'Verifikasi akun tanpa ribet, OTP masuk otomatis',
     'Nokos ready 24 jam, refund otomatis kalau gagal',
-    'Beli nomor, tunggu OTP, selesai. Gampang kan?',
+    'Beli nomor, tunggu OTP, selesai',
     'Pilih server, aplikasi, negara. OTP langsung nongol'
   ],
-  heroTitle: [
-    'Beli Nokos', 'Gas Order Nokos', 'Pilih Nomor Kamu',
-    'Mulai Beli Nokos', 'Nokos Ready 24 Jam'
-  ],
+  heroTitle: ['Beli Nokos', 'Pilih Nomor Kamu', 'Nokos Ready 24 Jam', 'Mulai Beli Nokos'],
   heroDesc: [
     'Pilih server, aplikasi, lalu negara. Nomor langsung tampil, kode OTP muncul sendiri. Expired 15 menit, auto refund kalau kode ga masuk.',
-    'Dapetin nomor virtual buat verifikasi akun. Cepet, murah, otomatis. Kalau gagal, saldo balik penuh.',
-    'Verifikasi akun tanpa ribet. Nokos ready 24 jam, refund otomatis kalau kode ga masuk dalam 15 menit.',
-    'Beli nomor OTP dalam hitungan detik. OTP langsung masuk inbox kamu. Auto refund kalau gagal.',
-    'Butuh nomor buat verifikasi? Semua ada di sini. Pilih server, aplikasi, negara — langsung order.'
+    'Nomor virtual buat verifikasi akun. Proses otomatis 24/7, refund kalau gagal.',
+    'Verifikasi akun tanpa pakai nomor pribadi. OTP masuk inbox kamu.',
+    'Beli nomor OTP dalam hitungan detik. Kalau gagal, saldo balik penuh.'
   ],
-  sectionActive: [
-    'Pesanan Aktif', 'Order Kamu Sekarang',
-    'Aktivitas Terkini', 'Pesanan Berjalan'
-  ],
-  ctaText: [
-    'Pesan Nomor Sekarang', 'Beli Nokos Sekarang',
-    'Gas Order', 'Mulai Beli', 'Pilih Nomor'
-  ],
+  sectionActive: ['Pesanan Aktif', 'Order Kamu Sekarang', 'Aktivitas Terkini', 'Pesanan Berjalan'],
+  ctaText: ['Pesan Nomor Sekarang', 'Beli Nokos Sekarang', 'Mulai Beli', 'Pilih Nomor'],
   sheetStep1: ['Mau pakai server yang mana?', 'Pilih server dulu ya', 'Server mana yang cocok?'],
   sheetStep2: ['Mau beli nomor untuk aplikasi apa?', 'Pilih aplikasi target', 'Aplikasi apa nih?'],
   sheetStep3: ['Mau nomor dari negara mana?', 'Pilih negara', 'Negara mana yang kamu mau?'],
@@ -223,15 +207,15 @@ var _copy = {
 };
 
 function randomizeCopy() {
-  var ps = document.getElementById('pageSubtitle');
+  var ps = D.getElementById('pageSubtitle');
   if (ps) ps.textContent = pick(_copy.pageSubtitle);
-  var ht = document.getElementById('heroTitle');
+  var ht = D.getElementById('heroTitle');
   if (ht) ht.textContent = pick(_copy.heroTitle);
-  var hd = document.getElementById('heroDesc');
+  var hd = D.getElementById('heroDesc');
   if (hd) hd.textContent = pick(_copy.heroDesc);
-  var sat = document.getElementById('sectionActiveTitle');
+  var sat = D.getElementById('sectionActiveTitle');
   if (sat) sat.textContent = pick(_copy.sectionActive);
-  var ct = document.getElementById('ctaText');
+  var ct = D.getElementById('ctaText');
   if (ct) ct.textContent = pick(_copy.ctaText);
 }
 
@@ -258,85 +242,76 @@ var state = {
 
 var activeState = {
   page: 1, limit: _cfg.activeLimit, totalPages: 1, allOrders: [],
-  countdownIntervals: {}, hasRenderedOnce: false, initialLoadDone: false
+  countdownIntervals: {}, initialLoadDone: false
 };
 
 var ORDER_ID_MAP = new Map();
 var PROVIDER_RAW_MAP = new Map();
-
-var servicesCache = [];
-var autoSyncInterval = null;
-var otpCheckInterval = null;
-var profileSyncInterval = null;
-var _loadActiveAbort = null;
-var _loadActiveInFlight = false;
-
 var ALLOWED_ORDER_FIELDS = new Set([
-  'otp_id', 'status', 'phone_number', 'otp_code', 'otp_code_2', 'full_sms',
-  'price_idr', 'price', 'service', 'service_name',
-  'country', 'country_name', 'country_flag', 'operator', 'server',
-  'expires_in', 'expired_at', 'created_at', 'updated_at',
-  'received_at', 'refunded_at', 'refunded_amount', '_bucket'
+  'otp_id','status','phone_number','otp_code','otp_code_2','full_sms',
+  'price_idr','price','service','service_name',
+  'country','country_name','country_flag','operator','server',
+  'expires_in','expired_at','created_at','updated_at',
+  'received_at','refunded_at','refunded_amount','_bucket'
 ]);
 var ALLOWED_PROVIDER_FIELDS = new Set([
-  'id', 'provider_id', 'provider_price', 'price_idr', 'price',
-  'stock', 'available', 'active', 'name', 'operator',
-  'product_id', 'catalog_product_id', 'operator_id', 'operator_name'
+  'id','provider_id','provider_price','price_idr','price',
+  'stock','available','active','name','operator',
+  'product_id','catalog_product_id','operator_id','operator_name'
 ]);
+
 function sanitizeOrder(order) {
   if (!order || typeof order !== 'object') return order;
   var clean = {};
-  for (var key of Object.keys(order)) {
-    if (ALLOWED_ORDER_FIELDS.has(key)) clean[key] = order[key];
-  }
+  Object.keys(order).forEach(function (k) {
+    if (ALLOWED_ORDER_FIELDS.has(k)) clean[k] = order[k];
+  });
   return clean;
 }
 function sanitizeProvider(provider) {
   if (!provider || typeof provider !== 'object') return provider;
   var clean = {};
-  for (var key of Object.keys(provider)) {
-    if (ALLOWED_PROVIDER_FIELDS.has(key)) clean[key] = provider[key];
-  }
+  Object.keys(provider).forEach(function (k) {
+    if (ALLOWED_PROVIDER_FIELDS.has(k)) clean[k] = provider[k];
+  });
   return clean;
 }
 
 function getServiceDisplayName(order) {
-  return String(order && (order.service_name || order.service) || 'Layanan OTP').trim();
+  return String((order && (order.service_name || order.service)) || 'Layanan OTP').trim();
 }
 
 var COUNTRY_NAMES = {
-  id: 'Indonesia', ru: 'Rusia', us: 'Amerika Serikat', my: 'Malaysia', vn: 'Vietnam',
-  ph: 'Filipina', th: 'Thailand', sg: 'Singapura', in: 'India', cn: 'Tiongkok',
-  jp: 'Jepang', kr: 'Korea Selatan', uk: 'Britania Raya', gb: 'Britania Raya',
-  de: 'Jerman', fr: 'Prancis', br: 'Brasil', ng: 'Nigeria', pk: 'Pakistan',
-  bd: 'Bangladesh', tr: 'Turki', es: 'Spanyol', it: 'Italia', nl: 'Belanda',
-  au: 'Australia', ca: 'Kanada', mx: 'Meksiko', ar: 'Argentina', za: 'Afrika Selatan',
-  sa: 'Arab Saudi', ae: 'Uni Emirat Arab', pl: 'Polandia', ua: 'Ukraina',
-  ro: 'Rumania', kh: 'Kamboja', la: 'Laos', mm: 'Myanmar', tw: 'Taiwan',
-  hk: 'Hong Kong', nz: 'Selandia Baru', ch: 'Swiss', se: 'Swedia', no: 'Norwegia',
-  fi: 'Finlandia', be: 'Belgia', pt: 'Portugal', eg: 'Mesir', ke: 'Kenya', gh: 'Ghana'
+  id:'Indonesia',ru:'Rusia',us:'Amerika Serikat',my:'Malaysia',vn:'Vietnam',
+  ph:'Filipina',th:'Thailand',sg:'Singapura',in:'India',cn:'Tiongkok',
+  jp:'Jepang',kr:'Korea Selatan',uk:'Britania Raya',gb:'Britania Raya',
+  de:'Jerman',fr:'Prancis',br:'Brasil',ng:'Nigeria',pk:'Pakistan',
+  bd:'Bangladesh',tr:'Turki',es:'Spanyol',it:'Italia',nl:'Belanda',
+  au:'Australia',ca:'Kanada',mx:'Meksiko',ar:'Argentina',za:'Afrika Selatan',
+  sa:'Arab Saudi',ae:'Uni Emirat Arab',pl:'Polandia',ua:'Ukraina',
+  ro:'Rumania',kh:'Kamboja',la:'Laos',mm:'Myanmar',tw:'Taiwan',
+  hk:'Hong Kong',nz:'Selandia Baru',ch:'Swiss',se:'Swedia',no:'Norwegia',
+  fi:'Finlandia',be:'Belgia',pt:'Portugal',eg:'Mesir',ke:'Kenya',gh:'Ghana'
 };
 function getCountryName(order) {
-  var code = String(order && (order.country || order.country_name) || '').trim().toLowerCase();
-  var supplied = String(order && order.country_name || '').trim();
+  var code = String((order && (order.country || order.country_name)) || '').trim().toLowerCase();
+  var supplied = String((order && order.country_name) || '').trim();
   if (supplied && supplied.toLowerCase() !== code) return supplied;
   if (COUNTRY_NAMES[code]) return COUNTRY_NAMES[code];
   if (/^[a-z]{2}$/i.test(code)) {
     try {
       var loc = new Intl.DisplayNames(['id'], { type: 'region' }).of(code.toUpperCase());
-      return loc && loc.toLowerCase() !== code ? loc : 'Negara tidak diketahui';
-    } catch (_) { return 'Negara tidak diketahui'; }
+      return (loc && loc.toLowerCase() !== code) ? loc : 'Negara tidak diketahui';
+    } catch (e) { return 'Negara tidak diketahui'; }
   }
   return supplied || 'Negara tidak diketahui';
 }
 function getOtpId(order) {
-  var id = String(order && order.otp_id || '').trim();
+  var id = String((order && order.otp_id) || '').trim();
   if (id) return id;
-  var seed = [order && order.created_at, order && order.service, order && order.phone_number].join('|');
+  var seed = [(order && order.created_at), (order && order.service), (order && order.phone_number)].join('|');
   var hash = 2166136261;
-  for (var i = 0; i < seed.length; i++) {
-    hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
-  }
+  for (var i = 0; i < seed.length; i++) hash = Math.imul(hash ^ seed.charCodeAt(i), 16777619);
   return 'OTP' + (hash >>> 0).toString(36).toUpperCase().slice(-8).padStart(8, '0');
 }
 
@@ -358,7 +333,7 @@ function renderFlag(code, cls) {
   cls = cls || 'flag-img';
   var sources = getFlagSources(code);
   if (sources.length === 0) {
-    return '<div class="' + cls + '" style="display:flex;align-items:center;justify-content:center;background:var(--gl-bd2);color:var(--txt3);font-size:0.55rem;font-weight:800">' + escapeHtml((code || '??').toUpperCase()) + '</div>';
+    return '<div class="' + cls + '" style="display:flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--txt3);font-size:0.55rem;font-weight:700">' + escapeHtml((code || '??').toUpperCase()) + '</div>';
   }
   var attr = JSON.stringify(sources).replace(/"/g, '&quot;');
   return '<img class="' + cls + '" src="' + sources[0] + '" alt="' + escapeHtml(code) + '" loading="lazy" data-sources="' + attr + '" data-idx="0">';
@@ -373,9 +348,9 @@ window._handleFlagErr = function (img) {
       img.src = sources[next];
     } else {
       var code = (img.alt || '??').toUpperCase();
-      var ph = document.createElement('div');
+      var ph = D.createElement('div');
       ph.className = img.className;
-      ph.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--gl-bd2);color:var(--txt3);font-size:0.55rem;font-weight:800;';
+      ph.style.cssText = 'display:flex;align-items:center;justify-content:center;background:var(--surface-2);color:var(--txt3);font-size:0.55rem;font-weight:700;';
       ph.textContent = code;
       img.replaceWith(ph);
     }
@@ -383,18 +358,18 @@ window._handleFlagErr = function (img) {
 };
 
 function fallbackCopy(text, onOk) {
-  var ta = document.createElement('textarea');
+  var ta = D.createElement('textarea');
   ta.value = text;
   ta.setAttribute('readonly', '');
   ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
-  document.body.appendChild(ta);
+  D.body.appendChild(ta);
   ta.select();
   ta.setSelectionRange(0, ta.value.length);
   try {
-    var ok = document.execCommand('copy');
+    var ok = D.execCommand('copy');
     if (ok && typeof onOk === 'function') onOk();
   } catch (e) {}
-  document.body.removeChild(ta);
+  D.body.removeChild(ta);
 }
 function copyToClipboard(text, btnEl) {
   function onOk() {
@@ -410,39 +385,34 @@ function copyToClipboard(text, btnEl) {
 
 function showAlert(opts) {
   return new Promise(function (resolve) {
-    var title = opts.title, message = opts.message;
     var type = opts.type || 'info';
-    var okText = opts.okText || 'OK';
-    var showCancel = opts.showCancel || false;
-    var cancelText = opts.cancelText || 'Batal';
-
-    var overlay = document.getElementById('customAlert');
-    var iconEl = document.getElementById('customAlertIcon');
-    var titleEl = document.getElementById('customAlertTitle');
-    var msgEl = document.getElementById('customAlertMessage');
-    var actionsEl = document.getElementById('customAlertActions');
+    var overlay = D.getElementById('customAlert');
+    var iconEl = D.getElementById('customAlertIcon');
+    var titleEl = D.getElementById('customAlertTitle');
+    var msgEl = D.getElementById('customAlertMessage');
+    var actionsEl = D.getElementById('customAlertActions');
 
     iconEl.className = 'custom-alert-icon ' + type;
     iconEl.innerHTML = ICONS[type] || ICONS.info;
-    titleEl.textContent = title || 'Informasi';
-    msgEl.textContent = message || '';
+    titleEl.textContent = opts.title || 'Informasi';
+    msgEl.textContent = opts.message || '';
 
     actionsEl.innerHTML = '';
-    if (showCancel) {
-      var b = document.createElement('button');
+    if (opts.showCancel) {
+      var b = D.createElement('button');
       b.className = 'btn';
       b.type = 'button';
-      b.textContent = cancelText;
+      b.textContent = opts.cancelText || 'Batal';
       b.addEventListener('click', function () {
         overlay.classList.remove('active');
         resolve(false);
       });
       actionsEl.appendChild(b);
     }
-    var ok = document.createElement('button');
+    var ok = D.createElement('button');
     ok.className = 'btn-primary';
     ok.type = 'button';
-    ok.textContent = okText;
+    ok.textContent = opts.okText || 'OK';
     ok.addEventListener('click', function () {
       overlay.classList.remove('active');
       resolve(true);
@@ -452,40 +422,63 @@ function showAlert(opts) {
   });
 }
 
-(function () {
-  var btn = document.getElementById('themeBtn');
+(function themeInit() {
+  var btn = D.getElementById('themeBtn');
   if (!btn) return;
+  var root = D.documentElement;
+  var mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+  function resolve(pref) {
+    if (pref === 'system') return (mq && mq.matches) ? 'dark' : 'light';
+    return pref;
+  }
+  function paintMeta(theme) {
+    var m = D.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', theme === 'dark' ? '#0a0b0d' : '#0a84ff');
+  }
+  function setPref(pref, save) {
+    root.setAttribute('data-theme-pref', pref);
+    var resolved = resolve(pref);
+    root.setAttribute('data-theme', resolved);
+    paintMeta(resolved);
+    if (save) try { localStorage.setItem('asyrofotp_theme_pref', pref); } catch (e) {}
+  }
+
   btn.addEventListener('click', function () {
-    var cur = document.documentElement.getAttribute('data-theme') || 'light';
-    var nx = cur === 'dark' ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', nx);
-    try { localStorage.setItem('asyrofotp_theme', nx); } catch (e) {}
-    var m = document.querySelector('meta[name="theme-color"]');
-    if (m) m.setAttribute('content', nx === 'dark' ? '#0a0a0c' : '#eef2f7');
+    var cur = root.getAttribute('data-theme-pref') || 'system';
+    var next = cur === 'light' ? 'dark' : cur === 'dark' ? 'system' : 'light';
+    setPref(next, true);
   });
+
+  if (mq) {
+    var onOsChange = function () {
+      if (root.getAttribute('data-theme-pref') === 'system') setPref('system', false);
+    };
+    if (mq.addEventListener) mq.addEventListener('change', onOsChange);
+    else if (mq.addListener) mq.addListener(onOsChange);
+  }
 })();
 
-(function () {
-  var sidebar = document.getElementById('sidebar');
-  var collapseBtn = document.getElementById('collapseBtn');
+(function sidebarInit() {
+  var sidebar = D.getElementById('sidebar');
+  var collapseBtn = D.getElementById('collapseBtn');
   if (!sidebar || !collapseBtn) return;
-  var isCollapsed = localStorage.getItem('sidebar_collapsed') === 'true';
-  if (isCollapsed && window.innerWidth > 768) {
+  if (localStorage.getItem('sidebar_collapsed') === 'true' && window.innerWidth > 768) {
     sidebar.classList.add('collapsed');
-    document.body.classList.add('sidebar-collapsed');
+    D.body.classList.add('sidebar-collapsed');
   }
   collapseBtn.addEventListener('click', function () {
     if (window.innerWidth <= 768) return;
     var c = sidebar.classList.toggle('collapsed');
-    document.body.classList.toggle('sidebar-collapsed', c);
-    try { localStorage.setItem('sidebar_collapsed', c); } catch (e) {}
+    D.body.classList.toggle('sidebar-collapsed', c);
+    try { localStorage.setItem('sidebar_collapsed', c ? 'true' : 'false'); } catch (e) {}
   });
 })();
 
-(function () {
-  var toggle = document.getElementById('mobileToggle');
-  var sidebar = document.getElementById('sidebar');
-  var overlay = document.getElementById('sidebarOverlay');
+(function mobileSidebarInit() {
+  var toggle = D.getElementById('mobileToggle');
+  var sidebar = D.getElementById('sidebar');
+  var overlay = D.getElementById('sidebarOverlay');
   if (!toggle || !sidebar || !overlay) return;
   var open = false;
   function openSb() {
@@ -493,26 +486,26 @@ function showAlert(opts) {
     open = true;
     sidebar.classList.add('open');
     overlay.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    D.body.style.overflow = 'hidden';
   }
   function closeSb() {
     if (!open) return;
     open = false;
     sidebar.classList.remove('open');
     overlay.classList.remove('active');
-    document.body.style.overflow = '';
+    D.body.style.overflow = '';
   }
   toggle.addEventListener('click', function (e) {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
     if (open) closeSb(); else openSb();
   });
   overlay.addEventListener('click', closeSb);
-  sidebar.querySelectorAll('.nav-item').forEach(function (l) {
+  qa('.nav-item', sidebar).forEach(function (l) {
     l.addEventListener('click', function () {
       if (window.innerWidth <= 768) setTimeout(closeSb, 100);
     });
   });
-  document.addEventListener('keydown', function (e) {
+  D.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && open) closeSb();
   });
 })();
@@ -524,7 +517,7 @@ function waitForRecaptcha() {
     var t = setInterval(function () {
       n++;
       if (window.grecaptcha && window.grecaptcha.execute) { clearInterval(t); resolve(); }
-      else if (n >= 50) { clearInterval(t); resolve(); }
+      else if (n >= 40) { clearInterval(t); resolve(); }
     }, 100);
   });
 }
@@ -536,7 +529,7 @@ async function getRecaptchaToken(action) {
       grecaptcha.ready(function () {
         grecaptcha.execute(_cfg.rk, { action: action }).then(resolve).catch(function () { resolve(null); });
       });
-      setTimeout(function () { resolve(null); }, 8000);
+      setTimeout(function () { resolve(null); }, 6000);
     });
   } catch (e) { return null; }
 }
@@ -544,9 +537,9 @@ async function securePost(url, body, action) {
   body = body || {};
   action = action || 'nokos';
   var rc = await getRecaptchaToken(action);
-  return fetch(url, {
+  return apiFetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(Object.assign({}, body, { recaptcha_token: rc }))
   });
 }
@@ -569,11 +562,11 @@ async function loadProfile(force) {
 function renderUser(user) {
   if (!user) return;
   var name = user.name || user.username || '—';
-  var nameEl = document.getElementById('userName');
-  var balEl = document.getElementById('userBalance');
-  var iniEl = document.getElementById('userInitial');
-  var pillEl = document.getElementById('balancePill');
-  var sheetEl = document.getElementById('sheetBalance');
+  var nameEl = D.getElementById('userName');
+  var balEl = D.getElementById('userBalance');
+  var iniEl = D.getElementById('userInitial');
+  var pillEl = D.getElementById('balancePill');
+  var sheetEl = D.getElementById('sheetBalance');
   if (nameEl) nameEl.textContent = name;
   if (balEl) balEl.textContent = formatRupiah(user.balance);
   if (iniEl) iniEl.textContent = getInitial(name);
@@ -588,19 +581,23 @@ async function fetchActiveOrders() {
   ]);
   var pRaw = await safeJson(responses[0]);
   var sRaw = await safeJson(responses[1]);
-  var pData = pRaw && pRaw.data || pRaw || {};
-  var sData = sRaw && sRaw.data || sRaw || {};
+  var pData = (pRaw && pRaw.data) || pRaw || {};
+  var sData = (sRaw && sRaw.data) || sRaw || {};
   var now = Date.now();
   var FIVE_MIN = 5 * 60 * 1000;
-  var pending = (pData.orders || []).map(function (o) { return Object.assign({}, sanitizeOrder(o), { _bucket: 'pending' }); });
+  var pending = (pData.orders || []).map(function (o) {
+    return Object.assign({}, sanitizeOrder(o), { _bucket: 'pending' });
+  });
   var recent = (sData.orders || [])
     .filter(function (o) {
-      var t = o.updated_at || o.created_at || o.confirmed_at;
+      var t = o.updated_at || o.created_at;
       if (!t) return false;
       var ts = new Date(t).getTime();
       return Number.isFinite(ts) && (now - ts) <= FIVE_MIN;
     })
-    .map(function (o) { return Object.assign({}, sanitizeOrder(o), { _bucket: 'success' }); });
+    .map(function (o) {
+      return Object.assign({}, sanitizeOrder(o), { _bucket: 'success' });
+    });
   var merged = pending.concat(recent);
   merged.sort(function (a, b) {
     if (a._bucket !== b._bucket) return a._bucket === 'pending' ? -1 : 1;
@@ -611,6 +608,7 @@ async function fetchActiveOrders() {
   return merged;
 }
 
+var _loadActiveInFlight = false;
 async function loadActiveOrders() {
   var cached = await Cache.get('orders', _cfg.ttl.orders);
   if (cached && Array.isArray(cached) && cached.length > 0) {
@@ -619,8 +617,6 @@ async function loadActiveOrders() {
   }
   if (_loadActiveInFlight) return;
   _loadActiveInFlight = true;
-  if (_loadActiveAbort) _loadActiveAbort.abort();
-  _loadActiveAbort = new AbortController();
   try {
     var merged = await fetchActiveOrders();
     merged.forEach(function (o) {
@@ -640,9 +636,8 @@ async function loadActiveOrders() {
     renderActiveOrders(merged);
     activeState.initialLoadDone = true;
   } catch (err) {
-    if (err.name === 'AbortError') return;
     if (activeState.allOrders.length === 0) {
-      var c = document.getElementById('activeOrders');
+      var c = D.getElementById('activeOrders');
       if (c) {
         c.className = '';
         c.innerHTML =
@@ -654,7 +649,6 @@ async function loadActiveOrders() {
       }
     }
   } finally {
-    _loadActiveAbort = null;
     _loadActiveInFlight = false;
   }
 }
@@ -710,7 +704,7 @@ function buildCard(o) {
   }
 
   return '' +
-    '<div class="aoc-card glass-card ' + cardClass + '" ' +
+    '<div class="aoc-card ' + cardClass + '" ' +
          'data-ref="' + escapeHtml(otpId) + '" ' +
          'data-bucket="' + escapeHtml(o._bucket || '') + '" ' +
          'data-status="' + escapeHtml(o.status || '') + '" ' +
@@ -741,7 +735,7 @@ function buildCard(o) {
           '<span class="aoc-field-label">Nomor</span>' +
           '<span class="aoc-field-value">' +
             escapeHtml(o.phone_number || '—') +
-            (o.phone_number ? ' <button class="aoc-otp-copy" style="width:22px;height:22px" type="button" data-copy="' + escapeHtml(o.phone_number) + '" title="Copy">' + ICONS.copy + '</button>' : '') +
+            (o.phone_number ? ' <button class="aoc-otp-copy" style="width:22px;height:22px;min-width:22px;min-height:22px" type="button" data-copy="' + escapeHtml(o.phone_number) + '" title="Copy">' + ICONS.copy + '</button>' : '') +
           '</span>' +
         '</div>' +
         '<div class="aoc-field">' +
@@ -767,14 +761,14 @@ function buildCard(o) {
             '<button class="btn-mini primary" type="button" data-confirm="' + escapeHtml(otpId) + '">' + ICONS.checkCircle + ' Konfirmasi</button>' :
             '<button class="btn-mini danger" type="button" data-cancel="' + escapeHtml(otpId) + '">' + ICONS.ban + ' Batalkan</button>'
           ) :
-          '<a href="/inbox" class="btn-mini primary" style="text-decoration:none">' + ICONS.info + ' Lihat Detail</a>'
+          '<a href="/inbox" class="btn-mini primary">' + ICONS.info + ' Lihat Detail</a>'
         ) +
       '</div>' +
     '</div>';
 }
 
 function bindCard(card) {
-  card.querySelectorAll('[data-copy]').forEach(function (btn) {
+  qa('[data-copy]', card).forEach(function (btn) {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', function (e) {
@@ -782,7 +776,7 @@ function bindCard(card) {
       copyToClipboard(btn.dataset.copy, btn);
     });
   });
-  card.querySelectorAll('[data-resend]').forEach(function (btn) {
+  qa('[data-resend]', card).forEach(function (btn) {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', function () {
@@ -790,7 +784,7 @@ function bindCard(card) {
       resendOrder(id, btn);
     });
   });
-  card.querySelectorAll('[data-confirm]').forEach(function (btn) {
+  qa('[data-confirm]', card).forEach(function (btn) {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', function () {
@@ -798,7 +792,7 @@ function bindCard(card) {
       confirmOrder(id, btn);
     });
   });
-  card.querySelectorAll('[data-cancel]').forEach(function (btn) {
+  qa('[data-cancel]', card).forEach(function (btn) {
     if (btn.dataset.bound) return;
     btn.dataset.bound = '1';
     btn.addEventListener('click', function () {
@@ -806,7 +800,7 @@ function bindCard(card) {
       cancelOrder(id, btn);
     });
   });
-  card.querySelectorAll('img[data-sources]').forEach(function (img) {
+  qa('img[data-sources]', card).forEach(function (img) {
     if (img.dataset.bound) return;
     img.dataset.bound = '1';
     img.addEventListener('error', function () { window._handleFlagErr(this); });
@@ -814,9 +808,9 @@ function bindCard(card) {
 }
 
 function renderActiveOrders(orders) {
-  var container = document.getElementById('activeOrders');
-  var countEl = document.getElementById('activeCount');
-  var pagEl = document.getElementById('activeOrdersPagination');
+  var container = D.getElementById('activeOrders');
+  var countEl = D.getElementById('activeCount');
+  var pagEl = D.getElementById('activeOrdersPagination');
   if (!container) return;
   var hasOrders = Array.isArray(orders) && orders.length > 0;
   if (!hasOrders) {
@@ -832,7 +826,6 @@ function renderActiveOrders(orders) {
     if (pagEl) pagEl.style.display = 'none';
     return;
   }
-  activeState.hasRenderedOnce = true;
   if (countEl) {
     countEl.textContent = orders.length;
     countEl.style.display = 'inline-flex';
@@ -844,19 +837,19 @@ function renderActiveOrders(orders) {
   var pageOrders = orders.slice(start, start + activeState.limit);
 
   if (!container.classList.contains('active-orders')) container.className = 'active-orders';
-  var emptyEl = container.querySelector('.empty-orders');
+  var emptyEl = q('.empty-orders', container);
   if (emptyEl) emptyEl.remove();
 
   var existing = new Map();
-  container.querySelectorAll(':scope > .aoc-card').forEach(function (card) {
+  qa(':scope > .aoc-card', container).forEach(function (card) {
     var id = card.dataset.ref;
     if (id) existing.set(id, card);
   });
-  var frag = document.createDocumentFragment();
+  var frag = D.createDocumentFragment();
   pageOrders.forEach(function (o, idx) {
     var otpId = getOtpId(o);
     var key = otpId || ('fb-' + idx);
-    var tmp = document.createElement('div');
+    var tmp = D.createElement('div');
     tmp.innerHTML = buildCard(o).trim();
     var newCard = tmp.firstElementChild;
     var newSig = [
@@ -902,7 +895,7 @@ function renderActiveOrders(orders) {
       '<button class="page-btn" type="button" data-page="' + (activeState.page - 1) + '" ' + (activeState.page <= 1 ? 'disabled' : '') + '>Prev</button>' +
       '<span class="page-info">Halaman ' + activeState.page + ' dari ' + activeState.totalPages + '</span>' +
       '<button class="page-btn" type="button" data-page="' + (activeState.page + 1) + '" ' + (activeState.page >= activeState.totalPages ? 'disabled' : '') + '>Next</button>';
-    pagEl.querySelectorAll('.page-btn').forEach(function (btn) {
+    qa('.page-btn', pagEl).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var p = Number(btn.dataset.page);
         if (p >= 1 && p <= activeState.totalPages) {
@@ -918,12 +911,14 @@ function renderActiveOrders(orders) {
 }
 
 function startCountdowns() {
-  Object.values(activeState.countdownIntervals).forEach(clearInterval);
+  Object.keys(activeState.countdownIntervals).forEach(function (k) {
+    clearInterval(activeState.countdownIntervals[k]);
+  });
   activeState.countdownIntervals = {};
-  document.querySelectorAll('.aoc-countdown').forEach(function (el) {
+  qa('.aoc-countdown').forEach(function (el) {
     var ref = el.dataset.ref;
     var deadline = parseInt(el.dataset.deadline || '0', 10);
-    var textEl = el.querySelector('.countdown-text');
+    var textEl = q('.countdown-text', el);
     if (!deadline) {
       if (textEl) textEl.textContent = 'EXPIRED';
       el.classList.add('expired');
@@ -964,10 +959,10 @@ async function syncPendingOrders() {
     })
   );
   var hasUpdate = false;
-  for (var r of results) {
-    if (r.status !== 'fulfilled') continue;
+  results.forEach(function (r) {
+    if (r.status !== 'fulfilled') return;
     var data = r.value;
-    if (!data) continue;
+    if (!data) return;
     if (data.updated || data.otp_code || data.status !== 'pending') {
       hasUpdate = true;
       if (data.otp_code) {
@@ -975,25 +970,29 @@ async function syncPendingOrders() {
         loadProfile(true);
       }
     }
-  }
+  });
   if (hasUpdate) {
     Cache.remove('orders');
     loadActiveOrders();
   }
 }
 
+var autoSyncInterval = null;
+var otpCheckInterval = null;
+var profileSyncInterval = null;
+
 function startAutoSync() {
   if (autoSyncInterval) clearInterval(autoSyncInterval);
   autoSyncInterval = setInterval(function () {
-    if (!document.hidden) loadActiveOrders();
+    if (!D.hidden) loadActiveOrders();
   }, _cfg.autoSync);
   if (otpCheckInterval) clearInterval(otpCheckInterval);
   otpCheckInterval = setInterval(function () {
-    if (!document.hidden) syncPendingOrders();
+    if (!D.hidden) syncPendingOrders();
   }, _cfg.otpCheck);
   if (profileSyncInterval) clearInterval(profileSyncInterval);
   profileSyncInterval = setInterval(function () {
-    if (!document.hidden) loadProfile(false);
+    if (!D.hidden) loadProfile(false);
   }, _cfg.profileSync);
 }
 function stopAutoSync() {
@@ -1033,7 +1032,7 @@ async function confirmOrder(orderId, btn) {
     var res = await securePost(_cfg.ep.order + '/' + encodeURIComponent(orderId) + '/confirm', {}, 'confirm');
     var data = await safeJson(res);
     if (!res.ok) throw new Error(data.error || 'Gagal konfirmasi');
-    await showAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses. Terima kasih!', type: 'success' });
+    await showAlert({ title: 'Order Sukses', message: 'Order berhasil dikonfirmasi sukses.', type: 'success' });
     Cache.remove('orders');
     loadActiveOrders();
   } catch (err) {
@@ -1069,57 +1068,44 @@ async function cancelOrder(orderId, btn) {
 }
 
 var _sheetClosing = false;
-
 function openSheet() {
-  var overlay = document.getElementById('sheetOverlay');
+  var overlay = D.getElementById('sheetOverlay');
   if (!overlay) return;
   overlay.classList.remove('closing');
   overlay.classList.add('active');
-  document.body.classList.add('sheet-open');
-  document.body.style.overflow = 'hidden';
+  D.body.classList.add('sheet-open');
   _sheetClosing = false;
 }
 function closeSheet() {
-  var overlay = document.getElementById('sheetOverlay');
+  var overlay = D.getElementById('sheetOverlay');
   if (!overlay || _sheetClosing) return;
   _sheetClosing = true;
   overlay.classList.add('closing');
   setTimeout(function () {
     overlay.classList.remove('active', 'closing');
-    document.body.classList.remove('sheet-open');
-    document.body.style.overflow = '';
+    D.body.classList.remove('sheet-open');
     _sheetClosing = false;
-  }, 280);
+  }, 220);
 }
 function adjustSheetHeight() {
-  var sheet = document.getElementById('bottomSheet');
-  var body = document.getElementById('sheetBody');
+  var sheet = D.getElementById('bottomSheet');
+  var body = D.getElementById('sheetBody');
   if (!sheet || !body) return;
   body.style.maxHeight = '';
-  var headerEl = sheet.querySelector('.sheet-header');
-  var handleEl = sheet.querySelector('.sheet-handle');
+  var headerEl = q('.sheet-header', sheet);
+  var handleEl = q('.sheet-handle', sheet);
   var headerH = headerEl ? headerEl.offsetHeight : 0;
   var handleH = handleEl ? handleEl.offsetHeight : 0;
-  var padding = 24;
-  var maxBodyH = window.innerHeight * 0.88 - headerH - handleH - padding;
-  var contentH = body.scrollHeight;
-  var targetH = Math.min(contentH, maxBodyH);
+  var maxBodyH = window.innerHeight * 0.88 - headerH - handleH - 24;
+  var targetH = Math.min(body.scrollHeight, maxBodyH);
   body.style.maxHeight = targetH + 'px';
 }
 
-document.getElementById('btnOrder').addEventListener('click', function () {
-  openSheet();
-  goToStep(1);
-});
-document.getElementById('sheetOverlay').addEventListener('click', function (e) {
-  if (e.target.id === 'sheetOverlay') closeSheet();
-});
-
 function goToStep(step) {
   state.step = step;
-  var body = document.getElementById('sheetBody');
-  var stepEl = document.getElementById('sheetStep');
-  var titleEl = document.getElementById('sheetTitle');
+  var body = D.getElementById('sheetBody');
+  var stepEl = D.getElementById('sheetStep');
+  var titleEl = D.getElementById('sheetTitle');
   if (body) body.scrollTop = 0;
   if (step === 1) {
     stepEl.textContent = 'Langkah 1 · Pilih Server';
@@ -1140,9 +1126,8 @@ function goToStep(step) {
   }
 }
 
-// STEP 1: server list (dari backend)
 async function renderServerStep() {
-  var body = document.getElementById('sheetBody');
+  var body = D.getElementById('sheetBody');
   body.innerHTML = '<div class="loading-block"><span class="spinner"></span><span>Memuat server...</span></div>';
   adjustSheetHeight();
   var cached = await Cache.get('servers', _cfg.ttl.servers);
@@ -1162,7 +1147,7 @@ async function renderServerStep() {
 }
 
 function renderServers(servers) {
-  var body = document.getElementById('sheetBody');
+  var body = D.getElementById('sheetBody');
   if (!servers || servers.length === 0) {
     body.innerHTML = '<div class="empty-block"><h3>Belum ada server</h3><p>Coba lagi nanti.</p></div>';
     adjustSheetHeight();
@@ -1183,22 +1168,34 @@ function renderServers(servers) {
         '</button>';
       }).join('') +
     '</div>';
-  body.querySelectorAll('.server-card').forEach(function (card) {
+  qa('.server-card', body).forEach(function (card) {
     card.addEventListener('click', function () {
       state.server = card.dataset.server;
       state.serverLabel = card.dataset.label;
       state.requiresOperator = card.dataset.operator === 'true';
       state.service = null;
       state.country = null;
+      prefetchForServer(state.server);
       goToStep(2);
     });
   });
   adjustSheetHeight();
 }
 
-// STEP 2: aplikasi (dari backend)
+function prefetchForServer(server) {
+  if (!server) return;
+  apiFetch(_cfg.ep.services + '?server=' + encodeURIComponent(server))
+    .then(safeJson)
+    .then(function (data) {
+      if (data && data.services && data.services.length > 0) {
+        Cache.set('services_' + server, data.services);
+      }
+    })
+    .catch(function () {});
+}
+
 async function renderAppStep() {
-  var body = document.getElementById('sheetBody');
+  var body = D.getElementById('sheetBody');
   body.innerHTML =
     '<button class="sheet-back" type="button" id="backBtn">' +
       '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Server' +
@@ -1209,33 +1206,30 @@ async function renderAppStep() {
     '</div>' +
     '<div id="appContent"><div class="loading-block"><span class="spinner"></span><span>Memuat aplikasi...</span></div></div>';
   adjustSheetHeight();
-  document.getElementById('backBtn').addEventListener('click', function () { goToStep(1); });
+  D.getElementById('backBtn').addEventListener('click', function () { goToStep(1); });
 
   var ck = 'services_' + state.server;
   var cached = await Cache.get(ck, _cfg.ttl.services);
-  if (cached && cached.length > 0) {
-    servicesCache = cached;
-    renderApps(servicesCache);
-  }
+  if (cached && cached.length > 0) renderApps(cached);
   try {
     var res = await apiFetch(_cfg.ep.services + '?server=' + encodeURIComponent(state.server));
     var data = await safeJson(res);
-    servicesCache = data.services || [];
-    if (servicesCache.length > 0) await Cache.set(ck, servicesCache);
-    renderApps(servicesCache);
-    var search = document.getElementById('appSearch');
+    var services = data.services || [];
+    if (services.length > 0) await Cache.set(ck, services);
+    renderApps(services);
+    var search = D.getElementById('appSearch');
     if (search) {
       search.addEventListener('input', function (e) {
-        var q = e.target.value.toLowerCase().trim();
-        var f = servicesCache.filter(function (s) {
-          return (s.name || '').toLowerCase().indexOf(q) !== -1 || (s.code || '').toLowerCase().indexOf(q) !== -1;
+        var val = e.target.value.toLowerCase().trim();
+        var f = services.filter(function (s) {
+          return (s.name || '').toLowerCase().indexOf(val) !== -1 || (s.code || '').toLowerCase().indexOf(val) !== -1;
         });
         renderApps(f);
       });
     }
   } catch (err) {
     if (!cached) {
-      var c = document.getElementById('appContent');
+      var c = D.getElementById('appContent');
       if (c) {
         c.innerHTML = '<div class="empty-block"><h3>Gagal memuat aplikasi</h3><p>' + escapeHtml(err.message) + '</p></div>';
         adjustSheetHeight();
@@ -1245,7 +1239,7 @@ async function renderAppStep() {
 }
 
 function renderApps(services) {
-  var c = document.getElementById('appContent');
+  var c = D.getElementById('appContent');
   if (!c) return;
   if (!services || services.length === 0) {
     c.innerHTML = '<div class="empty-block"><h3>Belum ada aplikasi</h3><p>Server ini belum punya aplikasi tersedia.</p></div>';
@@ -1255,28 +1249,40 @@ function renderApps(services) {
   c.innerHTML =
     '<div class="app-grid">' +
       services.map(function (s) {
-        var ini = getInitial(s.name);
         return '<button class="app-card" type="button" data-service="' + escapeHtml(s.code) + '" data-name="' + escapeHtml(s.name) + '">' +
-          '<div class="app-list-number">' + escapeHtml(ini) + '</div>' +
+          '<div class="app-list-number">' + escapeHtml(getInitial(s.name)) + '</div>' +
           '<div class="name">' + escapeHtml(s.name) + '</div>' +
         '</button>';
       }).join('') +
     '</div>';
-  c.querySelectorAll('.app-card').forEach(function (btn) {
+  qa('.app-card', c).forEach(function (btn) {
     btn.addEventListener('click', function () {
       state.service = btn.dataset.service;
       state.serviceName = btn.dataset.name;
       state.country = null;
       state.operator = 'any';
+      prefetchCountries(state.server, state.service);
       goToStep(3);
     });
   });
   adjustSheetHeight();
 }
 
-// STEP 3: negara (dari backend, sudah include min_price kalau premium)
+function prefetchCountries(server, service) {
+  if (!server || !service) return;
+  var ck = 'countries_' + server + '_' + service;
+  apiFetch(_cfg.ep.countries + '?server=' + encodeURIComponent(server) + '&service=' + encodeURIComponent(service))
+    .then(safeJson)
+    .then(function (data) {
+      if (data && data.countries && data.countries.length > 0) {
+        Cache.set(ck, data.countries);
+      }
+    })
+    .catch(function () {});
+}
+
 async function renderCountryStep() {
-  var body = document.getElementById('sheetBody');
+  var body = D.getElementById('sheetBody');
   body.innerHTML =
     '<button class="sheet-back" type="button" id="backBtn">' +
       '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Aplikasi' +
@@ -1294,7 +1300,7 @@ async function renderCountryStep() {
     '</div>' +
     '<div id="countryContent"><div class="loading-block"><span class="spinner"></span><span>Memuat negara...</span></div></div>';
   adjustSheetHeight();
-  document.getElementById('backBtn').addEventListener('click', function () { goToStep(2); });
+  D.getElementById('backBtn').addEventListener('click', function () { goToStep(2); });
 
   var ck = 'countries_' + state.server + '_' + state.service;
   var cached = await Cache.get(ck, _cfg.ttl.countries);
@@ -1307,19 +1313,19 @@ async function renderCountryStep() {
     var countries = data.countries || [];
     if (countries.length > 0) await Cache.set(ck, countries);
     renderCountries(countries);
-    var search = document.getElementById('countrySearch');
+    var search = D.getElementById('countrySearch');
     if (search) {
       search.addEventListener('input', function (e) {
-        var q = e.target.value.toLowerCase().trim();
+        var val = e.target.value.toLowerCase().trim();
         var f = countries.filter(function (c) {
-          return (c.name || '').toLowerCase().indexOf(q) !== -1 || (c.code || '').toLowerCase().indexOf(q) !== -1;
+          return (c.name || '').toLowerCase().indexOf(val) !== -1 || (c.code || '').toLowerCase().indexOf(val) !== -1;
         });
         renderCountries(f);
       });
     }
   } catch (err) {
     if (!cached) {
-      var c = document.getElementById('countryContent');
+      var c = D.getElementById('countryContent');
       if (c) {
         c.innerHTML = '<div class="empty-block"><h3>Gagal memuat negara</h3><p>' + escapeHtml(err.message) + '</p></div>';
         adjustSheetHeight();
@@ -1329,7 +1335,7 @@ async function renderCountryStep() {
 }
 
 function renderCountries(countries) {
-  var c = document.getElementById('countryContent');
+  var c = D.getElementById('countryContent');
   if (!c) return;
   if (!countries || countries.length === 0) {
     c.innerHTML = '<div class="empty-block"><h3>Belum ada negara</h3><p>Server ini belum punya negara tersedia.</p></div>';
@@ -1343,16 +1349,13 @@ function renderCountries(countries) {
         var minPrice = co.min_price != null ? Number(co.min_price) : null;
         var hasPrice = isPremium && Number.isFinite(minPrice) && minPrice > 0;
         var isSoldOut = isPremium && co.min_price === null;
-
         var meta = 'Kode: ' + escapeHtml((co.code || '').toUpperCase());
         if (hasPrice) {
           meta = 'Mulai ' + formatRupiah(minPrice) + ' · ' + escapeHtml((co.code || '').toUpperCase());
         } else if (isSoldOut) {
           meta = 'Stok habis';
         }
-
-        var disabled = isSoldOut ? ' disabled style="opacity:.5;cursor:not-allowed"' : '';
-
+        var disabled = isSoldOut ? ' disabled' : '';
         return '<button class="country-item" type="button" data-country="' + escapeHtml(co.code) + '" data-name="' + escapeHtml(co.name) + '"' + disabled + '>' +
           '<div class="country-flag">' + renderFlag(co.code) + '</div>' +
           '<div class="country-info">' +
@@ -1363,7 +1366,7 @@ function renderCountries(countries) {
         '</button>';
       }).join('') +
     '</div>';
-  c.querySelectorAll('.country-item').forEach(function (item) {
+  qa('.country-item', c).forEach(function (item) {
     if (item.disabled) return;
     item.addEventListener('click', function () {
       state.country = item.dataset.country;
@@ -1372,15 +1375,14 @@ function renderCountries(countries) {
       goToStep(4);
     });
   });
-  c.querySelectorAll('img[data-sources]').forEach(function (img) {
+  qa('img[data-sources]', c).forEach(function (img) {
     img.addEventListener('error', function () { window._handleFlagErr(this); });
   });
   adjustSheetHeight();
 }
 
-// STEP 4: harga (dari backend)
 async function renderPriceStep() {
-  var body = document.getElementById('sheetBody');
+  var body = D.getElementById('sheetBody');
   body.innerHTML =
     '<button class="sheet-back" type="button" id="backBtn">' +
       '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg> Ganti Negara' +
@@ -1398,11 +1400,11 @@ async function renderPriceStep() {
     '</div>' +
     '<div id="priceContent"><div class="loading-block"><span class="spinner"></span><span>Memuat harga...</span></div></div>';
   adjustSheetHeight();
-  document.getElementById('backBtn').addEventListener('click', function () { goToStep(3); });
+  D.getElementById('backBtn').addEventListener('click', function () { goToStep(3); });
 
-  document.querySelectorAll('.sheet-tab').forEach(function (tab) {
+  qa('.sheet-tab', body).forEach(function (tab) {
     tab.addEventListener('click', function () {
-      document.querySelectorAll('.sheet-tab').forEach(function (t) { t.classList.remove('active'); });
+      qa('.sheet-tab', body).forEach(function (t) { t.classList.remove('active'); });
       tab.classList.add('active');
       state.filter = tab.dataset.filter;
       renderPrices(state.providers);
@@ -1445,7 +1447,7 @@ async function renderPriceStep() {
     renderPrices(providers);
   } catch (err) {
     if (!cached) {
-      var c = document.getElementById('priceContent');
+      var c = D.getElementById('priceContent');
       if (c) {
         c.innerHTML = '<div class="empty-block"><h3>Gagal memuat harga</h3><p>' + escapeHtml(err.message) + '</p></div>';
         adjustSheetHeight();
@@ -1455,7 +1457,7 @@ async function renderPriceStep() {
 }
 
 function renderPrices(providers) {
-  var c = document.getElementById('priceContent');
+  var c = D.getElementById('priceContent');
   if (!c) return;
   var list = (providers || []).filter(function (p) { return p.active !== false; });
   if (list.length === 0) {
@@ -1490,7 +1492,7 @@ function renderPrices(providers) {
         '</div>';
       }).join('') +
     '</div>';
-  c.querySelectorAll('[data-buy-pid]').forEach(function (btn) {
+  qa('[data-buy-pid]', c).forEach(function (btn) {
     btn.addEventListener('click', function () {
       var pid = btn.dataset.buyPid;
       var p = sorted.find(function (x) { return String(x._pid) === String(pid); });
@@ -1543,11 +1545,11 @@ async function placeOrder(pid, priceData, btn) {
     PROVIDER_RAW_MAP.clear();
     Cache.remove('user');
     Cache.remove('orders');
-    document.getElementById('modalSuccess').classList.add('active');
+    D.getElementById('modalSuccess').classList.add('active');
     setTimeout(function () {
       loadProfile(true);
       loadActiveOrders();
-    }, 500);
+    }, 400);
   } catch (err) {
     await showAlert({ title: 'Order Gagal', message: err.message || 'Terjadi kesalahan', type: 'danger' });
     btn.disabled = false;
@@ -1555,16 +1557,16 @@ async function placeOrder(pid, priceData, btn) {
   }
 }
 
-document.addEventListener('click', function (e) {
+D.addEventListener('click', function (e) {
   if (e.target.classList && e.target.classList.contains('modal-overlay')) {
     e.target.classList.remove('active');
   }
 });
-document.addEventListener('keydown', function (e) {
+D.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') {
-    var m = document.querySelector('.modal-overlay.active');
+    var m = q('.modal-overlay.active');
     if (m) m.classList.remove('active');
-    var s = document.getElementById('sheetOverlay');
+    var s = D.getElementById('sheetOverlay');
     if (s && s.classList.contains('active')) closeSheet();
   }
 });
@@ -1583,7 +1585,7 @@ async function handleLogout() {
   } catch (e) {}
   location.href = '/landing';
 }
-document.getElementById('logoutBtn').addEventListener('click', async function () {
+D.getElementById('logoutBtn').addEventListener('click', async function () {
   var ok = await showAlert({
     title: 'Keluar Akun?',
     message: 'Kamu yakin mau keluar dari akun ini?',
@@ -1593,15 +1595,31 @@ document.getElementById('logoutBtn').addEventListener('click', async function ()
 });
 
 (function initEmptyState() {
-  var c = document.getElementById('activeOrders');
+  var c = D.getElementById('activeOrders');
   if (!c) return;
   c.className = '';
   c.innerHTML =
     '<div class="empty-orders">' +
-      '<div class="icon-box"><span class="spinner" style="width:24px;height:24px;border-width:2.5px"></span></div>' +
+      '<div class="icon-box"><span class="spinner-sm"></span></div>' +
       '<h3>Memuat pesanan...</h3>' +
       '<p>Sedang mengambil data pesanan aktif kamu.</p>' +
     '</div>';
+})();
+
+(function initSheetClick() {
+  var btn = D.getElementById('btnOrder');
+  var overlay = D.getElementById('sheetOverlay');
+  if (btn) {
+    btn.addEventListener('click', function () {
+      openSheet();
+      goToStep(1);
+    });
+  }
+  if (overlay) {
+    overlay.addEventListener('click', function (e) {
+      if (e.target.id === 'sheetOverlay') closeSheet();
+    });
+  }
 })();
 
 (async function () {
@@ -1610,8 +1628,8 @@ document.getElementById('logoutBtn').addEventListener('click', async function ()
   startAutoSync();
 })();
 
-document.addEventListener('visibilitychange', function () {
-  if (!document.hidden) {
+D.addEventListener('visibilitychange', function () {
+  if (!D.hidden) {
     loadProfile(false);
     loadActiveOrders();
     syncPendingOrders();
@@ -1619,8 +1637,9 @@ document.addEventListener('visibilitychange', function () {
 });
 window.addEventListener('beforeunload', function () {
   stopAutoSync();
-  Object.values(activeState.countdownIntervals).forEach(clearInterval);
-  if (_loadActiveAbort) _loadActiveAbort.abort();
+  Object.keys(activeState.countdownIntervals).forEach(function (k) {
+    clearInterval(activeState.countdownIntervals[k]);
+  });
 });
 
 })(window);
