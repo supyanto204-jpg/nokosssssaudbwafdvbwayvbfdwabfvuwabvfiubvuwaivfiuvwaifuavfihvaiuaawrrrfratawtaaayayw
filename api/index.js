@@ -2633,7 +2633,7 @@ app.get('/api/auth/sessions', requireAuth, withDB(async (req, res) => {
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT username, name, balance, role, user_code, status, created_at FROM users WHERE id = $1 LIMIT 1',
+            'SELECT username, name, balance, role, user_code, status, email, created_at FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
         );
         
@@ -2643,7 +2643,6 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
         
         const u = result.rows[0];
         
-        // Kirim langsung sebagai JSON string tanpa overhead (lebih cepet buat Vercel)
         res.set('Content-Type', 'application/json');
         res.end(JSON.stringify({
             username: u.username,
@@ -2652,6 +2651,7 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
             role: u.role,
             user_code: u.user_code,
             status: u.status,
+            email: u.email || null, // <--- Tambahan
             created_at: u.created_at,
         }));
     } catch (err) {
@@ -2691,6 +2691,56 @@ app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(a
         }));
     } catch (err) {
         console.error('Update user error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withDB(async (req, res) => {
+    const { email } = req.body;
+
+    // 1. Validasi format email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return res.status(400).json({ error: 'Format email tidak valid' });
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+
+    try {
+        // 2. Cek apakah email udah dipake user lain
+        const checkEmail = await pool.query(
+            'SELECT id FROM users WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
+            [cleanEmail, req.user.id]
+        );
+        if (checkEmail.rows.length > 0) {
+            return res.status(400).json({ error: 'Email sudah terdaftar di akun lain' });
+        }
+
+        // 3. Cek apakah user ini udah punya email (biar gak bisa ditimpa sembarangan)
+        const userRes = await pool.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
+        if (userRes.rows[0] && userRes.rows[0].email) {
+            return res.status(400).json({ error: 'Akun kamu sudah memiliki email terdaftar' });
+        }
+
+        // 4. Update email
+        await pool.query(
+            'UPDATE users SET email = $1, updated_at = NOW() WHERE id = $2',
+            [cleanEmail, req.user.id]
+        );
+
+        // 5. Log (opsional, biar ada rekam jejak)
+        await logStatusChange({
+            entityType: 'user',
+            entityId: req.user.id,
+            userId: req.user.id,
+            oldStatus: null,
+            newStatus: 'email_linked',
+            reason: 'user_link_email',
+            metadata: { email: cleanEmail }
+        });
+
+        res.json({ message: 'Email berhasil ditautkan', email: cleanEmail });
+    } catch (err) {
+        console.error('Link email error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
