@@ -12,1965 +12,1288 @@
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700;800&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   ADMIN.CSS — Simple, Lightweight, iOS Glass
-   ============================================================ */
-
-:root {
-  --p: #0a84ff;
-  --ok: #34c759;
-  --warn: #ff9f0a;
-  --err: #ff3b30;
-  --purple: #af52de;
-  --txt: #1c1c1e;
-  --txt2: #6e6e73;
-  --txt3: #8e8e93;
-  --bg: #eef2f7;
-  --gl-bg: rgba(255, 255, 255, 0.7);
-  --gl-bd: rgba(255, 255, 255, 0.8);
-  --gl-bd2: rgba(0, 0, 0, 0.08);
-  --gl-sh: 0 4px 20px rgba(31, 38, 135, 0.08);
-  --gl-in: inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --grad: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 55%, #bf5af2 100%);
-  --blur: blur(20px) saturate(180%);
-  --r: 16px;
-  --r-sm: 10px;
-  --tr: 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  color-scheme: light;
+:root{
+  --p:#0a84ff;--p-ink:#ffffff;
+  --ok:#1f9d55;--warn:#b8860b;--err:#c0392b;--purple:#7c3aed;
+  --bg:#ffffff;--surface:#f4f5f7;--surface-2:#ebedf0;
+  --border:#d8dbe0;--border-2:#b9bec5;
+  --txt:#0d0f12;--txt2:#525860;--txt3:#7a8189;
+  --r-sm:10px;--r:14px;--r-lg:16px;--r-pill:999px;
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --ease-out:cubic-bezier(.2,.8,.2,1);
+  --font:'Inter',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  color-scheme:light;
 }
-
-[data-theme="dark"] {
-  --txt: #f5f5f7;
-  --txt2: #a1a1a6;
-  --txt3: #8e8e93;
-  --bg: #0a0a0c;
-  --gl-bg: rgba(28, 28, 32, 0.7);
-  --gl-bd: rgba(255, 255, 255, 0.12);
-  --gl-bd2: rgba(255, 255, 255, 0.1);
-  --gl-sh: 0 4px 20px rgba(0, 0, 0, 0.4);
-  --gl-in: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color-scheme: dark;
+[data-theme="dark"]{
+  --p:#4aa3ff;--p-ink:#06101a;
+  --ok:#34c46b;--warn:#e0a800;--err:#ff6b60;--purple:#a78bfa;
+  --bg:#0a0b0d;--surface:#14171a;--surface-2:#1b1f23;
+  --border:#2a2f35;--border-2:#3a4047;
+  --txt:#f2f4f6;--txt2:#a6adb5;--txt3:#7d858d;
+  color-scheme:dark;
 }
-
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', sans-serif;
-  background: var(--bg);
-  color: var(--txt);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow-x: hidden;
-}
-
-body, body * { user-select: none; -webkit-user-select: none; }
-input, textarea, select, code, [contenteditable], [data-copy] { user-select: text; -webkit-user-select: text; }
-
-a, button, [role="button"], input, select, textarea, label,
-.nav-item, .tab, .stat-card, .card, .btn, .sidebar-overlay,
-.modal-overlay, .alert-overlay, .collapse-btn, .logout-btn,
-.mobile-toggle, .theme-btn, .icon-btn, .copy-btn {
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-@media (hover: hover) {
-  a, button, [role="button"], .nav-item, .tab, .btn, .collapse-btn,
-  .logout-btn, .mobile-toggle, .theme-btn, .icon-btn, .copy-btn { cursor: pointer; }
-}
-
-.ic { width: 20px; height: 20px; display: inline-block; vertical-align: middle; flex-shrink: 0; pointer-events: none; }
-.spinner-sm { width: 16px; height: 16px; border: 2px solid rgba(10,132,255,0.2); border-top-color: var(--p); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; pointer-events: none; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* BG */
-.bg {
-  position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(circle at 20% 20%, rgba(10,132,255,0.08), transparent 40%),
-    radial-gradient(circle at 80% 80%, rgba(191,90,242,0.06), transparent 40%);
-}
-
-/* Glass */
-.glass {
-  background: var(--gl-bg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--gl-bd);
-  box-shadow: var(--gl-sh), var(--gl-in);
-  border-radius: var(--r);
-}
-.glass-card {
-  background: var(--gl-bg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--gl-bd);
-  box-shadow: var(--gl-sh), var(--gl-in);
-  border-radius: var(--r);
-}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{font:400 15px/1.55 var(--font);background:var(--bg);color:var(--txt);letter-spacing:-.005em;-webkit-font-smoothing:antialiased;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+img,svg{display:block;max-width:100%;height:auto}
+a{color:var(--p);text-decoration:none}
+button{font:inherit}
+.ic{width:18px;height:18px;display:inline-block;vertical-align:middle;flex-shrink:0;pointer-events:none}
+.spinner-sm{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
 
 /* Layout */
-.layout {
-  position: relative; z-index: 1;
-  display: flex;
-  min-height: 100vh; min-height: 100dvh;
-}
+.layout{display:flex;min-height:100vh;min-height:100dvh}
 
-/* SIDEBAR */
-.sidebar {
-  position: fixed; top: 12px; left: 12px; bottom: 12px;
-  width: 240px; padding: 16px 12px;
-  display: flex; flex-direction: column;
-  z-index: 300;
-  transition: width 0.3s var(--tr), transform 0.3s var(--tr);
-  overflow: hidden;
+/* Sidebar */
+.sidebar{
+  position:fixed;top:12px;left:12px;bottom:12px;width:240px;
+  padding:16px 12px;display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);
+  z-index:300;transition:width .3s var(--ease-out),transform .3s var(--ease-out);overflow:hidden;
 }
-.sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding: 0 4px; }
-.sidebar-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--txt); }
-.logo-icon {
-  width: 36px; height: 36px; border-radius: 11px;
-  background: var(--grad);
-  display: flex; align-items: center; justify-content: center;
-  color: #fff; font-weight: 900; font-size: 1.2rem;
-  box-shadow: 0 4px 14px rgba(10,132,255,0.3);
-  flex-shrink: 0;
-}
-.logo-text { font-weight: 900; font-size: 1rem; white-space: nowrap; }
-.logo-text span { color: var(--p); }
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:0 4px}
+.sidebar-logo{display:flex;align-items:center;gap:10px;color:var(--txt)}
+.logo-icon{width:34px;height:34px;border-radius:10px;background:var(--txt);color:var(--bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.1rem;flex-shrink:0}
+.logo-text{font-weight:700;font-size:.98rem;white-space:nowrap}
+.logo-text span{color:var(--txt2);font-weight:500}
+.collapse-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--txt2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.collapse-btn .ic{width:14px;height:14px;transition:transform .3s var(--ease-out)}
+.sidebar.collapsed{width:72px}
+.sidebar.collapsed .logo-text,.sidebar.collapsed .nav-label,.sidebar.collapsed .nav-section,.sidebar.collapsed .user-details,.sidebar.collapsed .logout-btn{display:none}
+.sidebar.collapsed .collapse-btn .ic{transform:rotate(180deg)}
+.sidebar.collapsed .sidebar-header{flex-direction:column;gap:10px;justify-content:center}
+.sidebar.collapsed .sidebar-logo{justify-content:center}
+.sidebar-nav{flex:1;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:var(--txt2);font-size:.86rem;font-weight:500;white-space:nowrap;transition:background-color .2s,color .2s}
+.nav-item .ic{width:17px;height:17px}
+.nav-item.active{background:var(--txt);color:var(--bg);font-weight:600}
+.sidebar.collapsed .nav-item{justify-content:center;padding:9px 0}
+.nav-section{padding:12px 12px 4px;font:600 .62rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--txt3)}
+.sidebar-footer{border-top:1px solid var(--border);padding-top:12px;margin-top:12px}
+.user-info{display:flex;align-items:center;gap:8px;padding:4px;min-width:0}
+.user-avatar{width:34px;height:34px;border-radius:50%;background:var(--surface-2);color:var(--txt);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.86rem;flex-shrink:0}
+.user-details{flex:1;min-width:0;overflow:hidden}
+.user-name{font-size:.8rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.user-balance{font:500 .72rem var(--mono);color:var(--p);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.logout-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--txt2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.logout-btn .ic{width:14px;height:14px}
 
-.collapse-btn {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt2);
-  display: flex; align-items: center; justify-content: center;
-  transition: all var(--tr);
-  flex-shrink: 0;
-}
-[data-theme="dark"] .collapse-btn { background: rgba(255,255,255,0.06); }
-.collapse-btn:active { transform: scale(0.94); }
-.collapse-btn .ic { width: 16px; height: 16px; transition: transform 0.3s var(--tr); }
+/* Main */
+.main{margin-left:264px;padding:12px 16px 80px 0;min-width:0;display:flex;flex-direction:column;gap:14px}
+body.sidebar-collapsed .main{margin-left:96px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);position:sticky;top:12px;z-index:20;flex-wrap:wrap}
+.topbar-left{display:flex;align-items:center;gap:10px;min-width:0}
+.topbar h1{font-size:1.1rem;font-weight:700;letter-spacing:-.02em}
+.topbar p{font-size:.76rem;color:var(--txt2);margin-top:2px}
+.topbar-right{display:flex;align-items:center;gap:8px}
+.icon-btn,.theme-btn,.mobile-toggle{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--txt2);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.icon-btn .ic,.theme-btn .ic,.mobile-toggle .ic{width:17px;height:17px}
+.mobile-toggle{display:none}
+.theme-btn{position:relative;padding:0}
+.theme-btn .ic{position:absolute;transition:transform .3s var(--ease-spring),opacity .2s}
+.theme-btn .i-sun{transform:scale(1) rotate(0);opacity:1}
+.theme-btn .i-moon{transform:scale(0) rotate(-90deg);opacity:0}
+.theme-btn .i-auto{transform:scale(0) rotate(-90deg);opacity:0}
+[data-theme-pref="light"]  .theme-btn .i-sun{transform:scale(1) rotate(0);opacity:1}
+[data-theme-pref="dark"]   .theme-btn .i-moon{transform:scale(1) rotate(0);opacity:1}
+[data-theme-pref="dark"]   .theme-btn .i-sun{transform:scale(0) rotate(90deg);opacity:0}
+[data-theme-pref="system"] .theme-btn .i-auto{transform:scale(1) rotate(0);opacity:1}
+[data-theme-pref="system"] .theme-btn .i-sun{transform:scale(0) rotate(90deg);opacity:0}
+.icon-btn.spinning .ic{animation:spin .8s linear infinite}
 
-.sidebar.collapsed { width: 72px; }
-.sidebar.collapsed .logo-text,
-.sidebar.collapsed .nav-label,
-.sidebar.collapsed .user-details,
-.sidebar.collapsed .logout-btn { display: none; }
-.sidebar.collapsed .collapse-btn .ic { transform: rotate(180deg); }
-.sidebar.collapsed .sidebar-header { flex-direction: column; gap: 10px; justify-content: center; }
-.sidebar.collapsed .sidebar-logo { justify-content: center; }
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.stat{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.stat-label{font:600 .62rem var(--mono);color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+.stat-value{font:700 1.25rem var(--mono);color:var(--txt);letter-spacing:-.02em}
 
-.sidebar-nav { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
-.nav-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px;
-  color: var(--txt2); text-decoration: none;
-  font-size: 0.88rem; font-weight: 600;
-  transition: all var(--tr);
-  white-space: nowrap;
-}
-.nav-item .ic { width: 18px; height: 18px; }
-.nav-item.active { background: var(--grad); color: #fff; box-shadow: 0 4px 12px rgba(10,132,255,0.3); }
-.nav-item:active { transform: scale(0.97); }
-.sidebar.collapsed .nav-item { justify-content: center; padding: 10px 0; }
+/* Tabs */
+.tabs{display:flex;gap:4px;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-pill);overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:7px 14px;border-radius:var(--r-pill);border:none;background:transparent;color:var(--txt2);font-weight:500;font-size:.78rem;white-space:nowrap;cursor:pointer;transition:background-color .2s,color .2s;min-height:34px}
+.tab.active{background:var(--txt);color:var(--bg);font-weight:600}
 
-.sidebar-footer { border-top: 1px solid var(--gl-bd2); padding-top: 12px; margin-top: 12px; }
-.user-info { display: flex; align-items: center; gap: 8px; padding: 4px; }
-.user-avatar {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--grad); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 0.9rem;
-  flex-shrink: 0;
-}
-.user-details { flex: 1; min-width: 0; overflow: hidden; }
-.user-name { font-size: 0.82rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.user-balance { font-size: 0.72rem; color: var(--p); font-weight: 700; font-family: 'JetBrains Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.logout-btn {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt2);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  transition: all var(--tr);
-}
-[data-theme="dark"] .logout-btn { background: rgba(255,255,255,0.06); }
-.logout-btn .ic { width: 16px; height: 16px; }
-.logout-btn:active { transform: scale(0.94); }
+/* Toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search-bar{position:relative;display:flex;align-items:center;flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-pill);padding:0 14px;min-height:40px}
+.search-bar .ic{color:var(--txt3);width:16px;height:16px;position:absolute;left:14px;pointer-events:none}
+.search-bar input{flex:1;padding:9px 0 9px 28px;border:none;outline:none;background:transparent;font:inherit;font-size:.88rem;color:var(--txt);min-width:0}
+.filter-select{padding:9px 12px;border-radius:var(--r-pill);border:1px solid var(--border);background:var(--surface);color:var(--txt);font:inherit;font-size:.8rem;cursor:pointer;min-height:40px}
 
-@media (hover: hover) {
-  .nav-item:hover { background: rgba(10,132,255,0.08); color: var(--p); }
-  .collapse-btn:hover { background: var(--p); color: #fff; border-color: var(--p); }
-  .logout-btn:hover { background: var(--err); color: #fff; border-color: var(--err); }
-}
+/* List */
+#content{display:flex;flex-direction:column;gap:10px}
+.card{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;gap:10px}
+.card-header{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.card-title{font-weight:600;font-size:.9rem;margin-bottom:2px;word-break:break-word}
+.card-sub{font:.72rem var(--mono);color:var(--txt2);word-break:break-all}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.field{display:flex;flex-direction:column;gap:2px;min-width:0}
+.field-label{font:600 .6rem var(--mono);color:var(--txt3);text-transform:uppercase;letter-spacing:.04em}
+.field-value{font:600 .8rem var(--mono);color:var(--txt);word-break:break-all}
+.field-value.primary{color:var(--p)}
+.field-value.success{color:var(--ok)}
+.field-value.warning{color:var(--warn)}
+.field-value.danger{color:var(--err)}
+.field-value.purple{color:var(--purple)}
 
-/* MAIN */
-.main-content {
-  flex: 1; margin-left: 268px;
-  padding: 12px 16px 80px 0;
-  min-width: 0;
-  display: flex; flex-direction: column; gap: 14px;
-  position: relative; z-index: 1;
-}
-body.sidebar-collapsed .main-content { margin-left: 100px; }
+.badge{display:inline-flex;align-items:center;padding:2px 9px;border-radius:var(--r-pill);font:600 .68rem var(--mono);flex-shrink:0}
+.badge.success{background:color-mix(in srgb,var(--ok) 14%,transparent);color:var(--ok)}
+.badge.warning{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+.badge.danger{background:color-mix(in srgb,var(--err) 14%,transparent);color:var(--err)}
+.badge.gray{background:var(--surface-2);color:var(--txt3)}
+.badge.info{background:color-mix(in srgb,var(--p) 12%,transparent);color:var(--p)}
+.badge.purple{background:color-mix(in srgb,var(--purple) 14%,transparent);color:var(--purple)}
 
-/* Topbar */
-.topbar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 12px 16px;
-  position: sticky; top: 12px; z-index: 20;
-  flex-wrap: wrap;
-}
-body.sidebar-open .topbar { z-index: 10; }
-.topbar-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.topbar-left h1 { font-size: 1.15rem; font-weight: 900; letter-spacing: -0.02em; }
-.topbar-left p { font-size: 0.78rem; color: var(--txt2); margin-top: 2px; }
-.topbar-right { display: flex; align-items: center; gap: 8px; }
+.actions{display:flex;gap:6px;flex-wrap:wrap}
+.actions .btn{flex:1;min-width:90px;font-size:.74rem;padding:7px 10px}
 
-.mobile-toggle, .icon-btn, .theme-btn {
-  width: 40px; height: 40px; border-radius: 50%;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt2);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  transition: all var(--tr);
-}
-[data-theme="dark"] .mobile-toggle,
-[data-theme="dark"] .icon-btn,
-[data-theme="dark"] .theme-btn { background: rgba(255,255,255,0.06); }
-.mobile-toggle { display: none; }
-.mobile-toggle:active, .icon-btn:active, .theme-btn:active { transform: scale(0.94); }
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:10px;border:1px solid var(--border);background:transparent;color:var(--txt);font-weight:500;font-size:.8rem;cursor:pointer;transition:background-color .2s,border-color .2s;min-height:38px}
+.btn:active{transform:scale(.97)}
+.btn .ic{width:14px;height:14px}
+.btn-primary{background:var(--p);color:var(--p-ink);border-color:var(--p)}
+.btn-danger{background:var(--err);color:#fff;border-color:var(--err)}
+.btn-success{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn-block{width:100%}
+.btn:disabled{opacity:.5;cursor:not-allowed}
 
-.theme-btn { position: relative; }
-.theme-btn .ic { width: 18px; height: 18px; position: absolute; transition: all 0.3s var(--tr); }
-.theme-btn .i-sun { transform: rotate(0) scale(1); opacity: 1; }
-.theme-btn .i-moon { transform: rotate(180deg) scale(0); opacity: 0; }
-[data-theme="dark"] .theme-btn .i-sun { transform: rotate(-180deg) scale(0); opacity: 0; }
-[data-theme="dark"] .theme-btn .i-moon { transform: rotate(0) scale(1); opacity: 1; }
-
-@media (hover: hover) {
-  .mobile-toggle:hover, .icon-btn:hover, .theme-btn:hover { background: var(--p); color: #fff; border-color: var(--p); }
-}
-
-/* STATS */
-.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.stat-card { padding: 14px; }
-.stat-label {
-  font-size: 0.68rem; font-weight: 700; color: var(--txt2);
-  text-transform: uppercase; letter-spacing: 0.04em;
-  font-family: 'JetBrains Mono', monospace; margin-bottom: 4px;
-}
-.stat-value {
-  font-size: 1.3rem; font-weight: 900;
-  font-family: 'JetBrains Mono', monospace;
-  letter-spacing: -0.02em;
-}
-
-/* TABS */
-.tabs {
-  display: flex; gap: 4px; padding: 4px;
-  overflow-x: auto; scrollbar-width: none;
-  border-radius: 50px;
-}
-.tabs::-webkit-scrollbar { display: none; }
-.tab {
-  padding: 8px 16px; border-radius: 50px;
-  border: none; background: none;
-  color: var(--txt2); font: inherit; font-weight: 700;
-  font-size: 0.78rem; white-space: nowrap;
-  transition: all var(--tr);
-  min-height: 36px;
-}
-.tab.active { background: var(--grad); color: #fff; box-shadow: 0 4px 12px rgba(10,132,255,0.3); }
-.tab:active { transform: scale(0.97); }
-
-/* SEARCH */
-.search-bar {
-  position: relative; display: flex; align-items: center;
-  background: var(--gl-bg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  border: 1px solid var(--gl-bd);
-  border-radius: 50px;
-  padding: 0 16px;
-  min-height: 44px;
-}
-.search-bar .ic {
-  color: var(--txt3); width: 18px; height: 18px; flex-shrink: 0;
-  position: absolute; left: 16px;
-  pointer-events: none;
-}
-.search-bar input {
-  flex: 1; padding: 10px 0 10px 32px;
-  border: none; outline: none; background: transparent;
-  font: inherit; font-size: 0.9rem; color: var(--txt);
-  min-width: 0;
-}
-
-/* Content cards */
-#content { display: flex; flex-direction: column; gap: 10px; }
-
-.card {
-  padding: 14px;
-  display: flex; flex-direction: column; gap: 10px;
-}
-.card-header { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; padding-bottom: 10px; border-bottom: 1px solid var(--gl-bd2); }
-.card-title-wrap { flex: 1; min-width: 0; }
-.card-title { font-weight: 800; font-size: 0.92rem; margin-bottom: 2px; word-break: break-word; }
-.card-sub { font-size: 0.72rem; color: var(--txt2); font-family: 'JetBrains Mono', monospace; word-break: break-all; }
-
-.badge {
-  display: inline-flex; align-items: center;
-  padding: 3px 10px; border-radius: 999px;
-  font-size: 0.68rem; font-weight: 800;
-  font-family: 'JetBrains Mono', monospace;
-  flex-shrink: 0;
-}
-.badge.success { background: rgba(52,199,89,0.15); color: var(--ok); }
-.badge.warning { background: rgba(255,159,10,0.15); color: var(--warn); }
-.badge.danger { background: rgba(255,59,48,0.15); color: var(--err); }
-.badge.gray { background: rgba(142,142,147,0.15); color: var(--txt3); }
-.badge.info { background: rgba(10,132,255,0.15); color: var(--p); }
-.badge.purple { background: rgba(191,90,242,0.15); color: var(--purple); }
-
-.grid-2 {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-}
-.field { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.field-label {
-  font-size: 0.62rem; font-weight: 700; color: var(--txt3);
-  text-transform: uppercase; letter-spacing: 0.04em;
-  font-family: 'JetBrains Mono', monospace;
-}
-.field-value {
-  font-weight: 700; font-size: 0.82rem;
-  font-family: 'JetBrains Mono', monospace;
-  word-break: break-all;
-}
-.field-value.primary { color: var(--p); }
-.field-value.success { color: var(--ok); }
-.field-value.warning { color: var(--warn); }
-.field-value.danger { color: var(--err); }
-
-.actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.actions .btn { flex: 1; min-width: 100px; font-size: 0.75rem; padding: 8px 10px; }
-
-/* Button */
-.btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  gap: 6px; padding: 10px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt); font: inherit;
-  font-weight: 700; font-size: 0.82rem;
-  transition: all var(--tr);
-  min-height: 40px;
-}
-[data-theme="dark"] .btn { background: rgba(255,255,255,0.06); }
-.btn:active { transform: scale(0.97); }
-.btn .ic { width: 14px; height: 14px; }
-.btn-primary { background: var(--grad); color: #fff; border: none; box-shadow: 0 4px 14px rgba(10,132,255,0.3); }
-.btn-danger { background: var(--err); color: #fff; border: none; }
-.btn-success { background: var(--ok); color: #fff; border: none; }
-.btn-block { width: 100%; }
-
-@media (hover: hover) {
-  .btn:hover { background: rgba(10,132,255,0.08); color: var(--p); border-color: var(--p); }
-  .btn-primary:hover { background: var(--grad); color: #fff; border: none; }
-}
-
-/* Empty / Loading */
-.empty-block {
-  text-align: center; padding: 40px 20px;
-  color: var(--txt2);
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-}
-.empty-block p { font-size: 0.85rem; }
+/* Empty/Error */
+.empty{text-align:center;padding:40px 20px;color:var(--txt2);display:flex;flex-direction:column;align-items:center;gap:10px}
+.empty p{font-size:.85rem}
 
 /* Pagination */
-.pagination {
-  display: flex; align-items: center; justify-content: center;
-  gap: 8px; flex-wrap: wrap;
-  padding: 10px 0;
-}
-.page-btn {
-  padding: 8px 14px; border-radius: 50px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt);
-  font: inherit; font-weight: 700; font-size: 0.78rem;
-  min-height: 40px;
-  transition: all var(--tr);
-}
-[data-theme="dark"] .page-btn { background: rgba(255,255,255,0.06); }
-.page-btn:disabled { opacity: 0.4; }
-.page-btn:active:not(:disabled) { transform: scale(0.96); }
-.page-info {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem; color: var(--txt2); font-weight: 700;
-}
-
-/* Footer */
-.site-footer {
-  text-align: center; padding: 20px 0 10px;
-  color: var(--txt3); font-size: 0.75rem;
-}
-
-/* Sidebar overlay */
-.sidebar-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.4);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 290;
-  opacity: 0;
-  transition: opacity 0.25s;
-  pointer-events: none;
-}
-.sidebar-overlay.active { display: block; opacity: 1; pointer-events: auto; }
-
-/* Security Gate */
-.gate {
-  position: fixed; inset: 0; z-index: 99999;
-  background: var(--bg);
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 20px; padding: 24px;
-}
-.gate.hidden { display: none; }
-.gate-spinner {
-  width: 56px; height: 56px;
-  border: 4px solid rgba(10,132,255,0.15);
-  border-top-color: var(--p);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-.gate-spinner.frozen {
-  animation: none;
-  border-color: rgba(255,59,48,0.15);
-  border-top-color: var(--err);
-}
-.gate-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.82rem; font-weight: 600;
-  color: var(--txt2);
-  text-align: center;
-}
-.gate-text.frozen { color: var(--err); }
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:10px 0}
+.page-btn{min-width:40px;height:40px;padding:0 14px;border-radius:var(--r-pill);border:1px solid var(--border);background:transparent;color:var(--txt);font-weight:500;font-size:.78rem;cursor:pointer}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
+.page-info{font:.76rem var(--mono);color:var(--txt2);font-weight:600}
 
 /* Modal */
-.modal-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 9000;
-  align-items: center; justify-content: center;
-  padding: 16px;
-  pointer-events: none;
-}
-.modal-overlay.active { display: flex; pointer-events: auto; }
-.modal {
-  width: 100%; max-width: 480px;
-  max-height: 90vh; overflow-y: auto;
-  padding: 0;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  animation: modalPop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.2);
-}
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.94) translateY(10px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
-}
-.modal-header {
-  padding: 14px 16px; border-bottom: 1px solid var(--gl-bd2);
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 10px;
-  position: sticky; top: 0;
-  background: var(--gl-bg);
-  backdrop-filter: var(--blur);
-  -webkit-backdrop-filter: var(--blur);
-  z-index: 2;
-  border-radius: var(--r) var(--r) 0 0;
-}
-.modal-title { font-weight: 800; font-size: 0.95rem; flex: 1; min-width: 0; }
-.modal-close {
-  width: 32px; height: 32px; border-radius: 8px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.5);
-  color: var(--txt);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-[data-theme="dark"] .modal-close { background: rgba(255,255,255,0.06); }
-.modal-close .ic { width: 14px; height: 14px; }
-.modal-body { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9000;display:none;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity .2s}
+.modal-overlay.active{display:flex;opacity:1}
+.modal{width:100%;max-width:480px;max-height:90vh;overflow-y:auto;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);animation:modalPop .3s var(--ease-spring)}
+@keyframes modalPop{from{opacity:0;transform:scale(.94) translateY(8px)}to{opacity:1;transform:none}}
+.modal-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:var(--bg);z-index:2;border-radius:var(--r-lg) var(--r-lg) 0 0}
+.modal-title{font-weight:600;font-size:.9rem;flex:1;min-width:0}
+.modal-close{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--txt);display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.modal-close .ic{width:14px;height:14px}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:12px}
 
 /* Form */
-.form-group { display: flex; flex-direction: column; gap: 4px; }
-.form-label {
-  font-size: 0.68rem; font-weight: 700; color: var(--txt2);
-  text-transform: uppercase; letter-spacing: 0.04em;
-  font-family: 'JetBrains Mono', monospace;
-}
-.form-control {
-  width: 100%; padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.7);
-  color: var(--txt); font: inherit;
-  font-size: 0.9rem;
-  outline: none;
-  transition: all 0.2s;
-  -webkit-appearance: none; appearance: none;
-}
-[data-theme="dark"] .form-control { background: rgba(255,255,255,0.08); }
-.form-control:focus { border-color: var(--p); box-shadow: 0 0 0 3px rgba(10,132,255,0.15); }
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font:600 .66rem var(--mono);color:var(--txt2);text-transform:uppercase;letter-spacing:.04em}
+.form-control{width:100%;padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--txt);font:inherit;font-size:.88rem;outline:none}
+.form-control:focus{border-color:var(--p)}
 
 /* Alert */
-.alert-overlay {
-  display: none;
-  position: fixed; inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 99999;
-  align-items: center; justify-content: center;
-  padding: 20px;
-  pointer-events: none;
-}
-.alert-overlay.active { display: flex; pointer-events: auto; }
-.alert-box {
-  max-width: 400px; width: 100%;
-  padding: 24px 20px 20px;
-  text-align: center;
-  animation: modalPop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1.2);
-}
-.alert-box h3 { font-size: 1.05rem; font-weight: 800; margin-bottom: 6px; }
-.alert-box p { font-size: 0.85rem; color: var(--txt2); line-height: 1.55; margin-bottom: 16px; }
-.alert-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.alert-actions .btn { flex: 1; min-width: 100px; }
-
-/* Code display */
-.code-box {
-  background: rgba(10,132,255,0.08);
-  border: 1px solid rgba(10,132,255,0.25);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.72rem;
-  word-break: break-all;
-  display: flex; align-items: center; gap: 6px;
-}
-.copy-btn {
-  background: none; border: none; color: var(--txt3);
-  padding: 4px; border-radius: 4px;
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.copy-btn .ic { width: 12px; height: 12px; }
-.copy-btn:active { transform: scale(0.9); }
+.alert-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:none;align-items:center;justify-content:center;padding:20px;opacity:0;transition:opacity .2s}
+.alert-overlay.active{display:flex;opacity:1}
+.alert-box{max-width:380px;width:100%;padding:24px 20px 20px;text-align:center;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-lg);animation:modalPop .3s var(--ease-spring)}
+.alert-box h3{font-size:1rem;font-weight:600;margin-bottom:6px}
+.alert-box p{font-size:.84rem;color:var(--txt2);line-height:1.5;margin-bottom:16px}
+.alert-actions{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.alert-actions .btn{flex:1;min-width:100px}
 
 /* Log list */
-.log-list {
-  display: flex; flex-direction: column; gap: 6px;
-  max-height: 200px; overflow-y: auto;
-  padding: 6px;
-  background: rgba(0,0,0,0.02);
-  border-radius: 8px;
-}
-[data-theme="dark"] .log-list { background: rgba(255,255,255,0.03); }
-.log-item {
-  padding: 8px 10px;
-  background: rgba(255,255,255,0.5);
-  border: 1px solid var(--gl-bd2);
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-family: 'JetBrains Mono', monospace;
-}
-[data-theme="dark"] .log-item { background: rgba(255,255,255,0.04); }
-.log-time { color: var(--txt3); font-size: 0.65rem; margin-bottom: 2px; }
-.log-text { word-break: break-word; }
+.log-list{display:flex;flex-direction:column;gap:6px;max-height:200px;overflow-y:auto;padding:6px;background:var(--surface);border-radius:8px}
+.log-item{padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font:.72rem var(--mono)}
+.log-time{color:var(--txt3);font-size:.65rem;margin-bottom:2px}
+.log-text{word-break:break-word}
 
 /* Tools grid */
-.tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
-.tool-card { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
-.tool-card h4 { font-size: 0.88rem; font-weight: 800; }
-.tool-card p { font-size: 0.75rem; color: var(--txt2); line-height: 1.4; }
-.tool-result {
-  padding: 8px 10px;
-  background: rgba(0,0,0,0.03);
-  border: 1px solid var(--gl-bd2);
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 0.68rem;
-  max-height: 160px; overflow-y: auto;
-  white-space: pre-wrap; word-break: break-all;
-}
-[data-theme="dark"] .tool-result { background: rgba(255,255,255,0.04); }
-.tool-result.success { border-color: var(--ok); color: var(--ok); }
-.tool-result.error { border-color: var(--err); color: var(--err); }
+.tools-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.tool-card{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;gap:8px}
+.tool-card h4{font-size:.86rem;font-weight:600}
+.tool-card p{font-size:.74rem;color:var(--txt2);line-height:1.4}
+.tool-result{padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font:.68rem var(--mono);max-height:180px;overflow-y:auto;white-space:pre-wrap;word-break:break-all;display:none}
+.tool-result.show{display:block}
+.tool-result.success{border-color:var(--ok);color:var(--ok)}
+.tool-result.error{border-color:var(--err);color:var(--err)}
 
-/* Monitor stats */
-.monitor-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
-.monitor-stat { padding: 10px 12px; }
-.monitor-stat .lbl { font-size: 0.6rem; font-weight: 700; color: var(--txt3); text-transform: uppercase; font-family: 'JetBrains Mono', monospace; margin-bottom: 2px; }
-.monitor-stat .val { font-size: 1.2rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
-
-.monitor-toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-.monitor-toolbar select {
-  padding: 8px 10px; border-radius: 10px;
-  border: 1px solid var(--gl-bd2);
-  background: rgba(255,255,255,0.7);
-  font: inherit; font-size: 0.8rem;
-  color: var(--txt);
-  min-height: 40px;
-}
-[data-theme="dark"] .monitor-toolbar select { background: rgba(255,255,255,0.08); }
+/* Security gate */
+.gate{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px}
+.gate.hidden{display:none}
+.gate-spinner{width:48px;height:48px;border:3px solid var(--border);border-top-color:var(--p);border-radius:50%;animation:spin .8s linear infinite}
+.gate-spinner.frozen{animation:none;border-color:color-mix(in srgb,var(--err) 30%,transparent);border-top-color:var(--err)}
+.gate-text{font:.84rem var(--mono);font-weight:500;color:var(--txt2);text-align:center}
+.gate-text.frozen{color:var(--err)}
 
 /* Responsive */
-@media (max-width: 900px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+@media (max-width:1024px){
+  .stats{grid-template-columns:repeat(2,1fr)}
 }
-
-@media (max-width: 768px) {
-  .sidebar {
-    transform: translateX(-120%);
-    width: 260px;
-    z-index: 300 !important;
-    background: var(--gl-bg) !important;
-  }
-  .sidebar.open { transform: translateX(0); }
-  .sidebar-overlay { display: none; }
-  .sidebar-overlay.active { display: block; pointer-events: auto; z-index: 290 !important; }
-  .main-content { margin-left: 0; padding: 10px 12px 80px; }
-  body.sidebar-collapsed .main-content { margin-left: 0; }
-  .mobile-toggle { display: flex; }
-  .collapse-btn { display: none; }
-  .topbar { padding: 10px 12px; top: 10px; }
-  body.sidebar-open .topbar { z-index: 10 !important; }
-  .stats-grid { gap: 8px; }
-  .stat-card { padding: 10px; }
-  .stat-value { font-size: 1.1rem; }
-  .nav-item, .tab, .btn, .page-btn, .mobile-toggle, .icon-btn, .theme-btn,
-  .collapse-btn, .logout-btn, .copy-btn {
-    min-height: 44px;
-  }
-  .mobile-toggle, .icon-btn, .theme-btn, .collapse-btn, .logout-btn {
-    min-width: 44px;
-  }
-  input, textarea, select { font-size: 16px !important; }
+@media (max-width:768px){
+  .sidebar{transform:translateX(-120%);width:260px;z-index:300;background:var(--bg)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0;padding:10px 12px 80px}
+  body.sidebar-collapsed .main{margin-left:0}
+  .mobile-toggle{display:flex}
+  .collapse-btn{display:none}
+  .topbar{padding:10px 12px;top:10px}
+  .topbar h1{font-size:1rem}
+  .topbar p{font-size:.72rem}
+  .stats{gap:8px}
+  .stat{padding:10px}
+  .stat-value{font-size:1.05rem}
+  .nav-item,.tab,.btn,.page-btn,.mobile-toggle,.icon-btn,.theme-btn{min-height:44px}
+  .mobile-toggle,.icon-btn,.theme-btn{min-width:44px}
+  input,select,textarea{font-size:16px}
 }
-
-@media (max-width: 480px) {
-  .topbar-left h1 { font-size: 1rem; }
-  .stat-value { font-size: 1rem; }
-  .actions .btn { min-width: 100%; }
-}
-
-/* Hover none */
-@media (hover: none) {
-  .nav-item:hover, .btn:hover, .tab:hover, .stat-card:hover {
-    transform: none; box-shadow: inherit;
-  }
-}
-
-/* Safe area */
-@supports (padding: env(safe-area-inset-bottom)) {
-  .main-content { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
-  .sidebar { top: calc(12px + env(safe-area-inset-top)); bottom: calc(12px + env(safe-area-inset-bottom)); left: calc(12px + env(safe-area-inset-left)); }
+@media (max-width:480px){
+  .actions .btn{min-width:100%}
 }
 </style>
+<script>
+(function(){
+  var d=document.documentElement;
+  try{
+    var pref=localStorage.getItem('asyrofotp_theme_pref');
+    if(!pref){var old=localStorage.getItem('asyrofotp_theme');pref=(old==='light'||old==='dark')?old:'system';}
+    var resolved=pref==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):pref;
+    d.setAttribute('data-theme',resolved);d.setAttribute('data-theme-pref',pref);
+  }catch(e){d.setAttribute('data-theme','light');d.setAttribute('data-theme-pref','system');}
+})();
+</script>
 </head>
 <body>
 
-<!-- SECURITY GATE -->
-<div class="gate" id="securityGate">
+<div class="gate" id="gate">
   <div class="gate-spinner" id="gateSpinner"></div>
   <div class="gate-text" id="gateText">Verifikasi akses...</div>
 </div>
 
-<!-- APP -->
-<div id="appRoot" hidden>
-
-<div class="bg" aria-hidden="true"></div>
-
+<div id="app" hidden>
 <div class="layout">
 
-  <aside class="sidebar glass" id="sidebar">
-    <div class="sidebar-header">
-      <a href="/dashboard" class="sidebar-logo">
-        <div class="logo-icon">A</div>
-        <div class="logo-text">Asyrof<span>OTP</span></div>
-      </a>
-      <button class="collapse-btn" id="collapseBtn" type="button">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <a href="/dashboard" class="sidebar-logo">
+      <div class="logo-icon">A</div>
+      <div class="logo-text">Asyrof<span>OTP</span></div>
+    </a>
+    <button class="collapse-btn" id="collapseBtn" type="button" title="Collapse">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+  </div>
+
+  <nav class="sidebar-nav">
+    <a href="/admin?user" class="nav-item" data-nav="user">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span class="nav-label">Users</span>
+    </a>
+    <a href="/admin?order" class="nav-item" data-nav="order">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      <span class="nav-label">Orders</span>
+    </a>
+    <a href="/admin?depo" class="nav-item" data-nav="depo">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span class="nav-label">Deposits</span>
+    </a>
+    <a href="/admin?monitor" class="nav-item" data-nav="monitor">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      <span class="nav-label">Monitor</span>
+    </a>
+    <a href="/admin?tools" class="nav-item" data-nav="tools">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      <span class="nav-label">Tools</span>
+    </a>
+    <a href="/admin?audit" class="nav-item" data-nav="audit">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/></svg>
+      <span class="nav-label">Audit</span>
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="userInitial">?</div>
+      <div class="user-details">
+        <div class="user-name" id="userName">—</div>
+        <div class="user-balance" id="userBalance">—</div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" type="button" title="Keluar">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       </button>
     </div>
-    <nav class="sidebar-nav">
-      <a href="/dashboard" class="nav-item">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span class="nav-label">Home</span>
-      </a>
-      <a href="/admin" class="nav-item active">
-        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 9.5-8 10-4.5-.5-8-5-8-10V6l8-4z"/><path d="M9 12l2 2 4-4"/></svg>
-        <span class="nav-label">Admin</span>
-      </a>
-    </nav>
-    <div class="sidebar-footer">
-      <div class="user-info">
-        <div class="user-avatar" id="userInitial">?</div>
-        <div class="user-details">
-          <div class="user-name" id="userName">—</div>
-          <div class="user-balance" id="userBalance">—</div>
-        </div>
-        <button class="logout-btn" id="logoutBtn" title="Keluar" type="button">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-left">
+      <button class="mobile-toggle" id="mobileToggle" type="button" aria-label="Menu">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div>
+        <h1 id="pageTitle">Admin Panel</h1>
+        <p id="pageSubtitle">Kelola user, order, deposit</p>
       </div>
     </div>
-  </aside>
-
-  <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-  <main class="main-content">
-    <div class="topbar glass">
-      <div class="topbar-left">
-        <button class="mobile-toggle glass" id="mobileToggle" type="button" aria-label="Menu">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-        </button>
-        <div>
-          <h1>Admin Panel</h1>
-          <p>Kelola user, order, deposit</p>
-        </div>
-      </div>
-      <div class="topbar-right">
-        <button class="theme-btn glass" id="themeBtn" type="button" aria-label="Tema">
-          <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-          <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
-        <button class="icon-btn glass" id="refreshBtn" type="button" title="Refresh">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-        </button>
-      </div>
+    <div class="topbar-right">
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="Tema">
+        <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="icon-btn" id="refreshBtn" type="button" title="Refresh">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      </button>
     </div>
+  </div>
 
-    <div class="stats-grid" id="statsGrid">
-      <div class="stat-card glass-card"><div class="stat-label">Total User</div><div class="stat-value" id="statUsers">—</div></div>
-      <div class="stat-card glass-card"><div class="stat-label">Total Order</div><div class="stat-value" id="statOrders">—</div></div>
-      <div class="stat-card glass-card"><div class="stat-label">Pending Dep</div><div class="stat-value" id="statPending">—</div></div>
-      <div class="stat-card glass-card"><div class="stat-label">Total Saldo</div><div class="stat-value" id="statBalance">—</div></div>
-    </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Total User</div><div class="stat-value" id="statUsers">—</div></div>
+    <div class="stat"><div class="stat-label">Total Order</div><div class="stat-value" id="statOrders">—</div></div>
+    <div class="stat"><div class="stat-label">Pending Depo</div><div class="stat-value" id="statPending">—</div></div>
+    <div class="stat"><div class="stat-label">Total Saldo</div><div class="stat-value" id="statBalance">—</div></div>
+  </div>
 
-    <div class="tabs glass" id="tabs">
-      <button class="tab active" data-tab="users" type="button">Users</button>
-      <button class="tab" data-tab="orders" type="button">Orders</button>
-      <button class="tab" data-tab="deposits" type="button">Deposits</button>
-      <button class="tab" data-tab="monitor" type="button">Monitor</button>
-      <button class="tab" data-tab="tools" type="button">Tools</button>
-      <button class="tab" data-tab="audit" type="button">Audit</button>
-    </div>
-
-    <div class="search-bar" id="searchBar">
+  <div class="toolbar" id="toolbar">
+    <div class="search-bar">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="search" id="searchInput" placeholder="Cari user / order / deposit...">
+      <input type="search" id="searchInput" placeholder="Cari...">
     </div>
+    <select class="filter-select" id="statusFilter" style="display:none">
+      <option value="">Semua Status</option>
+    </select>
+  </div>
 
-    <div id="content">
-      <div class="empty-block"><div class="spinner-sm"></div><p>Memuat...</p></div>
-    </div>
+  <div id="content">
+    <div class="empty"><div class="spinner-sm"></div><p>Memuat...</p></div>
+  </div>
 
-    <div class="pagination" id="pagination" hidden></div>
-
-    <footer class="site-footer">
-      <span>© 2026 AsyrofOTP · Admin Panel</span>
-    </footer>
-  </main>
+  <div class="pagination" id="pagination" hidden></div>
+</main>
 </div>
 
 <div class="modal-overlay" id="modal">
-  <div class="modal glass-card" id="modalContent"></div>
+  <div class="modal" id="modalContent"></div>
 </div>
 
 <div class="alert-overlay" id="alertOverlay">
-  <div class="alert-box glass-card">
+  <div class="alert-box">
     <h3 id="alertTitle">Info</h3>
     <p id="alertMessage">—</p>
     <div class="alert-actions" id="alertActions"></div>
   </div>
 </div>
-
 </div>
 
 <script>
-/* ============================================================
-   ADMIN.JS — Simple, Full Tools
-   ============================================================ */
-(function () {
-  'use strict';
+(function(){
+'use strict';
 
-  /* §0 — SAFE STORAGE */
-  const Safe = (() => {
-    let ls = null;
-    try { ls = window.localStorage; ls.setItem('__t','1'); ls.removeItem('__t'); } catch(e) { ls = null; }
-    const mem = new Map();
-    return {
-      get(k) { try { return ls ? ls.getItem(k) : (mem.get(k) ?? null); } catch(e) { return mem.get(k) ?? null; } },
-      set(k,v) { try { if(ls) ls.setItem(k,v); else mem.set(k,v); } catch(e) { mem.set(k,v); } },
-      remove(k) { try { if(ls) ls.removeItem(k); else mem.delete(k); } catch(e) { mem.delete(k); } },
-    };
-  })();
+var D=document,W=window;
+var $=function(id){return D.getElementById(id)};
+var q=function(s,c){return (c||D).querySelector(s)};
+var qa=function(s,c){return Array.prototype.slice.call((c||D).querySelectorAll(s))};
 
-  /* §1 — HELPERS */
-  const $ = (id) => document.getElementById(id);
-  const token = Safe.get('access_token');
-
-  function safeJson(res) { return res.json().catch(() => ({})); }
-  function escapeHtml(v) {
-    return String(v ?? '').replace(/[&<>"']/g, ch => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    })[ch]);
-  }
-  function fmtRp(n) { return 'Rp' + (Number(n) || 0).toLocaleString('id-ID'); }
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    try {
-      return new Date(iso).toLocaleString('id-ID', {
-        day: '2-digit', month: 'short', year: '2-digit',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch(e) { return '—'; }
-  }
-  function initial(name) { return String(name || '?').trim().charAt(0).toUpperCase() || '?'; }
-
-  async function api(url, opts = {}) {
-    opts.headers = Object.assign({
-      'Authorization': 'Bearer ' + token,
-      'Content-Type': 'application/json',
-    }, opts.headers || {});
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 15000);
-    opts.signal = ctrl.signal;
-    try {
-      const res = await fetch(url, opts);
-      const data = await safeJson(res);
-      if (!res.ok) throw new Error(data.error || 'Request failed (' + res.status + ')');
-      return data;
-    } finally { clearTimeout(timer); }
-  }
-
-  /* §2 — ALERT / CONFIRM */
-  function showAlert({ title, message, type = 'info', okText = 'OK', showCancel = false, cancelText = 'Batal' }) {
-    return new Promise((resolve) => {
-      const overlay = $('alertOverlay');
-      const t = $('alertTitle'), m = $('alertMessage'), a = $('alertActions');
-      t.textContent = title || 'Info';
-      m.textContent = message || '';
-      a.innerHTML = '';
-      if (showCancel) {
-        const b = document.createElement('button');
-        b.className = 'btn'; b.type = 'button'; b.textContent = cancelText;
-        b.addEventListener('click', () => { overlay.classList.remove('active'); resolve(false); });
-        a.appendChild(b);
-      }
-      const ok = document.createElement('button');
-      ok.className = 'btn btn-primary' + (type === 'error' || type === 'danger' ? ' btn-danger' : '');
-      ok.type = 'button'; ok.textContent = okText;
-      ok.addEventListener('click', () => { overlay.classList.remove('active'); resolve(true); });
-      a.appendChild(ok);
-      overlay.classList.add('active');
-    });
-  }
-  const confirmBox = (msg, title = 'Konfirmasi') => showAlert({ title, message: msg, type: 'warning', okText: 'Ya', showCancel: true });
-
-  /* §3 — COPY */
-  function copyText(text, btnEl) {
-    const done = () => {
-      if (!btnEl) return;
-      const orig = btnEl.innerHTML;
-      btnEl.innerHTML = '✓';
-      setTimeout(() => btnEl.innerHTML = orig, 1200);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done).catch(() => fallbackCopy(text, done));
-    } else fallbackCopy(text, done);
-  }
-  function fallbackCopy(text, done) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.cssText = 'position:fixed;top:-9999px;opacity:0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      done();
-    } catch(e) {}
-  }
-
-  /* §4 — THEME */
-  (function initTheme() {
-    const btn = $('themeBtn');
-    if (!btn) return;
-    btn.addEventListener('click', () => {
-      const cur = document.documentElement.getAttribute('data-theme') || 'light';
-      const nx = cur === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', nx);
-      Safe.set('asyrofotp_theme', nx);
-    });
-  })();
-
-  /* §5 — SIDEBAR */
-  (function initSidebar() {
-    const sidebar = $('sidebar');
-    const collapseBtn = $('collapseBtn');
-    const toggle = $('mobileToggle');
-    const overlay = $('sidebarOverlay');
-    if (!sidebar) return;
-
-    // Desktop collapse
-    if (collapseBtn && window.innerWidth > 768) {
-      if (Safe.get('sidebar_collapsed') === 'true') {
-        sidebar.classList.add('collapsed');
-        document.body.classList.add('sidebar-collapsed');
-      }
-      collapseBtn.addEventListener('click', () => {
-        if (window.innerWidth <= 768) return;
-        const c = sidebar.classList.toggle('collapsed');
-        document.body.classList.toggle('sidebar-collapsed', c);
-        Safe.set('sidebar_collapsed', c);
-      });
-    }
-
-    // Mobile toggle
-    let open = false;
-    let lastToggle = 0;
-    function openSb() {
-      if (open) return;
-      open = true;
-      sidebar.classList.add('open');
-      if (overlay) overlay.classList.add('active');
-      document.body.classList.add('sidebar-open');
-    }
-    function closeSb() {
-      if (!open) return;
-      open = false;
-      sidebar.classList.remove('open');
-      if (overlay) overlay.classList.remove('active');
-      document.body.classList.remove('sidebar-open');
-    }
-    function onToggle(e) {
-      if (e) { e.preventDefault(); e.stopPropagation(); }
-      const now = Date.now();
-      if (now - lastToggle < 300) return;
-      lastToggle = now;
-      if (open) closeSb(); else openSb();
-    }
-    if (toggle) {
-      toggle.addEventListener('click', onToggle);
-      toggle.addEventListener('touchend', onToggle, { passive: false });
-    }
-    if (overlay) {
-      overlay.addEventListener('click', (e) => { e.preventDefault(); closeSb(); });
-      overlay.addEventListener('touchstart', (e) => { e.preventDefault(); closeSb(); }, { passive: false });
-    }
-    sidebar.querySelectorAll('.nav-item').forEach(l => {
-      l.addEventListener('click', () => {
-        if (window.innerWidth <= 768) setTimeout(closeSb, 100);
-      });
-    });
-    window.addEventListener('resize', () => {
-      if (window.innerWidth > 768 && open) closeSb();
-    });
-  })();
-
-  /* §6 — LOGOUT */
-  async function doLogout() {
-    try {
-      await api('/api/auth/logout', { method: 'POST' });
-    } catch(e) {}
-    try {
-      Safe.remove('access_token');
-      Safe.remove('user');
-      Safe.remove('refresh_token');
-    } catch(e) {}
-    location.href = '/landing';
-  }
-  $('logoutBtn')?.addEventListener('click', async () => {
-    if (await confirmBox('Yakin mau keluar dari akun ini?', 'Keluar Akun?')) doLogout();
-  });
-
-  /* §7 — SECURITY GATE */
-  function gateFreeze(msg) {
-    const sp = $('gateSpinner');
-    const tx = $('gateText');
-    if (sp) sp.classList.add('frozen');
-    if (tx) { tx.classList.add('frozen'); tx.textContent = msg || 'Akses ditolak'; }
-  }
-  function gateOpen() {
-    const g = $('securityGate');
-    const app = $('appRoot');
-    if (g) g.classList.add('hidden');
-    if (app) app.hidden = false;
-  }
-
-  /* §8 — STATE */
-  const state = {
-    tab: 'users',
-    search: '',
-    page: 1,
-    limit: 20,
-    totalPages: 1,
-    isLoading: false,
+var Safe=(function(){
+  var ls=null;
+  try{ls=W.localStorage;ls.setItem('__t','1');ls.removeItem('__t')}catch(e){ls=null}
+  var mem=new Map();
+  return{
+    get:function(k){try{return ls?ls.getItem(k):(mem.get(k)??null)}catch(e){return mem.get(k)??null}},
+    set:function(k,v){try{if(ls)ls.setItem(k,v);else mem.set(k,v)}catch(e){mem.set(k,v)}},
+    remove:function(k){try{if(ls)ls.removeItem(k);else mem.delete(k)}catch(e){mem.delete(k)}}
   };
+})();
 
-  /* §9 — STATS */
-  async function loadStats() {
-    try {
-      const data = await api('/api/admin/stats');
-      $('statUsers').textContent = data.total_users || 0;
-      $('statOrders').textContent = data.total_orders || 0;
-      $('statPending').textContent = data.pending_deposits || 0;
-      $('statBalance').textContent = fmtRp(data.total_balance || 0);
-    } catch(e) {}
-  }
+var token=Safe.get('access_token');
 
-  /* §10 — LOAD CURRENT TAB */
-  function loadTab() {
-    const searchBar = $('searchBar');
-    if (searchBar) searchBar.style.display = (state.tab === 'tools' || state.tab === 'audit' || state.tab === 'monitor') ? 'none' : 'flex';
-    $('pagination').hidden = true;
+function safeJson(res){return res.json().catch(function(){return{}})}
 
-    if (state.tab === 'users') loadUsers();
-    else if (state.tab === 'orders') loadOrders();
-    else if (state.tab === 'deposits') loadDeposits();
-    else if (state.tab === 'monitor') loadMonitor();
-    else if (state.tab === 'tools') loadTools();
-    else if (state.tab === 'audit') loadAudit();
-  }
+function esc(v){
+  return String(v??'').replace(/[&<>"']/g,function(ch){
+    return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]
+  })
+}
 
-  /* §11 — RENDER HELPERS */
-  function emptyBlock(msg = 'Belum ada data') {
-    return `<div class="empty-block"><p>${escapeHtml(msg)}</p></div>`;
+function fmtRp(n){return 'Rp'+(Number(n)||0).toLocaleString('id-ID')}
+
+function fmtDate(iso){
+  if(!iso)return '—';
+  try{
+    return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+  }catch(e){return '—'}
+}
+
+function initial(name){
+  return String(name||'?').trim().charAt(0).toUpperCase()||'?'
+}
+
+async function api(url,opts){
+  opts=opts||{};
+  var headers=Object.assign({
+    'Authorization':'Bearer '+token,
+    'Content-Type':'application/json'
+  },opts.headers||{});
+  var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var timer=ctrl?setTimeout(function(){ctrl.abort()},15000):null;
+  var o=Object.assign({},opts,{headers:headers});
+  if(ctrl)o.signal=ctrl.signal;
+  try{
+    var res=await fetch(url,o);
+    var data=await safeJson(res);
+    if(!res.ok)throw new Error(data.error||'Request failed ('+res.status+')');
+    return data;
+  }finally{if(timer)clearTimeout(timer)}
+}
+
+/* Alert */
+function showAlert(opts){
+  return new Promise(function(resolve){
+    var ov=$('alertOverlay');
+    if(!ov){resolve(W.confirm(opts.message||opts.title||'OK'));return}
+    $('alertTitle').textContent=opts.title||'Info';
+    $('alertMessage').textContent=opts.message||'';
+    var act=$('alertActions');
+    act.innerHTML='';
+    if(opts.showCancel){
+      var b=D.createElement('button');
+      b.className='btn';b.type='button';b.textContent=opts.cancelText||'Batal';
+      b.addEventListener('click',function(){ov.classList.remove('active');resolve(false)});
+      act.appendChild(b);
+    }
+    var ok=D.createElement('button');
+    ok.className='btn btn-primary'+(opts.type==='danger'||opts.type==='error'?' btn-danger':'');
+    ok.type='button';ok.textContent=opts.okText||'OK';
+    ok.addEventListener('click',function(){ov.classList.remove('active');resolve(true)});
+    act.appendChild(ok);
+    ov.classList.add('active');
+  });
+}
+
+function confirmBox(msg,title){
+  return showAlert({title:title||'Konfirmasi',message:msg,type:'warning',okText:'Ya',showCancel:true});
+}
+
+/* Copy */
+function copyText(text,btn){
+  var done=function(){
+    if(!btn)return;
+    var orig=btn.innerHTML;
+    btn.innerHTML='✓';
+    setTimeout(function(){btn.innerHTML=orig},1200);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(function(){fbCopy(text,done)});
+  }else fbCopy(text,done);
+}
+
+function fbCopy(text,done){
+  try{
+    var ta=D.createElement('textarea');
+    ta.value=text;ta.style.cssText='position:fixed;top:-9999px;opacity:0';
+    D.body.appendChild(ta);ta.select();D.execCommand('copy');
+    D.body.removeChild(ta);done();
+  }catch(e){}
+}
+
+/* Theme */
+(function(){
+  var btn=$('themeBtn');
+  if(!btn)return;
+  var root=D.documentElement;
+  var mq=W.matchMedia?W.matchMedia('(prefers-color-scheme: dark)'):null;
+  function resolve(p){return p==='system'?(mq&&mq.matches?'dark':'light'):p}
+  function paintMeta(t){
+    var m=q('meta[name="theme-color"]');
+    if(m)m.setAttribute('content',t==='dark'?'#0a0b0d':'#0a84ff');
   }
-  function loadingBlock(msg = 'Memuat...') {
-    return `<div class="empty-block"><div class="spinner-sm"></div><p>${escapeHtml(msg)}</p></div>`;
+  function setPref(p,save){
+    root.setAttribute('data-theme-pref',p);
+    var r=resolve(p);
+    root.setAttribute('data-theme',r);paintMeta(r);
+    if(save)Safe.set('asyrofotp_theme_pref',p);
   }
-  function errorBlock(msg) {
-    return `<div class="empty-block"><p style="color:var(--err);">${escapeHtml(msg)}</p></div>`;
-  }
-  function renderPagination(data, onPage) {
-    const el = $('pagination');
-    if (!el) return;
-    if (!data.total_pages || data.total_pages <= 1) { el.hidden = true; return; }
-    el.hidden = false;
-    el.innerHTML = `
-      <button class="page-btn" type="button" data-page="${data.page - 1}" ${data.page <= 1 ? 'disabled' : ''}>← Prev</button>
-      <span class="page-info">${data.page} / ${data.total_pages}</span>
-      <button class="page-btn" type="button" data-page="${data.page + 1}" ${data.page >= data.total_pages ? 'disabled' : ''}>Next →</button>
-    `;
-    el.querySelectorAll('.page-btn').forEach(b => {
-      b.addEventListener('click', () => {
-        const p = Number(b.dataset.page);
-        if (p >= 1 && p <= data.total_pages) onPage(p);
-      });
+  btn.addEventListener('click',function(){
+    var cur=root.getAttribute('data-theme-pref')||'system';
+    setPref(cur==='light'?'dark':cur==='dark'?'system':'light',true);
+  });
+})();
+
+/* Sidebar */
+(function(){
+  var sb=$('sidebar'),cb=$('collapseBtn'),mt=$('mobileToggle'),ov=$('sidebarOverlay');
+  if(!sb)return;
+  if(cb&&W.innerWidth>768){
+    if(Safe.get('sidebar_collapsed')==='true'){
+      sb.classList.add('collapsed');D.body.classList.add('sidebar-collapsed');
+    }
+    cb.addEventListener('click',function(){
+      if(W.innerWidth<=768)return;
+      var c=sb.classList.toggle('collapsed');
+      D.body.classList.toggle('sidebar-collapsed',c);
+      Safe.set('sidebar_collapsed',c?'true':'false');
     });
   }
+  var open=false;
+  function openSb(){if(open)return;open=true;sb.classList.add('open');if(ov)ov.classList.add('active');D.body.style.overflow='hidden'}
+  function closeSb(){if(!open)return;open=false;sb.classList.remove('open');if(ov)ov.classList.remove('active');D.body.style.overflow=''}
+  if(mt)mt.addEventListener('click',function(e){e.preventDefault();if(open)closeSb();else openSb()});
+  if(ov)ov.addEventListener('click',closeSb);
+  qa('.nav-item',sb).forEach(function(l){l.addEventListener('click',function(){if(W.innerWidth<=768)setTimeout(closeSb,100)})});
+  D.addEventListener('keydown',function(e){if(e.key==='Escape'&&open)closeSb()});
+})();
 
-  /* §12 — USERS */
-  async function loadUsers() {
-    const c = $('content');
-    c.innerHTML = loadingBlock('Memuat users...');
-    try {
-      const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
-      const data = await api('/api/admin/users?' + q);
-      if (!data.users || data.users.length === 0) { c.innerHTML = emptyBlock('Belum ada user'); return; }
-      c.innerHTML = data.users.map(u => {
-        const banned = u.status === 'banned';
-        return `
-          <div class="card glass-card">
-            <div class="card-header">
-              <div class="card-title-wrap">
-                <div class="card-title">
-                  ${escapeHtml(u.name || u.username)}
-                  ${u.role === 'admin' ? '<span class="badge info">ADMIN</span>' : ''}
-                  ${banned ? '<span class="badge danger">BANNED</span>' : ''}
-                </div>
-                <div class="card-sub">@${escapeHtml(u.username)} · ${escapeHtml(u.user_code || '—')}</div>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field"><span class="field-label">Saldo</span><span class="field-value primary">${fmtRp(u.balance)}</span></div>
-              <div class="field"><span class="field-label">Order</span><span class="field-value">${u.total_orders || 0}</span></div>
-              <div class="field"><span class="field-label">Deposit</span><span class="field-value">${u.total_deposits || 0}</span></div>
-              <div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(u.created_at)}</span></div>
-            </div>
-            <div class="actions">
-              <button class="btn" type="button" data-act="user-detail" data-id="${escapeHtml(u.id)}">Detail</button>
-              <button class="btn btn-primary" type="button" data-act="user-balance" data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.username)}" data-balance="${u.balance}">Saldo</button>
-              <button class="btn" type="button" data-act="user-role" data-id="${escapeHtml(u.id)}" data-role="${escapeHtml(u.role)}">Role</button>
-              <button class="btn ${banned ? 'btn-success' : 'btn-danger'}" type="button" data-act="user-ban" data-id="${escapeHtml(u.id)}" data-status="${escapeHtml(u.status)}">${banned ? 'Unban' : 'Ban'}</button>
-              <button class="btn" type="button" data-act="user-pass" data-id="${escapeHtml(u.id)}" data-name="${escapeHtml(u.username)}">Reset Pass</button>
-            </div>
-          </div>
-        `;
+/* Logout */
+function doLogout(){
+  return api('/api/auth/logout',{method:'POST'}).catch(function(){}).then(function(){
+    Safe.remove('access_token');Safe.remove('user');Safe.remove('refresh_token');
+    W.location.href='/landing';
+  });
+}
+var lb=$('logoutBtn');
+if(lb)lb.addEventListener('click',function(){
+  confirmBox('Yakin mau keluar dari akun ini?','Keluar Akun?').then(function(ok){if(ok)doLogout()});
+});
+
+/* Tabs & routing */
+var TABS={
+  user:{title:'Users',subtitle:'Kelola semua user',search:true,filter:false},
+  order:{title:'Orders',subtitle:'Semua transaksi nokos',search:true,filter:true},
+  depo:{title:'Deposits',subtitle:'Semua riwayat deposit',search:true,filter:true},
+  monitor:{title:'Monitor',subtitle:'Log event webhook & sync',search:false,filter:false},
+  tools:{title:'Tools',subtitle:'Utilitas admin',search:false,filter:false},
+  audit:{title:'Audit Log',subtitle:'Rekam jejak aksi admin',search:false,filter:false}
+};
+
+var ORDER_STATUSES=['success','pending','failed','expired','cancelled','refunded'];
+var DEPO_STATUSES=['success','pending','failed','expired','cancelled','refunded'];
+
+var state={
+  tab:'user',
+  page:1,
+  search:'',
+  status:''
+};
+
+function getTabFromURL(){
+  var p=new URLSearchParams(W.location.search);
+  var t=p.get('tab')||p.get('t')||'';
+  if(TABS[t])return t;
+  var keys=Object.keys(TABS);
+  for(var i=0;i<keys.length;i++){
+    if(p.has(keys[i]))return keys[i];
+  }
+  return 'user';
+}
+
+function setActiveTab(tab){
+  state.tab=tab;
+  qa('.nav-item').forEach(function(n){
+    n.classList.toggle('active',n.dataset.nav===tab);
+  });
+  var t=TABS[tab];
+  $('pageTitle').textContent=t.title;
+  $('pageSubtitle').textContent=t.subtitle;
+  var sb=$('searchInput').closest('.search-bar');
+  if(sb)sb.style.display=t.search?'flex':'none';
+  var sf=$('statusFilter');
+  if(sf){
+    sf.style.display=t.filter?'block':'none';
+    if(t.filter){
+      var statuses=tab==='order'?ORDER_STATUSES:DEPO_STATUSES;
+      sf.innerHTML='<option value="">Semua Status</option>'+statuses.map(function(s){
+        return '<option value="'+s+'">'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>'
       }).join('');
-      bindUserActions();
-      renderPagination(data, (p) => { state.page = p; loadUsers(); });
-    } catch(e) { c.innerHTML = errorBlock(e.message); }
+      sf.value=state.status;
+    }
   }
+  state.page=1;
+  state.search='';
+  state.status='';
+  $('searchInput').value='';
+  if(sf)sf.value='';
+  loadTab();
+}
 
-  function bindUserActions() {
-    document.querySelectorAll('[data-act="user-detail"]').forEach(b => {
-      b.addEventListener('click', () => showUserDetail(b.dataset.id));
-    });
-    document.querySelectorAll('[data-act="user-balance"]').forEach(b => {
-      b.addEventListener('click', () => showBalanceModal(b.dataset.id, b.dataset.name, Number(b.dataset.balance)));
-    });
-    document.querySelectorAll('[data-act="user-role"]').forEach(b => {
-      b.addEventListener('click', () => showRoleModal(b.dataset.id, b.dataset.role));
-    });
-    document.querySelectorAll('[data-act="user-ban"]').forEach(b => {
-      b.addEventListener('click', () => toggleBan(b.dataset.id, b.dataset.status));
-    });
-    document.querySelectorAll('[data-act="user-pass"]').forEach(b => {
-      b.addEventListener('click', () => showResetPassModal(b.dataset.id, b.dataset.name));
-    });
-  }
+function loadTab(){
+  var tab=state.tab;
+  $('pagination').hidden=true;
+  if(tab==='user')loadUsers();
+  else if(tab==='order')loadOrders();
+  else if(tab==='depo')loadDeposits();
+  else if(tab==='monitor')loadMonitor();
+  else if(tab==='tools')loadTools();
+  else if(tab==='audit')loadAudit();
+}
 
-  /* §13 — USER DETAIL MODAL */
-  async function showUserDetail(id) {
-    openModal('<div class="modal-body">' + loadingBlock('Memuat detail...') + '</div>');
-    try {
-      const data = await api('/api/admin/users/' + encodeURIComponent(id));
-      const u = data.user, s = data.stats;
-      const logs = (data.balance_logs || []).map(l => {
-        const meta = l.metadata || {};
-        const adj = Number(meta.adjustment || 0);
-        const adjTxt = adj > 0 ? `+${fmtRp(adj)}` : (adj < 0 ? `-${fmtRp(Math.abs(adj))}` : '');
-        return `<div class="log-item"><div class="log-time">${fmtDate(l.created_at)}</div><div class="log-text">${escapeHtml(l.reason || '')} ${adjTxt ? `<strong style="color:${adj > 0 ? 'var(--ok)' : 'var(--err)'}">${adjTxt}</strong>` : ''}</div></div>`;
-      }).join('') || '<div class="log-item" style="text-align:center;color:var(--txt3);">Belum ada aktivitas</div>';
+/* Stats */
+async function loadStats(){
+  try{
+    var data=await api('/api/admin/stats');
+    $('statUsers').textContent=data.total_users||0;
+    $('statOrders').textContent=data.total_orders||0;
+    $('statPending').textContent=data.pending_deposits||0;
+    $('statBalance').textContent=fmtRp(data.total_balance||0);
+  }catch(e){}
+}
 
-      openModal(`
-        <div class="modal-header">
-          <div class="modal-title">Detail User</div>
-          <button class="modal-close" type="button" data-close-modal>
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div style="text-align:center;">
-            <div style="width:64px;height:64px;border-radius:50%;background:var(--grad);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.6rem;margin:0 auto 10px;">${escapeHtml(initial(u.name || u.username))}</div>
-            <h3 style="font-size:1.05rem;font-weight:800;">${escapeHtml(u.name || u.username)}</h3>
-            <div style="color:var(--txt2);font-size:0.78rem;font-family:'JetBrains Mono',monospace;">@${escapeHtml(u.username)}</div>
-          </div>
-          <div class="grid-2">
-            <div class="field"><span class="field-label">User Code</span><span class="field-value primary">${escapeHtml(u.user_code || '—')}</span></div>
-            <div class="field"><span class="field-label">Saldo</span><span class="field-value primary">${fmtRp(u.balance)}</span></div>
-            <div class="field"><span class="field-label">Role</span><span class="field-value">${escapeHtml(u.role)}</span></div>
-            <div class="field"><span class="field-label">Status</span><span class="field-value ${u.status === 'banned' ? 'danger' : 'success'}">${escapeHtml(u.status)}</span></div>
-            <div class="field"><span class="field-label">Total Order</span><span class="field-value">${s.orders.total} · ${s.orders.success} ok · ${s.orders.failed} gagal</span></div>
-            <div class="field"><span class="field-label">Total Deposit</span><span class="field-value">${s.deposits.total} · ${s.deposits.success} ok</span></div>
-            <div class="field"><span class="field-label">Total Belanja</span><span class="field-value primary">${fmtRp(s.orders.total_spent)}</span></div>
-            <div class="field"><span class="field-label">Total Deposit Masuk</span><span class="field-value success">${fmtRp(s.deposits.total_deposit)}</span></div>
-          </div>
-          <div>
-            <div class="field-label" style="margin-bottom:4px;">Aktivitas Saldo</div>
-            <div class="log-list">${logs}</div>
-          </div>
-        </div>
-      `);
-    } catch(e) { openModal('<div class="modal-body">' + errorBlock(e.message) + '</div>'); }
-  }
+/* Render helpers */
+function emptyBlock(msg){return '<div class="empty"><p>'+esc(msg)+'</p></div>'}
+function loadingBlock(msg){return '<div class="empty"><div class="spinner-sm"></div><p>'+esc(msg)+'</p></div>'}
+function errorBlock(msg){return '<div class="empty"><p style="color:var(--err)">'+esc(msg)+'</p></div>'}
 
-  /* §14 — BALANCE MODAL */
-  function showBalanceModal(id, username, current) {
-    openModal(`
-      <div class="modal-header">
-        <div class="modal-title">Edit Saldo — @${escapeHtml(username)}</div>
-        <button class="modal-close" type="button" data-close-modal>
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="field"><span class="field-label">Saldo Saat Ini</span><span class="field-value primary" style="font-size:1.1rem;">${fmtRp(current)}</span></div>
-        <div class="form-group">
-          <label class="form-label">Mode</label>
-          <div style="display:flex;gap:6px;">
-            <button class="btn btn-primary" type="button" data-mode="add" style="flex:1;">+ Tambah</button>
-            <button class="btn" type="button" data-mode="subtract" style="flex:1;">− Kurangi</button>
-            <button class="btn" type="button" data-mode="set" style="flex:1;">= Set</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Jumlah (Rp)</label>
-          <input class="form-control" type="number" id="balAmount" min="0" placeholder="0">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Catatan (opsional)</label>
-          <input class="form-control" type="text" id="balNote" placeholder="Alasan edit saldo">
-        </div>
-        <button class="btn btn-primary btn-block" type="button" id="balSave">Simpan</button>
-      </div>
-    `);
+function renderPagination(data,onPage){
+  var el=$('pagination');
+  if(!el)return;
+  if(!data.total_pages||data.total_pages<=1){el.hidden=true;return}
+  el.hidden=false;
+  el.innerHTML=
+    '<button class="page-btn" data-page="'+(data.page-1)+'" '+(data.page<=1?'disabled':'')+'>← Prev</button>'+
+    '<span class="page-info">'+data.page+' / '+data.total_pages+'</span>'+
+    '<button class="page-btn" data-page="'+(data.page+1)+'" '+(data.page>=data.total_pages?'disabled':'')+'>Next →</button>';
+  qa('.page-btn',el).forEach(function(b){
+    b.addEventListener('click',function(){
+      var p=Number(b.dataset.page);
+      if(p>=1&&p<=data.total_pages)onPage(p);
+    });
+  });
+}
 
-    let mode = 'add';
-    document.querySelectorAll('[data-mode]').forEach(b => {
-      b.addEventListener('click', () => {
-        mode = b.dataset.mode;
-        document.querySelectorAll('[data-mode]').forEach(x => { x.className = 'btn'; x.style.flex = '1'; });
-        b.className = 'btn btn-primary';
-        b.style.flex = '1';
+/* USERS */
+async function loadUsers(){
+  var c=$('content');
+  c.innerHTML=loadingBlock('Memuat users...');
+  try{
+    var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
+    var data=await api('/api/admin/users?'+qs.toString());
+    if(!data.users||data.users.length===0){c.innerHTML=emptyBlock('Belum ada user');return}
+    c.innerHTML=data.users.map(function(u){
+      var banned=u.status==='banned';
+      return '<div class="card">'+
+        '<div class="card-header">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div class="card-title">'+esc(u.name||u.username)+
+              (u.role==='admin'?' <span class="badge info">ADMIN</span>':'')+
+              (banned?' <span class="badge danger">BANNED</span>':'')+
+            '</div>'+
+            '<div class="card-sub">@'+esc(u.username)+' · '+esc(u.user_code||'—')+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">Saldo</span><span class="field-value primary">'+fmtRp(u.balance)+'</span></div>'+
+          '<div class="field"><span class="field-label">Order</span><span class="field-value">'+(u.total_orders||0)+'</span></div>'+
+          '<div class="field"><span class="field-label">Deposit</span><span class="field-value">'+(u.total_deposits||0)+'</span></div>'+
+          '<div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:.7rem">'+fmtDate(u.created_at)+'</span></div>'+
+        '</div>'+
+        '<div class="actions">'+
+          '<button class="btn" data-act="user-detail" data-id="'+esc(u.id)+'">Detail</button>'+
+          '<button class="btn btn-primary" data-act="user-balance" data-id="'+esc(u.id)+'" data-name="'+esc(u.username)+'" data-balance="'+u.balance+'">Saldo</button>'+
+          '<button class="btn" data-act="user-role" data-id="'+esc(u.id)+'" data-role="'+esc(u.role)+'">Role</button>'+
+          '<button class="btn '+(banned?'btn-success':'btn-danger')+'" data-act="user-ban" data-id="'+esc(u.id)+'" data-status="'+esc(u.status)+'">'+(banned?'Unban':'Ban')+'</button>'+
+          '<button class="btn" data-act="user-pass" data-id="'+esc(u.id)+'" data-name="'+esc(u.username)+'">Reset Pass</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+    bindUserActions();
+    renderPagination(data,function(p){state.page=p;loadUsers()});
+  }catch(e){c.innerHTML=errorBlock(e.message)}
+}
+
+function bindUserActions(){
+  qa('[data-act="user-detail"]').forEach(function(b){b.addEventListener('click',function(){showUserDetail(b.dataset.id)})});
+  qa('[data-act="user-balance"]').forEach(function(b){b.addEventListener('click',function(){showBalanceModal(b.dataset.id,b.dataset.name,Number(b.dataset.balance))})});
+  qa('[data-act="user-role"]').forEach(function(b){b.addEventListener('click',function(){showRoleModal(b.dataset.id,b.dataset.role)})});
+  qa('[data-act="user-ban"]').forEach(function(b){b.addEventListener('click',function(){toggleBan(b.dataset.id,b.dataset.status)})});
+  qa('[data-act="user-pass"]').forEach(function(b){b.addEventListener('click',function(){showResetPassModal(b.dataset.id,b.dataset.name)})});
+}
+
+async function showUserDetail(id){
+  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  try{
+    var data=await api('/api/admin/users/'+encodeURIComponent(id));
+    var u=data.user,s=data.stats;
+    var logs=(data.balance_logs||[]).map(function(l){
+      var meta=l.metadata||{};
+      var adj=Number(meta.adjustment||0);
+      var adjTxt=adj>0?'+'+fmtRp(adj):(adj<0?'-'+fmtRp(Math.abs(adj)):'');
+      return '<div class="log-item"><div class="log-time">'+fmtDate(l.created_at)+'</div><div class="log-text">'+esc(l.reason||'')+
+        (adjTxt?' <strong style="color:'+(adj>0?'var(--ok)':'var(--err)')+'">'+adjTxt+'</strong>':'')+'</div></div>';
+    }).join('')||'<div class="log-item" style="text-align:center;color:var(--txt3)">Belum ada</div>';
+
+    openModal(
+      '<div class="modal-header"><div class="modal-title">Detail User</div>'+
+      '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+      '<div class="modal-body">'+
+        '<div style="text-align:center">'+
+          '<div style="width:56px;height:56px;border-radius:50%;background:var(--surface-2);color:var(--txt);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:1.4rem;margin:0 auto 8px">'+esc(initial(u.name||u.username))+'</div>'+
+          '<h3 style="font-size:1rem;font-weight:600">'+esc(u.name||u.username)+'</h3>'+
+          '<div style="color:var(--txt2);font-size:.74rem;font-family:var(--mono)">@'+esc(u.username)+'</div>'+
+        '</div>'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">User Code</span><span class="field-value primary">'+esc(u.user_code||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Saldo</span><span class="field-value primary">'+fmtRp(u.balance)+'</span></div>'+
+          '<div class="field"><span class="field-label">Role</span><span class="field-value">'+esc(u.role)+'</span></div>'+
+          '<div class="field"><span class="field-label">Status</span><span class="field-value '+(u.status==='banned'?'danger':'success')+'">'+esc(u.status)+'</span></div>'+
+          '<div class="field"><span class="field-label">Total Order</span><span class="field-value">'+s.orders.total+' · '+s.orders.success+' ok</span></div>'+
+          '<div class="field"><span class="field-label">Total Deposit</span><span class="field-value">'+s.deposits.total+' · '+s.deposits.success+' ok</span></div>'+
+          '<div class="field"><span class="field-label">Total Belanja</span><span class="field-value primary">'+fmtRp(s.orders.total_spent)+'</span></div>'+
+          '<div class="field"><span class="field-label">Total Deposit</span><span class="field-value success">'+fmtRp(s.deposits.total_deposit)+'</span></div>'+
+        '</div>'+
+        '<div><div class="field-label" style="margin-bottom:4px">Aktivitas Saldo</div><div class="log-list">'+logs+'</div></div>'+
+      '</div>'
+    );
+  }catch(e){openModal('<div class="modal-body">'+errorBlock(e.message)+'</div>')}
+}
+
+function showBalanceModal(id,username,current){
+  openModal(
+    '<div class="modal-header"><div class="modal-title">Edit Saldo — @'+esc(username)+'</div>'+
+    '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+    '<div class="modal-body">'+
+      '<div class="field"><span class="field-label">Saldo Saat Ini</span><span class="field-value primary" style="font-size:1rem">'+fmtRp(current)+'</span></div>'+
+      '<div class="form-group"><label class="form-label">Mode</label><div style="display:flex;gap:6px">'+
+        '<button class="btn btn-primary" type="button" data-mode="add" style="flex:1">+ Tambah</button>'+
+        '<button class="btn" type="button" data-mode="subtract" style="flex:1">− Kurangi</button>'+
+        '<button class="btn" type="button" data-mode="set" style="flex:1">= Set</button>'+
+      '</div></div>'+
+      '<div class="form-group"><label class="form-label">Jumlah (Rp)</label><input class="form-control" type="number" id="balAmount" min="0" placeholder="0"></div>'+
+      '<div class="form-group"><label class="form-label">Catatan (opsional)</label><input class="form-control" type="text" id="balNote" placeholder="Alasan edit saldo"></div>'+
+      '<button class="btn btn-primary btn-block" type="button" id="balSave">Simpan</button>'+
+    '</div>'
+  );
+  var mode='add';
+  qa('[data-mode]').forEach(function(b){
+    b.addEventListener('click',function(){
+      mode=b.dataset.mode;
+      qa('[data-mode]').forEach(function(x){x.className='btn';x.style.flex='1'});
+      b.className='btn btn-primary';b.style.flex='1';
+    });
+  });
+  $('balSave').addEventListener('click',async function(){
+    var amount=Number($('balAmount').value);
+    var note=$('balNote').value.trim();
+    if(!Number.isFinite(amount)||amount<0)return showAlert({title:'Error',message:'Jumlah harus angka >= 0',type:'danger'});
+    var btn=$('balSave');var orig=btn.innerHTML;
+    btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    try{
+      var res=await api('/api/admin/users/'+encodeURIComponent(id)+'/balance',{
+        method:'POST',body:JSON.stringify({mode:mode,amount:amount,note:note})
       });
-    });
+      closeModal();
+      showAlert({title:'Berhasil',message:'Saldo diupdate: '+fmtRp(res.old_balance)+' → '+fmtRp(res.new_balance),type:'success'});
+      loadUsers();loadStats();
+    }catch(e){btn.disabled=false;btn.innerHTML=orig;showAlert({title:'Gagal',message:e.message,type:'danger'})}
+  });
+}
 
-    $('balSave').addEventListener('click', async () => {
-      const amount = Number($('balAmount').value);
-      const note = $('balNote').value.trim();
-      if (!Number.isFinite(amount) || amount < 0) return showAlert({ title: 'Error', message: 'Jumlah harus angka >= 0', type: 'error' });
-      const btn = $('balSave');
-      const orig = btn.innerHTML;
-      btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
-      try {
-        const res = await api('/api/admin/users/' + encodeURIComponent(id) + '/balance', {
-          method: 'POST',
-          body: JSON.stringify({ mode, amount, note }),
-        });
-        closeModal();
-        await showAlert({ title: 'Berhasil', message: `Saldo diupdate: ${fmtRp(res.old_balance)} → ${fmtRp(res.new_balance)}`, type: 'success' });
-        loadUsers(); loadStats();
-      } catch(e) {
-        btn.disabled = false; btn.innerHTML = orig;
-        showAlert({ title: 'Gagal', message: e.message, type: 'error' });
-      }
-    });
-  }
-
-  /* §15 — ROLE MODAL */
-  function showRoleModal(id, current) {
-    openModal(`
-      <div class="modal-header">
-        <div class="modal-title">Ganti Role</div>
-        <button class="modal-close" type="button" data-close-modal>
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Role</label>
-          <select class="form-control" id="roleSelect">
-            <option value="user" ${current === 'user' ? 'selected' : ''}>User</option>
-            <option value="admin" ${current === 'admin' ? 'selected' : ''}>Admin</option>
-          </select>
-        </div>
-        <button class="btn btn-primary btn-block" type="button" id="roleSave">Simpan</button>
-      </div>
-    `);
-    $('roleSave').addEventListener('click', async () => {
-      const role = $('roleSelect').value;
-      const btn = $('roleSave');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
-      try {
-        await api('/api/admin/users/' + encodeURIComponent(id) + '/role', {
-          method: 'POST',
-          body: JSON.stringify({ role }),
-        });
-        closeModal();
-        showAlert({ title: 'Berhasil', message: 'Role diubah ke ' + role, type: 'success' });
-        loadUsers();
-      } catch(e) {
-        btn.disabled = false; btn.innerHTML = 'Simpan';
-        showAlert({ title: 'Gagal', message: e.message, type: 'error' });
-      }
-    });
-  }
-
-  /* §16 — BAN */
-  async function toggleBan(id, status) {
-    const newStatus = status === 'banned' ? 'active' : 'banned';
-    const ok = await confirmBox(`Yakin ${newStatus === 'banned' ? 'ban' : 'unban'} user ini?`);
-    if (!ok) return;
-    try {
-      await api('/api/admin/users/' + encodeURIComponent(id) + '/status', {
-        method: 'POST',
-        body: JSON.stringify({ status: newStatus }),
-      });
-      showAlert({ title: 'Berhasil', message: `User di-${newStatus === 'banned' ? 'ban' : 'unban'}`, type: 'success' });
+function showRoleModal(id,current){
+  openModal(
+    '<div class="modal-header"><div class="modal-title">Ganti Role</div>'+
+    '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+    '<div class="modal-body">'+
+      '<div class="form-group"><label class="form-label">Role</label><select class="form-control" id="roleSelect">'+
+        '<option value="user" '+(current==='user'?'selected':'')+'>User</option>'+
+        '<option value="admin" '+(current==='admin'?'selected':'')+'>Admin</option>'+
+      '</select></div>'+
+      '<button class="btn btn-primary btn-block" type="button" id="roleSave">Simpan</button>'+
+    '</div>'
+  );
+  $('roleSave').addEventListener('click',async function(){
+    var role=$('roleSelect').value;
+    var btn=$('roleSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    try{
+      await api('/api/admin/users/'+encodeURIComponent(id)+'/role',{method:'POST',body:JSON.stringify({role:role})});
+      closeModal();
+      showAlert({title:'Berhasil',message:'Role diubah ke '+role,type:'success'});
       loadUsers();
-    } catch(e) { showAlert({ title: 'Gagal', message: e.message, type: 'error' }); }
-  }
-
-  /* §17 — RESET PASSWORD */
-  function showResetPassModal(id, username) {
-    openModal(`
-      <div class="modal-header">
-        <div class="modal-title">Reset Password — @${escapeHtml(username)}</div>
-        <button class="modal-close" type="button" data-close-modal>
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label class="form-label">Password Baru</label>
-          <input class="form-control" type="text" id="newPass" placeholder="Minimal 6 karakter">
-        </div>
-        <button class="btn btn-primary btn-block" type="button" id="passSave">Reset</button>
-      </div>
-    `);
-    $('passSave').addEventListener('click', async () => {
-      const np = $('newPass').value.trim();
-      if (np.length < 6) return showAlert({ title: 'Error', message: 'Minimal 6 karakter', type: 'error' });
-      const btn = $('passSave');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
-      try {
-        await api('/api/admin/users/' + encodeURIComponent(id) + '/reset-password', {
-          method: 'POST',
-          body: JSON.stringify({ new_password: np }),
-        });
-        closeModal();
-        showAlert({ title: 'Berhasil', message: 'Password @' + username + ' direset', type: 'success' });
-      } catch(e) {
-        btn.disabled = false; btn.innerHTML = 'Reset';
-        showAlert({ title: 'Gagal', message: e.message, type: 'error' });
-      }
-    });
-  }
-
-  /* §18 — ORDERS */
-  async function loadOrders() {
-    const c = $('content');
-    c.innerHTML = loadingBlock('Memuat orders...');
-    try {
-      const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
-      const data = await api('/api/admin/orders?' + q);
-      if (!data.orders || data.orders.length === 0) { c.innerHTML = emptyBlock('Belum ada order'); return; }
-      c.innerHTML = data.orders.map(o => {
-        const cls = ['success','received','confirmed'].includes(o.status) ? 'success'
-                  : o.status === 'pending' ? 'warning'
-                  : ['cancelled','expired','failed'].includes(o.status) ? 'danger'
-                  : o.status === 'refunded' ? 'purple' : 'gray';
-        const canNotif = ['received','success','confirmed'].includes(o.status) && o.otp_code && o.otp_id;
-        const notifBtn = canNotif ? `<button class="btn ${o.notified_at ? 'btn-danger' : 'btn-success'}" type="button" data-act="order-notif" data-id="${escapeHtml(o.otp_id)}" data-force="${o.notified_at ? '1' : '0'}">${o.notified_at ? 'Resend Notif' : 'Kirim Notif'}</button>` : '';
-        return `
-          <div class="card glass-card">
-            <div class="card-header">
-              <div class="card-title-wrap">
-                <div class="card-title">${escapeHtml(o.service_name || o.service || '—')} · ${escapeHtml(o.country_name || o.country || '—')}</div>
-                <div class="card-sub">${escapeHtml(o.order_id)} · ${escapeHtml(o.otp_id || '—')}</div>
-              </div>
-              <span class="badge ${cls}">${escapeHtml(o.status).toUpperCase()}</span>
-            </div>
-            <div class="grid-2">
-              <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(o.username || '—')}</span></div>
-              <div class="field"><span class="field-label">Nomor</span><span class="field-value">${escapeHtml(o.phone_number || '—')}</span></div>
-              <div class="field"><span class="field-label">Harga</span><span class="field-value primary">${fmtRp(o.price)}</span></div>
-              <div class="field"><span class="field-label">OTP</span><span class="field-value success">${escapeHtml(o.otp_code || '—')}</span></div>
-              <div class="field"><span class="field-label">Profit</span><span class="field-value ${o.profit > 0 ? 'success' : 'danger'}">${fmtRp(o.profit)}</span></div>
-              <div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(o.created_at)}</span></div>
-            </div>
-            <div class="actions">
-              <button class="btn" type="button" data-act="order-detail" data-id="${escapeHtml(o.order_id)}">Detail</button>
-              <button class="btn btn-primary" type="button" data-act="order-status" data-id="${escapeHtml(o.order_id)}" data-status="${escapeHtml(o.status)}">Ubah Status</button>
-              ${notifBtn}
-            </div>
-          </div>
-        `;
-      }).join('');
-      bindOrderActions();
-      renderPagination(data, (p) => { state.page = p; loadOrders(); });
-    } catch(e) { c.innerHTML = errorBlock(e.message); }
-  }
-
-  function bindOrderActions() {
-    document.querySelectorAll('[data-act="order-detail"]').forEach(b => {
-      b.addEventListener('click', () => showOrderDetail(b.dataset.id));
-    });
-    document.querySelectorAll('[data-act="order-status"]').forEach(b => {
-      b.addEventListener('click', () => showStatusModal('order', b.dataset.id, b.dataset.status));
-    });
-    document.querySelectorAll('[data-act="order-notif"]').forEach(b => {
-      b.addEventListener('click', () => sendOrderNotif(b.dataset.id, b.dataset.force === '1'));
-    });
-  }
-
-  async function showOrderDetail(orderId) {
-    openModal('<div class="modal-body">' + loadingBlock('Memuat...') + '</div>');
-    try {
-      const data = await api('/api/admin/order/' + encodeURIComponent(orderId));
-      const o = data.order;
-      const logs = (data.logs || []).map(l => `<div class="log-item"><div class="log-time">${fmtDate(l.created_at)}</div><div class="log-text">${escapeHtml(l.old_status || '—')} → ${escapeHtml(l.new_status)} (${escapeHtml(l.reason || '')})</div></div>`).join('') || '<div class="log-item" style="text-align:center;color:var(--txt3);">Belum ada log</div>';
-      openModal(`
-        <div class="modal-header">
-          <div class="modal-title">Detail Order</div>
-          <button class="modal-close" type="button" data-close-modal>
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="grid-2">
-            <div class="field"><span class="field-label">Order ID</span><span class="field-value primary">${escapeHtml(o.order_id)}</span></div>
-            <div class="field"><span class="field-label">OTP ID</span><span class="field-value primary">${escapeHtml(o.otp_id || '—')}</span></div>
-            <div class="field"><span class="field-label">Service</span><span class="field-value">${escapeHtml(o.service_name || '—')}</span></div>
-            <div class="field"><span class="field-label">Negara</span><span class="field-value">${escapeHtml(o.country_name || '—')}</span></div>
-            <div class="field"><span class="field-label">Nomor</span><span class="field-value">${escapeHtml(o.phone_number || '—')}</span></div>
-            <div class="field"><span class="field-label">OTP Code</span><span class="field-value success">${escapeHtml(o.otp_code || '—')}</span></div>
-            <div class="field"><span class="field-label">Harga Jual</span><span class="field-value primary">${fmtRp(o.price)}</span></div>
-            <div class="field"><span class="field-label">Harga Provider</span><span class="field-value">${fmtRp(o.provider_price)}</span></div>
-            <div class="field"><span class="field-label">Profit</span><span class="field-value ${o.profit > 0 ? 'success' : 'danger'}">${fmtRp(o.profit)}</span></div>
-            <div class="field"><span class="field-label">Status</span><span class="field-value">${escapeHtml(o.status)}</span></div>
-            <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(o.username || '—')}</span></div>
-            <div class="field"><span class="field-label">Saldo User</span><span class="field-value">${fmtRp(o.user_balance)}</span></div>
-            ${o.refunded_amount ? `<div class="field"><span class="field-label">Refund</span><span class="field-value warning">${fmtRp(o.refunded_amount)}</span></div>` : ''}
-            <div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(o.created_at)}</span></div>
-          </div>
-          ${o.full_sms ? `<div class="field" style="grid-column:1/-1;"><span class="field-label">Full SMS</span><div class="code-box">${escapeHtml(o.full_sms)}</div></div>` : ''}
-          <div>
-            <div class="field-label" style="margin-bottom:4px;">Log Status</div>
-            <div class="log-list">${logs}</div>
-          </div>
-        </div>
-      `);
-    } catch(e) { openModal('<div class="modal-body">' + errorBlock(e.message) + '</div>'); }
-  }
-
-  async function sendOrderNotif(otpId, force) {
-    const ok = await confirmBox(`Kirim notif OTP untuk ${otpId}${force ? ' (resend)' : ''}?`);
-    if (!ok) return;
-    try {
-      const res = await api('/api/admin/notif-order/' + encodeURIComponent(otpId), {
-        method: 'POST',
-        body: JSON.stringify({ force }),
-      });
-      showAlert({ title: 'Berhasil', message: `Notif terkirim. Message ID: ${res.message_id || '—'}`, type: 'success' });
-      loadOrders();
-    } catch(e) { showAlert({ title: 'Gagal', message: e.message, type: 'error' }); }
-  }
-
-  /* §19 — DEPOSITS */
-  async function loadDeposits() {
-    const c = $('content');
-    c.innerHTML = loadingBlock('Memuat deposits...');
-    try {
-      const q = new URLSearchParams({ page: state.page, limit: state.limit, search: state.search });
-      const data = await api('/api/admin/deposits?' + q);
-      if (!data.deposits || data.deposits.length === 0) { c.innerHTML = emptyBlock('Belum ada deposit'); return; }
-      c.innerHTML = data.deposits.map(d => {
-        const cls = d.status === 'success' ? 'success'
-                  : d.status === 'pending' ? 'warning'
-                  : ['cancelled','expired','failed'].includes(d.status) ? 'danger'
-                  : d.status === 'refunded' ? 'purple' : 'gray';
-        const canNotif = d.status === 'success';
-        const notifBtn = canNotif ? `<button class="btn ${d.notified_at ? 'btn-danger' : 'btn-success'}" type="button" data-act="deposit-notif" data-id="${escapeHtml(d.reference_id)}" data-force="${d.notified_at ? '1' : '0'}">${d.notified_at ? 'Resend Notif' : 'Kirim Notif'}</button>` : '';
-        return `
-          <div class="card glass-card">
-            <div class="card-header">
-              <div class="card-title-wrap">
-                <div class="card-title">${d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</div>
-                <div class="card-sub">${escapeHtml(d.reference_id)}</div>
-              </div>
-              <span class="badge ${cls}">${escapeHtml(d.status).toUpperCase()}</span>
-            </div>
-            <div class="grid-2">
-              <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(d.username || '—')}</span></div>
-              <div class="field"><span class="field-label">Top Up</span><span class="field-value primary">${fmtRp(d.amount)}</span></div>
-              <div class="field"><span class="field-label">Total Bayar</span><span class="field-value">${fmtRp(d.total_amount)}</span></div>
-              <div class="field"><span class="field-label">Fee</span><span class="field-value warning">${fmtRp(d.fee)}</span></div>
-              <div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(d.created_at)}</span></div>
-            </div>
-            <div class="actions">
-              <button class="btn" type="button" data-act="deposit-detail" data-id="${escapeHtml(d.reference_id)}">Detail</button>
-              <button class="btn btn-primary" type="button" data-act="deposit-status" data-id="${escapeHtml(d.reference_id)}" data-status="${escapeHtml(d.status)}">Ubah Status</button>
-              ${notifBtn}
-            </div>
-          </div>
-        `;
-      }).join('');
-      bindDepositActions();
-      renderPagination(data, (p) => { state.page = p; loadDeposits(); });
-    } catch(e) { c.innerHTML = errorBlock(e.message); }
-  }
-
-  function bindDepositActions() {
-    document.querySelectorAll('[data-act="deposit-detail"]').forEach(b => {
-      b.addEventListener('click', () => showDepositDetail(b.dataset.id));
-    });
-    document.querySelectorAll('[data-act="deposit-status"]').forEach(b => {
-      b.addEventListener('click', () => showStatusModal('deposit', b.dataset.id, b.dataset.status));
-    });
-    document.querySelectorAll('[data-act="deposit-notif"]').forEach(b => {
-      b.addEventListener('click', () => sendDepositNotif(b.dataset.id, b.dataset.force === '1'));
-    });
-  }
-
-  async function showDepositDetail(ref) {
-    openModal('<div class="modal-body">' + loadingBlock('Memuat...') + '</div>');
-    try {
-      const data = await api('/api/admin/deposit/' + encodeURIComponent(ref));
-      const d = data.deposit;
-      const logs = (data.logs || []).map(l => `<div class="log-item"><div class="log-time">${fmtDate(l.created_at)}</div><div class="log-text">${escapeHtml(l.old_status || '—')} → ${escapeHtml(l.new_status)} (${escapeHtml(l.reason || '')})</div></div>`).join('') || '<div class="log-item" style="text-align:center;color:var(--txt3);">Belum ada log</div>';
-      openModal(`
-        <div class="modal-header">
-          <div class="modal-title">Detail Deposit</div>
-          <button class="modal-close" type="button" data-close-modal>
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="modal-body">
-          <div class="grid-2">
-            <div class="field"><span class="field-label">Reference</span><span class="field-value primary">${escapeHtml(d.reference_id)}</span></div>
-            <div class="field"><span class="field-label">Method</span><span class="field-value">${d.method === 'qrispy' ? 'QRIS Otomatis' : 'QRIS DANA'}</span></div>
-            <div class="field"><span class="field-label">Saldo Top Up</span><span class="field-value primary">${fmtRp(d.amount)}</span></div>
-            <div class="field"><span class="field-label">Total Bayar</span><span class="field-value">${fmtRp(d.total_amount)}</span></div>
-            <div class="field"><span class="field-label">Fee</span><span class="field-value warning">${fmtRp(d.fee)}</span></div>
-            <div class="field"><span class="field-label">Status</span><span class="field-value">${escapeHtml(d.status)}</span></div>
-            <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(d.username || '—')}</span></div>
-            <div class="field"><span class="field-label">Saldo User</span><span class="field-value">${fmtRp(d.user_balance)}</span></div>
-            <div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(d.created_at)}</span></div>
-          </div>
-          <div>
-            <div class="field-label" style="margin-bottom:4px;">Log Status</div>
-            <div class="log-list">${logs}</div>
-          </div>
-        </div>
-      `);
-    } catch(e) { openModal('<div class="modal-body">' + errorBlock(e.message) + '</div>'); }
-  }
-
-  async function sendDepositNotif(ref, force) {
-    const ok = await confirmBox(`Kirim notif deposit untuk ${ref}${force ? ' (resend)' : ''}?`);
-    if (!ok) return;
-    try {
-      const res = await api('/api/admin/notif-deposit/' + encodeURIComponent(ref), {
-        method: 'POST',
-        body: JSON.stringify({ force }),
-      });
-      showAlert({ title: 'Berhasil', message: `Notif terkirim. Message ID: ${res.message_id || '—'}`, type: 'success' });
-      loadDeposits();
-    } catch(e) { showAlert({ title: 'Gagal', message: e.message, type: 'error' }); }
-  }
-
-  /* §20 — STATUS MODAL */
-  function showStatusModal(type, id, current) {
-    const orderStatuses = ['pending','success','received','confirmed','cancelled','expired','failed','refunded'];
-    const depositStatuses = ['pending','success','cancelled','expired','failed','refunded'];
-    const opts = type === 'order' ? orderStatuses : depositStatuses;
-    openModal(`
-      <div class="modal-header">
-        <div class="modal-title">Ubah Status ${type === 'order' ? 'Order' : 'Deposit'}</div>
-        <button class="modal-close" type="button" data-close-modal>
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-      <div class="modal-body">
-        <div class="field"><span class="field-label">${type === 'order' ? 'Order ID' : 'Reference'}</span><span class="field-value primary">${escapeHtml(id)}</span></div>
-        <div class="form-group">
-          <label class="form-label">Status Baru</label>
-          <select class="form-control" id="statusSelect">
-            ${opts.map(s => `<option value="${s}" ${s === current ? 'selected' : ''}>${s}</option>`).join('')}
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Catatan (opsional)</label>
-          <input class="form-control" type="text" id="statusNote" placeholder="Alasan ubah status">
-        </div>
-        <button class="btn btn-primary btn-block" type="button" id="statusSave">Simpan</button>
-      </div>
-    `);
-    $('statusSave').addEventListener('click', async () => {
-      const newStatus = $('statusSelect').value;
-      const note = $('statusNote').value.trim();
-      if (newStatus === current) return closeModal();
-      const ok = await confirmBox(`Ubah status dari "${current}" ke "${newStatus}"? Saldo user akan otomatis disesuaikan.`);
-      if (!ok) return;
-      const btn = $('statusSave');
-      btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
-      try {
-        const endpoint = type === 'order'
-          ? '/api/admin/order/' + encodeURIComponent(id) + '/status'
-          : '/api/admin/deposit/' + encodeURIComponent(id) + '/status';
-        const res = await api(endpoint, { method: 'POST', body: JSON.stringify({ status: newStatus, note }) });
-        closeModal();
-        const adj = Number(res.balance_adjustment) || 0;
-        const adjTxt = adj > 0 ? `+${fmtRp(adj)}` : (adj < 0 ? `-${fmtRp(Math.abs(adj))}` : 'tidak ada adjustment');
-        showAlert({ title: 'Berhasil', message: `Status "${newStatus}". Saldo: ${adjTxt}`, type: 'success' });
-        if (type === 'order') loadOrders(); else loadDeposits();
-        loadStats();
-      } catch(e) {
-        btn.disabled = false; btn.innerHTML = 'Simpan';
-        showAlert({ title: 'Gagal', message: e.message, type: 'error' });
-      }
-    });
-  }
-
-  /* §21 — MONITOR */
-  async function loadMonitor() {
-    const c = $('content');
-    c.innerHTML = `
-      <div class="monitor-toolbar">
-        <select id="mHours">
-          <option value="1">1 jam</option>
-          <option value="3">3 jam</option>
-          <option value="6" selected>6 jam</option>
-          <option value="12">12 jam</option>
-          <option value="24">24 jam</option>
-          <option value="72">3 hari</option>
-          <option value="168">7 hari</option>
-        </select>
-        <select id="mType">
-          <option value="all">Semua</option>
-          <option value="otp">OTP</option>
-          <option value="deposit">Deposit</option>
-        </select>
-        <select id="mFilter">
-          <option value="">Semua status</option>
-          <option value="unnotified">Belum di-notif</option>
-          <option value="notified">Sudah di-notif</option>
-        </select>
-        <button class="btn btn-primary" type="button" id="mRefresh">Refresh</button>
-      </div>
-      <div id="monitorContent">${loadingBlock('Memuat events...')}</div>
-    `;
-    $('mRefresh').addEventListener('click', loadMonitor);
-    $('mHours').addEventListener('change', loadMonitor);
-    $('mType').addEventListener('change', loadMonitor);
-    $('mFilter').addEventListener('change', loadMonitor);
-    try {
-      const hours = $('mHours').value;
-      const type = $('mType').value;
-      const filter = $('mFilter').value;
-      const q = new URLSearchParams({ hours, type, limit: 100 });
-      if (filter === 'notified') q.set('only_notified', '1');
-      if (filter === 'unnotified') q.set('only_unnotified', '1');
-      const data = await api('/api/admin/webhook-monitor?' + q);
-      const mc = $('monitorContent');
-      const stats = `
-        <div class="monitor-stats">
-          <div class="monitor-stat glass-card"><div class="lbl">Total Events</div><div class="val">${data.total || 0}</div></div>
-          <div class="monitor-stat glass-card"><div class="lbl">Range</div><div class="val">${hours}j</div></div>
-        </div>
-      `;
-      if (!data.events || data.events.length === 0) {
-        mc.innerHTML = stats + emptyBlock('Tidak ada event');
-        return;
-      }
-      mc.innerHTML = stats + data.events.map(e => {
-        const isOtp = e.entity_type === 'order';
-        const isSuccess = ['received','success','confirmed'].includes(e.new_status);
-        const isFail = ['cancelled','expired','failed','refunded'].includes(e.new_status);
-        const cls = isSuccess ? 'success' : (isFail ? 'danger' : 'warning');
-        let body = '';
-        if (isOtp && e.order) {
-          const notified = !!e.order.notified_at;
-          body = `
-            <div class="grid-2">
-              <div class="field"><span class="field-label">OTP ID</span><span class="field-value primary">${escapeHtml(e.order.otp_id || '—')}</span></div>
-              <div class="field"><span class="field-label">Service</span><span class="field-value">${escapeHtml(e.order.service_name || '—')}</span></div>
-              <div class="field"><span class="field-label">Phone</span><span class="field-value">${escapeHtml(e.order.phone || '—')}</span></div>
-              <div class="field"><span class="field-label">OTP</span><span class="field-value success">${escapeHtml(e.order.otp_code || '—')}</span></div>
-              <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(e.user?.username || '—')}</span></div>
-              <div class="field"><span class="field-label">Status</span><span class="field-value ${cls}">${escapeHtml(e.old_status || '—')} → ${escapeHtml(e.new_status)}</span></div>
-              <div class="field"><span class="field-label">Notif</span><span class="field-value ${notified ? 'success' : 'danger'}">${notified ? '✓ Terkirim' : '✗ Belum'}</span></div>
-            </div>
-            ${isSuccess && e.order.otp_id ? `<div class="actions"><button class="btn ${notified ? 'btn-danger' : 'btn-success'}" type="button" data-act="mon-notif" data-id="${escapeHtml(e.order.otp_id)}" data-force="${notified ? '1' : '0'}">${notified ? 'Resend Notif' : 'Kirim Notif'}</button></div>` : ''}
-          `;
-        } else if (e.deposit) {
-          const notified = !!e.deposit.notified_at;
-          body = `
-            <div class="grid-2">
-              <div class="field"><span class="field-label">Reference</span><span class="field-value primary">${escapeHtml(e.deposit.reference_id || '—')}</span></div>
-              <div class="field"><span class="field-label">Method</span><span class="field-value">${escapeHtml(e.deposit.method || '—')}</span></div>
-              <div class="field"><span class="field-label">Amount</span><span class="field-value success">${fmtRp(e.deposit.amount)}</span></div>
-              <div class="field"><span class="field-label">User</span><span class="field-value">@${escapeHtml(e.user?.username || '—')}</span></div>
-              <div class="field"><span class="field-label">Status</span><span class="field-value ${cls}">${escapeHtml(e.old_status || '—')} → ${escapeHtml(e.new_status)}</span></div>
-              <div class="field"><span class="field-label">Notif</span><span class="field-value ${notified ? 'success' : 'danger'}">${notified ? '✓ Terkirim' : '✗ Belum'}</span></div>
-            </div>
-            ${isSuccess && e.deposit.reference_id ? `<div class="actions"><button class="btn ${notified ? 'btn-danger' : 'btn-success'}" type="button" data-act="mon-notif-dep" data-id="${escapeHtml(e.deposit.reference_id)}" data-force="${notified ? '1' : '0'}">${notified ? 'Resend Notif' : 'Kirim Notif'}</button></div>` : ''}
-          `;
-        } else {
-          body = `<div class="field"><span class="field-label">Entity</span><span class="field-value">${escapeHtml(e.entity_type)} · ${escapeHtml(e.entity_id)}</span></div>`;
-        }
-        return `
-          <div class="card glass-card">
-            <div class="card-header">
-              <div class="card-title-wrap">
-                <div class="card-title">${isOtp ? 'OTP' : 'Deposit'}</div>
-                <div class="card-sub">${fmtDate(e.created_at)}</div>
-              </div>
-              <span class="badge ${cls}">${escapeHtml(e.new_status).toUpperCase()}</span>
-            </div>
-            ${body}
-          </div>
-        `;
-      }).join('');
-
-      document.querySelectorAll('[data-act="mon-notif"]').forEach(b => {
-        b.addEventListener('click', () => sendOrderNotif(b.dataset.id, b.dataset.force === '1'));
-      });
-      document.querySelectorAll('[data-act="mon-notif-dep"]').forEach(b => {
-        b.addEventListener('click', () => sendDepositNotif(b.dataset.id, b.dataset.force === '1'));
-      });
-    } catch(e) {
-      $('monitorContent').innerHTML = errorBlock(e.message);
-    }
-  }
-
-  /* §22 — TOOLS */
-  function loadTools() {
-    const c = $('content');
-    c.innerHTML = `
-      <div class="tools-grid">
-        <div class="tool-card glass-card">
-          <h4>📊 Stats Notif</h4>
-          <p>Lihat berapa order/deposit yang sudah dikirim notif</p>
-          <button class="btn btn-primary" type="button" data-tool="stats">Cek Stats</button>
-          <div class="tool-result" id="res-stats" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>🧪 Test Notif OTP</h4>
-          <p>Kirim pesan test ke channel OTP</p>
-          <button class="btn btn-primary" type="button" data-tool="test-otp">Kirim Test</button>
-          <div class="tool-result" id="res-test-otp" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>🧪 Test Notif Deposit</h4>
-          <p>Kirim pesan test ke channel Deposit</p>
-          <button class="btn btn-primary" type="button" data-tool="test-deposit">Kirim Test</button>
-          <div class="tool-result" id="res-test-deposit" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>🔄 Backfill (Dry Run)</h4>
-          <p>Cek berapa yang belum di-notif. TIDAK kirim apa-apa.</p>
-          <input class="form-control" type="number" id="bfDays" value="30" min="1" max="365" style="margin-bottom:6px;">
-          <button class="btn btn-primary" type="button" data-tool="bf-dry">Cek Dry Run</button>
-          <div class="tool-result" id="res-bf-dry" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>🚀 Backfill (Kirim)</h4>
-          <p>Kirim notif ke semua yang belum. Batch 50.</p>
-          <input class="form-control" type="number" id="bfDaysReal" value="30" min="1" max="365" style="margin-bottom:6px;">
-          <button class="btn btn-danger" type="button" data-tool="bf-real">⚠️ Kirim</button>
-          <div class="tool-result" id="res-bf-real" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>🔍 Server Balance</h4>
-          <p>Cek saldo server ekonomi / premium</p>
-          <div style="display:flex;gap:6px;margin-bottom:6px;">
-            <button class="btn" type="button" data-tool="srv-ekonomi" style="flex:1;">Ekonomi</button>
-            <button class="btn" type="button" data-tool="srv-premium" style="flex:1;">Premium</button>
-          </div>
-          <div class="tool-result" id="res-srv" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>📈 Price Locks</h4>
-          <p>Lihat cache harga yang di-lock</p>
-          <button class="btn btn-primary" type="button" data-tool="plocks">Lihat</button>
-          <div class="tool-result" id="res-plocks" hidden></div>
-        </div>
-        <div class="tool-card glass-card">
-          <h4>💰 Profit Report</h4>
-          <p>Profit nokos + fee deposit</p>
-          <input class="form-control" type="number" id="profDays" value="30" min="1" max="365" style="margin-bottom:6px;">
-          <button class="btn btn-primary" type="button" data-tool="profit">Cek</button>
-          <div class="tool-result" id="res-profit" hidden></div>
-        </div>
-      </div>
-    `;
-
-    document.querySelectorAll('[data-tool]').forEach(b => {
-      b.addEventListener('click', () => runTool(b.dataset.tool, b));
-    });
-  }
-
-  async function runTool(tool, btn) {
-    const map = { stats: 'res-stats', 'test-otp': 'res-test-otp', 'test-deposit': 'res-test-deposit', 'bf-dry': 'res-bf-dry', 'bf-real': 'res-bf-real', 'srv-ekonomi': 'res-srv', 'srv-premium': 'res-srv', plocks: 'res-plocks', profit: 'res-profit' };
-    const resEl = $(map[tool]);
-    if (!resEl) return;
-    resEl.hidden = false;
-    resEl.className = 'tool-result';
-    resEl.textContent = 'Loading...';
-    const orig = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span>';
-    try {
-      let result;
-      if (tool === 'stats') {
-        result = await api('/api/admin/test-notif', { method: 'POST', body: JSON.stringify({ type: 'stats' }) });
-      } else if (tool === 'test-otp') {
-        result = await api('/api/admin/test-notif', { method: 'POST', body: JSON.stringify({ type: 'otp' }) });
-      } else if (tool === 'test-deposit') {
-        result = await api('/api/admin/test-notif', { method: 'POST', body: JSON.stringify({ type: 'deposit' }) });
-      } else if (tool === 'bf-dry') {
-        const days = Number($('bfDays').value) || 30;
-        result = await api('/api/admin/backfill-notifs', { method: 'POST', body: JSON.stringify({ type: 'all', days, limit: 50, dry_run: true }) });
-      } else if (tool === 'bf-real') {
-        const ok = await confirmBox('Backfill ini bakal KIRIM notif ke semua. Yakin?');
-        if (!ok) { btn.disabled = false; btn.innerHTML = orig; resEl.textContent = 'Dibatalkan'; return; }
-        const days = Number($('bfDaysReal').value) || 30;
-        result = await api('/api/admin/backfill-notifs', { method: 'POST', body: JSON.stringify({ type: 'all', days, limit: 50, dry_run: false }) });
-      } else if (tool === 'srv-ekonomi') {
-        result = await api('/api/admin/server-balance?provider=ekonomi');
-      } else if (tool === 'srv-premium') {
-        result = await api('/api/admin/server-balance?provider=premium');
-      } else if (tool === 'plocks') {
-        result = await api('/api/admin/price-locks?limit=50');
-      } else if (tool === 'profit') {
-        const days = Number($('profDays').value) || 30;
-        result = await api('/api/admin/profit?days=' + days);
-      }
-      resEl.classList.add('success');
-      resEl.textContent = JSON.stringify(result, null, 2);
-    } catch(e) {
-      resEl.classList.add('error');
-      resEl.textContent = e.message;
-    } finally {
-      btn.disabled = false; btn.innerHTML = orig;
-    }
-  }
-
-  /* §23 — AUDIT */
-  async function loadAudit() {
-    const c = $('content');
-    c.innerHTML = loadingBlock('Memuat audit log...');
-    try {
-      const q = new URLSearchParams({ page: state.page, limit: 50 });
-      const data = await api('/api/admin/audit-log?' + q);
-      if (!data.logs || data.logs.length === 0) { c.innerHTML = emptyBlock('Belum ada log'); return; }
-      c.innerHTML = data.logs.map(l => {
-        const meta = l.metadata || {};
-        return `
-          <div class="card glass-card">
-            <div class="card-header">
-              <div class="card-title-wrap">
-                <div class="card-title">${escapeHtml(l.new_status || l.reason || 'action')}</div>
-                <div class="card-sub">Admin: ${escapeHtml(meta.admin_username || meta.admin_id || '—')} · Target: ${escapeHtml(l.entity_id || '—')}</div>
-              </div>
-            </div>
-            <div class="grid-2">
-              <div class="field"><span class="field-label">Waktu</span><span class="field-value" style="font-size:0.72rem;">${fmtDate(l.created_at)}</span></div>
-              ${meta.adjustment !== undefined ? `<div class="field"><span class="field-label">Adjustment</span><span class="field-value ${Number(meta.adjustment) > 0 ? 'success' : 'danger'}">${Number(meta.adjustment) > 0 ? '+' : ''}${fmtRp(Math.abs(Number(meta.adjustment) || 0))}</span></div>` : ''}
-              ${meta.note ? `<div class="field"><span class="field-label">Catatan</span><span class="field-value">${escapeHtml(meta.note)}</span></div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
-      renderPagination(data, (p) => { state.page = p; loadAudit(); });
-    } catch(e) { c.innerHTML = errorBlock(e.message); }
-  }
-
-  /* §24 — MODAL HELPERS */
-  function openModal(html) {
-    const m = $('modalContent');
-    const o = $('modal');
-    if (!m || !o) return;
-    m.innerHTML = html;
-    o.classList.add('active');
-    m.querySelectorAll('[data-close-modal]').forEach(b => {
-      b.addEventListener('click', closeModal);
-    });
-  }
-  function closeModal() {
-    $('modal').classList.remove('active');
-  }
-  $('modal').addEventListener('click', (e) => {
-    if (e.target === $('modal')) closeModal();
+    }catch(e){btn.disabled=false;btn.innerHTML='Simpan';showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
-  $('modal').addEventListener('touchstart', (e) => {
-    if (e.target === $('modal')) { e.preventDefault(); closeModal(); }
-  }, { passive: false });
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
+}
 
-  /* §25 — TABS */
-  document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      state.tab = t.dataset.tab;
-      state.page = 1;
-      state.search = '';
-      const s = $('searchInput'); if (s) s.value = '';
-      loadTab();
-    });
-  });
+async function toggleBan(id,status){
+  var ns=status==='banned'?'active':'banned';
+  var ok=await confirmBox('Yakin '+(ns==='banned'?'ban':'unban')+' user ini?');
+  if(!ok)return;
+  try{
+    await api('/api/admin/users/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:ns})});
+    showAlert({title:'Berhasil',message:'User di-'+(ns==='banned'?'ban':'unban'),type:'success'});
+    loadUsers();
+  }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
+}
 
-  /* §26 — SEARCH */
-  let searchTimer = null;
-  $('searchInput')?.addEventListener('input', (e) => {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      state.search = e.target.value.trim();
-      state.page = 1;
-      loadTab();
-    }, 400);
+function showResetPassModal(id,username){
+  openModal(
+    '<div class="modal-header"><div class="modal-title">Reset Password — @'+esc(username)+'</div>'+
+    '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+    '<div class="modal-body">'+
+      '<div class="form-group"><label class="form-label">Password Baru</label><input class="form-control" type="text" id="newPass" placeholder="Minimal 6 karakter"></div>'+
+      '<button class="btn btn-primary btn-block" type="button" id="passSave">Reset</button>'+
+    '</div>'
+  );
+  $('passSave').addEventListener('click',async function(){
+    var np=$('newPass').value.trim();
+    if(np.length<6)return showAlert({title:'Error',message:'Minimal 6 karakter',type:'danger'});
+    var btn=$('passSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    try{
+      await api('/api/admin/users/'+encodeURIComponent(id)+'/reset-password',{method:'POST',body:JSON.stringify({new_password:np})});
+      closeModal();
+      showAlert({title:'Berhasil',message:'Password @'+username+' direset',type:'success'});
+    }catch(e){btn.disabled=false;btn.innerHTML='Reset';showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
+}
 
-  /* §27 — REFRESH */
-  $('refreshBtn')?.addEventListener('click', () => {
-    loadStats();
+/* ORDERS */
+function statusClass(s){
+  if(['success','received','confirmed'].includes(s))return 'success';
+  if(s==='pending')return 'warning';
+  if(['cancelled','expired','failed'].includes(s))return 'danger';
+  if(s==='refunded')return 'purple';
+  return 'gray';
+}
+
+async function loadOrders(){
+  var c=$('content');
+  c.innerHTML=loadingBlock('Memuat orders...');
+  try{
+    var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
+    if(state.status)qs.set('status',state.status);
+    var data=await api('/api/admin/orders?'+qs.toString());
+    if(!data.orders||data.orders.length===0){c.innerHTML=emptyBlock('Belum ada order');return}
+    c.innerHTML=data.orders.map(function(o){
+      var cls=statusClass(o.status);
+      var canNotif=['received','success','confirmed'].includes(o.status)&&o.otp_code&&o.otp_id;
+      var notifBtn=canNotif?'<button class="btn '+(o.notified_at?'btn-danger':'btn-success')+'" data-act="order-notif" data-id="'+esc(o.otp_id)+'" data-force="'+(o.notified_at?'1':'0')+'">'+(o.notified_at?'Resend':'Notif')+'</button>':'';
+      return '<div class="card">'+
+        '<div class="card-header">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div class="card-title">'+esc(o.service_name||o.service||'—')+' · '+esc(o.country_name||o.country||'—')+'</div>'+
+            '<div class="card-sub">'+esc(o.order_id)+' · '+esc(o.otp_id||'—')+'</div>'+
+          '</div>'+
+          '<span class="badge '+cls+'">'+esc(o.status).toUpperCase()+'</span>'+
+        '</div>'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc(o.username||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Nomor</span><span class="field-value">'+esc(o.phone_number||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Harga</span><span class="field-value primary">'+fmtRp(o.price)+'</span></div>'+
+          '<div class="field"><span class="field-label">OTP</span><span class="field-value success">'+esc(o.otp_code||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Profit</span><span class="field-value '+(o.profit>0?'success':'danger')+'">'+fmtRp(o.profit)+'</span></div>'+
+          '<div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:.7rem">'+fmtDate(o.created_at)+'</span></div>'+
+        '</div>'+
+        '<div class="actions">'+
+          '<button class="btn" data-act="order-detail" data-id="'+esc(o.order_id)+'">Detail</button>'+
+          '<button class="btn btn-primary" data-act="order-status" data-id="'+esc(o.order_id)+'" data-status="'+esc(o.status)+'">Status</button>'+
+          notifBtn+
+        '</div>'+
+      '</div>';
+    }).join('');
+    bindOrderActions();
+    renderPagination(data,function(p){state.page=p;loadOrders()});
+  }catch(e){c.innerHTML=errorBlock(e.message)}
+}
+
+function bindOrderActions(){
+  qa('[data-act="order-detail"]').forEach(function(b){b.addEventListener('click',function(){showOrderDetail(b.dataset.id)})});
+  qa('[data-act="order-status"]').forEach(function(b){b.addEventListener('click',function(){showStatusModal('order',b.dataset.id,b.dataset.status)})});
+  qa('[data-act="order-notif"]').forEach(function(b){b.addEventListener('click',function(){sendOrderNotif(b.dataset.id,b.dataset.force==='1')})});
+}
+
+async function showOrderDetail(orderId){
+  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  try{
+    var data=await api('/api/admin/order/'+encodeURIComponent(orderId));
+    var o=data.order;
+    var logs=(data.logs||[]).map(function(l){
+      return '<div class="log-item"><div class="log-time">'+fmtDate(l.created_at)+'</div><div class="log-text">'+esc(l.old_status||'—')+' → '+esc(l.new_status)+' ('+esc(l.reason||'')+')</div></div>';
+    }).join('')||'<div class="log-item" style="text-align:center;color:var(--txt3)">Belum ada log</div>';
+    openModal(
+      '<div class="modal-header"><div class="modal-title">Detail Order</div>'+
+      '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+      '<div class="modal-body">'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">Order ID</span><span class="field-value primary">'+esc(o.order_id)+'</span></div>'+
+          '<div class="field"><span class="field-label">OTP ID</span><span class="field-value primary">'+esc(o.otp_id||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Service</span><span class="field-value">'+esc(o.service_name||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Negara</span><span class="field-value">'+esc(o.country_name||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Nomor</span><span class="field-value">'+esc(o.phone_number||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">OTP</span><span class="field-value success">'+esc(o.otp_code||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Harga</span><span class="field-value primary">'+fmtRp(o.price)+'</span></div>'+
+          '<div class="field"><span class="field-label">Provider</span><span class="field-value">'+fmtRp(o.provider_price)+'</span></div>'+
+          '<div class="field"><span class="field-label">Profit</span><span class="field-value '+(o.profit>0?'success':'danger')+'">'+fmtRp(o.profit)+'</span></div>'+
+          '<div class="field"><span class="field-label">Status</span><span class="field-value">'+esc(o.status)+'</span></div>'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc(o.username||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Saldo User</span><span class="field-value">'+fmtRp(o.user_balance)+'</span></div>'+
+          (o.refunded_amount?'<div class="field"><span class="field-label">Refund</span><span class="field-value warning">'+fmtRp(o.refunded_amount)+'</span></div>':'')+
+          '<div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:.7rem">'+fmtDate(o.created_at)+'</span></div>'+
+        '</div>'+
+        (o.full_sms?'<div><div class="field-label" style="margin-bottom:4px">Full SMS</div><div class="log-item">'+esc(o.full_sms)+'</div></div>':'')+
+        '<div><div class="field-label" style="margin-bottom:4px">Log Status</div><div class="log-list">'+logs+'</div></div>'+
+      '</div>'
+    );
+  }catch(e){openModal('<div class="modal-body">'+errorBlock(e.message)+'</div>')}
+}
+
+async function sendOrderNotif(otpId,force){
+  var ok=await confirmBox('Kirim notif OTP untuk '+otpId+(force?' (resend)':'')+'?');
+  if(!ok)return;
+  try{
+    var res=await api('/api/admin/notif-order/'+encodeURIComponent(otpId),{method:'POST',body:JSON.stringify({force:force})});
+    showAlert({title:'Berhasil',message:'Notif terkirim. Message ID: '+(res.message_id||'—'),type:'success'});
     loadTab();
-  });
+  }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
+}
 
-  /* §28 — INIT + SECURITY CHECK */
-  (async function init() {
-    if (!token) {
-      gateFreeze('Token tidak ditemukan. Redirect...');
-      setTimeout(() => location.href = '/login', 800);
+/* DEPOSITS */
+async function loadDeposits(){
+  var c=$('content');
+  c.innerHTML=loadingBlock('Memuat deposits...');
+  try{
+    var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
+    if(state.status)qs.set('status',state.status);
+    var data=await api('/api/admin/deposits?'+qs.toString());
+    if(!data.deposits||data.deposits.length===0){c.innerHTML=emptyBlock('Belum ada deposit');return}
+    c.innerHTML=data.deposits.map(function(d){
+      var cls=statusClass(d.status);
+      var canNotif=d.status==='success';
+      var notifBtn=canNotif?'<button class="btn '+(d.notified_at?'btn-danger':'btn-success')+'" data-act="depo-notif" data-id="'+esc(d.reference_id)+'" data-force="'+(d.notified_at?'1':'0')+'">'+(d.notified_at?'Resend':'Notif')+'</button>':'';
+      return '<div class="card">'+
+        '<div class="card-header">'+
+          '<div style="flex:1;min-width:0">'+
+            '<div class="card-title">QRIS Otomatis</div>'+
+            '<div class="card-sub">'+esc(d.reference_id)+'</div>'+
+          '</div>'+
+          '<span class="badge '+cls+'">'+esc(d.status).toUpperCase()+'</span>'+
+        '</div>'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc(d.username||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Top Up</span><span class="field-value primary">'+fmtRp(d.amount)+'</span></div>'+
+          '<div class="field"><span class="field-label">Total Bayar</span><span class="field-value">'+fmtRp(d.total_amount)+'</span></div>'+
+          '<div class="field"><span class="field-label">Fee</span><span class="field-value warning">'+fmtRp(d.fee)+'</span></div>'+
+          '<div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:.7rem">'+fmtDate(d.created_at)+'</span></div>'+
+        '</div>'+
+        '<div class="actions">'+
+          '<button class="btn" data-act="depo-detail" data-id="'+esc(d.reference_id)+'">Detail</button>'+
+          '<button class="btn btn-primary" data-act="depo-status" data-id="'+esc(d.reference_id)+'" data-status="'+esc(d.status)+'">Status</button>'+
+          notifBtn+
+        '</div>'+
+      '</div>';
+    }).join('');
+    bindDepoActions();
+    renderPagination(data,function(p){state.page=p;loadDeposits()});
+  }catch(e){c.innerHTML=errorBlock(e.message)}
+}
+
+function bindDepoActions(){
+  qa('[data-act="depo-detail"]').forEach(function(b){b.addEventListener('click',function(){showDepoDetail(b.dataset.id)})});
+  qa('[data-act="depo-status"]').forEach(function(b){b.addEventListener('click',function(){showStatusModal('deposit',b.dataset.id,b.dataset.status)})});
+  qa('[data-act="depo-notif"]').forEach(function(b){b.addEventListener('click',function(){sendDepoNotif(b.dataset.id,b.dataset.force==='1')})});
+}
+
+async function showDepoDetail(ref){
+  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  try{
+    var data=await api('/api/admin/deposit/'+encodeURIComponent(ref));
+    var d=data.deposit;
+    var logs=(data.logs||[]).map(function(l){
+      return '<div class="log-item"><div class="log-time">'+fmtDate(l.created_at)+'</div><div class="log-text">'+esc(l.old_status||'—')+' → '+esc(l.new_status)+' ('+esc(l.reason||'')+')</div></div>';
+    }).join('')||'<div class="log-item" style="text-align:center;color:var(--txt3)">Belum ada log</div>';
+    openModal(
+      '<div class="modal-header"><div class="modal-title">Detail Deposit</div>'+
+      '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+      '<div class="modal-body">'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">Reference</span><span class="field-value primary">'+esc(d.reference_id)+'</span></div>'+
+          '<div class="field"><span class="field-label">Method</span><span class="field-value">QRIS Otomatis</span></div>'+
+          '<div class="field"><span class="field-label">Top Up</span><span class="field-value primary">'+fmtRp(d.amount)+'</span></div>'+
+          '<div class="field"><span class="field-label">Total Bayar</span><span class="field-value">'+fmtRp(d.total_amount)+'</span></div>'+
+          '<div class="field"><span class="field-label">Fee</span><span class="field-value warning">'+fmtRp(d.fee)+'</span></div>'+
+          '<div class="field"><span class="field-label">Status</span><span class="field-value">'+esc(d.status)+'</span></div>'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc(d.username||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Saldo User</span><span class="field-value">'+fmtRp(d.user_balance)+'</span></div>'+
+          '<div class="field"><span class="field-label">Dibuat</span><span class="field-value" style="font-size:.7rem">'+fmtDate(d.created_at)+'</span></div>'+
+        '</div>'+
+        '<div><div class="field-label" style="margin-bottom:4px">Log Status</div><div class="log-list">'+logs+'</div></div>'+
+      '</div>'
+    );
+  }catch(e){openModal('<div class="modal-body">'+errorBlock(e.message)+'</div>')}
+}
+
+async function sendDepoNotif(ref,force){
+  var ok=await confirmBox('Kirim notif deposit untuk '+ref+(force?' (resend)':'')+'?');
+  if(!ok)return;
+  try{
+    var res=await api('/api/admin/notif-deposit/'+encodeURIComponent(ref),{method:'POST',body:JSON.stringify({force:force})});
+    showAlert({title:'Berhasil',message:'Notif terkirim. Message ID: '+(res.message_id||'—'),type:'success'});
+    loadTab();
+  }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
+}
+
+/* STATUS MODAL */
+function showStatusModal(type,id,current){
+  var statuses=type==='order'?ORDER_STATUSES:DEPO_STATUSES;
+  openModal(
+    '<div class="modal-header"><div class="modal-title">Ubah Status '+(type==='order'?'Order':'Deposit')+'</div>'+
+    '<button class="modal-close" data-close-modal type="button"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>'+
+    '<div class="modal-body">'+
+      '<div class="field"><span class="field-label">ID</span><span class="field-value primary">'+esc(id)+'</span></div>'+
+      '<div class="form-group"><label class="form-label">Status Baru</label><select class="form-control" id="statusSelect">'+
+        statuses.map(function(s){return '<option value="'+s+'" '+(s===current?'selected':'')+'>'+s+'</option>'}).join('')+
+      '</select></div>'+
+      '<div class="form-group"><label class="form-label">Catatan (opsional)</label><input class="form-control" type="text" id="statusNote" placeholder="Alasan"></div>'+
+      '<button class="btn btn-primary btn-block" type="button" id="statusSave">Simpan</button>'+
+    '</div>'
+  );
+  $('statusSave').addEventListener('click',async function(){
+    var ns=$('statusSelect').value;
+    var note=$('statusNote').value.trim();
+    if(ns===current)return closeModal();
+    var ok=await confirmBox('Ubah status dari "'+current+'" ke "'+ns+'"? Saldo user akan disesuaikan.');
+    if(!ok)return;
+    var btn=$('statusSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    try{
+      var ep=type==='order'?'/api/admin/order/':'/api/admin/deposit/';
+      var res=await api(ep+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:ns,note:note})});
+      closeModal();
+      var adj=Number(res.balance_adjustment)||0;
+      var adjTxt=adj>0?'+'+fmtRp(adj):(adj<0?'-'+fmtRp(Math.abs(adj)):'tidak ada adjustment');
+      showAlert({title:'Berhasil',message:'Status "'+ns+'". Saldo: '+adjTxt,type:'success'});
+      loadTab();loadStats();
+    }catch(e){btn.disabled=false;btn.innerHTML='Simpan';showAlert({title:'Gagal',message:e.message,type:'danger'})}
+  });
+}
+
+/* MONITOR */
+async function loadMonitor(){
+  var c=$('content');
+  c.innerHTML=loadingBlock('Memuat monitor...');
+  try{
+    var qs=new URLSearchParams({hours:'6',type:'all',limit:'100'});
+    var data=await api('/api/admin/webhook-monitor?'+qs.toString());
+    if(!data.events||data.events.length===0){c.innerHTML=emptyBlock('Tidak ada event');return}
+    c.innerHTML=data.events.map(function(e){
+      var isOtp=e.entity_type==='order';
+      var cls=statusClass(e.new_status);
+      var body='';
+      if(isOtp&&e.order){
+        var notified=!!e.order.notified_at;
+        body='<div class="grid-2">'+
+          '<div class="field"><span class="field-label">OTP ID</span><span class="field-value primary">'+esc(e.order.otp_id||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Service</span><span class="field-value">'+esc(e.order.service_name||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Phone</span><span class="field-value">'+esc(e.order.phone||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">OTP</span><span class="field-value success">'+esc(e.order.otp_code||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc((e.user&&e.user.username)||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Status</span><span class="field-value '+cls+'">'+esc(e.old_status||'—')+' → '+esc(e.new_status)+'</span></div>'+
+        '</div>';
+      }else if(e.deposit){
+        body='<div class="grid-2">'+
+          '<div class="field"><span class="field-label">Reference</span><span class="field-value primary">'+esc(e.deposit.reference_id||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Amount</span><span class="field-value success">'+fmtRp(e.deposit.amount)+'</span></div>'+
+          '<div class="field"><span class="field-label">User</span><span class="field-value">@'+esc((e.user&&e.user.username)||'—')+'</span></div>'+
+          '<div class="field"><span class="field-label">Status</span><span class="field-value '+cls+'">'+esc(e.old_status||'—')+' → '+esc(e.new_status)+'</span></div>'+
+        '</div>';
+      }
+      return '<div class="card"><div class="card-header"><div style="flex:1;min-width:0">'+
+        '<div class="card-title">'+(isOtp?'OTP':'Deposit')+'</div>'+
+        '<div class="card-sub">'+fmtDate(e.created_at)+'</div>'+
+        '</div><span class="badge '+cls+'">'+esc(e.new_status).toUpperCase()+'</span></div>'+body+'</div>';
+    }).join('');
+  }catch(e){c.innerHTML=errorBlock(e.message)}
+}
+
+/* TOOLS */
+function loadTools(){
+  var c=$('content');
+  c.innerHTML=
+    '<div class="tools-grid">'+
+      toolCard('db-cleaner','🗑️ Bersihkan DB','Hapus user saldo 0 & last login > 30 hari lalu (atau null).')+
+      toolCard('stats','📊 Stats Notif','Lihat jumlah notif terkirim & pending.')+
+      toolCard('test-otp','🧪 Test Notif OTP','Kirim pesan test ke channel OTP.')+
+      toolCard('test-depo','🧪 Test Notif Deposit','Kirim pesan test ke channel deposit.')+
+      toolCard('backfill','🔄 Backfill Notif','Kirim notif ke yang belum terkirim.')+
+      toolCard('profit','💰 Profit Report','Laporan profit nokos + fee deposit.')+
+      toolCard('plocks','📈 Price Locks','Lihat cache harga yang di-lock.')+
+      toolCard('srv','🔍 Server Balance','Cek saldo server provider.')+
+    '</div>';
+
+  qa('[data-tool]').forEach(function(b){
+    b.addEventListener('click',function(){runTool(b.dataset.tool,b)});
+  });
+}
+
+function toolCard(id,title,desc){
+  return '<div class="tool-card">'+
+    '<h4>'+title+'</h4>'+
+    '<p>'+desc+'</p>'+
+    '<div class="form-group" id="'+id+'Form" style="display:none"></div>'+
+    '<button class="btn btn-primary" type="button" data-tool="'+id+'">Jalankan</button>'+
+    '<div class="tool-result" id="res-'+id+'"></div>'+
+  '</div>';
+}
+
+async function runTool(tool,btn){
+  var resEl=$('res-'+tool);
+  if(!resEl)return;
+  resEl.classList.add('show');
+  resEl.className='tool-result show';
+  resEl.textContent='Loading...';
+  var orig=btn.innerHTML;
+  btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+
+  try{
+    var result;
+    if(tool==='db-cleaner'){
+      var dry=await confirmBox('Jalankan DRY RUN dulu buat lihat berapa user yang bakal dihapus?','DB Cleaner');
+      if(dry){
+        result=await api('/api/admin/cleanup-users',{method:'POST',body:JSON.stringify({dry_run:true,days:30})});
+      }else{
+        var ok=await confirmBox('⚠️ HAPUS PERMANEN user saldo 0 & last login > 30 hari? Tidak bisa dibatalkan.','Konfirmasi Hapus');
+        if(!ok){btn.disabled=false;btn.innerHTML=orig;resEl.textContent='Dibatalkan';return}
+        result=await api('/api/admin/cleanup-users',{method:'POST',body:JSON.stringify({dry_run:false,days:30})});
+      }
+    }else if(tool==='stats'){
+      result=await api('/api/admin/test-notif',{method:'POST',body:JSON.stringify({type:'stats'})});
+    }else if(tool==='test-otp'){
+      result=await api('/api/admin/test-notif',{method:'POST',body:JSON.stringify({type:'otp'})});
+    }else if(tool==='test-depo'){
+      result=await api('/api/admin/test-notif',{method:'POST',body:JSON.stringify({type:'deposit'})});
+    }else if(tool==='backfill'){
+      var okBf=await confirmBox('Kirim notif ke semua yang belum terkirim? Batch 50.','Backfill');
+      if(!okBf){btn.disabled=false;btn.innerHTML=orig;resEl.textContent='Dibatalkan';return}
+      result=await api('/api/admin/backfill-notifs',{method:'POST',body:JSON.stringify({type:'all',days:30,limit:50,dry_run:false})});
+    }else if(tool==='profit'){
+      result=await api('/api/admin/profit?days=30');
+    }else if(tool==='plocks'){
+      result=await api('/api/admin/price-locks?limit=50');
+    }else if(tool==='srv'){
+      var eko=await api('/api/admin/server-balance?provider=ekonomi').catch(function(e){return {error:e.message}});
+      var prem=await api('/api/admin/server-balance?provider=premium').catch(function(e){return {error:e.message}});
+      result={ekonomi:eko,premium:prem};
+    }
+    resEl.classList.add('success');
+    resEl.textContent=JSON.stringify(result,null,2);
+  }catch(e){
+    resEl.classList.add('error');
+    resEl.textContent=e.message;
+  }finally{
+    btn.disabled=false;btn.innerHTML=orig;
+  }
+}
+
+/* AUDIT */
+async function loadAudit(){
+  var c=$('content');
+  c.innerHTML=loadingBlock('Memuat audit...');
+  try{
+    var qs=new URLSearchParams({page:state.page,limit:50});
+    var data=await api('/api/admin/audit-log?'+qs.toString());
+    if(!data.logs||data.logs.length===0){c.innerHTML=emptyBlock('Belum ada log');return}
+    c.innerHTML=data.logs.map(function(l){
+      var meta=l.metadata||{};
+      return '<div class="card">'+
+        '<div class="card-header"><div style="flex:1;min-width:0">'+
+          '<div class="card-title">'+esc(l.new_status||l.reason||'action')+'</div>'+
+          '<div class="card-sub">Admin: '+esc(meta.admin_username||meta.admin_id||'—')+' · Target: '+esc(l.entity_id||'—')+'</div>'+
+        '</div></div>'+
+        '<div class="grid-2">'+
+          '<div class="field"><span class="field-label">Waktu</span><span class="field-value" style="font-size:.7rem">'+fmtDate(l.created_at)+'</span></div>'+
+          (meta.adjustment!==undefined?'<div class="field"><span class="field-label">Adjustment</span><span class="field-value '+(Number(meta.adjustment)>0?'success':'danger')+'">'+(Number(meta.adjustment)>0?'+':'')+fmtRp(Math.abs(Number(meta.adjustment)||0))+'</span></div>':'')+
+          (meta.note?'<div class="field"><span class="field-label">Catatan</span><span class="field-value">'+esc(meta.note)+'</span></div>':'')+
+        '</div>'+
+      '</div>';
+    }).join('');
+    renderPagination(data,function(p){state.page=p;loadAudit()});
+  }catch(e){c.innerHTML=errorBlock(e.message)}
+}
+
+/* Modal helpers */
+function openModal(html){
+  var m=$('modalContent'),o=$('modal');
+  if(!m||!o)return;
+  m.innerHTML=html;
+  o.classList.add('active');
+  qa('[data-close-modal]',m).forEach(function(b){b.addEventListener('click',closeModal)});
+}
+function closeModal(){$('modal').classList.remove('active')}
+$('modal').addEventListener('click',function(e){if(e.target===$('modal'))closeModal()});
+D.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
+
+/* Search & filter */
+var searchTimer=null;
+$('searchInput').addEventListener('input',function(e){
+  clearTimeout(searchTimer);
+  searchTimer=setTimeout(function(){
+    state.search=e.target.value.trim();
+    state.page=1;
+    loadTab();
+  },400);
+});
+$('statusFilter').addEventListener('change',function(e){
+  state.status=e.target.value;
+  state.page=1;
+  loadTab();
+});
+
+/* Refresh */
+$('refreshBtn').addEventListener('click',function(){
+  var b=this;b.classList.add('spinning');
+  loadStats();loadTab();
+  setTimeout(function(){b.classList.remove('spinning')},600);
+});
+
+/* Nav routing */
+qa('.nav-item').forEach(function(a){
+  a.addEventListener('click',function(e){
+    var tab=a.dataset.nav;
+    if(!tab)return;
+    e.preventDefault();
+    var url=new URL(W.location.href);
+    url.searchParams.set('tab',tab);
+    W.history.pushState({tab:tab},'','/admin?tab='+tab);
+    setActiveTab(tab);
+    if(W.innerWidth<=768){var sb=$('sidebar');if(sb)sb.classList.remove('open');var ov=$('sidebarOverlay');if(ov)ov.classList.remove('active')}
+  });
+});
+W.addEventListener('popstate',function(){
+  setActiveTab(getTabFromURL());
+});
+
+/* Gate */
+function gateFreeze(msg){
+  var sp=$('gateSpinner'),tx=$('gateText');
+  if(sp)sp.classList.add('frozen');
+  if(tx){tx.classList.add('frozen');tx.textContent=msg||'Akses ditolak'}
+}
+function gateOpen(){
+  var g=$('gate'),app=$('app');
+  if(g)g.classList.add('hidden');
+  if(app)app.hidden=false;
+}
+
+/* INIT */
+(async function(){
+  if(!token){gateFreeze('Token tidak ditemukan. Redirect...');setTimeout(function(){W.location.href='/login'},800);return}
+  try{
+    var user=await api('/api/user');
+    if(!user||!user.username){gateFreeze('Data user invalid');return}
+    if(user.status==='banned'){gateFreeze('Akun diblokir');setTimeout(function(){W.location.href='/landing'},1500);return}
+    var isAdmin=user.role==='admin'||String(user.username).toLowerCase()==='asyrofc'||String(user.user_code)==='SRF2667442394';
+    if(!isAdmin){
+      gateFreeze('Bukan admin');
+      await showAlert({title:'Akses Ditolak',message:'Halaman ini khusus admin.',type:'danger'});
+      W.location.href='/dashboard';
       return;
     }
-    try {
-      const user = await api('/api/user');
-      if (!user || !user.username) {
-        gateFreeze('Data user invalid');
-        return;
-      }
-      if (user.status === 'banned') {
-        gateFreeze('Akun diblokir');
-        setTimeout(() => location.href = '/landing', 1500);
-        return;
-      }
-      const isAdmin = user.role === 'admin'
-        || String(user.username).toLowerCase() === 'asyrofc'
-        || String(user.user_code) === 'SRF2667442394';
-      if (!isAdmin) {
-        gateFreeze('Bukan admin');
-        await showAlert({ title: 'Akses Ditolak', message: 'Halaman ini khusus admin.', type: 'error' });
-        location.href = '/dashboard';
-        return;
-      }
+    var name=user.name||user.username||'—';
+    $('userName').textContent=name;
+    $('userBalance').textContent=fmtRp(user.balance);
+    $('userInitial').textContent=initial(name);
 
-      // Render user info
-      const name = user.name || user.username || '—';
-      $('userName').textContent = name;
-      $('userBalance').textContent = fmtRp(user.balance);
-      $('userInitial').textContent = initial(name);
-
-      gateOpen();
-      loadStats();
-      loadTab();
-    } catch(e) {
-      gateFreeze('Gagal verifikasi: ' + e.message);
-      if (e.message.includes('401') || e.message.includes('403')) {
-        Safe.remove('access_token');
-        setTimeout(() => location.href = '/login', 1200);
-      }
+    gateOpen();
+    loadStats();
+    setActiveTab(getTabFromURL());
+  }catch(e){
+    gateFreeze('Gagal verifikasi: '+e.message);
+    if(e.message.indexOf('401')!==-1||e.message.indexOf('403')!==-1){
+      Safe.remove('access_token');
+      setTimeout(function(){W.location.href='/login'},1200);
     }
-  })();
+  }
+})();
 
 })();
 </script>
-
 </body>
 </html>
