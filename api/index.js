@@ -2718,21 +2718,22 @@ app.post('/api/user/change-password', requireAuth, userRateLimit(5, 60 * 1000), 
 
 app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
-        // 1. Hitung statistik langsung di database (Super Cepat)
+        // 1. Hitung semua statistik langsung di database (1 query)
         const statsRes = await pool.query(`
             SELECT 
                 COUNT(*) as total,
-                COUNT(*) FILTER (WHERE status = 'success') as success,
+                COUNT(*) FILTER (WHERE status IN ('success', 'received', 'confirmed')) as success,
                 COUNT(*) FILTER (WHERE status = 'pending') as pending,
-                COUNT(*) FILTER (WHERE status = 'canceled' OR status = 'cancelled') as canceled,
-                COUNT(*) FILTER (WHERE status = 'failed') as failed
+                COUNT(*) FILTER (WHERE status IN ('canceled', 'cancelled')) as canceled,
+                COUNT(*) FILTER (WHERE status IN ('expired', 'failed')) as failed,
+                COUNT(*) FILTER (WHERE status = 'refunded') as refunded
             FROM transactions 
             WHERE user_id = $1
         `, [req.user.id]);
 
         const s = statsRes.rows[0];
 
-        // 2. Cuma tarik 5 data terakhir buat ditampilin (Hemat bandwidth)
+        // 2. Tarik 5 transaksi terbaru aja
         const recentRes = await pool.query(`
             SELECT service_name, country, country_flag, phone_number, status, price, otp_code, created_at
             FROM transactions 
@@ -2749,7 +2750,8 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
                 success: Number(s.success) || 0,
                 pending: Number(s.pending) || 0,
                 canceled: Number(s.canceled) || 0,
-                failed: Number(s.failed) || 0
+                failed: Number(s.failed) || 0,
+                refunded: Number(s.refunded) || 0
             },
             transactions: recentRes.rows
         }));
