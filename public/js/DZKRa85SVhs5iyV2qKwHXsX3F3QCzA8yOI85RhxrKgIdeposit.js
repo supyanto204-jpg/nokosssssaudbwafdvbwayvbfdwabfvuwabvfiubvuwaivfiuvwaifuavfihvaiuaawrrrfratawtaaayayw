@@ -238,6 +238,18 @@ function customConfirm(message, type, title) {
   return showCustomAlert({ title: title || 'Konfirmasi', message: message, type: type || 'warning', okText: 'Ya', showCancel: true, cancelText: 'Batal' });
 }
 
+function lockBody() {
+  var sw = window.innerWidth - document.documentElement.clientWidth;
+  document.body.style.setProperty('--scrollbar-width', sw + 'px');
+  document.body.classList.add('modal-open');
+}
+function unlockBody() {
+  if (!document.querySelector('.modal-overlay.active') && !document.querySelector('.custom-alert-overlay.active')) {
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('--scrollbar-width');
+  }
+}
+
 (function themeInit() {
   var btn = $('themeBtn');
   if (!btn) return;
@@ -306,7 +318,7 @@ function customConfirm(message, type, title) {
     sidebar.classList.add('open');
     overlay.classList.add('active');
     document.body.classList.add('sidebar-open');
-    document.body.style.overflow = 'hidden';
+    lockBody();
   }
   function closeSb() {
     if (!open) return;
@@ -314,7 +326,7 @@ function customConfirm(message, type, title) {
     sidebar.classList.remove('open');
     overlay.classList.remove('active');
     document.body.classList.remove('sidebar-open');
-    document.body.style.overflow = '';
+    unlockBody();
   }
   function onToggle(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -503,14 +515,14 @@ function openModal(id) {
   var m = $(id);
   if (m) {
     m.classList.add('active');
-    document.body.style.overflow = 'hidden';
+    lockBody();
   }
 }
 function closeModal(id) {
   var m = $(id);
   if (m) {
     m.classList.remove('active');
-    if (!document.querySelector('.modal-overlay.active')) document.body.style.overflow = '';
+    unlockBody();
   }
 }
 
@@ -633,28 +645,30 @@ function showPaymentPanel() {
   var totalBayar = Number(d.total_amount) || saldoMasuk;
 
   panelPayment.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' +
-      '<div class="countdown" id="countdown" style="margin-bottom:0;">' + ICONS.clock + '<span id="countdownText">--:--</span></div>' +
-    '</div>' +
-    '<div class="qr-display">' +
-      '<div class="qr-total">' +
-        '<div class="label">Total yang harus dibayar</div>' +
-        '<div class="amount" id="qrAmount">' + formatRupiah(totalBayar) + '</div>' +
+    '<div class="fade-in">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;">' +
+        '<div class="countdown" id="countdown" style="margin-bottom:0;">' + ICONS.clock + '<span id="countdownText">--:--</span></div>' +
       '</div>' +
-      '<div class="qr-wrapper"><img src="' + d.qris_url + '" alt="QR Code" id="qrImage" crossorigin="anonymous"></div>' +
-    '</div>' +
-    '<div class="qr-info">' +
-      '<div class="qr-row"><span class="label">Reference ID</span><span class="value">' + d.reference_id + '</span></div>' +
-      '<div class="qr-row"><span class="label">Metode</span><span class="value">' + state.methodLabel + '</span></div>' +
-      '<div class="qr-row"><span class="label">Saldo Top Up</span><span class="value">' + formatRupiah(saldoMasuk) + '</span></div>' +
-      '<div class="qr-row"><span class="label">Fee</span><span class="value" id="qrFee"><span class="inline-loader"></span></span></div>' +
-      '<div class="qr-row total-row"><span class="label">Total Bayar</span><span class="value big" id="qrTotal">' + formatRupiah(totalBayar) + '</span></div>' +
-      '<div class="qr-row"><span class="label">Saldo Diterima</span><span class="value success">' + formatRupiah(saldoMasuk) + '</span></div>' +
-    '</div>' +
-    '<div class="polling-indicator"><span class="spinner-sm"></span><span>Menunggu pembayaran... otomatis cek status</span></div>' +
-    '<div class="payment-actions">' +
-      '<button class="btn-download-qr" id="btnDownloadQr" type="button">' + ICONS.download + ' Download QR</button>' +
-      '<button class="btn-cancel-red" id="btnCancel" type="button">' + ICONS.close + ' Batalkan</button>' +
+      '<div class="qr-display">' +
+        '<div class="qr-total">' +
+          '<div class="label">Total yang harus dibayar</div>' +
+          '<div class="amount" id="qrAmount">' + formatRupiah(totalBayar) + '</div>' +
+        '</div>' +
+        '<div class="qr-wrapper"><img src="' + d.qris_url + '" alt="QR Code" id="qrImage" crossorigin="anonymous"></div>' +
+      '</div>' +
+      '<div class="qr-info">' +
+        '<div class="qr-row"><span class="label">Reference ID</span><span class="value">' + d.reference_id + '</span></div>' +
+        '<div class="qr-row"><span class="label">Metode</span><span class="value">' + state.methodLabel + '</span></div>' +
+        '<div class="qr-row"><span class="label">Saldo Top Up</span><span class="value">' + formatRupiah(saldoMasuk) + '</span></div>' +
+        '<div class="qr-row"><span class="label">Fee</span><span class="value" id="qrFee"><span class="inline-loader"></span></span></div>' +
+        '<div class="qr-row total-row"><span class="label">Total Bayar</span><span class="value big" id="qrTotal">' + formatRupiah(totalBayar) + '</span></div>' +
+        '<div class="qr-row"><span class="label">Saldo Diterima</span><span class="value success">' + formatRupiah(saldoMasuk) + '</span></div>' +
+      '</div>' +
+      '<div class="polling-indicator"><span class="spinner-sm"></span><span>Menunggu pembayaran... otomatis cek status</span></div>' +
+      '<div class="payment-actions">' +
+        '<button class="btn-download-qr" id="btnDownloadQr" type="button">' + ICONS.download + ' Download QR</button>' +
+        '<button class="btn-cancel-red" id="btnCancel" type="button">' + ICONS.close + ' Batalkan</button>' +
+      '</div>' +
     '</div>';
 
   var btnCancel = $('btnCancel'); if (btnCancel) btnCancel.addEventListener('click', cancelDeposit);
@@ -798,7 +812,7 @@ function showExpired() {
   var panelPayment = $('panelPayment');
   if (!panelPayment) return;
   panelPayment.innerHTML =
-    '<div style="text-align:center;padding:32px 20px;">' +
+    '<div class="fade-in" style="text-align:center;padding:32px 20px;">' +
       '<div class="success-icon expired">' + ICONS.clock + '</div>' +
       '<h2 style="font-size:1.3rem;font-weight:700;margin-bottom:8px;color:var(--txt);">QRIS Kedaluwarsa</h2>' +
       '<p style="color:var(--txt2);font-size:0.9rem;margin-bottom:24px;">Waktu pembayaran habis. Status deposit ini udah <strong>EXPIRED</strong>.</p>' +
@@ -823,6 +837,8 @@ async function cancelDeposit() {
   resetPanel();
   Cache.invalidate('history_');
   loadHistory(state.historyPage);
+  
+  await customAlert('Deposit berhasil dibatalkan.', 'success', 'Dibatalkan');
 }
 
 function resetPanel() {
@@ -913,7 +929,7 @@ async function loadHistory(page) {
   } catch (err) {
     if (!cached) {
       container.innerHTML =
-        '<div class="empty-inbox">' +
+        '<div class="empty-inbox fade-in">' +
           '<div class="icon-box">' + ICONS.warning + '</div>' +
           '<h3>Gagal memuat riwayat</h3>' +
           '<p>' + (err.message || 'Coba refresh halaman') + '</p>' +
@@ -937,7 +953,7 @@ function renderHistory(data, page) {
   };
 
   var now = Date.now();
-  container.innerHTML = '<div class="history-list">' + data.deposits.map(function (d) {
+  container.innerHTML = '<div class="history-list fade-in">' + data.deposits.map(function (d) {
     var s = statusMap[d.status] || { class: 'pending', label: d.status, icon: ICONS.clock };
     var methodLabel = 'QRIS Otomatis';
     var created = new Date(d.created_at).getTime();
@@ -995,7 +1011,7 @@ function renderHistorySkeleton() {
   var container = $('historyList');
   if (!container) return;
   container.innerHTML =
-    '<div class="history-list">' +
+    '<div class="history-list fade-in">' +
       Array(3).fill(0).map(function () {
         return '<div class="history-card" style="pointer-events:none;opacity:0.6;">' +
           '<div class="history-icon" style="background:var(--surface-2);"><span class="spinner-sm"></span></div>' +
@@ -1017,7 +1033,7 @@ function renderHistoryEmpty() {
   var paginationEl = $('pagination');
   if (!container) return;
   container.innerHTML =
-    '<div class="empty-inbox">' +
+    '<div class="empty-inbox fade-in">' +
       '<div class="icon-box">' + ICONS.wallet + '</div>' +
       '<h3>Belum ada riwayat deposit</h3>' +
       '<p>Deposit pertama kamu bakal muncul di sini.</p>' +
@@ -1088,7 +1104,7 @@ async function showDetailModal(d) {
       '<div class="modal-title">Detail Deposit</div>' +
       '<button class="modal-close" type="button" data-modal-close>' + ICONS.close + '</button>' +
     '</div>' +
-    '<div style="padding:20px;">' +
+    '<div class="fade-in" style="padding:20px;">' +
       '<div class="detail-header">' +
         '<div class="detail-icon ' + s.class + '">' + s.icon + '</div>' +
         '<h2>' + formatRupiah(saldoMasuk) + '</h2>' +
@@ -1277,6 +1293,11 @@ document.addEventListener('keydown', function (e) {
     if (active) {
       closeModal(active.id);
       if (active.id === 'modalMethod' && !state.method) setStep(1);
+    }
+    var alert = document.querySelector('.custom-alert-overlay.active');
+    if (alert) {
+      alert.classList.remove('active');
+      unlockBody();
     }
   }
 });
