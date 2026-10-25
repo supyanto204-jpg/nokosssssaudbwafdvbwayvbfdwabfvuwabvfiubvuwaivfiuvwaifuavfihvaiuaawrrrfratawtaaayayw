@@ -7359,6 +7359,47 @@ app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
     }
 }));
 
+// === TELEGRAM LINK ENDPOINTS ===
+app.post('/api/telegram/link', requireAuth, withDB(async (req, res) => {
+    const { telegram_id, telegram_username } = req.body;
+    if (!telegram_id) return res.status(400).json({ error: 'telegram_id wajib' });
+
+    try {
+        // Cek apakah telegram_id udah dipake user lain
+        const existing = await pool.query(
+            'SELECT id, username FROM users WHERE telegram_id = $1 AND id != $2 LIMIT 1',
+            [telegram_id, req.user.id]
+        );
+        if (existing.rows.length > 0) {
+            return res.status(409).json({
+                error: 'Telegram ini sudah tertaut ke akun lain',
+                owner: existing.rows[0].username,
+            });
+        }
+
+        await pool.query(
+            `UPDATE users SET telegram_id = $1, telegram_username = $2,
+                telegram_linked_at = NOW(), updated_at = NOW()
+             WHERE id = $3`,
+            [telegram_id, telegram_username || null, req.user.id]
+        );
+
+        res.json({ message: 'Telegram berhasil ditautkan', telegram_id, telegram_username });
+    } catch (err) {
+        console.error('Telegram link error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.get('/api/telegram/status', requireAuth, withDB(async (req, res) => {
+    const result = await pool.query(
+        'SELECT telegram_id, telegram_username, telegram_linked_at FROM users WHERE id = $1 LIMIT 1',
+        [req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+    res.json(result.rows[0]);
+}));
+
 const setupBotWebhook = require('./bot-webhook');
 setupBotWebhook(app);
 
