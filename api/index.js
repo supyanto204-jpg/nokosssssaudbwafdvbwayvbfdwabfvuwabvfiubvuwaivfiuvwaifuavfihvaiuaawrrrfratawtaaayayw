@@ -322,6 +322,26 @@ function getPriceLock(providerId) {
     return priceLockCache.get(String(providerId)) || null;
 }
 
+// === WRAPPER UNTUK BOT TELEGRAM ===
+async function createDeposit(amount) {
+    // Sesuaikan endpoint & body dengan API QRISpy lo
+    const data = await qrispyFetch('/api/payment/qris/create', {
+        method: 'POST',
+        body: JSON.stringify({ amount })
+    });
+    return data.data; // return { id, qr_image, diterima, ... }
+}
+
+async function checkDepositStatus(depositId) {
+    const data = await qrispyFetch(`/api/payment/qris/${depositId}/status`);
+    return data.data;
+}
+
+async function cancelDeposit(depositId) {
+    const data = await qrispyFetch(`/api/payment/qris/${depositId}/cancel`, { method: 'POST' });
+    return data.data;
+}
+
 async function premiumFetchPublic(endpoint, options = {}) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
