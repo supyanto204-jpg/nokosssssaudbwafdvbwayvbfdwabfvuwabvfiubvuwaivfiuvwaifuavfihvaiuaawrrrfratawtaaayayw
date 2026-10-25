@@ -206,7 +206,7 @@ const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 const PREMIUM_BASE = process.env.PREMIUM_BASE;
 const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 const PREMIUM_WEBHOOK_SECRET = process.env.WEBHOOK_OTP2;
-const SMScode_PUBLIC_KEY = 'process.env.SMScode_PUBLIC_KEY';
+const SMScode_PUBLIC_KEY = process.env.SMScode_PUBLIC_KEY;
 if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
 if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
