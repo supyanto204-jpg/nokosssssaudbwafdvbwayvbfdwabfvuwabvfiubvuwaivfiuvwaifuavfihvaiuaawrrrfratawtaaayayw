@@ -22,15 +22,20 @@ module.exports = function setupBotWebhook(app, deps) {
     
     const botState = new Map();
 
+    // AUTO REGISTER DARI TELEGRAM (GUEST)
     async function getOrCreateUser(ctx) {
         const tgId = ctx.from.id;
+        
+        // 1. Cek pake telegram_id
         let r = await pool.query(
-            'SELECT id, username, name, balance, user_code, role, status, telegram_id FROM users WHERE telegram_id = $1 LIMIT 1',
+            'SELECT id, username, name, balance, user_code, role, status, telegram_id, telegram_linked_at FROM users WHERE telegram_id = $1 LIMIT 1',
             [tgId]
         );
         
+        // Kalau udah ada (baik Guest atau Linked), langsung balikin datanya
         if (r.rows.length > 0) return r.rows[0];
 
+        // Kalau belum ada, bikin akun Guest baru
         let baseUsername = ctx.from.username ? ctx.from.username.toLowerCase() : `tg_${tgId}`;
         baseUsername = baseUsername.replace(/[^a-z0-9_]/g, '').slice(0, 16) || `tg_${tgId}`;
         
@@ -44,10 +49,11 @@ module.exports = function setupBotWebhook(app, deps) {
             candidate = `${baseUsername}_${crypto.randomBytes(2).toString('hex')}`;
         }
 
+        // INSERT: Simpen telegram_id, tapi telegram_linked_at sengaja dibiarin NULL
         r = await pool.query(
-            `INSERT INTO users (username, name, password_hash) 
-             VALUES ($1, $2, $3) RETURNING id, username, name, balance, user_code, role, status`,
-            [candidate, name, randomHash]
+            `INSERT INTO users (username, name, password_hash, telegram_id, telegram_username) 
+             VALUES ($1, $2, $3, $4, $5) RETURNING id, username, name, balance, user_code, role, status, telegram_id, telegram_linked_at`,
+            [candidate, name, randomHash, tgId, ctx.from.username || null]
         );
         
         return r.rows[0];
@@ -70,6 +76,7 @@ module.exports = function setupBotWebhook(app, deps) {
     bot.start(async (ctx) => {
         const payload = ctx.startPayload || '';
         
+        // Handle link dari Web (Merge)
         if (payload.startsWith('link_')) {
             const tokenPayload = payload.replace(/^link_/, '');
             try {
@@ -90,17 +97,18 @@ module.exports = function setupBotWebhook(app, deps) {
 
         const text =
             `<b>ASyrofOTP BOT</b>\n\n` +
-            `ID: <code>${esc(user.user_code || user.id)}</code>\n` +
-            `Username: <code>@${esc(user.username)}</code>\n` +
-            `Nama: <code>${esc(user.name)}</code>\n` +
-            `Saldo: <b>${toRp(user.balance)}</b>\n\n` +
-            `Pilih menu:`;
+            `ID Akun  : <code>${esc(user.user_code || user.id)}</code>\n` +
+            `Username : <code>@${esc(user.username)}</code>\n` +
+            `Nama     : <code>${esc(user.name)}</code>\n` +
+            `Saldo    : <b>${toRp(user.balance)}</b>\n\n` +
+            `Silakan pilih menu:`;
 
         const buttons = [
             [Markup.button.callback('Beli Nokos', 'menu_otp'), Markup.button.callback('Top Up Saldo', 'menu_deposit')],
             [Markup.button.callback('Riwayat Order', 'menu_riwayat'), Markup.button.callback('Bantuan', 'menu_bantuan')]
         ];
 
+        // Cek status linked (kalau NULL berarti masih Guest)
         if (!user.telegram_linked_at) {
             buttons.push([Markup.button.callback('Tautkan Akun Web', 'link_web')]);
         } else {
@@ -131,11 +139,11 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (user.status === 'banned') return ctx.reply('Akun diblokir.');
         
-        const text = `Beli Nokos\n\nPilih server:`;
+        const text = `<b>BELI NOKOS</b>\n\nPilih server:`;
         const keyboard = Markup.inlineKeyboard([
             [Markup.button.callback('Server 1 (Ekonomi)', 'otp_srv_ekonomi')],
             [Markup.button.callback('Server 2 (Premium)', 'otp_srv_premium')],
-            [Markup.button.callback('Kembali ke Menu', 'back_home')],
+            [Markup.button.callback('Kembali', 'back_home')],
         ]);
         await renderMenu(ctx, text, keyboard);
     });
@@ -167,7 +175,7 @@ module.exports = function setupBotWebhook(app, deps) {
             }
             buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `Pilih Layanan\nServer: ${server === 'ekonomi' ? '1' : '2'}`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH LAYANAN</b>\nServer ${server === 'ekonomi' ? '1' : '2'}`, Markup.inlineKeyboard(buttons));
         } catch (e) {
             await renderMenu(ctx, `Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
@@ -200,7 +208,7 @@ module.exports = function setupBotWebhook(app, deps) {
             }
             buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `Pilih Negara`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH NEGARA</b>`, Markup.inlineKeyboard(buttons));
         } catch (e) {
             await renderMenu(ctx, `Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
@@ -234,7 +242,7 @@ module.exports = function setupBotWebhook(app, deps) {
             const buttons = providers.map(p => [Markup.button.callback(`${toRp(p.price)} | Stok ${p.stock}`, `otp_buy_${server}_${code}_${country}_${p.id}`)]);
             buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `Pilih Harga`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH HARGA</b>`, Markup.inlineKeyboard(buttons));
         } catch (e) {
             await renderMenu(ctx, `Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
@@ -294,10 +302,10 @@ module.exports = function setupBotWebhook(app, deps) {
             }
 
             await renderMenu(ctx,
-                `Order Berhasil\n\n` +
-                `Nomor: <code>${esc(phone)}</code>\n` +
-                `Harga: <b>${toRp(price)}</b>\n` +
-                `Status: Menunggu OTP\n\n` +
+                `<b>ORDER BERHASIL</b>\n\n` +
+                `Nomor  : <code>${esc(phone)}</code>\n` +
+                `Harga  : <b>${toRp(price)}</b>\n` +
+                `Status : Menunggu OTP\n\n` +
                 `Cek menu utama untuk kode OTP.`,
                 Markup.inlineKeyboard([[Markup.button.callback('Menu Utama', 'back_home')]])
             );
@@ -311,11 +319,11 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
         
-        const text = `Top Up Saldo\n\nPilih nominal:`;
+        const text = `<b>TOP UP SALDO</b>\n\nPilih nominal:`;
         const keyboard = Markup.inlineKeyboard([
             [Markup.button.callback('Rp 5.000', 'dep_5000'), Markup.button.callback('Rp 10.000', 'dep_10000')],
             [Markup.button.callback('Rp 20.000', 'dep_20000'), Markup.button.callback('Rp 50.000', 'dep_50000')],
-            [Markup.button.callback('Kembali ke Menu', 'back_home')],
+            [Markup.button.callback('Kembali', 'back_home')],
         ]);
         await renderMenu(ctx, text, keyboard);
     });
@@ -333,11 +341,11 @@ module.exports = function setupBotWebhook(app, deps) {
             if (!data || !data.qr_image) throw new Error('Gagal membuat QRIS.');
 
             await renderMenu(ctx,
-                `Top Up QRIS\n\n` +
-                `ID: <code>${esc(data.id)}</code>\n` +
-                `Nominal: <b>${toRp(data.diterima)}</b>\n\n` +
+                `<b>TOP UP QRIS</b>\n\n` +
+                `ID      : <code>${esc(data.id)}</code>\n` +
+                `Nominal : <b>${toRp(data.diterima)}</b>\n\n` +
                 `Scan QR di bawah ini:`,
-                Markup.inlineKeyboard([[Markup.button.callback('Kembali ke Menu', 'back_home')]])
+                Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]])
             );
 
             await ctx.replyWithPhoto({ url: data.qr_image }, { caption: `QRIS berlaku 15 menit.` });
@@ -354,12 +362,12 @@ module.exports = function setupBotWebhook(app, deps) {
         const orders = await pool.query(`SELECT otp_id, service, phone_number, otp_code, status, price, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5`, [user.id]);
         if (orders.rows.length === 0) return renderMenu(ctx, 'Belum ada riwayat.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
 
-        let text = `Riwayat 5 Terakhir\n\n`;
+        let text = `<b>RIWAYAT 5 TERAKHIR</b>\n\n`;
         orders.rows.forEach(o => {
             text += `Layanan: ${esc(o.service || '-')}\n`;
-            text += `Nomor: ${esc(o.phone_number || '-')}\n`;
-            text += `Status: ${o.otp_code ? o.otp_code : o.status}\n`;
-            text += `Harga: ${toRp(o.price)}\n`;
+            text += `Nomor  : ${esc(o.phone_number || '-')}\n`;
+            text += `Status : ${o.otp_code ? o.otp_code : o.status}\n`;
+            text += `Harga  : ${toRp(o.price)}\n`;
             text += `------------------------\n`;
         });
         await renderMenu(ctx, text, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
@@ -367,7 +375,7 @@ module.exports = function setupBotWebhook(app, deps) {
 
     // ==================== MENU BANTUAN ====================
     bot.action('menu_bantuan', async (ctx) => {
-        await renderMenu(ctx, `Bantuan\n\nHubungi admin: @asyrofc`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
+        await renderMenu(ctx, `<b>BANTUAN</b>\n\nHubungi admin: @asyrofc`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
     });
 
     // ==================== MENU LOGOUT ====================
@@ -375,7 +383,7 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
         await pool.query(`UPDATE users SET telegram_id = NULL, telegram_username = NULL, telegram_linked_at = NULL WHERE id = $1`, [user.id]);
-        await renderMenu(ctx, 'Logout berhasil.', Markup.inlineKeyboard([[Markup.button.callback('Kembali ke Menu', 'back_home')]]));
+        await renderMenu(ctx, 'Logout berhasil.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
     });
 
     bot.action('back_home', async (ctx) => {
