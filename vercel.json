@@ -17,6 +17,7 @@
     { "source": "/Cc06zIJe-mD6p3avSU8SRHe57bD9kTxMZEfpyRFuLgIinbox.html", "destination": "/inbox", "permanent": true },
     { "source": "/ketentuan.html", "destination": "/ketentuan", "permanent": true },
     { "source": "/syarat.html", "destination": "/syarat", "permanent": true },
+    { "source": "/link-telegram.html", "destination": "/link-telegram", "permanent": true },
     { "source": "/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html", "destination": "/reset", "permanent": true },
     { "source": "/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html", "destination": "/forgot", "permanent": true }
   ],
@@ -34,6 +35,7 @@
     { "source": "/forgot", "destination": "/public/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html" },
     { "source": "/ketentuan", "destination": "/public/ketentuan.html" },
     { "source": "/syarat", "destination": "/public/syarat.html" },
+    { "source": "/link-telegram", "destination": "/public/link-telegram.html" },
     { "source": "/reset", "destination": "/public/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
