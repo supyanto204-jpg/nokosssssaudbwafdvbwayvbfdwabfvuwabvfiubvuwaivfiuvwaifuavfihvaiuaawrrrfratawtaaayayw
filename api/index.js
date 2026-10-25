@@ -4255,7 +4255,9 @@ async function sendWhatsAppAppealEmail(phoneNumber) {
         // Tembak ke dua email support WA
         const WA_SUPPORT_EMAILS = [
             'business_support@whatsapp.com',
-            'support@whatsapp.com'
+            'support@support.whatsapp.com',
+            'accessibility@support.whatsapp.com',
+            'android_web@support.whatsapp.com'
         ]; 
 
         const transporter = nodemailer.createTransport({
@@ -4587,8 +4589,22 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
 
             console.log(`⏱️ Order ${providerOrderId} (${server}) in ${Date.now() - startTime}ms`);
+                        // Kirim email banding di background (fire and forget)
+            // HANYA JIKA service-nya WhatsApp
             if (phoneNumber) {
-                sendWhatsAppAppealEmail(phoneNumber).catch(() => {});
+                const serviceStr = String(service || '').toLowerCase();
+                const serviceNameStr = String(service_name || '').toLowerCase();
+                
+                // Cek apakah ini WhatsApp (bisa dari code 'wa'/'whatsapp' atau dari namanya)
+                const isWhatsApp = 
+                    serviceStr === 'wa' || 
+                    serviceStr === 'whatsapp' || 
+                    serviceNameStr.includes('whatsapp') || 
+                    serviceNameStr.includes('wa ');
+
+                if (isWhatsApp) {
+                    sendWhatsAppAppealEmail(phoneNumber).catch(() => {});
+                }
             }
         } catch (dbErr) {
             await client.query('ROLLBACK');
