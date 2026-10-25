@@ -7428,33 +7428,29 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
     try {
         await client.query('BEGIN');
 
-        // 1. Cek user Web (Asyrof) yang lagi login
         const webUserRes = await client.query('SELECT id, balance, username FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
         const webUser = webUserRes.rows[0];
 
-        // 2. Cek user Guest (Telegram) yang mau digabung
+        // Cari user Guest yang telegram_id-nya cocok DAN telegram_linked_at masih NULL
         const guestUserRes = await client.query(
-            'SELECT id, balance FROM users WHERE telegram_id = $1 AND id != $2 FOR UPDATE', 
+            'SELECT id, balance FROM users WHERE telegram_id = $1 AND telegram_linked_at IS NULL AND id != $2 FOR UPDATE', 
             [telegram_id, webUser.id]
         );
         
         if (guestUserRes.rows.length > 0) {
             const guestUser = guestUserRes.rows[0];
 
-            // Pindahin saldo
             const newBalance = Number(webUser.balance) + Number(guestUser.balance);
             await client.query('UPDATE users SET balance = $1 WHERE id = $2', [newBalance, webUser.id]);
 
-            // Pindahin riwayat order & transaksi
             await client.query('UPDATE orders SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
             await client.query('UPDATE transactions SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
             await client.query('UPDATE deposits SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
 
-            // Hapus akun Guest dari DB
             await client.query('DELETE FROM users WHERE id = $1', [guestUser.id]);
         }
 
-        // 3. Tautkan telegram_id ke akun Web
+        // Tautkan ke akun web, dan SET telegram_linked_at
         await client.query(
             `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW() WHERE id = $3`,
             [telegram_id, telegram_username || null, webUser.id]
@@ -7470,7 +7466,6 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
         client.release();
     }
 }));
-
 
 // ==========================================
 // 1. EXPORT DULU (WAJIB DI ATAS)
