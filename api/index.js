@@ -7419,6 +7419,58 @@ app.get('/api/telegram/status', requireAuth, withDB(async (req, res) => {
     res.json(result.rows[0]);
 }));
 
+// === ENDPOINT MERGE TELEGRAM GUEST ===
+app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
+    const { telegram_id, telegram_username } = req.body;
+    if (!telegram_id) return res.status(400).json({ error: 'telegram_id wajib' });
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // 1. Cek user Web (Asyrof) yang lagi login
+        const webUserRes = await client.query('SELECT id, balance, username FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
+        const webUser = webUserRes.rows[0];
+
+        // 2. Cek user Guest (Telegram) yang mau digabung
+        const guestUserRes = await client.query(
+            'SELECT id, balance FROM users WHERE telegram_id = $1 AND id != $2 FOR UPDATE', 
+            [telegram_id, webUser.id]
+        );
+        
+        if (guestUserRes.rows.length > 0) {
+            const guestUser = guestUserRes.rows[0];
+
+            // Pindahin saldo
+            const newBalance = Number(webUser.balance) + Number(guestUser.balance);
+            await client.query('UPDATE users SET balance = $1 WHERE id = $2', [newBalance, webUser.id]);
+
+            // Pindahin riwayat order & transaksi
+            await client.query('UPDATE orders SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
+            await client.query('UPDATE transactions SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
+            await client.query('UPDATE deposits SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
+
+            // Hapus akun Guest dari DB
+            await client.query('DELETE FROM users WHERE id = $1', [guestUser.id]);
+        }
+
+        // 3. Tautkan telegram_id ke akun Web
+        await client.query(
+            `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW() WHERE id = $3`,
+            [telegram_id, telegram_username || null, webUser.id]
+        );
+
+        await client.query('COMMIT');
+        res.json({ message: 'Akun berhasil digabungkan dan ditautkan' });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        console.error('Merge error:', err.message);
+        res.status(500).json({ error: 'Gagal menggabungkan akun' });
+    } finally {
+        client.release();
+    }
+}));
+
 
 // ==========================================
 // 1. EXPORT DULU (WAJIB DI ATAS)
