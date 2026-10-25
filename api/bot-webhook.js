@@ -1,6 +1,6 @@
 const { Telegraf, Markup } = require('telegraf');
-const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 module.exports = function setupBotWebhook(app, deps) {
@@ -12,15 +12,15 @@ module.exports = function setupBotWebhook(app, deps) {
         calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid
     } = deps;
 
+    // Sesuaikan dengan nama bot lo
     const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-    const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'asyrofotp_bot';
+    const BOT_USERNAME = 'otpmurahsxrfbot';
     const FIRE = '5104841245755180586';
 
     // ==================== HELPERS ====================
     const toRp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     
-    // State buat nampung input
     const botState = new Map();
 
     async function getUserByTg(tgId) {
@@ -44,7 +44,7 @@ module.exports = function setupBotWebhook(app, deps) {
         }
     }
 
-    // ==================== /start ====================
+    // ==================== START ====================
     bot.start(async (ctx) => {
         const payload = ctx.startPayload || '';
         
@@ -56,10 +56,10 @@ module.exports = function setupBotWebhook(app, deps) {
                     `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW(), updated_at = NOW() WHERE id = $3`,
                     [ctx.from.id, ctx.from.username || null, decoded.id]
                 );
-                await ctx.reply(`✅ Akun Telegram berhasil ditautkan ke akun *@${esc(decoded.username)}*.\n\nKetik /start untuk mulai.`, { parse_mode: 'HTML' });
+                await ctx.reply(`[ SUKSES ]\n\nAkun Telegram berhasil ditautkan ke akun <b>@${esc(decoded.username)}</b>.\nKetik /start untuk mulai.`, { parse_mode: 'HTML' });
                 return;
             } catch (e) {
-                await ctx.reply('❌ Sesi login dari web sudah expired. Silakan lanjutkan dengan Telegram di menu utama.');
+                await ctx.reply('[ GAGAL ]\n\nSesi login dari web sudah expired. Silakan login manual.');
             }
         }
 
@@ -67,65 +67,100 @@ module.exports = function setupBotWebhook(app, deps) {
         
         if (!user) {
             const text = 
-                `👋 <b>Selamat datang di AsyrofOTP!</b>\n\n` +
-                `Kamu belum memiliki akun yang tertaut. Klik tombol di bawah untuk membuat akun otomatis menggunakan data Telegram kamu.`;
+                `<b>ASyrofOTP BOT</b>\n\n` +
+                `Selamat datang. Kamu belum login ke sistem kami.\n` +
+                `Silakan klik tombol di bawah untuk masuk menggunakan akun AsyrofOTP kamu.`;
             const keyboard = Markup.inlineKeyboard([
-                [Markup.button.callback('🚀 Lanjutkan dengan Telegram', 'reg_start')]
+                [Markup.button.callback('Login Manual', 'login_start')]
             ]);
             await renderMenu(ctx, text, keyboard);
             return;
         }
 
         if (user.status === 'banned') {
-            return ctx.reply('❌ Akun kamu diblokir.');
+            return ctx.reply('[ DIBLOKIR ]\n\nAkun kamu diblokir dari sistem.');
         }
 
         const text =
-            `<b>Sxrf - Jasa Layanan OTP Nomor</b>\n\n` +
-            `<u>ID Akun</u> | <code>${esc(user.user_code || user.id)}</code>\n` +
-            `<u>Username</u> | <code>@${esc(user.username)}</code>\n` +
-            `<u>Total Saldo</u> | <code>${toRp(user.balance)}</code>`;
+            `<b>ASyrofOTP BOT</b>\n\n` +
+            `ID Akun  : <code>${esc(user.user_code || user.id)}</code>\n` +
+            `Username : <code>@${esc(user.username)}</code>\n` +
+            `Saldo    : <b>${toRp(user.balance)}</b>\n\n` +
+            `Silakan pilih menu di bawah:`;
 
         const keyboard = Markup.inlineKeyboard([
-            [Markup.button.callback('🛒 Beli Nokos', 'menu_otp'), Markup.button.callback('💰 Top Up', 'menu_deposit')],
-            [Markup.button.callback('📋 Riwayat', 'menu_riwayat'), Markup.button.callback('❓ Bantuan', 'menu_bantuan')],
-            [Markup.button.callback('🚪 Logout', 'menu_logout')],
+            [Markup.button.callback('Beli Nokos', 'menu_otp'), Markup.button.callback('Top Up Saldo', 'menu_deposit')],
+            [Markup.button.callback('Riwayat Order', 'menu_riwayat'), Markup.button.callback('Bantuan', 'menu_bantuan')],
+            [Markup.button.callback('Logout', 'menu_logout')],
         ]);
 
         await renderMenu(ctx, text, keyboard);
     });
 
-    // ==================== REGISTER VIA TELEGRAM ====================
-    bot.action('reg_start', async (ctx) => {
-        botState.set(ctx.from.id, { step: 'reg_pass' });
-        const text = 
-            `🔐 <b>Buat Akun</b>\n\n` +
-            `Username: <code>${esc(ctx.from.username || 'tg_' + ctx.from.id)}</code>\n` +
-            `Nama: <code>${esc(ctx.from.first_name || 'Telegram User')}</code>\n\n` +
-            `Silakan ketik <b>Password</b> yang ingin kamu gunakan untuk akun ini (minimal 6 karakter):`;
-        
-        await renderMenu(ctx, text, Markup.inlineKeyboard([
-            [Markup.button.callback('❌ Batal', 'reg_cancel')]
-        ]));
+    // ==================== LOGIN MANUAL ====================
+    bot.action('login_start', async (ctx) => {
+        botState.set(ctx.from.id, { step: 'login_user' });
+        await renderMenu(ctx, 
+            `<b>LOGIN MANUAL</b>\n\nSilakan ketik <b>Username</b> atau <b>Email</b> akun AsyrofOTP kamu:`, 
+            Markup.inlineKeyboard([[Markup.button.callback('Batal', 'back_home')]])
+        );
     });
 
-    bot.action('reg_cancel', async (ctx) => {
-        botState.delete(ctx.from.id);
-        ctx.startPayload = '';
-        bot.start(ctx);
+    bot.on('text', async (ctx) => {
+        const state = botState.get(ctx.from.id);
+        if (!state) return;
+
+        const text = ctx.message.text.trim();
+        if (text.startsWith('/')) return;
+
+        if (state.step === 'login_user') {
+            state.username = text;
+            state.step = 'login_pass';
+            botState.set(ctx.from.id, state);
+            await ctx.reply('<b>PASSWORD</b>\n\nSekarang ketik <b>Password</b> kamu:', { parse_mode: 'HTML' });
+            return;
+        }
+
+        if (state.step === 'login_pass') {
+            const password = text;
+            botState.delete(ctx.from.id);
+
+            try {
+                const r = await pool.query(
+                    'SELECT id, username, password_hash FROM users WHERE LOWER(username) = LOWER($1) OR LOWER(email) = LOWER($1) LIMIT 1',
+                    [state.username]
+                );
+                if (r.rows.length === 0) throw new Error('Username/Email tidak ditemukan');
+
+                const user = r.rows[0];
+                const valid = await bcrypt.compare(password, user.password_hash);
+                if (!valid) throw new Error('Password salah');
+
+                const check = await pool.query('SELECT id FROM users WHERE telegram_id = $1 AND id != $2 LIMIT 1', [ctx.from.id, user.id]);
+                if (check.rows.length > 0) throw new Error('Telegram ini sudah tertaut ke akun lain.');
+
+                await pool.query(
+                    `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW(), updated_at = NOW() WHERE id = $3`,
+                    [ctx.from.id, ctx.from.username || null, user.id]
+                );
+
+                await ctx.reply('[ SUKSES ]\n\nLogin berhasil. Ketik /start untuk mulai.');
+            } catch (err) {
+                await ctx.reply(`[ GAGAL ]\n\n${esc(err.message)}\n\nKetik /start untuk coba lagi.`);
+            }
+        }
     });
 
     // ==================== MENU OTP ====================
     bot.action('menu_otp', async (ctx) => {
         const user = await getUserByTg(ctx.from.id);
-        if (!user) return ctx.reply('Ketik /start untuk mendaftar.');
+        if (!user) return ctx.reply('Ketik /start untuk login.');
         
-        botState.delete(ctx.from.id);
-        const text = `🛒 <b>Beli Nokos</b>\n\nPilih server:`;
+        const text = `<b>BELI NOKOS</b>\n\nPilih server yang tersedia:`;
         const keyboard = Markup.inlineKeyboard([
-            [Markup.button.callback('🇮🇩 Server 1 (Ekonomi)', 'otp_srv_ekonomi')],
-            [Markup.button.callback('🌍 Server 2 (Premium)', 'otp_srv_premium')],
-            [Markup.button.callback('🏠 Menu', 'back_home')],
+            [Markup.button.callback('Server 1 (Ekonomi)', 'otp_srv_ekonomi')],
+            [Markup.button.callback('Server 2 (Premium)', 'otp_srv_premium')],
+            [Markup.button.callback('Kembali ke Menu', 'back_home')],
         ]);
         await renderMenu(ctx, text, keyboard);
     });
@@ -135,42 +170,31 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getUserByTg(ctx.from.id);
         if (!user) return;
 
-        await ctx.answerCbQuery('Mengambil layanan...');
+        await ctx.answerCbQuery('Memuat layanan...');
 
         try {
             let services = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch('/services?server=ekonomi');
-                services = (data.services || []).slice(0, 15).map(s => ({
-                    code: s.code, name: s.name, price: applyMarkup(Number(s.price_idr) || 0)
-                }));
+                services = (data.services || []).slice(0, 15).map(s => ({ code: s.code, name: s.name }));
             } else {
                 const raw = await premiumFetch('/catalog/services');
-                services = (raw || []).slice(0, 15).map(s => ({
-                    code: s.code, name: s.name, price: 0
-                }));
+                services = (raw || []).slice(0, 15).map(s => ({ code: s.code, name: s.name }));
             }
 
-            if (services.length === 0) {
-                return renderMenu(ctx, '❌ Tidak ada layanan tersedia.', Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
-            }
+            if (services.length === 0) return renderMenu(ctx, '[ KOSONG ]\n\nTidak ada layanan tersedia.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
 
             const buttons = [];
             for (let i = 0; i < services.length; i += 2) {
-                const row = [];
-                const s1 = services[i];
-                row.push(Markup.button.callback(`${s1.name}`, `otp_svc_${server}_${s1.code}`));
-                if (services[i + 1]) {
-                    const s2 = services[i + 1];
-                    row.push(Markup.button.callback(`${s2.name}`, `otp_svc_${server}_${s2.code}`));
-                }
+                const row = [Markup.button.callback(services[i].name, `otp_svc_${server}_${services[i].code}`)];
+                if (services[i + 1]) row.push(Markup.button.callback(services[i + 1].name, `otp_svc_${server}_${services[i + 1].code}`));
                 buttons.push(row);
             }
-            buttons.push([Markup.button.callback('🏠 Menu', 'back_home')]);
+            buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `📱 <b>Pilih Layanan</b>`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH LAYANAN</b>\n\nServer: ${server === 'ekonomi' ? 'Ekonomi' : 'Premium'}`, Markup.inlineKeyboard(buttons));
         } catch (e) {
-            await renderMenu(ctx, `❌ Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+            await renderMenu(ctx, `[ ERROR ]\n\n${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
     });
 
@@ -179,7 +203,7 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getUserByTg(ctx.from.id);
         if (!user) return;
 
-        await ctx.answerCbQuery('Mengambil negara...');
+        await ctx.answerCbQuery('Memuat negara...');
 
         try {
             let countries = [];
@@ -191,24 +215,19 @@ module.exports = function setupBotWebhook(app, deps) {
                 countries = (countriesRaw || []).slice(0, 15).map(c => ({ code: c.code, name: c.name }));
             }
 
-            if (countries.length === 0) {
-                return renderMenu(ctx, '❌ Tidak ada negara tersedia.', Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
-            }
+            if (countries.length === 0) return renderMenu(ctx, '[ KOSONG ]\n\nTidak ada negara tersedia.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
 
             const buttons = [];
             for (let i = 0; i < countries.length; i += 2) {
-                const row = [];
-                row.push(Markup.button.callback(`${countries[i].name || countries[i].code}`, `otp_cty_${server}_${code}_${countries[i].code}`));
-                if (countries[i + 1]) {
-                    row.push(Markup.button.callback(`${countries[i + 1].name || countries[i + 1].code}`, `otp_cty_${server}_${code}_${countries[i + 1].code}`));
-                }
+                const row = [Markup.button.callback(countries[i].name || countries[i].code, `otp_cty_${server}_${code}_${countries[i].code}`)];
+                if (countries[i + 1]) row.push(Markup.button.callback(countries[i + 1].name || countries[i + 1].code, `otp_cty_${server}_${code}_${countries[i + 1].code}`));
                 buttons.push(row);
             }
-            buttons.push([Markup.button.callback('🏠 Menu', 'back_home')]);
+            buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `🌍 <b>Pilih Negara</b>`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH NEGARA</b>`, Markup.inlineKeyboard(buttons));
         } catch (e) {
-            await renderMenu(ctx, `❌ Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+            await renderMenu(ctx, `[ ERROR ]\n\n${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
     });
 
@@ -217,15 +236,13 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getUserByTg(ctx.from.id);
         if (!user) return;
 
-        await ctx.answerCbQuery('Mengambil harga...');
+        await ctx.answerCbQuery('Memuat harga...');
 
         try {
             let providers = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}&country=${encodeURIComponent(country)}`);
-                providers = (data.providers || []).slice(0, 5).map(p => ({
-                    id: p.id, price: applyMarkup(Number(p.price_idr) || 0), stock: p.stock
-                }));
+                providers = (data.providers || []).slice(0, 5).map(p => ({ id: p.id, price: applyMarkup(Number(p.price_idr) || 0), stock: p.stock }));
             } else {
                 const [cr, sr] = await Promise.all([premiumFetch('/catalog/countries'), premiumFetch('/catalog/services')]);
                 const cObj = (cr || []).find(c => c.code === country);
@@ -233,22 +250,18 @@ module.exports = function setupBotWebhook(app, deps) {
                 if (cObj && sObj) {
                     const params = new URLSearchParams({ country_id: cObj.id, platform_id: sObj.id, limit: '5', page: '1' });
                     const products = await premiumFetch(`/catalog/products?${params.toString()}`);
-                    providers = (products || []).map(p => ({
-                        id: p.id, price: applyMarkup(premiumMoneyToIdr(p.price)), stock: p.available
-                    }));
+                    providers = (products || []).map(p => ({ id: p.id, price: applyMarkup(premiumMoneyToIdr(p.price)), stock: p.available }));
                 }
             }
 
-            if (providers.length === 0) {
-                return renderMenu(ctx, '❌ Stok kosong.', Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
-            }
+            if (providers.length === 0) return renderMenu(ctx, '[ KOSONG ]\n\nStok habis di negara ini.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
 
-            const buttons = providers.map(p => [Markup.button.callback(`${toRp(p.price)} (Stok: ${p.stock})`, `otp_buy_${server}_${code}_${country}_${p.id}`)]);
-            buttons.push([Markup.button.callback('🏠 Menu', 'back_home')]);
+            const buttons = providers.map(p => [Markup.button.callback(`${toRp(p.price)} - Stok ${p.stock}`, `otp_buy_${server}_${code}_${country}_${p.id}`)]);
+            buttons.push([Markup.button.callback('Kembali', 'back_home')]);
 
-            await renderMenu(ctx, `💰 <b>Pilih Harga</b>`, Markup.inlineKeyboard(buttons));
+            await renderMenu(ctx, `<b>PILIH HARGA</b>`, Markup.inlineKeyboard(buttons));
         } catch (e) {
-            await renderMenu(ctx, `❌ Error: ${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+            await renderMenu(ctx, `[ ERROR ]\n\n${esc(e.message)}`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
         }
     });
 
@@ -282,7 +295,7 @@ module.exports = function setupBotWebhook(app, deps) {
             if (currentBalance < price) {
                 if (server === 'ekonomi') await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: orderId }) }).catch(() => {});
                 else await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(orderId) }) }).catch(() => {});
-                throw new Error('Saldo tidak cukup. Silakan top up.');
+                throw new Error('Saldo tidak cukup. Silakan top up terlebih dahulu.');
             }
 
             const expAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -306,24 +319,28 @@ module.exports = function setupBotWebhook(app, deps) {
             }
 
             await renderMenu(ctx,
-                `✅ <b>Order Berhasil!</b>\n\n<u>No. HP</u>: <code>${esc(phone)}</code>\n<u>Harga</u>: <code>${toRp(price)}</code>\n<u>Status</u>: Menunggu OTP\n\nCek /start untuk melihat OTP jika sudah masuk.`,
-                Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]])
+                `<b>ORDER BERHASIL</b>\n\n` +
+                `Nomor HP : <code>${esc(phone)}</code>\n` +
+                `Harga    : <b>${toRp(price)}</b>\n` +
+                `Status   : Menunggu OTP\n\n` +
+                `Silakan cek menu utama secara berkala untuk melihat kode OTP.`,
+                Markup.inlineKeyboard([[Markup.button.callback('Menu Utama', 'back_home')]])
             );
         } catch (e) {
-            await ctx.reply(`❌ Order Gagal: ${esc(e.message)}`);
+            await ctx.reply(`[ GAGAL ]\n\n${esc(e.message)}`);
         }
     });
 
     // ==================== MENU DEPOSIT ====================
     bot.action('menu_deposit', async (ctx) => {
         const user = await getUserByTg(ctx.from.id);
-        if (!user) return ctx.reply('Ketik /start untuk mendaftar.');
+        if (!user) return ctx.reply('Ketik /start untuk login.');
         
-        const text = `💰 <b>Top Up Saldo</b>\n\nPilih nominal:`;
+        const text = `<b>TOP UP SALDO</b>\n\nPilih nominal:`;
         const keyboard = Markup.inlineKeyboard([
             [Markup.button.callback('Rp 5.000', 'dep_5000'), Markup.button.callback('Rp 10.000', 'dep_10000')],
             [Markup.button.callback('Rp 20.000', 'dep_20000'), Markup.button.callback('Rp 50.000', 'dep_50000')],
-            [Markup.button.callback('🏠 Menu', 'back_home')],
+            [Markup.button.callback('Kembali ke Menu', 'back_home')],
         ]);
         await renderMenu(ctx, text, keyboard);
     });
@@ -336,40 +353,46 @@ module.exports = function setupBotWebhook(app, deps) {
         await ctx.answerCbQuery('Membuat QRIS...', { showAlert: true });
 
         try {
-            // Catatan: Pastiin createDeposit di-export dari index.js
-            if (!deps.createDeposit) throw new Error('Fitur deposit belum dikonfigurasi (createDeposit missing).');
+            if (!deps.createDeposit) throw new Error('Fitur deposit belum dikonfigurasi.');
             const data = await deps.createDeposit(amount);
             if (!data || !data.qr_image) throw new Error('Gagal membuat QRIS.');
 
             await renderMenu(ctx,
-                `💳 <b>Topup QRIS</b>\n\n<u>ID</u>: <code>${esc(data.id)}</code>\n<u>Nominal</u>: <code>${toRp(data.diterima)}</code>\n\nScan QR di bawah:`,
-                Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]])
+                `<b>TOP UP QRIS</b>\n\n` +
+                `ID      : <code>${esc(data.id)}</code>\n` +
+                `Nominal : <b>${toRp(data.diterima)}</b>\n\n` +
+                `Silakan scan QR di bawah ini:`,
+                Markup.inlineKeyboard([[Markup.button.callback('Kembali ke Menu', 'back_home')]])
             );
 
-            await ctx.replyWithPhoto({ url: data.qr_image }, { caption: `Scan QR di atas. Kadaluarsa dalam 15 menit.` });
+            await ctx.replyWithPhoto({ url: data.qr_image }, { caption: `QRIS ini berlaku selama 15 menit.` });
         } catch (e) {
-            await ctx.reply(`❌ Gagal: ${esc(e.message)}`);
+            await ctx.reply(`[ GAGAL ]\n\n${esc(e.message)}`);
         }
     });
 
     // ==================== MENU RIWAYAT ====================
     bot.action('menu_riwayat', async (ctx) => {
         const user = await getUserByTg(ctx.from.id);
-        if (!user) return ctx.reply('Ketik /start untuk mendaftar.');
+        if (!user) return ctx.reply('Ketik /start untuk login.');
         
         const orders = await pool.query(`SELECT otp_id, service, phone_number, otp_code, status, price, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5`, [user.id]);
-        if (orders.rows.length === 0) return renderMenu(ctx, '📋 Belum ada riwayat order.', Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+        if (orders.rows.length === 0) return renderMenu(ctx, '[ KOSONG ]\n\nBelum ada riwayat order.', Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
 
-        let text = `📋 <b>Riwayat Order Terakhir</b>\n\n`;
+        let text = `<b>RIWAYAT ORDER (5 TERAKHIR)</b>\n\n`;
         orders.rows.forEach(o => {
-            text += `• <code>${esc(o.service || '-')}</code> | ${esc(o.phone_number || '-')}\n  Status: ${o.otp_code ? '✅ ' + o.otp_code : o.status}\n  Harga: ${toRp(o.price)}\n\n`;
+            text += `Layanan : ${esc(o.service || '-')}\n`;
+            text += `Nomor   : ${esc(o.phone_number || '-')}\n`;
+            text += `Status  : ${o.otp_code ? o.otp_code : o.status}\n`;
+            text += `Harga   : ${toRp(o.price)}\n`;
+            text += `------------------------\n`;
         });
-        await renderMenu(ctx, text, Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+        await renderMenu(ctx, text, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
     });
 
     // ==================== MENU BANTUAN ====================
     bot.action('menu_bantuan', async (ctx) => {
-        await renderMenu(ctx, `❓ <b>Bantuan</b>\n\nHubungi admin: @asyrofc`, Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+        await renderMenu(ctx, `<b>BANTUAN</b>\n\nJika ada kendala, silakan hubungi admin di @asyrofc.`, Markup.inlineKeyboard([[Markup.button.callback('Kembali', 'back_home')]]));
     });
 
     // ==================== MENU LOGOUT ====================
@@ -377,54 +400,13 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getUserByTg(ctx.from.id);
         if (!user) return;
         await pool.query(`UPDATE users SET telegram_id = NULL, telegram_username = NULL, telegram_linked_at = NULL WHERE id = $1`, [user.id]);
-        await renderMenu(ctx, '🚪 Akun Telegram berhasil di-logout.', Markup.inlineKeyboard([[Markup.button.callback('🏠 Menu', 'back_home')]]));
+        await renderMenu(ctx, '[ SUKSES ]\n\nKamu berhasil logout dari bot ini.', Markup.inlineKeyboard([[Markup.button.callback('Kembali ke Menu', 'back_home')]]));
     });
 
     bot.action('back_home', async (ctx) => {
         botState.delete(ctx.from.id);
         ctx.startPayload = '';
         bot.start(ctx);
-    });
-
-    // ==================== HANDLE TEXT INPUT (PASSWORD) ====================
-    bot.on('text', async (ctx) => {
-        const state = botState.get(ctx.from.id);
-        if (!state || state.step !== 'reg_pass') return;
-
-        const text = ctx.message.text.trim();
-        if (text.startsWith('/')) return;
-
-        if (text.length < 6) {
-            return ctx.reply('❌ Password minimal 6 karakter. Coba lagi:');
-        }
-
-        botState.delete(ctx.from.id);
-
-        try {
-            const tgUsername = ctx.from.username ? ctx.from.username.toLowerCase() : `tg_${ctx.from.id}`;
-            const name = ctx.from.first_name || 'Telegram User';
-            const hash = await bcrypt.hash(text, 10);
-            
-            let candidate = tgUsername;
-            let isExist = await pool.query('SELECT 1 FROM users WHERE username = $1', [candidate]);
-            if (isExist.rows.length > 0) {
-                candidate = `tg_${ctx.from.id}_${Math.floor(Math.random()*1000)}`;
-            }
-
-            await pool.query(
-                `INSERT INTO users (username, name, password_hash, telegram_id, telegram_username) 
-                 VALUES ($1, $2, $3, $4, $5)`,
-                [candidate, name, hash, ctx.from.id, ctx.from.username || null]
-            );
-
-            await ctx.reply('✅ Akun berhasil dibuat dan ditautkan! Ketik /start untuk mulai.');
-            ctx.startPayload = '';
-            bot.start(ctx);
-
-        } catch (err) {
-            console.error('Register TG error:', err.message);
-            await ctx.reply('❌ Gagal membuat akun. Silakan coba lagi nanti.');
-        }
     });
 
     // ==================== WEBHOOK ROUTE ====================
