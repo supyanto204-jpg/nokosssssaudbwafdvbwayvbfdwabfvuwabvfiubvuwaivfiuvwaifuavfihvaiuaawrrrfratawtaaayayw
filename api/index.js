@@ -123,7 +123,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-depo1-signature, x-server1-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-Signature, x-server1-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -199,14 +199,14 @@ const CRON_SECRET = process.env.CRON_SECRET;
 if (!CRON_SECRET) console.error('⚠️  CRON_SECRET belum di-set!');
 
 const API_CDN = process.env.API_CDN;
-const DIBANANA_BASE = 'https://dibanana.id/api/v1';
+const DIBANANA_BASE = process.env.DIBANANA_BASE;
 const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
 
 // server2 (v1, IDR). nama env tetap biar gak break deploy lama
-const PREMIUM_BASE = 'https://api.smscode.gg/v1';
+const PREMIUM_BASE = process.env.PREMIUM_BASE;
 const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 const PREMIUM_WEBHOOK_SECRET = process.env.WEBHOOK_OTP2;
-const SMScode_PUBLIC_KEY = 'da303966286507311b5f8260cd7ae743df424b57d4b66eb44fa66e0d036ebdcf';
+const SMScode_PUBLIC_KEY = 'process.env.SMScode_PUBLIC_KEY';
 if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
 if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
@@ -3077,25 +3077,35 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
 app.post('/api/webhook/depo1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
-        const signature = req.headers['x-depo1-signature'];
+        const signature = req.headers['x-qrispy-signature'] || req.headers['x-depo1-signature'];
+
         if (!signature) {
             await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
             return res.status(401).json({ error: 'No signature' });
         }
+
         if (!QRISPY_WEBHOOK_SECRET) {
             await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SECRET' });
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
+
+        const cleanSig = String(signature).replace(/^sha256=/i, '').trim();
 
         const expectedSignature = crypto
             .createHmac('sha256', QRISPY_WEBHOOK_SECRET)
             .update(req.rawBody || JSON.stringify(req.body))
             .digest('hex');
 
-        const sigBuffer = Buffer.from(signature, 'hex');
+        const sigBuffer = Buffer.from(cleanSig, 'hex');
         const expectedBuffer = Buffer.from(expectedSignature, 'hex');
 
         if (sigBuffer.length !== expectedBuffer.length || !crypto.timingSafeEqual(sigBuffer, expectedBuffer)) {
+            console.warn('depo1 signature mismatch', {
+                got_len: cleanSig.length,
+                exp_len: expectedSignature.length,
+                raw_body_len: (req.rawBody || '').length,
+                content_type: req.headers['content-type'],
+            });
             await logWebhookEvent({ source: 'depo1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'INVALID_SIGNATURE' });
             return res.status(401).json({ error: 'Invalid signature' });
         }
@@ -3126,15 +3136,9 @@ app.post('/api/webhook/depo1', withDB(async (req, res) => {
 
             if (markResult.freshDeposit) {
                 try {
-                    await notifyDepositSuccess(
-                        markResult.freshDeposit,
-                        markResult.saldoMasuk,
-                        markResult.totalBayar,
-                        markResult.fee,
-                        markResult.userData
-                    );
+                    await notifyDepositSuccess(markResult.freshDeposit, markResult.saldoMasuk, markResult.totalBayar, markResult.fee, markResult.userData);
                 } catch (err) {
-                    console.error('❌ Notif deposit error:', err.message);
+                    console.error('Notif deposit error:', err.message);
                 }
             }
 
