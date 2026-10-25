@@ -13,7 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/css/mFEqzUF0hOS3v42C14HLpqtLZS5fqqjVOYdEwi5WCqUlogin.css">
+<link rel="stylesheet" href="/css/login.css">
 <script>
 (function(){
   var d=document.documentElement;
@@ -56,7 +56,7 @@
   <div class="auth-card" id="loginCard">
     <div class="auth-head">
       <h1>Masuk</h1>
-      <p>Masukkan username dan password akunmu.</p>
+      <p>Masukkan Username atau Email beserta password akunmu.</p>
     </div>
 
     <div class="alert" id="alert" role="alert" aria-live="polite">
@@ -66,10 +66,11 @@
 
     <form id="loginForm" autocomplete="on" novalidate>
       <div class="field">
-        <label class="label" for="username">Username</label>
+        <label class="label" for="username">Username atau Email</label>
         <div class="input-box">
           <svg class="ic input-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          <input type="text" id="username" placeholder="username" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
+          <!-- Tipe text biar bisa nerima email -->
+          <input type="text" id="username" placeholder="username atau email" required autocomplete="username" autofocus spellcheck="false" autocapitalize="off">
         </div>
       </div>
 
@@ -127,7 +128,7 @@
   </div>
 </div>
 
-<script src="/js/C9tXwdcmAabb4xw8xTlZr79j7EO_ENuEx27UnuL4sWslogin.js" defer></script>
-<script src="/js/zNhV-wyebaG1PuodwLtPPY5ZhzNnK5cY0eMlYElkUjggoogle-login.js" defer></script>
+<script src="/js/login.js" defer></script>
+<script src="/js/google-login.js" defer></script>
 </body>
 </html>
