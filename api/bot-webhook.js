@@ -64,6 +64,17 @@ module.exports = function setupBotWebhook(app, deps) {
         return msg;
     }
 
+    // Strip tag rich yang gak didukung Bot API biasa
+    function stripRichTags(html) {
+        return String(html || '')
+            .replace(/<\/?(table|thead|tbody|tr|th|td|ul|ol|li|details|summary)[^>]*>/gi, '')
+            .replace(/<\/td>\s*<td[^>]*>/gi, ' | ')
+            .replace(/<\/th>\s*<th[^>]*>/gi, ' | ')
+            .replace(/<(?!\/?(b|i|u|s|code|pre|a)(\s|>|\/))/gi, '&lt;')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+    }
+
     // ============================================================
     // PROVIDER FETCH
     // ============================================================
@@ -389,11 +400,20 @@ module.exports = function setupBotWebhook(app, deps) {
             dbg('sendRich:fail', e.message);
             const fb = {
                 chat_id: ctx.chat.id,
-                text: html,
+                text: stripRichTags(html),
                 parse_mode: 'HTML',
             };
             if (buttons.length) fb.reply_markup = { inline_keyboard: buttons };
-            return await apiCall('sendMessage', fb);
+            try {
+                return await apiCall('sendMessage', fb);
+            } catch (e2) {
+                const fb2 = {
+                    chat_id: ctx.chat.id,
+                    text: stripRichTags(html).replace(/<[^>]+>/g, ''),
+                };
+                if (buttons.length) fb2.reply_markup = { inline_keyboard: buttons };
+                return await apiCall('sendMessage', fb2);
+            }
         }
     }
 
@@ -404,7 +424,7 @@ module.exports = function setupBotWebhook(app, deps) {
 
         const mk = () => buttons.length ? { reply_markup: { inline_keyboard: buttons } } : {};
 
-        // Coba rich dulu
+        // 1. Coba rich_message dulu (support <table>)
         try {
             return await apiCall('editMessageText', {
                 chat_id: ctx.chat.id,
@@ -416,18 +436,30 @@ module.exports = function setupBotWebhook(app, deps) {
             dbg('editRich:rich-fail', e.message);
         }
 
-        // Fallback: editMessageText text/html biasa
+        // 2. Fallback: text + HTML (strip tag rich)
         try {
             return await apiCall('editMessageText', {
                 chat_id: ctx.chat.id,
                 message_id: msgId,
-                text: html,
+                text: stripRichTags(html),
                 parse_mode: 'HTML',
                 ...mk(),
             });
         } catch (e) {
             dbg('editRich:text-fail', e.message);
-            throw e;
+        }
+
+        // 3. Fallback plain text
+        try {
+            return await apiCall('editMessageText', {
+                chat_id: ctx.chat.id,
+                message_id: msgId,
+                text: stripRichTags(html).replace(/<[^>]+>/g, ''),
+                ...mk(),
+            });
+        } catch (e2) {
+            dbg('editRich:plain-fail', e2.message);
+            throw e2;
         }
     }
 
@@ -625,6 +657,8 @@ module.exports = function setupBotWebhook(app, deps) {
 
     // ============================================================
     // STEP 1: LIST SERVICE
+    // Ekonomi: langsung ke harga (country=id), skip pilih negara
+    // Premium: lanjut ke pilih negara
     // ============================================================
     bot.action(new RegExp('^srv' + SEP + '(ekonomi|premium)' + SEP + '(\\d+)$'), async (ctx) => {
         const server = ctx.match[1];
@@ -659,7 +693,7 @@ module.exports = function setupBotWebhook(app, deps) {
 
             if (!services.length) {
                 return editRich(ctx,
-                    `<b>❌ Tidak ada layanan</b>\n\n<i>Response provider kosong.</i>`,
+                    `<b>❌ Tidak ada layanan</b>`,
                     [[btnPrimary('🔙 Kembali', 'menu_otp')]]
                 );
             }
@@ -679,8 +713,14 @@ module.exports = function setupBotWebhook(app, deps) {
 
             const buttons = [];
             for (let i = 0; i < current.length; i += 2) {
-                const row = [btnNormal(current[i].name, `svc${SEP}${server}${SEP}${current[i].code}${SEP}${safePage}`)];
-                if (current[i + 1]) row.push(btnNormal(current[i + 1].name, `svc${SEP}${server}${SEP}${current[i + 1].code}${SEP}${safePage}`));
+                // ✅ Ekonomi: langsung ke cty (skip country picker), country = 'id'
+                // Premium: ke svc (pilih negara)
+                const mkCb = (svcCode) => server === 'ekonomi'
+                    ? `cty${SEP}${server}${SEP}${svcCode}${SEP}id${SEP}${safePage}`
+                    : `svc${SEP}${server}${SEP}${svcCode}${SEP}${safePage}`;
+
+                const row = [btnNormal(current[i].name, mkCb(current[i].code))];
+                if (current[i + 1]) row.push(btnNormal(current[i + 1].name, mkCb(current[i + 1].code)));
                 buttons.push(row);
             }
             const nav = [];
@@ -696,37 +736,37 @@ module.exports = function setupBotWebhook(app, deps) {
     });
 
     // ============================================================
-    // STEP 2: LIST COUNTRY — pakai /countries.php
+    // STEP 2: LIST COUNTRY (premium only)
+    // Kalau ekonomi masuk sini, redirect ke harga country=id
     // ============================================================
     bot.action(new RegExp('^svc' + SEP + '(ekonomi|premium)' + SEP + '([^' + SEP + ']+)' + SEP + '(\\d+)$'), async (ctx) => {
         const server = ctx.match[1];
         const code = ctx.match[2];
         const page = parseInt(ctx.match[3], 10) || 1;
 
+        // ✅ Ekonomi gak pakai negara, redirect ke cty country=id
+        if (server === 'ekonomi') {
+            return editRich(ctx,
+                `<b>ℹ️ Server 1 (Ekonomi) cuma support Indonesia</b>\n\n` +
+                `<i>Lanjut ke harga...</i>`,
+                [[btnPrimary('🛒 Lihat Harga', `cty${SEP}ekonomi${SEP}${code}${SEP}id${SEP}1`)]]
+            );
+        }
+
         try {
             let countries = [];
-            if (server === 'ekonomi') {
-                // ✅ FIX: pakai /countries.php (sesuai doc dibanana)
-                const data = await dibananaFetch(`/countries.php?server=ekonomi`);
-                const arr = pickArray(data, 'countries', 'items', 'list');
-                countries = arr.map(c => ({
-                    code: String(c.code || c.iso || c.country_code || '').toLowerCase(),
-                    name: String(c.name || c.country_name || c.code || '').toUpperCase(),
-                })).filter(c => c.code);
-            } else {
-                const raw = await premiumFetch('/catalog/countries');
-                const arr = pickArray(raw, 'countries', 'items', 'list');
-                countries = arr.map(c => ({
-                    code: String(c.code || c.iso || '').toLowerCase(),
-                    name: String(c.name || c.code || '').toUpperCase(),
-                })).filter(c => c.code);
-            }
+            const raw = await premiumFetch('/catalog/countries');
+            const arr = pickArray(raw, 'countries', 'items', 'list');
+            countries = arr.map(c => ({
+                code: String(c.code || c.iso || '').toLowerCase(),
+                name: String(c.name || c.code || '').toUpperCase(),
+            })).filter(c => c.code);
 
-            dbg(`countries:${server}:${code}`, { count: countries.length, sample: countries.slice(0, 3) });
+            dbg(`countries:premium:${code}`, { count: countries.length });
 
             if (!countries.length) {
                 return editRich(ctx,
-                    `<b>❌ Tidak ada negara</b>\n\n<i>Response provider kosong.</i>`,
+                    `<b>❌ Tidak ada negara</b>`,
                     [[btnPrimary('🔙 Kembali', `srv${SEP}${server}${SEP}1`)]]
                 );
             }
@@ -775,7 +815,13 @@ module.exports = function setupBotWebhook(app, deps) {
             let providers = [];
 
             if (server === 'ekonomi') {
-                const data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}&country=${encodeURIComponent(country)}`);
+                let data;
+                try {
+                    data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}&country=${encodeURIComponent(country)}`);
+                } catch (e) {
+                    dbg('prices:ekonomi:no-country', e.message);
+                    data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}`);
+                }
                 dbg('prices:ekonomi:raw', { keys: Object.keys(data || {}), sample: JSON.stringify(data).slice(0, 800) });
 
                 const arr = pickArray(data, 'providers', 'prices', 'items', 'list', 'products');
@@ -835,7 +881,7 @@ module.exports = function setupBotWebhook(app, deps) {
                     `  <tr><td>${escapeHtml(code)}</td><td>${escapeHtml(country.toUpperCase())}</td><td>Kosong</td></tr>\n` +
                     `</table>\n\n` +
                     `<i>Cek log Vercel untuk raw response provider.</i>`,
-                    [[btnPrimary('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]]
+                    [[btnPrimary('🔙 Kembali', `srv${SEP}${server}${SEP}1`)]]
                 );
             }
 
@@ -860,11 +906,19 @@ module.exports = function setupBotWebhook(app, deps) {
             if (safePage > 1) nav.push(btnPrimary('⬅️ Prev', `cty${SEP}${server}${SEP}${code}${SEP}${country}${SEP}${safePage - 1}`));
             if (safePage < totalPages) nav.push(btnPrimary('Next ➡️', `cty${SEP}${server}${SEP}${code}${SEP}${country}${SEP}${safePage + 1}`));
             if (nav.length) buttons.push(nav);
-            buttons.push([btnNormal('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]);
+
+            // ✅ Kembali: ekonomi ke srv, premium ke svc
+            const backCb = server === 'ekonomi'
+                ? `srv${SEP}${server}${SEP}1`
+                : `svc${SEP}${server}${SEP}${code}${SEP}1`;
+            buttons.push([btnNormal('🔙 Kembali', backCb)]);
 
             await editRich(ctx, html, buttons);
         } catch (e) {
-            await editRich(ctx, fmtErr(e), [[btnPrimary('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]]);
+            const backCb = server === 'ekonomi'
+                ? `srv${SEP}${server}${SEP}1`
+                : `svc${SEP}${server}${SEP}${code}${SEP}1`;
+            await editRich(ctx, fmtErr(e), [[btnPrimary('🔙 Kembali', backCb)]]);
         }
     });
 
@@ -917,7 +971,6 @@ module.exports = function setupBotWebhook(app, deps) {
             const uRes = await pool.query('SELECT balance FROM users WHERE id = $1 FOR UPDATE', [user.id]);
             const balance = Number(uRes.rows[0].balance);
             if (balance < price) {
-                // cancel provider order
                 try {
                     if (server === 'ekonomi') {
                         await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: Number(orderId) }) });
@@ -1258,7 +1311,7 @@ module.exports = function setupBotWebhook(app, deps) {
     });
 
     // ============================================================
-    // DEBUG ENDPOINTS (via HTTP, gak perlu buka bot)
+    // DEBUG ENDPOINTS
     // ============================================================
     app.get('/api/botwebhook/test', async (req, res) => {
         if (req.query.secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
@@ -1280,7 +1333,6 @@ module.exports = function setupBotWebhook(app, deps) {
         }
     });
 
-    // Test berbagai auth mode qrispy
     app.get('/api/botwebhook/test-qrispy', async (req, res) => {
         if (req.query.secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
 
