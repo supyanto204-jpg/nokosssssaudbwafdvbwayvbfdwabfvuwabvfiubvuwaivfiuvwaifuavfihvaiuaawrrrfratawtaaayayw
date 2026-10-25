@@ -7472,23 +7472,7 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
 // ==========================================
 module.exports = app;
 
-module.exports._deps = {
-    pool, withDB, requireAuth,
-    dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
-    providerOrderStatus, providerCancelOrder,
-    notifyOtpSuccess, notifyDepositSuccess,
-    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
-    qrispyFetch,
-    
-    // Inline function buat bikin QRIS
-    createDeposit: async (amount) => {
-        const data = await qrispyFetch('/api/payment/qris/create', {
-            method: 'POST', 
-            body: JSON.stringify({ amount })
-        });
-        return data.data; 
-    }
-};
+module.exports._deps = { pool };
 
 // 3. BARU PANGGIL BOT (SETELAH DEPS DI-SET)
 const setupBotWebhook = require('./bot-webhook');
