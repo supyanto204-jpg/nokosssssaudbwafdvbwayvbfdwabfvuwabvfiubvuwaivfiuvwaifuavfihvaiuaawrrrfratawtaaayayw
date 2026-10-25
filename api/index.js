@@ -7385,7 +7385,6 @@ app.post('/api/telegram/link', requireAuth, withDB(async (req, res) => {
     if (!telegram_id) return res.status(400).json({ error: 'telegram_id wajib' });
 
     try {
-        // Cek apakah telegram_id udah dipake user lain
         const existing = await pool.query(
             'SELECT id, username FROM users WHERE telegram_id = $1 AND id != $2 LIMIT 1',
             [telegram_id, req.user.id]
@@ -7420,8 +7419,26 @@ app.get('/api/telegram/status', requireAuth, withDB(async (req, res) => {
     res.json(result.rows[0]);
 }));
 
+
+// ==========================================
+// 1. EXPORT DULU (WAJIB DI ATAS)
+// ==========================================
+module.exports = app;
+
+// 2. SET DEPS (HAPUS 3 FUNGSI YANG GAK ADA)
+module.exports._deps = {
+    pool, withDB, requireAuth,
+    dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
+    providerOrderStatus, providerCancelOrder,
+    notifyOtpSuccess, notifyDepositSuccess,
+    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid
+    // createDeposit, checkDepositStatus, cancelDeposit  <-- KOMENTAR/HAPUS INI
+};
+
+// 3. BARU PANGGIL BOT (SETELAH DEPS DI-SET)
 const setupBotWebhook = require('./bot-webhook');
 setupBotWebhook(app, module.exports._deps);
+
 
 // global error handler + 404
 app.use((err, req, res, next) => {
@@ -7472,13 +7489,3 @@ setInterval(async () => {
         await pool.query(`DELETE FROM webhook_events WHERE created_at < NOW() - INTERVAL '90 days'`);
     } catch (err) {}
 }, 60 * 60 * 1000);
-
-module.exports = app;
-module.exports._deps = {
-    pool, withDB, requireAuth,
-    dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
-    providerOrderStatus, providerCancelOrder,
-    notifyOtpSuccess, notifyDepositSuccess,
-    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
-    createDeposit, checkDepositStatus, cancelDeposit,
-};
