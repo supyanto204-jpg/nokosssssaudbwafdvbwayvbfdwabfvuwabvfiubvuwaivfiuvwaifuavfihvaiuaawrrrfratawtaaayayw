@@ -163,11 +163,16 @@ form.addEventListener('submit',async function(e){
 e.preventDefault();
 hideAlert();
 
+// Trim input
 var u=userIn?userIn.value.trim():'';
 var p=passIn?passIn.value:'';
 
-if(!u||!p){
-showAlert('Username dan password wajib diisi','error');
+// Jika user memasukkan email, pastikan lowercase. Jika username, juga lowercase.
+var isEmail = u.includes('@');
+var finalUser = isEmail ? u.toLowerCase() : u; // Backend pakai .toLowerCase() juga sih, tapi biar aman
+
+if(!finalUser||!p){
+showAlert('Username/Email dan password wajib diisi','error');
 setStatus('failed','Data belum lengkap');
 return;
 }
@@ -192,7 +197,7 @@ setTimeout(function(){reject(new Error('Timeout'))},8000);
 var res=await fetch('/api/auth/login',{
 method:'POST',
 headers:{'Content-Type':'application/json'},
-body:JSON.stringify({username:u,password:p,recaptcha_token:token})
+body:JSON.stringify({username:finalUser,password:p,recaptcha_token:token}) // Kirim finalUser
 });
 
 var data=await res.json();
@@ -205,7 +210,7 @@ localStorage.setItem('user',JSON.stringify(data.user));
 }catch(e){}
 
 var cacheNow={
-username:u,
+username:finalUser,
 remember:rememberIn?!!rememberIn.checked:true,
 lastLogin:new Date().toISOString(),
 userId:(data.user&&data.user.user_code)?data.user.user_code:((data.user&&data.user.username)||null),
