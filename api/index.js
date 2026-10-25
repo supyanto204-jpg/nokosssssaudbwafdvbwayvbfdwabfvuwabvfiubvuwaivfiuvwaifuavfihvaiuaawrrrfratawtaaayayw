@@ -7472,14 +7472,21 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
 // ==========================================
 module.exports = app;
 
-// 2. SET DEPS (HAPUS 3 FUNGSI YANG GAK ADA)
 module.exports._deps = {
     pool, withDB, requireAuth,
     dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
     providerOrderStatus, providerCancelOrder,
     notifyOtpSuccess, notifyDepositSuccess,
-    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid
-    // createDeposit, checkDepositStatus, cancelDeposit  <-- KOMENTAR/HAPUS INI
+    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
+    
+    // Inline function buat bikin QRIS
+    createDeposit: async (amount) => {
+        const data = await qrispyFetch('/api/payment/qris/create', {
+            method: 'POST', 
+            body: JSON.stringify({ amount })
+        });
+        return data.data; 
+    }
 };
 
 // 3. BARU PANGGIL BOT (SETELAH DEPS DI-SET)
