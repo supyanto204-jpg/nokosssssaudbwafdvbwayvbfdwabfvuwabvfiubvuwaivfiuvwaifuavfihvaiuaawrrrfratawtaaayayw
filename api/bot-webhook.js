@@ -23,6 +23,12 @@ module.exports = function setupBotWebhook(app, deps) {
     const botState = new Map();
 
     // === FUNGSI RAW API BUAT RICH MESSAGE ===
+    // Hapus pesan lama, kirim pesan baru (buat navigasi Kembali)
+    async function sendNewRich(ctx, html, buttons) {
+        try { await ctx.deleteMessage(); } catch (e) {}
+        await sendRich(ctx, html, buttons, false);
+    }
+
     async function sendRich(ctx, html, buttons, isEdit = false) {
         const token = process.env.TELEGRAM_BOT_TOKEN;
         const url = isEdit 
@@ -52,7 +58,11 @@ module.exports = function setupBotWebhook(app, deps) {
             });
             const data = await res.json();
             if (!data.ok) {
-                console.error('Rich API Error:', data.description);
+                // Kalau edit gagal (pesan lama gak support rich), hapus & kirim baru
+                if (isEdit) {
+                    try { await ctx.deleteMessage(); } catch (e) {}
+                    await sendRich(ctx, html, buttons, false);
+                }
             }
         } catch (e) {
             console.error('Fetch Error:', e.message);
@@ -91,7 +101,7 @@ module.exports = function setupBotWebhook(app, deps) {
         return r.rows[0];
     }
 
-    // Tombol Warna (Helper biar kodenya ga berantakan)
+    // Tombol Warna
     const btnPrimary = (text, data) => ({ text, callback_data: data, style: 'primary' });
     const btnSuccess = (text, data) => ({ text, callback_data: data, style: 'success' });
     const btnDanger  = (text, data) => ({ text, callback_data: data, style: 'danger' });
@@ -109,30 +119,32 @@ module.exports = function setupBotWebhook(app, deps) {
                     `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW() WHERE id = $3`,
                     [ctx.from.id, ctx.from.username || null, decoded.id]
                 );
-                // Pake Rich Message buat sukses
-                await sendRich(ctx, `<b>AKUN DITAUTKAN</b>\n\nAkun Telegram kamu berhasil dihubungkan dengan akun <b>@${esc(decoded.username)}</b>.\n\nKetik /start untuk melanjutkan.`, []);
+                await sendNewRich(ctx, `<b>✅ AKUN DITAUTKAN</b>\n\nAkun Telegram kamu berhasil dihubungkan dengan akun <b>@${esc(decoded.username)}</b>.\n\nKetik /start untuk melanjutkan.`, []);
                 return;
             } catch (e) {
-                await sendRich(ctx, `<b>GAGAL</b>\n\nSesi login dari web sudah expired. Silakan lanjutkan dengan akun Telegram kamu.`, []);
+                await sendNewRich(ctx, `<b>❌ GAGAL</b>\n\nSesi login dari web sudah expired. Silakan lanjutkan dengan akun Telegram kamu.`, []);
             }
         }
 
         const user = await getOrCreateUser(ctx);
-        if (user.status === 'banned') return sendRich(ctx, '<b>DIBLOKIR</b>\n\nAkun kamu diblokir dari sistem.', []);
+        if (user.status === 'banned') return sendNewRich(ctx, '<b>❌ DIBLOKIR</b>\n\nAkun kamu diblokir dari sistem.', []);
 
+        const linkStatus = user.telegram_linked_at ? '✅ Tertaut ke Web' : '⚠️ Guest (Belum Tertaut)';
+        
         const text =
-            `<b>Dashboard Layanan Nokos</b>\n` +
+            `<b>🏠 Dashboard Layanan Nokos</b>\n` +
             `Halo, @${esc(user.username)}.\n` +
             `Kelola layanan Anda dengan cepat, aman, dan otomatis melalui menu yang tersedia.\n\n` +
-            `<b>Ringkasan Akun</b>\n` +
+            `<b>📊 Ringkasan Akun</b>\n` +
             `<table bordered striped>\n` +
-            `  <tr><td>Status</td><td>${user.status === 'active' ? 'Aktif' : 'Banned'}</td></tr>\n` +
+            `  <tr><td>Status</td><td>${user.status === 'active' ? '✅ Aktif' : '❌ Banned'}</td></tr>\n` +
             `  <tr><td>Role</td><td>${esc(user.role)}</td></tr>\n` +
             `  <tr><td>Saldo</td><td><b>${toRp(user.balance)}</b></td></tr>\n` +
             `  <tr><td>ID Akun</td><td><code>${esc(user.user_code || user.id)}</code></td></tr>\n` +
             `  <tr><td>Username</td><td>@${esc(user.username)}</td></tr>\n` +
+            `  <tr><td>Status Web</td><td>${linkStatus}</td></tr>\n` +
             `</table>\n\n` +
-            `<b>Cara menggunakan bot</b>\n` +
+            `<b>📖 Cara menggunakan bot</b>\n` +
             `<table bordered striped>\n` +
             `  <tr><td>1</td><td>Tekan Isi Saldo, lalu bayar QRIS/VA agar saldo masuk otomatis.</td></tr>\n` +
             `  <tr><td>2</td><td>Tekan Order Nokos, pilih server, aplikasi, lalu negara.</td></tr>\n` +
@@ -141,14 +153,14 @@ module.exports = function setupBotWebhook(app, deps) {
             `</table>`;
 
         const buttons = [
-            [btnPrimary('Order Nokos', 'menu_otp')],
-            [btnSuccess('Isi Saldo', 'menu_deposit')],
-            [btnNormal('Riwayat', 'menu_riwayat'), btnNormal('Akun', 'menu_akun')],
-            [btnNormal('Ajak Teman', 'menu_referral'), btnNormal('Bantuan', 'menu_bantuan')],
-            [{ text: 'Buka Web', url: 'https://asyrofotp.vercel.app', style: 'primary' }]
+            [btnPrimary('🛒 Order Nokos', 'menu_otp')],
+            [btnSuccess('💰 Isi Saldo', 'menu_deposit')],
+            [btnNormal('📋 Riwayat', 'menu_riwayat'), btnNormal('👤 Akun', 'menu_akun')],
+            [btnNormal('❓ Bantuan', 'menu_bantuan')],
+            [{ text: '🌐 Buka Web', url: 'https://asyrofotp.vercel.app', style: 'primary' }]
         ];
 
-        await sendRich(ctx, text, buttons);
+        await sendNewRich(ctx, text, buttons);
     });
 
     // ==================== MENU AKUN ====================
@@ -156,10 +168,10 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
-        const linkStatus = user.telegram_linked_at ? 'Tertaut ke Web' : 'Guest (Belum Tertaut)';
+        const linkStatus = user.telegram_linked_at ? '✅ Tertaut' : '⚠️ Guest';
         
         const text = 
-            `<b>Informasi Akun</b>\n` +
+            `<b>👤 Informasi Akun</b>\n` +
             `<table bordered striped>\n` +
             `  <tr><td>ID Akun</td><td><code>${esc(user.user_code || user.id)}</code></td></tr>\n` +
             `  <tr><td>Username</td><td>@${esc(user.username)}</td></tr>\n` +
@@ -170,26 +182,26 @@ module.exports = function setupBotWebhook(app, deps) {
 
         const buttons = [];
         if (!user.telegram_linked_at) {
-            buttons.push([btnSuccess('Tautkan Akun Web', 'link_web')]);
+            buttons.push([btnSuccess('🔗 Tautkan Akun Web', 'link_web')]);
         } else {
-            buttons.push([btnDanger('Logout', 'menu_logout')]);
+            buttons.push([btnDanger('🚪 Logout', 'menu_logout')]);
         }
-        buttons.push([btnPrimary('Kembali ke Menu', 'back_home')]);
+        buttons.push([btnPrimary('🔙 Kembali', 'back_home')]);
 
-        await sendRich(ctx, text, buttons, true); // true = Edit Message
+        await sendRich(ctx, text, buttons, true);
     });
 
     bot.action('link_web', async (ctx) => {
         const url = `https://asyrofotp.vercel.app/link-telegram?tg_id=${ctx.from.id}&tg_username=${ctx.from.username || ''}&merge=true`;
         
         await sendRich(ctx, 
-            `<b>Tautkan Akun Web</b>\n\n` +
+            `<b>🔗 Tautkan Akun Web</b>\n\n` +
             `Saat ini kamu memakai akun Guest (dari Telegram).\n` +
             `Jika kamu menautkan akun web, saldo dan riwayat akan digabung otomatis.\n\n` +
             `<i>Klik tombol di bawah untuk membuka halaman penautan.</i>`, 
             [
-                [{ text: 'Buka Web Tautkan', url: url, style: 'success' }],
-                [btnNormal('Kembali', 'back_home')]
+                [{ text: '🌐 Buka Web Tautkan', url: url, style: 'success' }],
+                [btnNormal('🔙 Kembali', 'back_home')]
             ],
             true
         );
@@ -199,29 +211,16 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
         await pool.query(`UPDATE users SET telegram_id = NULL, telegram_username = NULL, telegram_linked_at = NULL WHERE id = $1`, [user.id]);
-        await sendRich(ctx, '<b>LOGOUT BERHASIL</b>\n\nKamu telah keluar dari akun ini.', [[btnPrimary('Kembali', 'back_home')]], true);
-    });
-
-    // ==================== MENU REFERRAL ====================
-    bot.action('menu_referral', async (ctx) => {
-        const user = await getOrCreateUser(ctx);
-        if (!user) return;
-
-        const text = 
-            `<b>Ajak Teman</b>\n\n` +
-            `Bagikan link di bawah ke temanmu. Dapatkan komisi untuk setiap transaksi mereka.\n\n` +
-            `<code>https://t.me/${BOT_USERNAME}?start=ref_${user.id}</code>`;
-        
-        await sendRich(ctx, text, [[btnPrimary('Kembali', 'back_home')]], true);
+        await sendNewRich(ctx, '<b>✅ LOGOUT BERHASIL</b>\n\nKamu telah keluar dari akun ini.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
     });
 
     // ==================== MENU OTP ====================
     bot.action('menu_otp', async (ctx) => {
         const user = await getOrCreateUser(ctx);
-        if (user.status === 'banned') return sendRich(ctx, 'Akun diblokir.', [], true);
+        if (user.status === 'banned') return sendNewRich(ctx, 'Akun diblokir.', [], true);
         
         const text = 
-            `<b>Beli Nokos</b>\n` +
+            `<b>🛒 Beli Nokos</b>\n` +
             `Pilih server yang tersedia:\n\n` +
             `<table bordered striped>\n` +
             `  <tr><th>Server</th><th>Keterangan</th></tr>\n` +
@@ -230,15 +229,16 @@ module.exports = function setupBotWebhook(app, deps) {
             `</table>`;
             
         const keyboard = [
-            [btnPrimary('Server 1 (Ekonomi)', 'otp_srv_ekonomi')],
-            [btnPrimary('Server 2 (Premium)', 'otp_srv_premium')],
-            [btnNormal('Kembali', 'back_home')],
+            [btnPrimary('🇮🇩 Server 1 (Ekonomi)', 'otp_srv_ekonomi')],
+            [btnPrimary('🌍 Server 2 (Premium)', 'otp_srv_premium')],
+            [btnNormal('🔙 Kembali', 'back_home')],
         ];
         await sendRich(ctx, text, keyboard, true);
     });
 
-    bot.action(/^otp_srv_(ekonomi|premium)$/, async (ctx) => {
+    bot.action(/^otp_srv_(ekonomi|premium)_?(\d*)$/, async (ctx) => {
         const server = ctx.match[1];
+        const page = parseInt(ctx.match[2] || '1', 10);
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
@@ -246,30 +246,44 @@ module.exports = function setupBotWebhook(app, deps) {
             let services = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch('/services?server=ekonomi');
-                services = (data.services || []).slice(0, 15).map(s => ({ code: s.code, name: s.name }));
+                services = (data.services || []).map(s => ({ code: s.code, name: s.name }));
             } else {
                 const raw = await premiumFetch('/catalog/services');
-                services = (raw || []).slice(0, 15).map(s => ({ code: s.code, name: s.name }));
+                services = (raw || []).map(s => ({ code: s.code, name: s.name }));
             }
 
-            if (services.length === 0) return sendRich(ctx, 'Tidak ada layanan.', [[btnPrimary('Kembali', 'back_home')]], true);
+            if (services.length === 0) return sendNewRich(ctx, '❌ Tidak ada layanan.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
 
+            const perPage = 10;
+            const totalPages = Math.ceil(services.length / perPage);
+            const start = (page - 1) * perPage;
+            const current = services.slice(start, start + perPage);
+
+            let text = `<b>📱 Pilih Layanan</b>\nServer ${server === 'ekonomi' ? '1' : '2'}\nHalaman ${page}/${totalPages}\n\n`;
             const buttons = [];
-            for (let i = 0; i < services.length; i += 2) {
-                const row = [btnNormal(services[i].name, `otp_svc_${server}_${services[i].code}`)];
-                if (services[i + 1]) row.push(btnNormal(services[i + 1].name, `otp_svc_${server}_${services[i + 1].code}`));
+            
+            for (let i = 0; i < current.length; i += 2) {
+                const row = [btnNormal(current[i].name, `otp_svc_${server}_${current[i].code}`)];
+                if (current[i + 1]) row.push(btnNormal(current[i + 1].name, `otp_svc_${server}_${current[i + 1].code}`));
                 buttons.push(row);
             }
-            buttons.push([btnPrimary('Kembali', 'back_home')]);
 
-            await sendRich(ctx, `<b>Pilih Layanan</b>\nServer ${server === 'ekonomi' ? '1' : '2'}`, buttons, true);
+            const navRow = [];
+            if (page > 1) navRow.push(btnPrimary('⬅️ Sebelumnya', `otp_srv_${server}_${page - 1}`));
+            if (page < totalPages) navRow.push(btnPrimary('Selanjutnya ➡️', `otp_srv_${server}_${page + 1}`));
+            if (navRow.length) buttons.push(navRow);
+
+            buttons.push([btnNormal('🔙 Kembali', 'back_home')]);
+
+            await sendRich(ctx, text, buttons, true);
         } catch (e) {
-            await sendRich(ctx, `Error: ${esc(e.message)}`, [[btnPrimary('Kembali', 'back_home')]], true);
+            await sendNewRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'back_home')]]);
         }
     });
 
-    bot.action(/^otp_svc_(ekonomi|premium)_(.+)$/, async (ctx) => {
-        const [, server, code] = ctx.match;
+    bot.action(/^otp_svc_(ekonomi|premium)_(.+?)_?(\d*)$/, async (ctx) => {
+        const [, server, code, pageStr] = ctx.match;
+        const page = parseInt(pageStr || '1', 10);
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
@@ -277,30 +291,44 @@ module.exports = function setupBotWebhook(app, deps) {
             let countries = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch(`/countries?server=ekonomi&service=${encodeURIComponent(code)}`);
-                countries = (data.countries || []).slice(0, 15);
+                countries = (data.countries || []);
             } else {
                 const countriesRaw = await premiumFetch('/catalog/countries');
-                countries = (countriesRaw || []).slice(0, 15).map(c => ({ code: c.code, name: c.name }));
+                countries = (countriesRaw || []).map(c => ({ code: c.code, name: c.name }));
             }
 
-            if (countries.length === 0) return sendRich(ctx, 'Tidak ada negara.', [[btnPrimary('Kembali', 'back_home')]], true);
+            if (countries.length === 0) return sendNewRich(ctx, '❌ Tidak ada negara.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
 
+            const perPage = 10;
+            const totalPages = Math.ceil(countries.length / perPage);
+            const start = (page - 1) * perPage;
+            const current = countries.slice(start, start + perPage);
+
+            let text = `<b>🌍 Pilih Negara</b>\nHalaman ${page}/${totalPages}\n\n`;
             const buttons = [];
-            for (let i = 0; i < countries.length; i += 2) {
-                const row = [btnNormal(countries[i].name || countries[i].code, `otp_cty_${server}_${code}_${countries[i].code}`)];
-                if (countries[i + 1]) row.push(btnNormal(countries[i + 1].name || countries[i + 1].code, `otp_cty_${server}_${code}_${countries[i + 1].code}`));
+            
+            for (let i = 0; i < current.length; i += 2) {
+                const row = [btnNormal(current[i].name || current[i].code, `otp_cty_${server}_${code}_${current[i].code}`)];
+                if (current[i + 1]) row.push(btnNormal(current[i + 1].name || current[i + 1].code, `otp_cty_${server}_${code}_${current[i + 1].code}`));
                 buttons.push(row);
             }
-            buttons.push([btnPrimary('Kembali', 'back_home')]);
 
-            await sendRich(ctx, `<b>Pilih Negara</b>`, buttons, true);
+            const navRow = [];
+            if (page > 1) navRow.push(btnPrimary('⬅️ Sebelumnya', `otp_svc_${server}_${code}_${page - 1}`));
+            if (page < totalPages) navRow.push(btnPrimary('Selanjutnya ➡️', `otp_svc_${server}_${code}_${page + 1}`));
+            if (navRow.length) buttons.push(navRow);
+
+            buttons.push([btnNormal('🔙 Kembali', `otp_srv_${server}`)]);
+
+            await sendRich(ctx, text, buttons, true);
         } catch (e) {
-            await sendRich(ctx, `Error: ${esc(e.message)}`, [[btnPrimary('Kembali', 'back_home')]], true);
+            await sendNewRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'back_home')]]);
         }
     });
 
-    bot.action(/^otp_cty_(ekonomi|premium)_([^_]+)_([a-z]{2})$/, async (ctx) => {
-        const [, server, code, country] = ctx.match;
+    bot.action(/^otp_cty_(ekonomi|premium)_([^_]+)_([a-z]{2})_?(\d*)$/, async (ctx) => {
+        const [, server, code, country, pageStr] = ctx.match;
+        const page = parseInt(pageStr || '1', 10);
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
@@ -308,26 +336,38 @@ module.exports = function setupBotWebhook(app, deps) {
             let providers = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}&country=${encodeURIComponent(country)}`);
-                providers = (data.providers || []).slice(0, 5).map(p => ({ id: p.id, price: applyMarkup(Number(p.price_idr) || 0), stock: p.stock }));
+                providers = (data.providers || []).map(p => ({ id: p.id, price: applyMarkup(Number(p.price_idr) || 0), stock: p.stock }));
             } else {
                 const [cr, sr] = await Promise.all([premiumFetch('/catalog/countries'), premiumFetch('/catalog/services')]);
                 const cObj = (cr || []).find(c => c.code === country);
                 const sObj = (sr || []).find(s => s.code === code);
                 if (cObj && sObj) {
-                    const params = new URLSearchParams({ country_id: cObj.id, platform_id: sObj.id, limit: '5', page: '1' });
+                    const params = new URLSearchParams({ country_id: cObj.id, platform_id: sObj.id, limit: '100', page: '1' });
                     const products = await premiumFetch(`/catalog/products?${params.toString()}`);
                     providers = (products || []).map(p => ({ id: p.id, price: applyMarkup(premiumMoneyToIdr(p.price)), stock: p.available }));
                 }
             }
 
-            if (providers.length === 0) return sendRich(ctx, 'Stok habis.', [[btnPrimary('Kembali', 'back_home')]], true);
+            if (providers.length === 0) return sendNewRich(ctx, '❌ Stok habis.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
 
-            const buttons = providers.map(p => [btnSuccess(`${toRp(p.price)} | Stok: ${p.stock}`, `otp_buy_${server}_${code}_${country}_${p.id}`)]);
-            buttons.push([btnPrimary('Kembali', 'back_home')]);
+            const perPage = 10;
+            const totalPages = Math.ceil(providers.length / perPage);
+            const start = (page - 1) * perPage;
+            const current = providers.slice(start, start + perPage);
 
-            await sendRich(ctx, `<b>Pilih Harga</b>`, buttons, true);
+            let text = `<b>💰 Pilih Harga</b>\nHalaman ${page}/${totalPages}\n\n`;
+            const buttons = current.map(p => [btnSuccess(`${toRp(p.price)} | Stok: ${p.stock}`, `otp_buy_${server}_${code}_${country}_${p.id}`)]);
+
+            const navRow = [];
+            if (page > 1) navRow.push(btnPrimary('⬅️ Sebelumnya', `otp_cty_${server}_${code}_${country}_${page - 1}`));
+            if (page < totalPages) navRow.push(btnPrimary('Selanjutnya ➡️', `otp_cty_${server}_${code}_${country}_${page + 1}`));
+            if (navRow.length) buttons.push(navRow);
+
+            buttons.push([btnNormal('🔙 Kembali', `otp_svc_${server}_${code}`)]);
+
+            await sendRich(ctx, text, buttons, true);
         } catch (e) {
-            await sendRich(ctx, `Error: ${esc(e.message)}`, [[btnPrimary('Kembali', 'back_home')]], true);
+            await sendNewRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'back_home')]]);
         }
     });
 
@@ -383,18 +423,18 @@ module.exports = function setupBotWebhook(app, deps) {
             }
 
             await sendRich(ctx,
-                `<b>ORDER BERHASIL</b>\n` +
+                `<b>✅ ORDER BERHASIL</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n` +
                 `<b>Nomor</b>  : <code>${esc(phone)}</code>\n` +
                 `<b>Harga</b>  : <b>${toRp(price)}</b>\n` +
                 `<b>Status</b> : Menunggu OTP\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n\n` +
                 `Silakan cek menu utama secara berkala untuk melihat kode OTP.`,
-                [[btnPrimary('Menu Utama', 'back_home')]],
+                [[btnPrimary('🔙 Menu Utama', 'back_home')]],
                 true
             );
         } catch (e) {
-            await sendRich(ctx, `<b>GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('Kembali', 'back_home')]], true);
+            await sendNewRich(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'back_home')]]);
         }
     });
 
@@ -403,11 +443,11 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
         
-        const text = `<b>Top Up Saldo</b>\n\nPilih nominal yang kamu inginkan:`;
+        const text = `<b>💰 Top Up Saldo</b>\n\nPilih nominal yang kamu inginkan:`;
         const keyboard = [
             [btnSuccess('Rp 5.000', 'dep_5000'), btnSuccess('Rp 10.000', 'dep_10000')],
             [btnSuccess('Rp 20.000', 'dep_20000'), btnSuccess('Rp 50.000', 'dep_50000')],
-            [btnNormal('Kembali', 'back_home')],
+            [btnNormal('🔙 Kembali', 'back_home')],
         ];
         await sendRich(ctx, text, keyboard, true);
     });
@@ -423,19 +463,19 @@ module.exports = function setupBotWebhook(app, deps) {
             if (!data || !data.qr_image) throw new Error('Gagal membuat QRIS.');
 
             await sendRich(ctx,
-                `<b>TOP UP QRIS</b>\n` +
+                `<b>💳 TOP UP QRIS</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n` +
                 `<b>ID</b>      : <code>${esc(data.id)}</code>\n` +
                 `<b>Nominal</b> : <b>${toRp(data.diterima)}</b>\n` +
                 `━━━━━━━━━━━━━━━━━━━━\n\n` +
                 `Silakan scan QR di bawah ini:`,
-                [[btnNormal('Kembali', 'back_home')]],
+                [[btnNormal('🔙 Kembali', 'back_home')]],
                 true
             );
 
             await ctx.replyWithPhoto({ url: data.qr_image }, { caption: `<i>QRIS ini berlaku selama 15 menit.</i>`, parse_mode: 'HTML' });
         } catch (e) {
-            await sendRich(ctx, `<b>GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('Kembali', 'back_home')]], true);
+            await sendNewRich(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'back_home')]]);
         }
     });
 
@@ -445,26 +485,26 @@ module.exports = function setupBotWebhook(app, deps) {
         if (!user) return;
         
         const orders = await pool.query(`SELECT otp_id, service, phone_number, otp_code, status, price, created_at FROM orders WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5`, [user.id]);
-        if (orders.rows.length === 0) return sendRich(ctx, '<b>KOSONG</b>\n\nBelum ada riwayat order.', [[btnPrimary('Kembali', 'back_home')]], true);
+        if (orders.rows.length === 0) return sendNewRich(ctx, '<b>📭 KOSONG</b>\n\nBelum ada riwayat order.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
 
-        let text = `<b>Riwayat 5 Terakhir</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
+        let text = `<b>📋 Riwayat 5 Terakhir</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
         orders.rows.forEach(o => {
             text += `<b>Layanan</b>: ${esc(o.service || '-')}\n`;
             text += `<b>Nomor</b>  : <code>${esc(o.phone_number || '-')}</code>\n`;
-            text += `<b>Status</b> : ${o.otp_code ? `<code>${esc(o.otp_code)}</code>` : o.status}\n`;
+            text += `<b>Status</b> : ${o.otp_code ? `<code>✅ ${esc(o.otp_code)}</code>` : o.status}\n`;
             text += `<b>Harga</b>  : ${toRp(o.price)}\n`;
             text += `━━━━━━━━━━━━━━━━━━━━\n`;
         });
-        await sendRich(ctx, text, [[btnPrimary('Kembali', 'back_home')]], true);
+        await sendRich(ctx, text, [[btnPrimary('🔙 Kembali', 'back_home')]], true);
     });
 
     // ==================== MENU BANTUAN ====================
     bot.action('menu_bantuan', async (ctx) => {
         await sendRich(ctx, 
-            `<b>BANTUAN</b>\n\n` +
+            `<b>❓ BANTUAN</b>\n\n` +
             `Jika kamu mengalami kendala, silakan hubungi admin kami di:\n` +
             `<b>@asyrofc</b>`, 
-            [[btnPrimary('Kembali', 'back_home')]],
+            [[btnPrimary('🔙 Kembali', 'back_home')]],
             true
         );
     });
