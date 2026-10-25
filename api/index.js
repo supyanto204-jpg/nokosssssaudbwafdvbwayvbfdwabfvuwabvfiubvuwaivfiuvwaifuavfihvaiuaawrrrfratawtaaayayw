@@ -2299,10 +2299,10 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
 
     try {
         const result = await pool.query(
-            'SELECT id, username, name, balance, role, status, user_code, password_hash FROM users WHERE username = $1 LIMIT 1',
-            [username.toLowerCase()]
-        );
-        if (result.rows.length === 0) return res.status(401).json({ error: 'Username atau password salah' });
+    'SELECT id, username, name, balance, role, status, user_code, password_hash FROM users WHERE username = $1 LIMIT 1',
+    [username.toLowerCase()]
+);
+        if (result.rows.length === 0) return res.status(401).json({ error: 'Username/Email atau password salah' });
 
         const user = result.rows[0];
         if (user.status === 'banned') return res.status(403).json({ error: 'Akun kamu diblokir' });
