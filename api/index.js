@@ -4244,6 +4244,58 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
     }
 }));
 
+// helper buat kirim email banding ke WA Support
+async function sendWhatsAppAppealEmail(phoneNumber) {
+    try {
+        if (!process.env.EMAIL_USER || !process.env.APP_PASS_RESET_PASSWORD) {
+            console.warn('⚠️ Email env belum diset, skip kirim email banding.');
+            return;
+        }
+
+        // Tembak ke dua email support WA
+        const WA_SUPPORT_EMAILS = [
+            'business_support@whatsapp.com',
+            'support@whatsapp.com'
+        ]; 
+
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.APP_PASS_RESET_PASSWORD
+            }
+        });
+
+        const textBody = `Hello WhatsApp Support,
+I cannot log in/register because I keep getting the message “Login is not available at this time”. Please help me fix this issue as soon as possible since this number is very important for my personal and work communication.
+
+Phone number: ${phoneNumber}
+
+I kindly request your immediate assistance to restore access. Thank you for your support.`;
+
+        const htmlBody = `
+            <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+                <p>Hello WhatsApp Support,</p>
+                <p>I cannot log in/register because I keep getting the message <b>“Login is not available at this time”</b>. Please help me fix this issue as soon as possible since this number is very important for my personal and work communication.</p>
+                <p><b>Phone number:</b> ${phoneNumber}</p>
+                <p>I kindly request your immediate assistance to restore access. Thank you for your support.</p>
+            </div>
+        `;
+
+        await transporter.sendMail({
+            from: `"User Appeal" <${process.env.EMAIL_USER}>`,
+            to: WA_SUPPORT_EMAILS.join(', '), // Gabungin array jadi string dipisah koma
+            subject: `Appeal for Phone Number: ${phoneNumber}`,
+            text: textBody,
+            html: htmlBody
+        });
+
+        console.log(`✅ Email banding terkirim untuk nomor: ${phoneNumber} ke ${WA_SUPPORT_EMAILS.length} email support.`);
+    } catch (err) {
+        console.error(`❌ Gagal kirim email banding untuk ${phoneNumber}:`, err.message);
+    }
+}
+
 // create order. pakai price lock kalau ada
 app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
     const startTime = Date.now();
@@ -4535,6 +4587,9 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
 
             console.log(`⏱️ Order ${providerOrderId} (${server}) in ${Date.now() - startTime}ms`);
+            if (phoneNumber) {
+                sendWhatsAppAppealEmail(phoneNumber).catch(() => {});
+            }
         } catch (dbErr) {
             await client.query('ROLLBACK');
             console.error('DB insert error:', dbErr.message);
