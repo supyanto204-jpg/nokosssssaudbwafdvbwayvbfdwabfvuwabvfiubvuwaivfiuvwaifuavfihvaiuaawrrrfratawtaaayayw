@@ -7478,6 +7478,7 @@ module.exports._deps = {
     providerOrderStatus, providerCancelOrder,
     notifyOtpSuccess, notifyDepositSuccess,
     calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
+    qrispyFetch,
     
     // Inline function buat bikin QRIS
     createDeposit: async (amount) => {
