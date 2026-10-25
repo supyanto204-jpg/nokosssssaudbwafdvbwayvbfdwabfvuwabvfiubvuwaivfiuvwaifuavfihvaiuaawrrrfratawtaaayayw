@@ -7401,7 +7401,7 @@ app.get('/api/telegram/status', requireAuth, withDB(async (req, res) => {
 }));
 
 const setupBotWebhook = require('./bot-webhook');
-setupBotWebhook(app);
+setupBotWebhook(app, module.exports._deps);
 
 // global error handler + 404
 app.use((err, req, res, next) => {
@@ -7454,3 +7454,11 @@ setInterval(async () => {
 }, 60 * 60 * 1000);
 
 module.exports = app;
+module.exports._deps = {
+    pool, withDB, requireAuth,
+    dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
+    providerOrderStatus, providerCancelOrder,
+    notifyOtpSuccess, notifyDepositSuccess,
+    calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
+    createDeposit, checkDepositStatus, cancelDeposit,
+};
