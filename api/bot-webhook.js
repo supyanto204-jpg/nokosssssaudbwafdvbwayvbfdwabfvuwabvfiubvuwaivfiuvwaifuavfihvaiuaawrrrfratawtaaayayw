@@ -1,27 +1,215 @@
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 
 module.exports = function setupBotWebhook(app, deps) {
-    const {
-        pool, dibananaFetch, premiumFetch, premiumMoneyToIdr, applyMarkup,
-        providerOrderStatus, providerCancelOrder,
-        calculateDepositFee, COUNTRY_NAMES, SERVER_CONFIG, markDepositPaid,
-        qrispyFetch, // ✅ WAJIB: export dari index
-    } = deps;
+    // Minimal deps yang WAJIB dari index.js
+    const { pool } = deps;
 
-    const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
+    // ============================================================
+    // CLONE SEMUA FUNC DARI INDEX.JS (biar gak depend _deps)
+    // ============================================================
     const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
     const FIRE = '5104841245755180586';
-    const SEP = '§'; // separator anti-tabrakan (gak mungkin muncul di code/country/id)
+    const SEP = '§';
 
-    // ==================== HELPERS ====================
+    const DIBANANA_BASE = process.env.DIBANANA_BASE;
+    const DIBANANA_API_KEY = process.env.API_SERVER_EKONOMI;
+    const PREMIUM_BASE = process.env.PREMIUM_BASE;
+    const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
+    const SMScode_PUBLIC_KEY = process.env.SMScode_PUBLIC_KEY;
+    const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
+    const PROVIDER_TIMEOUT_MS = 8000;
+
+    // ---- dibananaFetch (clone) ----
+    async function dibananaFetch(endpoint, options = {}) {
+        if (!DIBANANA_API_KEY) throw new Error('API_SERVER_EKONOMI belum di-set');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+        try {
+            const res = await fetch(`${DIBANANA_BASE}${endpoint}`, {
+                ...options,
+                signal: controller.signal,
+                headers: {
+                    Authorization: `Bearer ${DIBANANA_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {}),
+                },
+            });
+            let data;
+            try { data = await res.json(); }
+            catch (e) { const err = new Error(`Provider error: ${res.status}`); err.status = res.status; throw err; }
+            if (!res.ok || data.ok === false) {
+                const err = new Error(data.message || data.error || 'Provider error');
+                err.status = res.status; err.code = data.error; err.data = data; throw err;
+            }
+            return data;
+        } finally { clearTimeout(timeout); }
+    }
+
+    // ---- premiumFetch (clone) ----
+    async function premiumFetch(endpoint, options = {}) {
+        if (!PREMIUM_API_KEY) throw new Error('API_SERVER_PREMIUM belum di-set');
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+        try {
+            const res = await fetch(`${PREMIUM_BASE}${endpoint}`, {
+                ...options,
+                signal: controller.signal,
+                headers: {
+                    Authorization: `Bearer ${PREMIUM_API_KEY}`,
+                    'Content-Type': 'application/json',
+                    ...(options.headers || {}),
+                },
+            });
+            let data;
+            try { data = await res.json(); }
+            catch (e) { const err = new Error(`Provider error: ${res.status}`); err.status = res.status; throw err; }
+            if (!res.ok || data.success === false) {
+                const err = new Error(data.error?.message || data.message || 'Provider error');
+                err.status = res.status; err.code = data.error?.code || data.code; err.data = data; throw err;
+            }
+            return data.data;
+        } finally { clearTimeout(timeout); }
+    }
+
+    // ---- premiumMoneyToIdr (clone) ----
+    function premiumMoneyToIdr(money) {
+        if (money == null) return 0;
+        return Math.round(Number(money) || 0);
+    }
+
+    // ---- applyMarkup (clone, sama persis) ----
+    const MARKUP_PERCENT = 0.10;
+    function applyMarkup(providerPrice) {
+        const p = Number(providerPrice) || 0;
+        if (p <= 0) return 0;
+        return Math.round(p * (1 + MARKUP_PERCENT));
+    }
+
+    // ---- calculateDepositFee (clone) ----
+    const DEPOSIT_FEE_MIN = 50;
+    const DEPOSIT_FEE_MAX = 100;
+    const DEPOSIT_FEE_PERCENT = 0.005;
+    function calculateDepositFee(amount) {
+        const a = Number(amount) || 0;
+        if (a <= 0) return DEPOSIT_FEE_MIN;
+        const fee = Math.round(a * DEPOSIT_FEE_PERCENT);
+        return Math.max(DEPOSIT_FEE_MIN, Math.min(DEPOSIT_FEE_MAX, fee));
+    }
+
+    // ---- qrispyFetch (clone) ----
+    async function qrispyFetch(endpoint, options = {}) {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
+        try {
+            const res = await fetch(`${QRISPY_BASE}${endpoint}`, {
+                ...options,
+                signal: controller.signal,
+                headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            });
+            const text = await res.text();
+            let data;
+            try { data = JSON.parse(text); }
+            catch (e) { const err = new Error(`depo1 error ${res.status}: response bukan JSON`); err.status = res.status; throw err; }
+            if (!res.ok || data.status === 'error') {
+                const err = new Error(data.message || 'depo1 error');
+                err.status = res.status; err.data = data; throw err;
+            }
+            return data;
+        } finally { clearTimeout(timeout); }
+    }
+
+    // ---- providerOrderStatus (clone) ----
+    async function providerOrderStatus(order) {
+        if (order.server === 'premium') {
+            const raw = await premiumFetch(`/orders/${encodeURIComponent(order.order_id)}`);
+            const mapStatus = (s) => {
+                switch (String(s || '').toUpperCase()) {
+                    case 'OTP_RECEIVED': return 'received';
+                    case 'COMPLETED':    return 'success';
+                    case 'CANCELED':     return 'cancelled';
+                    case 'EXPIRED':      return 'expired';
+                    case 'ACTIVE':       return 'pending';
+                    default:             return 'pending';
+                }
+            };
+            return {
+                status: mapStatus(raw.status),
+                otp_code: raw.otp_code || null,
+                otp_code_2: null,
+                full_sms: raw.otp_message || raw.full_sms || null,
+            };
+        }
+        return await dibananaFetch(`/status?order_id=${encodeURIComponent(order.order_id)}`);
+    }
+
+    // ---- providerCancelOrder (clone) ----
+    async function providerCancelOrder(order) {
+        if (order.server === 'premium') {
+            return await premiumFetch('/orders/cancel', {
+                method: 'POST',
+                body: JSON.stringify({ id: Number(order.order_id) }),
+            });
+        }
+        return await dibananaFetch('/cancel', {
+            method: 'POST',
+            body: JSON.stringify({ order_id: Number(order.order_id) }),
+        });
+    }
+
+    // ---- markDepositPaid (clone versi ringkas) ----
+    async function markDepositPaid(deposit, receivedAmount, paidAt) {
+        const saldoMasuk = Number(deposit.amount);
+        const totalBayar = Number(receivedAmount) || Number(deposit.total_amount) || saldoMasuk;
+        const gatewayFee = Math.max(0, totalBayar - saldoMasuk);
+        const storedFee = Number(deposit.fee) || 0;
+        const ourFee = storedFee > 0 ? storedFee : calculateDepositFee(saldoMasuk);
+        const fee = gatewayFee + ourFee;
+        const paidTime = paidAt ? new Date(paidAt) : new Date();
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const upd = await client.query(
+                `UPDATE deposits SET status = 'success', paid_at = $1, updated_at = NOW(),
+                        total_amount = $2, fee = $3
+                 WHERE id = $4 AND status = 'pending' RETURNING *`,
+                [paidTime, totalBayar, fee, deposit.id]
+            );
+            if (upd.rowCount === 0) {
+                await client.query('ROLLBACK');
+                return { alreadyProcessed: true, saldoMasuk, totalBayar, fee };
+            }
+            await client.query(
+                'UPDATE users SET balance = balance + $1, updated_at = NOW() WHERE id = $2',
+                [saldoMasuk, deposit.user_id]
+            );
+            await client.query(
+                `INSERT INTO transactions (user_id, order_id, service_name, status, price)
+                 VALUES ($1, $2, 'Deposit QRIS', 'success', $3)`,
+                [deposit.user_id, deposit.reference_id, totalBayar]
+            );
+            await client.query('COMMIT');
+            return { alreadyProcessed: false, saldoMasuk, totalBayar, fee };
+        } catch (err) {
+            await client.query('ROLLBACK').catch(() => {});
+            throw err;
+        } finally {
+            client.release();
+        }
+    }
+
+    // ============================================================
+    // BOT SETUP
+    // ============================================================
+    const bot = new Telegraf(TOKEN);
+
     const toRp = (n) => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
     const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    const botState = new Map();
 
-    // === RAW API: sendRichMessage / editMessageText ===
+    // === RAW API ===
     async function apiCall(method, payload) {
         const res = await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`, {
             method: 'POST',
@@ -33,22 +221,22 @@ module.exports = function setupBotWebhook(app, deps) {
         return data.result;
     }
 
-    // Kirim pesan rich baru (dengan efek api)
-    async function sendRich(ctx, html, buttons = [], opts = {}) {
+    // Kirim pesan rich BARU (hanya untuk /start dan kirim pertama kali)
+    async function sendRich(ctx, html, buttons = []) {
         const payload = {
             chat_id: ctx.chat.id,
             rich_message: { html },
-            message_effect_id: opts.effect === false ? undefined : FIRE,
+            message_effect_id: FIRE,
         };
         if (buttons.length) payload.reply_markup = { inline_keyboard: buttons };
         try {
             return await apiCall('sendRichMessage', payload);
         } catch (e) {
-            // Fallback ke sendMessage kalau sendRichMessage gak didukung
-            console.error('sendRich fallback:', e.message);
+            console.error('sendRichMessage failed:', e.message);
+            // Fallback ke sendMessage biasa
             const fb = {
                 chat_id: ctx.chat.id,
-                text: html.replace(/<table[^>]*>|<\/table>|<tr[^>]*>|<\/tr>|<td[^>]*>|<\/td>|<th[^>]*>|<\/th>/gi, ' ').replace(/<[^>]+>/g, '').trim() || html,
+                text: html.replace(/<[^>]+>/g, '').trim() || html,
                 parse_mode: 'HTML',
             };
             if (buttons.length) fb.reply_markup = { inline_keyboard: buttons };
@@ -56,54 +244,50 @@ module.exports = function setupBotWebhook(app, deps) {
         }
     }
 
-    // Edit pesan existing (dengan fallback: hapus + kirim baru)
+    // ✅ EDIT MURNI — no delete, no resend. Kalau gagal, biarkan.
     async function editRich(ctx, html, buttons = []) {
         const msgId = ctx.callbackQuery?.message?.message_id;
-        if (!msgId) return sendRich(ctx, html, buttons);
-
+        if (!msgId) {
+            // gak ada message → ini bukan callback (misal dari /start), kirim baru
+            return sendRich(ctx, html, buttons);
+        }
         const payload = {
             chat_id: ctx.chat.id,
             message_id: msgId,
             rich_message: { html },
         };
         if (buttons.length) payload.reply_markup = { inline_keyboard: buttons };
-
         try {
             return await apiCall('editMessageText', {
                 chat_id: ctx.chat.id,
                 message_id: msgId,
-                text: html,
-                parse_mode: 'HTML',
+                rich_message: { html },
                 ...(buttons.length ? { reply_markup: { inline_keyboard: buttons } } : {}),
             });
         } catch (e) {
-            // Kalau edit gagal (pesan lama gak support rich / too old), hapus & kirim baru
-            try { await apiCall('deleteMessage', { chat_id: ctx.chat.id, message_id: msgId }); } catch (_) {}
-            return sendRich(ctx, html, buttons);
+            // Coba fallback editMessageText biasa (text/html)
+            try {
+                return await apiCall('editMessageText', {
+                    chat_id: ctx.chat.id,
+                    message_id: msgId,
+                    text: html.replace(/<[^>]+>/g, '').trim() || html,
+                    parse_mode: 'HTML',
+                    ...(buttons.length ? { reply_markup: { inline_keyboard: buttons } } : {}),
+                });
+            } catch (e2) {
+                console.error('editRich failed:', e2.message);
+                // JANGAN delete, JANGAN resend. Cukup throw biar keliatan errornya di log.
+                throw e2;
+            }
         }
     }
 
-    // Render ulang pesan (buat navigasi "Kembali")
-    async function rerender(ctx, html, buttons = []) {
-        try {
-            if (ctx.callbackQuery?.message?.message_id) {
-                // Coba edit dulu
-                return await editRich(ctx, html, buttons);
-            }
-        } catch (_) {}
-        // Fallback: hapus + kirim baru
-        try { await ctx.deleteMessage(); } catch (_) {}
-        return sendRich(ctx, html, buttons);
-    }
-
-    // ==================== BUTTON STYLES ====================
-    const btnPrimary = (text, data) => ({ text, callback_data: data, style: 'primary' });
-    const btnSuccess = (text, data) => ({ text, callback_data: data, style: 'success' });
-    const btnDanger  = (text, data) => ({ text, callback_data: data, style: 'danger' });
-    const btnNormal  = (text, data) => ({ text, callback_data: data });
-    const btnUrl     = (text, url)     => ({ text, url });
-    const btnCheck   = (on) => on ? '☑️' : '☐';
-    const btnBlink   = () => Math.random() > 0.5 ? '🟢' : '🟡'; // random blink
+    // ==================== BUTTONS ====================
+    const btnPrimary = (t, d) => ({ text: t, callback_data: d, style: 'primary' });
+    const btnSuccess = (t, d) => ({ text: t, callback_data: d, style: 'success' });
+    const btnDanger  = (t, d) => ({ text: t, callback_data: d, style: 'danger' });
+    const btnNormal  = (t, d) => ({ text: t, callback_data: d });
+    const btnUrl     = (t, u) => ({ text: t, url: u });
 
     // ==================== USER ====================
     async function getOrCreateUser(ctx) {
@@ -133,7 +317,7 @@ module.exports = function setupBotWebhook(app, deps) {
         return r.rows[0];
     }
 
-    // ==================== RENDER HELPERS ====================
+    // ==================== RENDER HOME ====================
     function renderHome(user) {
         const linkStatus = user.telegram_linked_at ? '✅ Tertaut' : '⚠️ Guest';
         const html =
@@ -142,7 +326,7 @@ module.exports = function setupBotWebhook(app, deps) {
             `Kelola layanan Anda dengan cepat, aman, dan otomatis.\n\n` +
             `<b>📊 Ringkasan Akun</b>\n` +
             `<table bordered striped>\n` +
-            `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+            `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
             `  <tr><td>Status</td><td>${user.status === 'active' ? '✅ Aktif' : '❌ Banned'}</td></tr>\n` +
             `  <tr><td>Role</td><td>${esc(user.role)}</td></tr>\n` +
             `  <tr><td>Saldo</td><td><b>${toRp(user.balance)}</b></td></tr>\n` +
@@ -151,17 +335,16 @@ module.exports = function setupBotWebhook(app, deps) {
             `  <tr><td>Status Web</td><td>${linkStatus}</td></tr>\n` +
             `</table>\n\n` +
             `<b>📖 Cara pakai</b>\n` +
-            `<table bordered striped>\n` +
-            `  <tr><th>#</th><th>Langkah</th></tr>\n` +
-            `  <tr><td>☑️</td><td>Isi Saldo via QRIS.</td></tr>\n` +
-            `  <tr><td>☐</td><td>Order Nokos → pilih server → app → negara.</td></tr>\n` +
-            `  <tr><td>☐</td><td>OTP masuk ke chat ini.</td></tr>\n` +
-            `  <tr><td>☐</td><td>Kalau gagal, saldo refund otomatis.</td></tr>\n` +
-            `</table>`;
+            `<ul checklist>\n` +
+            `  <li checked>Isi Saldo via QRIS</li>\n` +
+            `  <li>Order Nokos → pilih server → app → negara</li>\n` +
+            `  <li>OTP masuk ke chat ini</li>\n` +
+            `  <li>Kalau gagal, saldo refund otomatis</li>\n` +
+            `</ul>`;
 
         const buttons = [
-            [btnPrimary(`${btnBlink()} 🛒 Order Nokos`, 'menu_otp')],
-            [btnSuccess(`${btnBlink()} 💰 Isi Saldo`, 'menu_deposit')],
+            [btnPrimary('🛒 Order Nokos', 'menu_otp')],
+            [btnSuccess('💰 Isi Saldo', 'menu_deposit')],
             [btnNormal('📋 Riwayat', 'menu_riwayat'), btnNormal('👤 Akun', 'menu_akun')],
             [btnNormal('❓ Bantuan', 'menu_bantuan')],
             [btnUrl('🌐 Buka Web', 'https://asyrofotp.vercel.app')],
@@ -183,7 +366,7 @@ module.exports = function setupBotWebhook(app, deps) {
                     [ctx.from.id, ctx.from.username || null, decoded.id]
                 );
                 return sendRich(ctx,
-                    `<b>✅ AKUN DITAUTKAN</b>\n\nBerhasil terhubung ke <b>@${esc(decoded.username)}</b>.\nKetik /start untuk lanjut.`,
+                    `<b>✅ AKUN DITAUTKAN</b>\n\nBerhasil terhubung ke <b>@${esc(decoded.username)}</b>.`,
                     [[btnPrimary('🏠 Menu Utama', 'back_home')]]
                 );
             } catch (e) {
@@ -196,24 +379,22 @@ module.exports = function setupBotWebhook(app, deps) {
 
         const user = await getOrCreateUser(ctx);
         if (user.status === 'banned')
-            return sendRich(ctx, '<b>❌ DIBLOKIR</b>\n\nAkun diblokir dari sistem.', []);
+            return sendRich(ctx, '<b>❌ DIBLOKIR</b>\n\nAkun diblokir.', []);
 
         const { html, buttons } = renderHome(user);
         await sendRich(ctx, html, buttons);
     });
 
-    // ==================== NAVIGASI: BACK HOME ====================
-    // ✅ FIX: pakai rerender, bukan bot.start(ctx) yang gak valid di CallbackQueryContext
+    // ==================== BACK HOME ====================
     bot.action('back_home', async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
-        botState.delete(ctx.from.id);
         const user = await getOrCreateUser(ctx);
         if (!user) return;
         const { html, buttons } = renderHome(user);
-        await rerender(ctx, html, buttons);
+        await editRich(ctx, html, buttons);
     });
 
-    // ==================== MENU AKUN ====================
+    // ==================== AKUN ====================
     bot.action('menu_akun', async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const user = await getOrCreateUser(ctx);
@@ -223,7 +404,7 @@ module.exports = function setupBotWebhook(app, deps) {
         const html =
             `<b>👤 Informasi Akun</b>\n` +
             `<table bordered striped>\n` +
-            `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+            `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
             `  <tr><td>ID Akun</td><td><code>${esc(user.user_code || user.id)}</code></td></tr>\n` +
             `  <tr><td>Username</td><td>@${esc(user.username)}</td></tr>\n` +
             `  <tr><td>Nama</td><td>${esc(user.name)}</td></tr>\n` +
@@ -245,8 +426,7 @@ module.exports = function setupBotWebhook(app, deps) {
         await editRich(ctx,
             `<b>🔗 Tautkan Akun Web</b>\n\n` +
             `Kamu sedang pakai akun Guest.\n` +
-            `Kalau ditautkan, saldo & riwayat digabung otomatis.\n\n` +
-            `<i>Klik tombol di bawah.</i>`,
+            `Kalau ditautkan, saldo & riwayat digabung otomatis.`,
             [
                 [btnUrl('🌐 Buka Web Tautkan', url)],
                 [btnNormal('🔙 Kembali', 'back_home')],
@@ -263,35 +443,35 @@ module.exports = function setupBotWebhook(app, deps) {
                     telegram_linked_at = NULL WHERE id = $1`,
             [user.id]
         );
-        await rerender(ctx,
+        await editRich(ctx,
             `<b>✅ LOGOUT BERHASIL</b>\n\nKamu telah keluar.`,
             [[btnPrimary('🏠 Menu Utama', 'back_home')]]
         );
     });
 
-    // ==================== MENU OTP: pilih server ====================
+    // ==================== MENU OTP ====================
     bot.action('menu_otp', async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const user = await getOrCreateUser(ctx);
-        if (user.status === 'banned') return rerender(ctx, 'Akun diblokir.', []);
+        if (user.status === 'banned') return editRich(ctx, 'Akun diblokir.', []);
 
         const html =
             `<b>🛒 Beli Nokos</b>\n` +
             `Pilih server:\n\n` +
             `<table bordered striped>\n` +
-            `  <tr><th>Server</th><th>Keterangan</th><th>Badge</th></tr>\n` +
+            `  <thead><tr><th>Server</th><th>Keterangan</th><th>Badge</th></tr></thead>\n` +
             `  <tr><td>1</td><td>Ekonomi (Murah, ID only)</td><td>🟢 MURAH</td></tr>\n` +
             `  <tr><td>2</td><td>Premium (Semua negara)</td><td>🔥 PREMIUM</td></tr>\n` +
             `</table>`;
 
         await editRich(ctx, html, [
-            [btnPrimary('🇮🇩 Server 1 (Ekonomi)', 'srv' + SEP + 'ekonomi' + SEP + '1')],
-            [btnPrimary('🌍 Server 2 (Premium)', 'srv' + SEP + 'premium' + SEP + '1')],
+            [btnPrimary('🇮🇩 Server 1 (Ekonomi)', `srv${SEP}ekonomi${SEP}1`)],
+            [btnPrimary('🌍 Server 2 (Premium)', `srv${SEP}premium${SEP}1`)],
             [btnNormal('🔙 Kembali', 'back_home')],
         ]);
     });
 
-    // ==================== STEP 1: LIST SERVICE (pagination) ====================
+    // ==================== STEP 1: LIST SERVICE ====================
     bot.action(new RegExp('^srv' + SEP + '(ekonomi|premium)' + SEP + '(\\d+)$'), async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const server = ctx.match[1];
@@ -309,7 +489,7 @@ module.exports = function setupBotWebhook(app, deps) {
                 services = (raw || []).map(s => ({ code: s.code, name: s.name }));
             }
             if (!services.length)
-                return rerender(ctx, '❌ Tidak ada layanan.', [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
+                return editRich(ctx, '❌ Tidak ada layanan.', [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
 
             const perPage = 8;
             const totalPages = Math.max(1, Math.ceil(services.length / perPage));
@@ -320,7 +500,7 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>📱 Pilih Layanan</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Server</th><th>Halaman</th><th>Total</th></tr>\n` +
+                `  <thead><tr><th>Server</th><th>Halaman</th><th>Total</th></tr></thead>\n` +
                 `  <tr><td>${server === 'ekonomi' ? '1 (Ekonomi)' : '2 (Premium)'}</td><td>${safePage}/${totalPages}</td><td>${services.length} layanan</td></tr>\n` +
                 `</table>`;
 
@@ -339,11 +519,11 @@ module.exports = function setupBotWebhook(app, deps) {
             buttons.push([btnNormal('🔙 Kembali', 'menu_otp')]);
             await editRich(ctx, html, buttons);
         } catch (e) {
-            await rerender(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
+            await editRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
         }
     });
 
-    // ==================== STEP 2: LIST COUNTRY (pagination) ====================
+    // ==================== STEP 2: LIST COUNTRY ====================
     bot.action(new RegExp('^svc' + SEP + '(ekonomi|premium)' + SEP + '([^' + SEP + ']+)' + SEP + '(\\d+)$'), async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const server = ctx.match[1];
@@ -362,7 +542,7 @@ module.exports = function setupBotWebhook(app, deps) {
                 countries = (raw || []).map(c => ({ code: c.code, name: c.name || c.code }));
             }
             if (!countries.length)
-                return rerender(ctx, '❌ Tidak ada negara.', [[btnPrimary('🔙 Kembali', `srv${SEP}${server}${SEP}1`)]]);
+                return editRich(ctx, '❌ Tidak ada negara.', [[btnPrimary('🔙 Kembali', `srv${SEP}${server}${SEP}1`)]]);
 
             const perPage = 8;
             const totalPages = Math.max(1, Math.ceil(countries.length / perPage));
@@ -373,7 +553,7 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>🌍 Pilih Negara</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Service</th><th>Halaman</th><th>Total</th></tr>\n` +
+                `  <thead><tr><th>Service</th><th>Halaman</th><th>Total</th></tr></thead>\n` +
                 `  <tr><td>${esc(code)}</td><td>${safePage}/${totalPages}</td><td>${countries.length} negara</td></tr>\n` +
                 `</table>`;
 
@@ -392,13 +572,13 @@ module.exports = function setupBotWebhook(app, deps) {
             buttons.push([btnNormal('🔙 Kembali', `srv${SEP}${server}${SEP}1`)]);
             await editRich(ctx, html, buttons);
         } catch (e) {
-            await rerender(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
+            await editRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
         }
     });
 
-    // ==================== STEP 3: LIST PRICE (pagination) ====================
+    // ==================== STEP 3: LIST HARGA ====================
     bot.action(new RegExp('^cty' + SEP + '(ekonomi|premium)' + SEP + '([^' + SEP + ']+)' + SEP + '([a-z0-9]+)' + SEP + '(\\d+)$'), async (ctx) => {
-        try { await ctx.answerCbQuery(); } catch (_) {}
+        try { await ctx.answerCbQuery('Memuat harga...'); } catch (_) {}
         const server = ctx.match[1];
         const code = ctx.match[2];
         const country = ctx.match[3];
@@ -410,11 +590,15 @@ module.exports = function setupBotWebhook(app, deps) {
             let providers = [];
             if (server === 'ekonomi') {
                 const data = await dibananaFetch(`/prices?server=ekonomi&service=${encodeURIComponent(code)}&country=${encodeURIComponent(country)}`);
-                providers = (data.providers || []).map(p => ({
-                    id: String(p.id),
-                    price: applyMarkup(Number(p.price_idr) || 0),
-                    stock: p.stock || 0,
-                }));
+                providers = (data.providers || []).map(p => {
+                    const raw = Number(p.price_idr) || 0;
+                    return {
+                        id: String(p.id),
+                        raw_price: raw,
+                        price: applyMarkup(raw),
+                        stock: p.stock || 0,
+                    };
+                });
             } else {
                 const [cr, sr] = await Promise.all([
                     premiumFetch('/catalog/countries'),
@@ -424,22 +608,36 @@ module.exports = function setupBotWebhook(app, deps) {
                 const sObj = (sr || []).find(s => String(s.code).toLowerCase() === code.toLowerCase());
                 if (cObj && sObj) {
                     const params = new URLSearchParams({
-                        country_id: cObj.id, platform_id: sObj.id, limit: '100', page: '1',
+                        country_id: String(cObj.id), platform_id: String(sObj.id), limit: '100', page: '1',
                     });
                     const products = await premiumFetch(`/catalog/products?${params}`);
                     providers = (products || [])
                         .filter(p => p.active !== false)
-                        .map(p => ({
-                            id: String(p.id),
-                            price: applyMarkup(premiumMoneyToIdr(p.price)),
-                            stock: Number(p.available) || 0,
-                        }));
+                        .map(p => {
+                            const raw = premiumMoneyToIdr(p.price);
+                            return {
+                                id: String(p.id),
+                                raw_price: raw,
+                                price: applyMarkup(raw),
+                                stock: Number(p.available) || 0,
+                            };
+                        });
                 }
             }
-            providers = providers.filter(p => p.price > 0);
 
-            if (!providers.length)
-                return rerender(ctx, '❌ Stok habis.', [[btnPrimary('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]]);
+            // ✅ filter harga valid setelah markup
+            providers = providers.filter(p => p.price > 0 && p.raw_price > 0);
+
+            if (!providers.length) {
+                return editRich(ctx,
+                    `<b>❌ Stok habis</b>\n\n` +
+                    `<table bordered striped>\n` +
+                    `  <thead><tr><th>Service</th><th>Negara</th><th>Status</th></tr></thead>\n` +
+                    `  <tr><td>${esc(code)}</td><td>${esc(country.toUpperCase())}</td><td>Kosong</td></tr>\n` +
+                    `</table>`,
+                    [[btnPrimary('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]]
+                );
+            }
 
             const perPage = 8;
             const totalPages = Math.max(1, Math.ceil(providers.length / perPage));
@@ -450,8 +648,8 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>💰 Pilih Harga</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Service</th><th>Negara</th><th>Halaman</th></tr>\n` +
-                `  <tr><td>${esc(code)}</td><td>${esc(country.toUpperCase())}</td><td>${safePage}/${totalPages}</td></tr>\n` +
+                `  <thead><tr><th>Service</th><th>Negara</th><th>Halaman</th><th>Stok</th></tr></thead>\n` +
+                `  <tr><td>${esc(code)}</td><td>${esc(country.toUpperCase())}</td><td>${safePage}/${totalPages}</td><td>${providers.reduce((a, b) => a + b.stock, 0)}</td></tr>\n` +
                 `</table>`;
 
             const buttons = current.map(p => [
@@ -466,7 +664,8 @@ module.exports = function setupBotWebhook(app, deps) {
             buttons.push([btnNormal('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]);
             await editRich(ctx, html, buttons);
         } catch (e) {
-            await rerender(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', 'menu_otp')]]);
+            console.error('cty handler error:', e.message);
+            await editRich(ctx, `❌ Error: ${esc(e.message)}`, [[btnPrimary('🔙 Kembali', `svc${SEP}${server}${SEP}${code}${SEP}1`)]]);
         }
     });
 
@@ -506,7 +705,7 @@ module.exports = function setupBotWebhook(app, deps) {
             if (balance < price) {
                 if (server === 'ekonomi') await dibananaFetch('/cancel', { method: 'POST', body: JSON.stringify({ order_id: orderId }) }).catch(() => {});
                 else await premiumFetch('/orders/cancel', { method: 'POST', body: JSON.stringify({ id: Number(orderId) }) }).catch(() => {});
-                throw new Error('Saldo kurang. Silakan isi saldo dulu.');
+                throw new Error('Saldo kurang. Isi saldo dulu.');
             }
 
             const expAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -540,21 +739,27 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>✅ ORDER BERHASIL</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+                `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
                 `  <tr><td>OTP ID</td><td><code>${esc(otpId)}</code></td></tr>\n` +
                 `  <tr><td>Nomor</td><td><code>${esc(phone)}</code></td></tr>\n` +
                 `  <tr><td>Harga</td><td><b>${toRp(price)}</b></td></tr>\n` +
                 `  <tr><td>Status</td><td>⏳ Menunggu OTP</td></tr>\n` +
                 `  <tr><td>Expired</td><td>${expAt.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td></tr>\n` +
                 `</table>\n\n` +
-                `Cek menu utama untuk lihat OTP.`;
+                `<b>📖 Langkah selanjutnya</b>\n` +
+                `<ul checklist>\n` +
+                `  <li checked>Order dibuat</li>\n` +
+                `  <li>Saldo terpotong</li>\n` +
+                `  <li>Tunggu OTP masuk</li>\n` +
+                `  <li>Klik "Cek OTP" untuk refresh</li>\n` +
+                `</ul>`;
 
-            await rerender(ctx, html, [
+            await editRich(ctx, html, [
                 [btnPrimary('🔄 Cek OTP', `chk${SEP}${otpId}`)],
                 [btnNormal('🔙 Menu Utama', 'back_home')],
             ]);
         } catch (e) {
-            await rerender(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
+            await editRich(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
         }
     });
 
@@ -575,7 +780,6 @@ module.exports = function setupBotWebhook(app, deps) {
 
             let otp = o.otp_code, status = o.status;
 
-            // Kalau masih pending, poll ke provider
             if (status === 'pending' && !otp) {
                 try {
                     const data = await providerOrderStatus(o);
@@ -594,7 +798,7 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>📨 Status Order</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+                `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
                 `  <tr><td>OTP ID</td><td><code>${esc(otpId)}</code></td></tr>\n` +
                 `  <tr><td>Nomor</td><td><code>${esc(o.phone_number || '-')}</code></td></tr>\n` +
                 `  <tr><td>Service</td><td>${esc(o.service || '-')}</td></tr>\n` +
@@ -603,16 +807,16 @@ module.exports = function setupBotWebhook(app, deps) {
                 `  <tr><td>Harga</td><td>${toRp(o.price)}</td></tr>\n` +
                 `</table>`;
 
-            await rerender(ctx, html, [
+            await editRich(ctx, html, [
                 [btnPrimary('🔄 Refresh', `chk${SEP}${otpId}`)],
                 [btnNormal('🔙 Menu Utama', 'back_home')],
             ]);
         } catch (e) {
-            await rerender(ctx, `❌ ${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
+            await editRich(ctx, `❌ ${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
         }
     });
 
-    // ==================== MENU DEPOSIT ====================
+    // ==================== DEPOSIT ====================
     bot.action('menu_deposit', async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const user = await getOrCreateUser(ctx);
@@ -621,13 +825,12 @@ module.exports = function setupBotWebhook(app, deps) {
         const html =
             `<b>💰 Top Up Saldo</b>\n` +
             `Pilih nominal:\n\n` +
-            `<table bordered striped>\n` +
-            `  <tr><th>Nominal</th><th>Status</th></tr>\n` +
-            `  <tr><td>Rp 5.000</td><td>${btnCheck(false)}</td></tr>\n` +
-            `  <tr><td>Rp 10.000</td><td>${btnCheck(false)}</td></tr>\n` +
-            `  <tr><td>Rp 20.000</td><td>${btnCheck(false)}</td></tr>\n` +
-            `  <tr><td>Rp 50.000</td><td>${btnCheck(false)}</td></tr>\n` +
-            `</table>`;
+            `<b>📖 Cara isi saldo</b>\n` +
+            `<ul checklist>\n` +
+            `  <li>Pilih nominal</li>\n` +
+            `  <li>Scan QRIS</li>\n` +
+            `  <li>Saldo masuk otomatis</li>\n` +
+            `</ul>`;
 
         await editRich(ctx, html, [
             [btnSuccess('Rp 5.000', `dep${SEP}5000`), btnSuccess('Rp 10.000', `dep${SEP}10000`)],
@@ -636,7 +839,6 @@ module.exports = function setupBotWebhook(app, deps) {
         ]);
     });
 
-    // ==================== STEP DEPO: qrispyFetch via deps ====================
     bot.action(new RegExp('^dep' + SEP + '(\\d+)$'), async (ctx) => {
         try { await ctx.answerCbQuery('Membuat QRIS...'); } catch (_) {}
         const amount = parseInt(ctx.match[1], 10);
@@ -644,9 +846,6 @@ module.exports = function setupBotWebhook(app, deps) {
         if (!user) return;
 
         try {
-            // ✅ FIX: pakai qrispyFetch dari deps (wajib di-export dari index)
-            if (!qrispyFetch) throw new Error('Fitur deposit belum dikonfigurasi (qrispyFetch missing).');
-
             const data = await qrispyFetch('/api/payment/qris/create', {
                 method: 'POST',
                 body: JSON.stringify({ amount }),
@@ -654,7 +853,6 @@ module.exports = function setupBotWebhook(app, deps) {
             const q = data.data;
             if (!q || !q.qr_image) throw new Error('Gagal membuat QRIS.');
 
-            // Catat deposit di DB
             const referenceId = `BOT${Date.now()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
             const ourFee = calculateDepositFee(amount);
             const expiresAt = q.expires_at ? new Date(q.expires_at) : new Date(Date.now() + 15 * 60 * 1000);
@@ -670,33 +868,38 @@ module.exports = function setupBotWebhook(app, deps) {
                 ]
             );
 
-            // Edit pesan lama → teks info
+            // Edit pesan lama → info deposit (bukan delete)
             await editRich(ctx,
                 `<b>💳 TOP UP QRIS</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+                `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
                 `  <tr><td>Ref ID</td><td><code>${esc(referenceId)}</code></td></tr>\n` +
                 `  <tr><td>Nominal</td><td><b>${toRp(q.diterima || amount)}</b></td></tr>\n` +
                 `  <tr><td>Expired</td><td>${expiresAt.toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</td></tr>\n` +
                 `</table>\n\n` +
-                `Silakan scan QR di bawah ini:`,
+                `<b>📖 Langkah</b>\n` +
+                `<ul checklist>\n` +
+                `  <li checked>QRIS dibuat</li>\n` +
+                `  <li>Scan & bayar</li>\n` +
+                `  <li>Saldo masuk otomatis</li>\n` +
+                `</ul>\n\n` +
+                `QR dikirim sebagai foto di bawah.`,
                 [
                     [btnPrimary('🔄 Cek Status', `dchk${SEP}${referenceId}`)],
                     [btnNormal('🔙 Menu Utama', 'back_home')],
                 ]
             );
 
-            // Kirim QR sebagai foto
+            // Kirim QR (foto terpisah, ini WAJIB — gak bisa di-edit)
             await ctx.replyWithPhoto(
                 { url: q.qr_image },
-                { caption: `<i>QRIS berlaku 15 menit. Ref: ${esc(referenceId)}</i>`, parse_mode: 'HTML' }
+                { caption: `QRIS 15 menit. Ref: ${esc(referenceId)}`, parse_mode: 'HTML' }
             );
         } catch (e) {
-            await rerender(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
+            await editRich(ctx, `<b>❌ GAGAL</b>\n\n${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
         }
     });
 
-    // ==================== CEK STATUS DEPOSIT ====================
     bot.action(new RegExp('^dchk' + SEP + '(.+)$'), async (ctx) => {
         try { await ctx.answerCbQuery('Cek...'); } catch (_) {}
         const ref = ctx.match[1];
@@ -712,8 +915,7 @@ module.exports = function setupBotWebhook(app, deps) {
             const d = r.rows[0];
 
             let status = d.status;
-            // Cek ke provider kalau masih pending
-            if (status === 'pending' && qrispyFetch) {
+            if (status === 'pending') {
                 try {
                     const s = await qrispyFetch(`/api/payment/qris/${d.qris_id}/status`);
                     if (s.data?.status === 'paid') {
@@ -729,23 +931,23 @@ module.exports = function setupBotWebhook(app, deps) {
             const html =
                 `<b>💳 Status Deposit</b>\n` +
                 `<table bordered striped>\n` +
-                `  <tr><th>Kolom</th><th>Nilai</th></tr>\n` +
+                `  <thead><tr><th>Kolom</th><th>Nilai</th></tr></thead>\n` +
                 `  <tr><td>Ref ID</td><td><code>${esc(ref)}</code></td></tr>\n` +
                 `  <tr><td>Nominal</td><td>${toRp(d.amount)}</td></tr>\n` +
                 `  <tr><td>Fee</td><td>${toRp(d.fee)}</td></tr>\n` +
                 `  <tr><td>Status</td><td>${status === 'success' ? '✅ Sukses' : status === 'pending' ? '⏳ Pending' : esc(status)}</td></tr>\n` +
                 `</table>`;
 
-            await rerender(ctx, html, [
+            await editRich(ctx, html, [
                 [btnPrimary('🔄 Refresh', `dchk${SEP}${ref}`)],
                 [btnNormal('🔙 Menu Utama', 'back_home')],
             ]);
         } catch (e) {
-            await rerender(ctx, `❌ ${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
+            await editRich(ctx, `❌ ${esc(e.message)}`, [[btnPrimary('🔙 Menu Utama', 'back_home')]]);
         }
     });
 
-    // ==================== MENU RIWAYAT ====================
+    // ==================== RIWAYAT ====================
     bot.action('menu_riwayat', async (ctx) => {
         try { await ctx.answerCbQuery(); } catch (_) {}
         const user = await getOrCreateUser(ctx);
@@ -757,12 +959,12 @@ module.exports = function setupBotWebhook(app, deps) {
             [user.id]
         );
         if (!r.rows.length)
-            return rerender(ctx, '<b>📭 KOSONG</b>\n\nBelum ada riwayat order.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
+            return editRich(ctx, '<b>📭 KOSONG</b>\n\nBelum ada riwayat order.', [[btnPrimary('🔙 Kembali', 'back_home')]]);
 
         let html =
             `<b>📋 Riwayat 5 Terakhir</b>\n` +
             `<table bordered striped>\n` +
-            `  <tr><th>Service</th><th>Nomor</th><th>OTP</th><th>Harga</th></tr>\n`;
+            `  <thead><tr><th>Service</th><th>Nomor</th><th>OTP</th><th>Harga</th></tr></thead>\n`;
         r.rows.forEach(o => {
             html += `  <tr><td>${esc(o.service || '-')}</td><td><code>${esc(o.phone_number || '-')}</code></td><td>${o.otp_code ? `<code>${esc(o.otp_code)}</code>` : '⏳'}</td><td>${toRp(o.price)}</td></tr>\n`;
         });
