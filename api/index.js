@@ -7359,6 +7359,9 @@ app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
     }
 }));
 
+const setupBotWebhook = require('./bot-webhook');
+setupBotWebhook(app);
+
 // global error handler + 404
 app.use((err, req, res, next) => {
     const status = err?.status || 500;
