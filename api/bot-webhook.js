@@ -13,7 +13,7 @@ module.exports = function setupBotWebhook(app, deps) {
     } = deps;
 
     const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN);
-    const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'asyrofotp_bot';
+    const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'otpmurahsxrfbot';
     const FIRE = '5104841245755180586';
 
     // ==================== HELPERS ====================
