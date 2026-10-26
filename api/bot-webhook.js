@@ -17,9 +17,8 @@ module.exports = function setupBotWebhook(app, deps) {
     const PREMIUM_BASE = process.env.PREMIUM_BASE;
     const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 
-    // ✅ QRISPY PROXY CLOUDFLARE
+    // URL WORKER LO
     const QRISPY_BASE = process.env.QRISPY_BASE || 'https://broad-glitta-4de1.rahayucahyapurwa.workers.dev';
-    // Opsional: kalau lo mau proteksi Worker lo biar gak ditembak orang lain
     const PROXY_SECRET = process.env.PROXY_SECRET || '';
 
     const PROVIDER_TIMEOUT_MS = 10000;
@@ -27,7 +26,7 @@ module.exports = function setupBotWebhook(app, deps) {
     const DEPOSIT_FEE_MIN = 50;
     const DEPOSIT_FEE_MAX = 100;
     const DEPOSIT_FEE_PERCENT = 0.005;
-    const BOT_SESSION_TTL_MS = 30 * 60 * 1000; // 30 menit
+    const BOT_SESSION_TTL_MS = 30 * 60 * 1000;
 
     // ============================================================
     // DEBUG
@@ -217,7 +216,7 @@ module.exports = function setupBotWebhook(app, deps) {
             'User-Agent': 'AsyrofOTP-Bot/1.0',
             ...(options.headers || {}),
         };
-        // Kalau lo set PROXY_SECRET di bot & worker, ini bakal nge-verifikasi
+        
         if (PROXY_SECRET) headers['x-proxy-secret'] = PROXY_SECRET;
 
         const controller = new AbortController();
@@ -489,7 +488,6 @@ module.exports = function setupBotWebhook(app, deps) {
         return data.result;
     }
 
-    // ✅ Tanpa efek api
     async function sendRich(ctx, html, buttons = []) {
         const payload = { chat_id: ctx.chat.id, rich_message: { html } };
         if (buttons.length) payload.reply_markup = { inline_keyboard: buttons };
@@ -848,7 +846,6 @@ module.exports = function setupBotWebhook(app, deps) {
         const shortId = ctx.match[1];
         const data = await cbGet(shortId);
 
-        // Sesi habis
         if (!data) {
             await showAlert(ctx, '⚠️ Sesi habis, memuat ulang harga...');
             return editRich(ctx,
@@ -865,7 +862,6 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
-        // CEK SALDO DULU
         const uRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [user.id]);
         const balance = Number(uRes.rows[0]?.balance) || 0;
         if (balance < cachedPrice) {
@@ -1056,7 +1052,6 @@ module.exports = function setupBotWebhook(app, deps) {
         try {
             const referenceId = `BOT${Date.now()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
             
-            // ✅ Pakai Proxy URL (QRISPY_BASE)
             const data = await qrispyFetch('/api/payment/qris/generate', {
                 method: 'POST',
                 body: JSON.stringify({ 
@@ -1122,7 +1117,6 @@ module.exports = function setupBotWebhook(app, deps) {
             
             if (status === 'pending') {
                 try {
-                    // ✅ Cek status via Proxy
                     const s = await qrispyFetch(`/api/payment/qris/${d.qris_id}/status`);
                     const inner = s.data || s;
                     if (inner.status === 'paid') {
