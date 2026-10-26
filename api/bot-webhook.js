@@ -17,9 +17,10 @@ module.exports = function setupBotWebhook(app, deps) {
     const PREMIUM_BASE = process.env.PREMIUM_BASE;
     const PREMIUM_API_KEY = process.env.API_SERVER_PREMIUM;
 
-    // ✅ qrispy — pakai API_QRISPY, base api.qrispy.id
-    const QRISPY_BASE = 'https://api.qrispy.id';
-    const QRISPY_API_TOKEN = process.env.API_QRISPY || '';
+    // ✅ QRISPY PROXY CLOUDFLARE
+    const QRISPY_BASE = process.env.QRISPY_BASE || 'https://broad-glitta-4de1.rahayucahyapurwa.workers.dev';
+    // Opsional: kalau lo mau proteksi Worker lo biar gak ditembak orang lain
+    const PROXY_SECRET = process.env.PROXY_SECRET || '';
 
     const PROVIDER_TIMEOUT_MS = 10000;
     const MARKUP_PERCENT = 0.10;
@@ -72,7 +73,7 @@ module.exports = function setupBotWebhook(app, deps) {
     }
 
     // ============================================================
-    // BOT SESSION — disimpan di DB, bukan in-memory
+    // BOT SESSION — disimpan di DB
     // ============================================================
     async function ensureBotSessionTable() {
         try {
@@ -98,7 +99,7 @@ module.exports = function setupBotWebhook(app, deps) {
     }, 10 * 60 * 1000);
 
     async function cbStore(data) {
-        const key = crypto.randomBytes(8).toString('hex'); // 16 char
+        const key = crypto.randomBytes(8).toString('hex');
         await pool.query(
             `INSERT INTO bot_sessions (session_key, data, expires_at)
              VALUES ($1, $2, NOW() + make_interval(secs => $3))
@@ -204,94 +205,45 @@ module.exports = function setupBotWebhook(app, deps) {
     }
 
     // ============================================================
-    // QRISPY — persis sesuai snippet
+    // QRISPY FETCH VIA WORKER PROXY
     // ============================================================
-    async function qrispyGenerate(amount, paymentRef = null, returnUrl = null) {
-        if (!QRISPY_API_TOKEN) throw new Error('API_QRISPY belum di-set');
-        const body = { amount };
-        if (paymentRef) body.payment_reference = paymentRef;
-        if (returnUrl) body.return_url = returnUrl;
+    async function qrispyFetch(endpoint, options = {}) {
+        const url = `${QRISPY_BASE}${endpoint}`;
+        dbg('qrispy:req', { url, method: options.method || 'GET' });
+
+        const headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'User-Agent': 'AsyrofOTP-Bot/1.0',
+            ...(options.headers || {}),
+        };
+        // Kalau lo set PROXY_SECRET di bot & worker, ini bakal nge-verifikasi
+        if (PROXY_SECRET) headers['x-proxy-secret'] = PROXY_SECRET;
 
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
         try {
-            const response = await fetch(`${QRISPY_BASE}/api/payment/qris/generate`, {
-                method: 'POST',
-                headers: {
-                    'X-API-Token': QRISPY_API_TOKEN,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'User-Agent': 'AsyrofOTP-Bot/1.0',
-                },
-                body: JSON.stringify(body),
+            const res = await fetch(url, {
+                ...options,
                 signal: controller.signal,
+                headers,
             });
-            const text = await response.text();
-            dbg('qrispy:gen:res', { status: response.status, body: text.slice(0, 1000) });
+            const text = await res.text();
+            dbg('qrispy:res', { status: res.status, body: text.slice(0, 1000) });
             let data;
             try { data = JSON.parse(text); }
             catch (_) {
-                const err = new Error(`qrispy error ${response.status}: response bukan JSON`);
-                err.status = response.status; err.raw = text.slice(0, 1000);
+                const err = new Error(`qrispy error ${res.status}: response bukan JSON`);
+                err.status = res.status; err.endpoint = url; err.raw = text.slice(0, 1000);
                 throw err;
             }
-            if (!response.ok || data.status === 'error') {
-                const err = new Error(data.message || `qrispy HTTP ${response.status}`);
-                err.status = response.status; err.data = data;
+            if (!res.ok || data.status === 'error') {
+                const err = new Error(data.message || `qrispy HTTP ${res.status}`);
+                err.status = res.status; err.endpoint = url; err.data = data;
                 throw err;
             }
             return data;
         } finally { clearTimeout(timeout); }
-    }
-
-    async function qrispyCheckStatus(qrisId) {
-        if (!QRISPY_API_TOKEN) throw new Error('API_QRISPY belum di-set');
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), PROVIDER_TIMEOUT_MS);
-        try {
-            const response = await fetch(`${QRISPY_BASE}/api/payment/qris/${qrisId}/status`, {
-                headers: {
-                    'X-API-Token': QRISPY_API_TOKEN,
-                    'Accept': 'application/json',
-                    'User-Agent': 'AsyrofOTP-Bot/1.0',
-                },
-                signal: controller.signal,
-            });
-            const text = await response.text();
-            dbg('qrispy:status:res', { status: response.status, body: text.slice(0, 1000) });
-            let data;
-            try { data = JSON.parse(text); }
-            catch (_) {
-                const err = new Error(`qrispy status error ${response.status}: bukan JSON`);
-                err.status = response.status; err.raw = text.slice(0, 1000);
-                throw err;
-            }
-            if (!response.ok || data.status === 'error') {
-                const err = new Error(data.message || `qrispy status HTTP ${response.status}`);
-                err.status = response.status; err.data = data;
-                throw err;
-            }
-            return data;
-        } finally { clearTimeout(timeout); }
-    }
-
-    async function qrispyCancel(qrisId) {
-        if (!QRISPY_API_TOKEN) throw new Error('API_QRISPY belum di-set');
-        try {
-            const response = await fetch(`${QRISPY_BASE}/api/payment/qris/${qrisId}/cancel`, {
-                method: 'POST',
-                headers: {
-                    'X-API-Token': QRISPY_API_TOKEN,
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'User-Agent': 'AsyrofOTP-Bot/1.0',
-                },
-            });
-            return await response.json();
-        } catch (err) {
-            dbg('qrispy:cancel:err', err.message);
-            return { status: 'error', message: err.message };
-        }
     }
 
     // ============================================================
@@ -522,7 +474,7 @@ module.exports = function setupBotWebhook(app, deps) {
     }
 
     // ============================================================
-    // BOT
+    // BOT SETUP
     // ============================================================
     const bot = new Telegraf(TOKEN);
 
@@ -537,7 +489,7 @@ module.exports = function setupBotWebhook(app, deps) {
         return data.result;
     }
 
-    // ✅ Tanpa message_effect_id (no api effect)
+    // ✅ Tanpa efek api
     async function sendRich(ctx, html, buttons = []) {
         const payload = { chat_id: ctx.chat.id, rich_message: { html } };
         if (buttons.length) payload.reply_markup = { inline_keyboard: buttons };
@@ -571,7 +523,6 @@ module.exports = function setupBotWebhook(app, deps) {
         } catch (e2) { dbg('editRich:plain-fail', e2.message); throw e2; }
     }
 
-    // ✅ Popup alert tanpa kirim pesan baru
     async function showAlert(ctx, text) {
         try {
             await apiCall('answerCallbackQuery', {
@@ -614,7 +565,7 @@ module.exports = function setupBotWebhook(app, deps) {
     }
 
     // ============================================================
-    // RENDER HOME — full kolom, bold, rapi
+    // RENDER HOME
     // ============================================================
     function renderHome(user) {
         const linkStatus = user.telegram_linked_at ? '✅ Tertaut' : '⚠️ Guest';
@@ -891,17 +842,15 @@ module.exports = function setupBotWebhook(app, deps) {
     });
 
     // ============================================================
-    // STEP 4: BELI — cek saldo dulu, sesi DB
+    // STEP 4: BELI
     // ============================================================
     bot.action(new RegExp('^buy' + SEP + '([a-f0-9]+)$'), async (ctx) => {
         const shortId = ctx.match[1];
         const data = await cbGet(shortId);
 
-        // ✅ Sesi habis: popup warning + auto-refresh list harga
+        // Sesi habis
         if (!data) {
             await showAlert(ctx, '⚠️ Sesi habis, memuat ulang harga...');
-            // Coba ambil context dari message text? Gak bisa reliable.
-            // Fallback: balik ke menu pilih server
             return editRich(ctx,
                 `<b>🔄 Memuat ulang...</b>`,
                 [
@@ -916,7 +865,7 @@ module.exports = function setupBotWebhook(app, deps) {
         const user = await getOrCreateUser(ctx);
         if (!user) return;
 
-        // ✅ CEK SALDO DULU sebelum order ke provider
+        // CEK SALDO DULU
         const uRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [user.id]);
         const balance = Number(uRes.rows[0]?.balance) || 0;
         if (balance < cachedPrice) {
@@ -1106,7 +1055,17 @@ module.exports = function setupBotWebhook(app, deps) {
         if (!user) return;
         try {
             const referenceId = `BOT${Date.now()}${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
-            const data = await qrispyGenerate(amount, referenceId, 'https://asyrofotp.vercel.app');
+            
+            // ✅ Pakai Proxy URL (QRISPY_BASE)
+            const data = await qrispyFetch('/api/payment/qris/generate', {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    amount, 
+                    payment_reference: referenceId,
+                    return_url: 'https://asyrofotp.vercel.app'
+                }),
+            });
+            
             const q = data.data || data;
             if (!q || (!q.qris_image_url && !q.qris_image_base64)) {
                 const err = new Error('Response QRIS gak ada image URL');
@@ -1117,11 +1076,13 @@ module.exports = function setupBotWebhook(app, deps) {
             const qrisUrl = q.qris_image_url || null;
             const expiresAt = q.expired_at ? new Date(q.expired_at) : new Date(Date.now() + 15 * 60 * 1000);
             const ourFee = calculateDepositFee(amount);
+            
             await pool.query(
                 `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
                  VALUES ($1, $2, 'qrispy', $3, $4, $5, 'pending', $6, $7, $8, $9)`,
                 [user.id, referenceId, amount, amount + ourFee, ourFee, qrisId, qrisUrl, referenceId, expiresAt]
             );
+            
             await editRich(ctx,
                 `<b>💳 TOP UP QRIS</b>\n` +
                 `<table bordered striped>\n` +
@@ -1136,6 +1097,7 @@ module.exports = function setupBotWebhook(app, deps) {
                     [btnNormal('🔙 Menu Utama', 'back_home')],
                 ]
             );
+            
             const photo = q.qris_image_base64 || (qrisUrl ? { url: qrisUrl } : null);
             if (photo) {
                 await ctx.replyWithPhoto(photo, {
@@ -1157,9 +1119,11 @@ module.exports = function setupBotWebhook(app, deps) {
             if (!r.rows.length) throw new Error('Deposit tidak ditemukan.');
             const d = r.rows[0];
             let status = d.status;
+            
             if (status === 'pending') {
                 try {
-                    const s = await qrispyCheckStatus(d.qris_id);
+                    // ✅ Cek status via Proxy
+                    const s = await qrispyFetch(`/api/payment/qris/${d.qris_id}/status`);
                     const inner = s.data || s;
                     if (inner.status === 'paid') {
                         await markDepositPaid(d, inner.amount || d.amount, inner.paid_at || inner.paid_time);
@@ -1170,6 +1134,7 @@ module.exports = function setupBotWebhook(app, deps) {
                     }
                 } catch (_) {}
             }
+            
             const html =
                 `<b>💳 Status Deposit</b>\n` +
                 `<table bordered striped>\n` +
@@ -1179,6 +1144,7 @@ module.exports = function setupBotWebhook(app, deps) {
                 `  <tr><td><b>Fee</b></td><td>${toRp(d.fee)}</td></tr>\n` +
                 `  <tr><td><b>Status</b></td><td>${status === 'success' ? '✅ <b>Sukses</b>' : status === 'pending' ? '⏳ Pending' : escapeHtml(status)}</td></tr>\n` +
                 `</table>`;
+            
             await editRich(ctx, html, [
                 [btnPrimary('🔄 Refresh', `dchk${SEP}${ref}`)],
                 [btnNormal('🔙 Menu Utama', 'back_home')],
@@ -1255,7 +1221,8 @@ module.exports = function setupBotWebhook(app, deps) {
             let data;
             if (target === 'dibanana') data = await dibananaFetch(endpoint);
             else if (target === 'premium') data = await premiumFetch(endpoint);
-            else return res.status(400).json({ error: 'target: dibanana|premium' });
+            else if (target === 'qrispy') data = await qrispyFetch(endpoint);
+            else return res.status(400).json({ error: 'target: dibanana|premium|qrispy' });
             res.json({ ok: true, target, endpoint, data });
         } catch (e) {
             res.status(500).json({
