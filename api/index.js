@@ -6532,26 +6532,10 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
             ]);
 
             return res.json({
-                otp: {
-                    sent: Number(otpSentCount.rows[0].count),
-                    pending_backfill: Number(otpPendingCount.rows[0].count),
-                    recent: recentOtp.rows,
-                },
-                deposit: {
-                    sent: Number(depositSentCount.rows[0].count),
-                    pending_backfill: Number(depositPendingCount.rows[0].count),
-                    recent: recentDeposit.rows,
-                },
-                configured: {
-                    bot_token: !!TELEGRAM_BOT_TOKEN,
-                    channel_id: TELEGRAM_CHANNEL_ID || null,
-                    channel_otp: TELEGRAM_CHANNEL_OTP_ID || null,
-                    channel_deposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null,
-                },
-                price_lock: {
-                    size: priceLockCache.size,
-                    max: PRICE_LOCK_MAX_SIZE,
-                },
+                otp: { sent: Number(otpSentCount.rows[0].count), pending_backfill: Number(otpPendingCount.rows[0].count), recent: recentOtp.rows },
+                deposit: { sent: Number(depositSentCount.rows[0].count), pending_backfill: Number(depositPendingCount.rows[0].count), recent: recentDeposit.rows },
+                configured: { bot_token: !!TELEGRAM_BOT_TOKEN, channel_id: TELEGRAM_CHANNEL_ID || null, channel_otp: TELEGRAM_CHANNEL_OTP_ID || null, channel_deposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null },
+                price_lock: { size: priceLockCache.size, max: PRICE_LOCK_MAX_SIZE },
             });
         }
 
@@ -6571,38 +6555,54 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
             };
 
             const displayId = fakeOrder.otp_id;
+            
+            // RICH MESSAGE MURNI (Tabel + Tombol di dalam HTML)
             const text =
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
-                `<u>• Server:</u> <b>Server 2</b>\n` +
-                `<u>• Service:</u> <b>${escapeHtmlNotif(fakeOrder.service_name)}</b>\n` +
-                `<u>• Country:</u> <b>${escapeHtmlNotif(fakeOrder.country_name)}</b>\n` +
-                `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</b>\n` +
-                `<u>• Kode:</u> <b>${escapeHtmlNotif(fakeOrder.otp_code)}</b>\n` +
-                `<u>• Harga:</u> <b>${toRupiahNotif(fakeOrder.price)}</b>\n` +
-                `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>\n\n` +
-                `<i>Ini pesan test. Data tidak disimpan ke DB.</i>`;
+                `<table bordered striped>\n` +
+                `  <thead><tr><th>Informasi</th><th>Detail</th></tr></thead>\n` +
+                `  <tr><td>🆔 <b>OTP ID</b></td><td><code>${escapeHtmlNotif(displayId)}</code></td></tr>\n` +
+                `  <tr><td>🖥️ <b>Server</b></td><td>Server 2 (Premium)</td></tr>\n` +
+                `  <tr><td>📱 <b>Service</b></td><td>${escapeHtmlNotif(fakeOrder.service_name)}</td></tr>\n` +
+                `  <tr><td>🌍 <b>Country</b></td><td>${escapeHtmlNotif(fakeOrder.country_name)}</td></tr>\n` +
+                `  <tr><td>📞 <b>Phone</b></td><td><code>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</code></td></tr>\n` +
+                `  <tr><td>🔑 <b>Kode OTP</b></td><td><b>${escapeHtmlNotif(fakeOrder.otp_code)}</b></td></tr>\n` +
+                `  <tr><td>💰 <b>Harga</b></td><td><b>${toRupiahNotif(fakeOrder.price)}</b></td></tr>\n` +
+                `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
+                `</table>\n\n` +
+                `<i>⚠️ Ini pesan test Rich Message. Data tidak disimpan ke DB.</i>\n\n` +
+                // TOMBOL BERWARNA DI DALAM RICH MESSAGE
+                `<tg-button type="url" url="https://asyrofotp.vercel.app" style="success">🛒 Beli Sekarang</tg-button> ` +
+                `<tg-button type="callback" data="close_test" style="danger">❌ Tutup</tg-button>`;
 
+            // Tidak perlu reply_markup lagi
             const msg = await telegramSendMessage(TELEGRAM_CHANNEL_OTP_ID, text);
             return res.json({ sent: true, message_id: msg.message_id, test_id: displayId });
         }
 
         if (type === 'deposit') {
             const fakeRef = `TEST-DEP-${Date.now()}`;
+            
+            // RICH MESSAGE MURNI (Tabel + Tombol di dalam HTML)
             const text =
                 `<b>💰 [TEST] SUCCESSFUL DEPOSIT</b>\n` +
-                `━━━━━━━━━━━━━━━━━━━━━━\n` +
-                `<u>• User:</u> <b>testuser</b>\n` +
-                `<u>• User Code:</u> <code>SRF0000000001</code>\n` +
-                `<u>• Reference:</u> <code>${escapeHtmlNotif(fakeRef)}</code>\n` +
-                `<u>• Method:</u> <b>QRIS Otomatis</b>\n` +
-                `<u>• Nominal Masuk:</u> <b>${toRupiahNotif(10000)}</b>\n` +
-                `<u>• Total Bayar:</u> <b>${toRupiahNotif(10000)}</b>\n` +
-                `<u>• Fee:</u> <b>${toRupiahNotif(0)}</b>\n` +
-                `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>\n\n` +
-                `<i>Ini pesan test. Data tidak disimpan ke DB.</i>`;
+                `<table bordered striped>\n` +
+                `  <thead><tr><th>Informasi</th><th>Detail</th></tr></thead>\n` +
+                `  <tr><td>👤 <b>User</b></td><td>testuser</td></tr>\n` +
+                `  <tr><td>🆔 <b>User Code</b></td><td><code>SRF0000000001</code></td></tr>\n` +
+                `  <tr><td>🧾 <b>Reference</b></td><td><code>${escapeHtmlNotif(fakeRef)}</code></td></tr>\n` +
+                `  <tr><td>💳 <b>Method</b></td><td>QRIS Otomatis</td></tr>\n` +
+                `  <tr><td>📥 <b>Nominal Masuk</b></td><td><b>${toRupiahNotif(10000)}</b></td></tr>\n` +
+                `  <tr><td>💵 <b>Total Bayar</b></td><td>${toRupiahNotif(10000)}</td></tr>\n` +
+                `  <tr><td>💸 <b>Fee</b></td><td>${toRupiahNotif(0)}</td></tr>\n` +
+                `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
+                `</table>\n\n` +
+                `<i>⚠️ Ini pesan test Rich Message. Data tidak disimpan ke DB.</i>\n\n` +
+                // TOMBOL BERWARNA DI DALAM RICH MESSAGE
+                `<tg-button type="url" url="https://asyrofotp.vercel.app" style="primary">💰 Isi Saldo</tg-button> ` +
+                `<tg-button type="callback" data="close_test" style="danger">❌ Tutup</tg-button>`;
 
+            // Tidak perlu reply_markup lagi
             const msg = await telegramSendMessage(TELEGRAM_CHANNEL_DEPOSIT_ID, text);
             return res.json({ sent: true, message_id: msg.message_id, test_id: fakeRef });
         }
