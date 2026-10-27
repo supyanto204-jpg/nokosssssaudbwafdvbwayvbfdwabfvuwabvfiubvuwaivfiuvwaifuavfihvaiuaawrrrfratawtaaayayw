@@ -212,13 +212,6 @@ if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!')
 
 // cuma 2 server
 const SERVER_CONFIG = {
-    ekonomi: {
-        label: 'Server 1',
-        desc: 'Harga terjangkau, khusus Indonesia',
-        badge: 'MURAH',
-        countries: ['id'],
-        provider: 'server1',
-    },
     premium: {
         label: 'Server 2',
         desc: 'Semua negara, stok lengkap, real SIM',
