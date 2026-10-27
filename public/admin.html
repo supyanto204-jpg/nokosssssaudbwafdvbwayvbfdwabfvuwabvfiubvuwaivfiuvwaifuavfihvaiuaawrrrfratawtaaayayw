@@ -106,7 +106,9 @@ body.sidebar-collapsed .main{margin-left:96px}
 
 /* Stats */
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.stat{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r)}
+.stat{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);transition:background 0.3s;}
+.stat.flash{animation:flash-bg 1s ease-out;}
+@keyframes flash-bg{0%{background:var(--p);}100%{background:var(--surface);}}
 .stat-label{font:600 .62rem var(--mono);color:var(--txt2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
 .stat-value{font:700 1.25rem var(--mono);color:var(--txt);letter-spacing:-.02em}
 
@@ -125,7 +127,8 @@ body.sidebar-collapsed .main{margin-left:96px}
 
 /* List */
 #content{display:flex;flex-direction:column;gap:10px}
-.card{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;gap:10px}
+.card{padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);display:flex;flex-direction:column;gap:10px; transition: background 0.5s;}
+.card.row-new-user { border-left: 4px solid var(--purple); background: color-mix(in srgb, var(--purple) 5%, var(--surface)); }
 .card-header{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;padding-bottom:10px;border-bottom:1px solid var(--border)}
 .card-title{font-weight:600;font-size:.9rem;margin-bottom:2px;word-break:break-word}
 .card-sub{font:.72rem var(--mono);color:var(--txt2);word-break:break-all}
@@ -220,6 +223,11 @@ body.sidebar-collapsed .main{margin-left:96px}
 .gate-text{font:.84rem var(--mono);font-weight:500;color:var(--txt2);text-align:center}
 .gate-text.frozen{color:var(--err)}
 
+/* Login Form */
+.login-form { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 300px; margin-top: 20px; }
+.login-form input { padding: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--txt); text-align: center; font-size: 16px; }
+.login-form button { padding: 12px; border-radius: 8px; border: none; background: var(--p); color: #fff; font-weight: bold; cursor: pointer; font-size: 16px; }
+
 /* Responsive */
 @media (max-width:1024px){
   .stats{grid-template-columns:repeat(2,1fr)}
@@ -259,9 +267,15 @@ body.sidebar-collapsed .main{margin-left:96px}
 </head>
 <body>
 
+<!-- GATE / LOGIN SCREEN -->
 <div class="gate" id="gate">
-  <div class="gate-spinner" id="gateSpinner"></div>
-  <div class="gate-text" id="gateText">Verifikasi akses...</div>
+  <div class="gate-spinner" id="gateSpinner" style="display:none;"></div>
+  <div class="gate-text" id="gateText" style="font-size:1.2rem; font-weight:bold; color:var(--p);">🔒 Admin Access</div>
+  <div class="login-form" id="loginForm">
+    <input type="password" id="adminPw" placeholder="Masukkan ADMIN_PW_UNIK">
+    <button onclick="doAdminLogin()">Buka Akses</button>
+  </div>
+  <div class="gate-text" id="loginError" style="color:var(--err); display:none;">Password Salah!</div>
 </div>
 
 <div id="app" hidden>
@@ -307,10 +321,10 @@ body.sidebar-collapsed .main{margin-left:96px}
 
   <div class="sidebar-footer">
     <div class="user-info">
-      <div class="user-avatar" id="userInitial">?</div>
+      <div class="user-avatar" id="userInitial">A</div>
       <div class="user-details">
-        <div class="user-name" id="userName">—</div>
-        <div class="user-balance" id="userBalance">—</div>
+        <div class="user-name" id="userName">Admin</div>
+        <div class="user-balance" id="userBalance">System</div>
       </div>
       <button class="logout-btn" id="logoutBtn" type="button" title="Keluar">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -342,9 +356,9 @@ body.sidebar-collapsed .main{margin-left:96px}
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="stat-label">Total User</div><div class="stat-value" id="statUsers">—</div></div>
-    <div class="stat"><div class="stat-label">Total Order</div><div class="stat-value" id="statOrders">—</div></div>
-    <div class="stat"><div class="stat-label">Pending Depo</div><div class="stat-value" id="statPending">—</div></div>
+    <div class="stat" id="card-users"><div class="stat-label">Total User</div><div class="stat-value" id="statUsers">—</div></div>
+    <div class="stat" id="card-orders"><div class="stat-label">Total Order</div><div class="stat-value" id="statOrders">—</div></div>
+    <div class="stat" id="card-pending"><div class="stat-label">Pending Depo</div><div class="stat-value" id="statPending">—</div></div>
     <div class="stat"><div class="stat-label">Total Saldo</div><div class="stat-value" id="statBalance">—</div></div>
   </div>
 
@@ -388,6 +402,48 @@ var $=function(id){return D.getElementById(id)};
 var q=function(s,c){return (c||D).querySelector(s)};
 var qa=function(s,c){return Array.prototype.slice.call((c||D).querySelectorAll(s))};
 
+// STATE UNTUK LIVE POLLING
+var adminPw = null;
+var pollInterval = null;
+var isFirstLoad = true;
+var oldStats = { users: 0, orders: 0, pending: 0 };
+const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
+
+// FUNGSI LOGIN
+window.doAdminLogin = async function() {
+  var pw = $('adminPw').value;
+  if(!pw) return;
+  
+  var btn = q('#loginForm button');
+  btn.disabled = true; btn.textContent = "Memverifikasi...";
+  
+  try {
+    var res = await fetch('/api/admin/login-unik', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    var data = await res.json();
+    
+    if(data.ok) {
+      adminPw = pw; // Simpen di memory
+      $('gate').classList.add('hidden');
+      $('app').hidden = false;
+      
+      // Mulai Live Polling
+      loadStats();
+      setActiveTab(getTabFromURL());
+      startPolling();
+    } else {
+      $('loginError').style.display = 'block';
+      btn.disabled = false; btn.textContent = "Buka Akses";
+    }
+  } catch(e) {
+    alert('Gagal konek ke server');
+    btn.disabled = false; btn.textContent = "Buka Akses";
+  }
+};
+
 var Safe=(function(){
   var ls=null;
   try{ls=W.localStorage;ls.setItem('__t','1');ls.removeItem('__t')}catch(e){ls=null}
@@ -399,33 +455,19 @@ var Safe=(function(){
   };
 })();
 
-var token=Safe.get('access_token');
-
 function safeJson(res){return res.json().catch(function(){return{}})}
-
-function esc(v){
-  return String(v??'').replace(/[&<>"']/g,function(ch){
-    return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]
-  })
-}
-
+function esc(v){return String(v??'').replace(/[&<>"']/g,function(ch){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]})}
 function fmtRp(n){return 'Rp'+(Number(n)||0).toLocaleString('id-ID')}
-
 function fmtDate(iso){
   if(!iso)return '—';
-  try{
-    return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})
-  }catch(e){return '—'}
+  try{return new Date(iso).toLocaleString('id-ID',{day:'2-digit',month:'short',year:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return '—'}
 }
-
-function initial(name){
-  return String(name||'?').trim().charAt(0).toUpperCase()||'?'
-}
+function initial(name){return String(name||'?').trim().charAt(0).toUpperCase()||'?'}
 
 async function api(url,opts){
   opts=opts||{};
   var headers=Object.assign({
-    'Authorization':'Bearer '+token,
+    'Authorization':'Bearer '+adminPw, // PAKE PASSWORD ADMIN
     'Content-Type':'application/json'
   },opts.headers||{});
   var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
@@ -438,6 +480,49 @@ async function api(url,opts){
     if(!res.ok)throw new Error(data.error||'Request failed ('+res.status+')');
     return data;
   }finally{if(timer)clearTimeout(timer)}
+}
+
+/* LIVE POLLING */
+function startPolling() {
+    pollInterval = setInterval(fetchLiveData, 5000);
+}
+
+async function fetchLiveData() {
+    try {
+        var data = await api('/api/admin/stats');
+        
+        if(!isFirstLoad) {
+            // Cek apakah ada data baru masuk (User/Order/Pending Depo)
+            if(data.total_users > oldStats.users || data.total_orders > oldStats.orders || data.pending_deposits > oldStats.pending) {
+                audio.play().catch(e => console.log('Audio autoplay diblokir'));
+                if(data.total_users > oldStats.users) flashCard('card-users');
+                if(data.total_orders > oldStats.orders) flashCard('card-orders');
+                if(data.pending_deposits > oldStats.pending) flashCard('card-pending');
+            }
+        }
+        
+        oldStats = { users: data.total_users||0, orders: data.total_orders||0, pending: data.pending_deposits||0 };
+        isFirstLoad = false;
+        
+        $('statUsers').textContent = data.total_users||0;
+        $('statOrders').textContent = data.total_orders||0;
+        $('statPending').textContent = data.pending_deposits||0;
+        $('statBalance').textContent = fmtRp(data.total_balance||0);
+        
+        // Kalau lagi di tab user/order/depo, refresh tabelnya juga tiap 5 detik
+        if(['user', 'order', 'depo'].includes(state.tab)) {
+            loadTab(); 
+        }
+        
+    } catch(e) { console.error('Polling error', e); }
+}
+
+function flashCard(id) {
+    var el = $(id);
+    if(!el) return;
+    el.classList.remove('flash');
+    void el.offsetWidth; // trigger reflow
+    el.classList.add('flash');
 }
 
 /* Alert */
@@ -466,28 +551,6 @@ function showAlert(opts){
 
 function confirmBox(msg,title){
   return showAlert({title:title||'Konfirmasi',message:msg,type:'warning',okText:'Ya',showCancel:true});
-}
-
-/* Copy */
-function copyText(text,btn){
-  var done=function(){
-    if(!btn)return;
-    var orig=btn.innerHTML;
-    btn.innerHTML='✓';
-    setTimeout(function(){btn.innerHTML=orig},1200);
-  };
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(done).catch(function(){fbCopy(text,done)});
-  }else fbCopy(text,done);
-}
-
-function fbCopy(text,done){
-  try{
-    var ta=D.createElement('textarea');
-    ta.value=text;ta.style.cssText='position:fixed;top:-9999px;opacity:0';
-    D.body.appendChild(ta);ta.select();D.execCommand('copy');
-    D.body.removeChild(ta);done();
-  }catch(e){}
 }
 
 /* Theme */
@@ -539,10 +602,9 @@ function fbCopy(text,done){
 
 /* Logout */
 function doLogout(){
-  return api('/api/auth/logout',{method:'POST'}).catch(function(){}).then(function(){
-    Safe.remove('access_token');Safe.remove('user');Safe.remove('refresh_token');
-    W.location.href='/landing';
-  });
+    adminPw = null;
+    clearInterval(pollInterval);
+    W.location.reload();
 }
 var lb=$('logoutBtn');
 if(lb)lb.addEventListener('click',function(){
@@ -656,19 +718,25 @@ function renderPagination(data,onPage){
 /* USERS */
 async function loadUsers(){
   var c=$('content');
-  c.innerHTML=loadingBlock('Memuat users...');
+  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat users...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     var data=await api('/api/admin/users?'+qs.toString());
     if(!data.users||data.users.length===0){c.innerHTML=emptyBlock('Belum ada user');return}
     c.innerHTML=data.users.map(function(u){
       var banned=u.status==='banned';
-      return '<div class="card">'+
+      
+      // Cek user baru (dibuat < 5 menit lalu)
+      var diff = new Date() - new Date(u.created_at);
+      var isNew = diff < (5 * 60 * 1000);
+      
+      return '<div class="card '+(isNew?'row-new-user':'')+'">'+
         '<div class="card-header">'+
           '<div style="flex:1;min-width:0">'+
             '<div class="card-title">'+esc(u.name||u.username)+
               (u.role==='admin'?' <span class="badge info">ADMIN</span>':'')+
               (banned?' <span class="badge danger">BANNED</span>':'')+
+              (isNew?' <span class="badge purple">NEW</span>':'')+
             '</div>'+
             '<div class="card-sub">@'+esc(u.username)+' · '+esc(u.user_code||'—')+'</div>'+
           '</div>'+
@@ -847,7 +915,7 @@ function statusClass(s){
 
 async function loadOrders(){
   var c=$('content');
-  c.innerHTML=loadingBlock('Memuat orders...');
+  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat orders...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     if(state.status)qs.set('status',state.status);
@@ -939,7 +1007,7 @@ async function sendOrderNotif(otpId,force){
 /* DEPOSITS */
 async function loadDeposits(){
   var c=$('content');
-  c.innerHTML=loadingBlock('Memuat deposits...');
+  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat deposits...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     if(state.status)qs.set('status',state.status);
@@ -1249,49 +1317,6 @@ qa('.nav-item').forEach(function(a){
 W.addEventListener('popstate',function(){
   setActiveTab(getTabFromURL());
 });
-
-/* Gate */
-function gateFreeze(msg){
-  var sp=$('gateSpinner'),tx=$('gateText');
-  if(sp)sp.classList.add('frozen');
-  if(tx){tx.classList.add('frozen');tx.textContent=msg||'Akses ditolak'}
-}
-function gateOpen(){
-  var g=$('gate'),app=$('app');
-  if(g)g.classList.add('hidden');
-  if(app)app.hidden=false;
-}
-
-/* INIT */
-(async function(){
-  if(!token){gateFreeze('Token tidak ditemukan. Redirect...');setTimeout(function(){W.location.href='/login'},800);return}
-  try{
-    var user=await api('/api/user');
-    if(!user||!user.username){gateFreeze('Data user invalid');return}
-    if(user.status==='banned'){gateFreeze('Akun diblokir');setTimeout(function(){W.location.href='/landing'},1500);return}
-    var isAdmin=user.role==='admin'||String(user.username).toLowerCase()==='asyrofc'||String(user.user_code)==='SRF2667442394';
-    if(!isAdmin){
-      gateFreeze('Bukan admin');
-      await showAlert({title:'Akses Ditolak',message:'Halaman ini khusus admin.',type:'danger'});
-      W.location.href='/dashboard';
-      return;
-    }
-    var name=user.name||user.username||'—';
-    $('userName').textContent=name;
-    $('userBalance').textContent=fmtRp(user.balance);
-    $('userInitial').textContent=initial(name);
-
-    gateOpen();
-    loadStats();
-    setActiveTab(getTabFromURL());
-  }catch(e){
-    gateFreeze('Gagal verifikasi: '+e.message);
-    if(e.message.indexOf('401')!==-1||e.message.indexOf('403')!==-1){
-      Safe.remove('access_token');
-      setTimeout(function(){W.location.href='/login'},1200);
-    }
-  }
-})();
 
 })();
 </script>
