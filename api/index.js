@@ -3201,15 +3201,16 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         signatureValid = true;
 
         const data = req.body;
-        console.log('=== PAYLOAD DARI DIBANANA ===');
-        console.log(JSON.stringify(data, null, 2));
-        console.log('=============================');
-        console.log('📥 Webhook OTP1:', JSON.stringify({
-            order_id: data.order_id || data.orderId || data.reference,
-            has_otp: !!(data.otp_code || data.otpCode || data.code || data.otp),
-            has_sms: !!(data.full_sms || data.fullSms || data.message),
-        }));
+        console.log('📥 Webhook OTP1:', JSON.stringify(data));
 
+        // 1. Tangkap test webhook dari dibanana (order_id 0 atau ada flag test)
+        if (data.test === true || data.order_id === 0) {
+            console.log('🧪 Test webhook diterima, balas 200 OK.');
+            await logWebhookEvent({ source: 'otp1', eventType: 'test', signatureValid: true, req, payload: req.body, processed: true, processNote: 'TEST_WEBHOOK' });
+            return res.status(200).json({ status: 'ok', message: 'Test received' });
+        }
+
+        // 2. Lanjut proses normal
         const providerOrderId = data.order_id || data.orderId || data.reference;
         const otpCode = data.otp_code || data.otpCode || data.code || data.otp;
         const fullSms = data.full_sms || data.fullSms || data.message || data.sms || '';
