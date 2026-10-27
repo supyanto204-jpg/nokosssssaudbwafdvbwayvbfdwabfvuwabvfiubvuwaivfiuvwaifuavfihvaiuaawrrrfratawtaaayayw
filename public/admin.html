@@ -44,6 +44,26 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* === TOAST NOTIFIKASI (POP-UP HP) === */
+#toast-container {
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 999999; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+}
+.toast {
+  background: var(--surface); border: 3px solid var(--border); border-radius: var(--radius);
+  padding: 15px 20px; box-shadow: var(--shadow); min-width: 300px;
+  display: flex; align-items: center; gap: 15px;
+  animation: slideDown 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  pointer-events: auto;
+}
+.toast.out { animation: slideUp 0.3s forwards; }
+@keyframes slideDown { from { transform: translateY(-150%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-150%); opacity: 0; } }
+.toast-icon { font-size: 24px; }
+.toast-content { flex: 1; }
+.toast-title { font-weight: 800; font-size: 15px; color: var(--primary); margin-bottom: 2px; }
+.toast-msg { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+
 /* === LOADING GATE === */
 .gate {
   position: fixed; inset: 0; z-index: 99999; background: var(--bg);
@@ -281,6 +301,9 @@ body.sidebar-collapsed .main { margin-left: 112px; }
 </head>
 <body>
 
+<!-- CONTAINER TOAST -->
+<div id="toast-container"></div>
+
 <div class="gate" id="gate">
   <div class="gate-spinner" id="gateSpinner"></div>
   <div class="gate-text" id="gateText">Memverifikasi Sesi...</div>
@@ -395,6 +418,20 @@ var pollInterval = null;
 // Audio Notif
 const audio = new Audio("https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3");
 
+// === TOAST NOTIFICATION (POP-UP ATAS) ===
+function showToast(title, msg, icon='🔔') {
+  var container = $('toast-container');
+  var toast = D.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = `<div class="toast-icon">${icon}</div><div class="toast-content"><div class="toast-title">${title}</div><div class="toast-msg">${msg}</div></div>`;
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
 // === UTILS ===
 function safeJson(res){return res.json().catch(function(){return{}})}
 function esc(v){return String(v??'').replace(/[&<>"']/g,function(ch){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]})}
@@ -437,7 +474,7 @@ function showAlert(opts){
 }
 function confirmBox(msg,title){return showAlert({title:title||'Konfirmasi',message:msg,type:'warning',okText:'Ya',showCancel:true})}
 
-// === LIVE POLLING (INTERVAL 5 DETIK) ===
+// === LIVE POLLING (SILENT UPDATE) ===
 function startLivePolling() {
   pollInterval = setInterval(async () => {
     if (token) {
@@ -453,11 +490,20 @@ async function loadStats(){
     
     // Cek jika ada data baru masuk
     if(!isFirstLoad) {
-      if(data.total_users > oldStats.users || data.total_orders > oldStats.orders || data.pending_deposits > oldStats.pending) {
-        audio.play().catch(e => console.log('Notif audio blocked'));
-        if(data.total_users > oldStats.users) flashCard('card-users');
-        if(data.total_orders > oldStats.orders) flashCard('card-orders');
-        if(data.pending_deposits > oldStats.pending) flashCard('card-pending');
+      if(data.total_users > oldStats.users) {
+        audio.play().catch(() => {});
+        showToast('User Baru!', `Total sekarang: ${data.total_users}`, '👤');
+        flashCard('card-users');
+      }
+      if(data.total_orders > oldStats.orders) {
+        audio.play().catch(() => {});
+        showToast('Order Baru!', `Total sekarang: ${data.total_orders}`, '📦');
+        flashCard('card-orders');
+      }
+      if(data.pending_deposits > oldStats.pending) {
+        audio.play().catch(() => {});
+        showToast('Deposit Masuk!', `Pending Depo: ${data.pending_deposits}`, '💰');
+        flashCard('card-pending');
       }
     }
     
@@ -479,9 +525,8 @@ function flashCard(id) {
   el.classList.add('flash');
 }
 
-// === RENDER HELPERS ===
+// === RENDER HELPERS (TANPA LOADING BIAR GA KELAP KELIP) ===
 function emptyBlock(msg){return '<div class="empty"><p>'+esc(msg)+'</p></div>'}
-function loadingBlock(msg){return '<div class="empty"><div class="spinner-sm"></div><p>'+esc(msg)+'</p></div>'}
 function errorBlock(msg){return '<div class="empty"><p style="color:var(--danger)">'+esc(msg)+'</p></div>'}
 
 function renderPagination(data,onPage){
@@ -521,6 +566,7 @@ window.switchTab = function(tab, el) {
   state.status = '';
   $('searchInput').value = '';
   
+  // Render langsung tanpa nunggu loading
   loadTab();
 };
 
@@ -534,13 +580,13 @@ function loadTab(){
   else if(state.tab==='audit')loadAudit();
 }
 
-// === LOAD USERS (FUNGSI ASLI + NEW BADGE) ===
+// === LOAD USERS (FUNGSI ASLI) ===
 async function loadUsers(){
   var c=$('content');
-  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat users...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     var data=await api('/api/admin/users?'+qs.toString());
+    
     if(!data.users||data.users.length===0){c.innerHTML=emptyBlock('Belum ada user');return}
     
     c.innerHTML=data.users.map(function(u){
@@ -580,7 +626,7 @@ async function loadUsers(){
   }catch(e){c.innerHTML=errorBlock(e.message)}
 }
 
-// === BIND ACTIONS (FUNGSI ASLI) ===
+// === BIND ACTIONS ===
 function bindUserActions(){
   qa('[data-act="user-detail"]').forEach(function(b){b.addEventListener('click',function(){showUserDetail(b.dataset.id)})});
   qa('[data-act="user-balance"]').forEach(function(b){b.addEventListener('click',function(){showBalanceModal(b.dataset.id,b.dataset.name,Number(b.dataset.balance))})});
@@ -589,7 +635,6 @@ function bindUserActions(){
   qa('[data-act="user-pass"]').forEach(function(b){b.addEventListener('click',function(){showResetPassModal(b.dataset.id,b.dataset.name)})});
 }
 
-// === MODAL & EDIT SALDO (FUNGSI ASLI) ===
 function openModal(html){
   var m=$('modalContent'),o=$('modal');
   if(!m||!o)return;
@@ -602,7 +647,7 @@ $('modal').addEventListener('click',function(e){if(e.target===$('modal'))closeMo
 D.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal()});
 
 async function showUserDetail(id){
-  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  openModal('<div class="modal-body"><p>Memuat...</p></div>');
   try{
     var data=await api('/api/admin/users/'+encodeURIComponent(id));
     var u=data.user,s=data.stats;
@@ -668,13 +713,13 @@ function showBalanceModal(id,username,current){
     var note=$('balNote').value.trim();
     if(!Number.isFinite(amount)||amount<0)return showAlert({title:'Error',message:'Jumlah harus angka >= 0',type:'danger'});
     var btn=$('balSave');var orig=btn.innerHTML;
-    btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    btn.disabled=true;btn.innerHTML='...';
     try{
       var res=await api('/api/admin/users/'+encodeURIComponent(id)+'/balance',{
         method:'POST',body:JSON.stringify({mode:mode,amount:amount,note:note})
       });
       closeModal();
-      showAlert({title:'Berhasil',message:'Saldo diupdate: '+fmtRp(res.old_balance)+' → '+fmtRp(res.new_balance),type:'success'});
+      showToast('Saldo Diperbarui', 'Berhasil update saldo @'+username, '✅');
       loadUsers();loadStats();
     }catch(e){btn.disabled=false;btn.innerHTML=orig;showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
@@ -694,11 +739,11 @@ function showRoleModal(id,current){
   );
   $('roleSave').addEventListener('click',async function(){
     var role=$('roleSelect').value;
-    var btn=$('roleSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    var btn=$('roleSave');btn.disabled=true;btn.innerHTML='...';
     try{
       await api('/api/admin/users/'+encodeURIComponent(id)+'/role',{method:'POST',body:JSON.stringify({role:role})});
       closeModal();
-      showAlert({title:'Berhasil',message:'Role diubah ke '+role,type:'success'});
+      showToast('Role Diperbarui', 'Berhasil ubah role ke '+role, '✅');
       loadUsers();
     }catch(e){btn.disabled=false;btn.innerHTML='Simpan';showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
@@ -710,7 +755,7 @@ async function toggleBan(id,status){
   if(!ok)return;
   try{
     await api('/api/admin/users/'+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:ns})});
-    showAlert({title:'Berhasil',message:'User di-'+(ns==='banned'?'ban':'unban'),type:'success'});
+    showToast('Status Diperbarui', 'User di-'+(ns==='banned'?'ban':'unban'), '✅');
     loadUsers();
   }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
 }
@@ -727,16 +772,16 @@ function showResetPassModal(id,username){
   $('passSave').addEventListener('click',async function(){
     var np=$('newPass').value.trim();
     if(np.length<6)return showAlert({title:'Error',message:'Minimal 6 karakter',type:'danger'});
-    var btn=$('passSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    var btn=$('passSave');btn.disabled=true;btn.innerHTML='...';
     try{
       await api('/api/admin/users/'+encodeURIComponent(id)+'/reset-password',{method:'POST',body:JSON.stringify({new_password:np})});
       closeModal();
-      showAlert({title:'Berhasil',message:'Password @'+username+' direset',type:'success'});
+      showToast('Password Direset', 'Password @'+username+' berhasil diubah', '✅');
     }catch(e){btn.disabled=false;btn.innerHTML='Reset';showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
 }
 
-// === LOAD ORDERS (FUNGSI ASLI) ===
+// === LOAD ORDERS ===
 function statusClass(s){
   if(['success','received','confirmed'].includes(s))return 'success';
   if(s==='pending')return 'warning';
@@ -747,11 +792,11 @@ function statusClass(s){
 
 async function loadOrders(){
   var c=$('content');
-  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat orders...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     if(state.status)qs.set('status',state.status);
     var data=await api('/api/admin/orders?'+qs.toString());
+    
     if(!data.orders||data.orders.length===0){c.innerHTML=emptyBlock('Belum ada order');return}
     
     c.innerHTML=data.orders.map(function(o){
@@ -781,6 +826,7 @@ async function loadOrders(){
         '</div>'+
       '</div>';
     }).join('');
+    
     bindOrderActions();
     renderPagination(data,function(p){state.page=p;loadOrders()});
   }catch(e){c.innerHTML=errorBlock(e.message)}
@@ -793,7 +839,7 @@ function bindOrderActions(){
 }
 
 async function showOrderDetail(orderId){
-  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  openModal('<div class="modal-body"><p>Memuat...</p></div>');
   try{
     var data=await api('/api/admin/order/'+encodeURIComponent(orderId));
     var o=data.order;
@@ -832,19 +878,19 @@ async function sendOrderNotif(otpId,force){
   if(!ok)return;
   try{
     var res=await api('/api/admin/notif-order/'+encodeURIComponent(otpId),{method:'POST',body:JSON.stringify({force:force})});
-    showAlert({title:'Berhasil',message:'Notif terkirim. Message ID: '+(res.message_id||'—'),type:'success'});
+    showToast('Notif Terkirim', 'Berhasil kirim notif OTP', '✅');
     loadTab();
   }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
 }
 
-// === LOAD DEPOSITS (FUNGSI ASLI) ===
+// === LOAD DEPOSITS ===
 async function loadDeposits(){
   var c=$('content');
-  if(c.innerHTML.indexOf('spinner-sm')===-1) c.innerHTML=loadingBlock('Memuat deposits...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:20,search:state.search});
     if(state.status)qs.set('status',state.status);
     var data=await api('/api/admin/deposits?'+qs.toString());
+    
     if(!data.deposits||data.deposits.length===0){c.innerHTML=emptyBlock('Belum ada deposit');return}
     
     c.innerHTML=data.deposits.map(function(d){
@@ -885,7 +931,7 @@ function bindDepoActions(){
 }
 
 async function showDepoDetail(ref){
-  openModal('<div class="modal-body">'+loadingBlock('Memuat...')+'</div>');
+  openModal('<div class="modal-body"><p>Memuat...</p></div>');
   try{
     var data=await api('/api/admin/deposit/'+encodeURIComponent(ref));
     var d=data.deposit;
@@ -918,12 +964,12 @@ async function sendDepoNotif(ref,force){
   if(!ok)return;
   try{
     var res=await api('/api/admin/notif-deposit/'+encodeURIComponent(ref),{method:'POST',body:JSON.stringify({force:force})});
-    showAlert({title:'Berhasil',message:'Notif terkirim. Message ID: '+(res.message_id||'—'),type:'success'});
+    showToast('Notif Terkirim', 'Berhasil kirim notif deposit', '✅');
     loadTab();
   }catch(e){showAlert({title:'Gagal',message:e.message,type:'danger'})}
 }
 
-// === STATUS MODAL (FUNGSI ASLI) ===
+// === STATUS MODAL ===
 function showStatusModal(type,id,current){
   var statuses=type==='order'?ORDER_STATUSES:DEPO_STATUSES;
   openModal(
@@ -944,23 +990,22 @@ function showStatusModal(type,id,current){
     if(ns===current)return closeModal();
     var ok=await confirmBox('Ubah status dari "'+current+'" ke "'+ns+'"? Saldo user akan disesuaikan.');
     if(!ok)return;
-    var btn=$('statusSave');btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+    var btn=$('statusSave');btn.disabled=true;btn.innerHTML='...';
     try{
       var ep=type==='order'?'/api/admin/order/':'/api/admin/deposit/';
       var res=await api(ep+encodeURIComponent(id)+'/status',{method:'POST',body:JSON.stringify({status:ns,note:note})});
       closeModal();
       var adj=Number(res.balance_adjustment)||0;
       var adjTxt=adj>0?'+'+fmtRp(adj):(adj<0?'-'+fmtRp(Math.abs(adj)):'tidak ada adjustment');
-      showAlert({title:'Berhasil',message:'Status "'+ns+'". Saldo: '+adjTxt,type:'success'});
+      showToast('Status Diubah', 'Status: '+ns+' | Saldo: '+adjTxt, '✅');
       loadTab();loadStats();
     }catch(e){btn.disabled=false;btn.innerHTML='Simpan';showAlert({title:'Gagal',message:e.message,type:'danger'})}
   });
 }
 
-// === MONITOR (FUNGSI ASLI) ===
+// === MONITOR ===
 async function loadMonitor(){
   var c=$('content');
-  c.innerHTML=loadingBlock('Memuat monitor...');
   try{
     var qs=new URLSearchParams({hours:'6',type:'all',limit:'100'});
     var data=await api('/api/admin/webhook-monitor?'+qs.toString());
@@ -995,7 +1040,7 @@ async function loadMonitor(){
   }catch(e){c.innerHTML=errorBlock(e.message)}
 }
 
-// === TOOLS (FUNGSI ASLI) ===
+// === TOOLS ===
 function loadTools(){
   var c=$('content');
   c.innerHTML=
@@ -1032,7 +1077,7 @@ async function runTool(tool,btn){
   resEl.className='tool-result show';
   resEl.textContent='Loading...';
   var orig=btn.innerHTML;
-  btn.disabled=true;btn.innerHTML='<span class="spinner-sm"></span>';
+  btn.disabled=true;btn.innerHTML='...';
 
   try{
     var result;
@@ -1074,10 +1119,9 @@ async function runTool(tool,btn){
   }
 }
 
-// === AUDIT (FUNGSI ASLI) ===
+// === AUDIT ===
 async function loadAudit(){
   var c=$('content');
-  c.innerHTML=loadingBlock('Memuat audit...');
   try{
     var qs=new URLSearchParams({page:state.page,limit:50});
     var data=await api('/api/admin/audit-log?'+qs.toString());
@@ -1127,7 +1171,6 @@ $('statusFilter').addEventListener('change',function(e){
   }
   
   try {
-    // Cek admin pake API asli lo
     var user = await api('/api/user');
     var isAdmin = user.role === 'admin' || String(user.username).toLowerCase() === 'asyrofc' || String(user.user_code) === 'SRF2667442394';
     
@@ -1139,16 +1182,13 @@ $('statusFilter').addEventListener('change',function(e){
       return;
     }
     
-    // Set Info User
     $('userName').innerText = user.name || user.username;
     $('userBalance').innerText = fmtRp(user.balance);
     $('userInitial').innerText = initial(user.name || user.username);
     
-    // Buka aplikasi
     $('gate').classList.add('hidden');
     $('app').hidden = false;
     
-    // Mulai Live Polling 5 Detik
     loadStats();
     loadTab();
     startLivePolling();
@@ -1161,7 +1201,7 @@ $('statusFilter').addEventListener('change',function(e){
   }
 })();
 
-// === EVENT LISTENERS (SIDEBAR DLL) ===
+// === EVENT LISTENERS ===
 $('collapseBtn').addEventListener('click', function() {
   var sb = $('sidebar');
   sb.classList.toggle('collapsed');
@@ -1192,7 +1232,6 @@ $('logoutBtn').addEventListener('click', function() {
   });
 });
 
-// Bind Nav Sidebar
 qa('.nav-item').forEach(n => {
   n.addEventListener('click', function(e) {
     e.preventDefault();
