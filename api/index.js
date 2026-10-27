@@ -3201,6 +3201,9 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         signatureValid = true;
 
         const data = req.body;
+        console.log('=== PAYLOAD DARI DIBANANA ===');
+        console.log(JSON.stringify(data, null, 2));
+        console.log('=============================');
         console.log('📥 Webhook OTP1:', JSON.stringify({
             order_id: data.order_id || data.orderId || data.reference,
             has_otp: !!(data.otp_code || data.otpCode || data.code || data.otp),
