@@ -6522,68 +6522,64 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
 
     try {
         if (type === 'stats') {
-            const [otpSentCount, otpPendingCount, depositSentCount, depositPendingCount, recentOtp, recentDeposit] = await Promise.all([
-                pool.query(`SELECT COUNT(*) FROM orders WHERE notified_at IS NOT NULL`),
-                pool.query(`SELECT COUNT(*) FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
-                pool.query(`SELECT COUNT(*) FROM deposits WHERE notified_at IS NOT NULL`),
-                pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
-                pool.query(`SELECT otp_id, order_id, notified_at FROM orders WHERE notified_at IS NOT NULL ORDER BY notified_at DESC LIMIT 5`),
-                pool.query(`SELECT reference_id, notified_at FROM deposits WHERE notified_at IS NOT NULL ORDER BY notified_at DESC LIMIT 5`),
-            ]);
+            // ... (biarkan sama seperti kodemu sebelumnya)
+            return res.json({ ok: true });
+        }
 
-            return res.json({
-                otp: { sent: Number(otpSentCount.rows[0].count), pending_backfill: Number(otpPendingCount.rows[0].count), recent: recentOtp.rows },
-                deposit: { sent: Number(depositSentCount.rows[0].count), pending_backfill: Number(depositPendingCount.rows[0].count), recent: recentDeposit.rows },
-                configured: { bot_token: !!TELEGRAM_BOT_TOKEN, channel_id: TELEGRAM_CHANNEL_ID || null, channel_otp: TELEGRAM_CHANNEL_OTP_ID || null, channel_deposit: TELEGRAM_CHANNEL_DEPOSIT_ID || null },
-                price_lock: { size: priceLockCache.size, max: PRICE_LOCK_MAX_SIZE },
+        // FUNGSI BANTUAN KHUSUS RICH MESSAGE
+        async function sendRichTest(chatId, htmlContent, buttons = []) {
+            const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
+            const payload = {
+                chat_id: chatId,
+                rich_message: { html: htmlContent }
+            };
+            if (buttons.length) payload.reply_markup = { inline_keyboard: buttons };
+
+            const r = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
+            const d = await r.json();
+            if (!d.ok) throw new Error(`Telegram Error: ${d.description}`);
+            return d.result;
         }
 
         if (type === 'otp') {
-            const fakeOrder = {
-                id: -1,
-                otp_id: `TEST-OTP-${Date.now()}`,
-                order_id: `TEST_ORDER_${Date.now()}`,
-                service_name: 'WhatsApp (TEST)',
-                country_name: 'Indonesia',
-                phone_number: '+6281234567890',
-                otp_code: '123456',
-                otp_code_2: null,
-                price: 1500,
-                server: 'premium',
-                notified_at: null,
-            };
-
-            const displayId = fakeOrder.otp_id;
+            const fakeOrder = { /* ... data fake ... */ };
+            const displayId = `TEST-OTP-${Date.now()}`;
             
-            // RICH MESSAGE MURNI (Tabel + Tombol di dalam HTML)
+            // Tabel doang di dalam HTML
             const text =
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
                 `<table bordered striped>\n` +
                 `  <thead><tr><th>Informasi</th><th>Detail</th></tr></thead>\n` +
                 `  <tr><td>🆔 <b>OTP ID</b></td><td><code>${escapeHtmlNotif(displayId)}</code></td></tr>\n` +
                 `  <tr><td>🖥️ <b>Server</b></td><td>Server 2 (Premium)</td></tr>\n` +
-                `  <tr><td>📱 <b>Service</b></td><td>${escapeHtmlNotif(fakeOrder.service_name)}</td></tr>\n` +
-                `  <tr><td>🌍 <b>Country</b></td><td>${escapeHtmlNotif(fakeOrder.country_name)}</td></tr>\n` +
-                `  <tr><td>📞 <b>Phone</b></td><td><code>${escapeHtmlNotif(censorPhoneNotif(fakeOrder.phone_number))}</code></td></tr>\n` +
-                `  <tr><td>🔑 <b>Kode OTP</b></td><td><b>${escapeHtmlNotif(fakeOrder.otp_code)}</b></td></tr>\n` +
-                `  <tr><td>💰 <b>Harga</b></td><td><b>${toRupiahNotif(fakeOrder.price)}</b></td></tr>\n` +
+                `  <tr><td>📱 <b>Service</b></td><td>WhatsApp (TEST)</td></tr>\n` +
+                `  <tr><td>🌍 <b>Country</b></td><td>Indonesia</td></tr>\n` +
+                `  <tr><td>📞 <b>Phone</b></td><td><code>+62812***7890</code></td></tr>\n` +
+                `  <tr><td>🔑 <b>Kode OTP</b></td><td><b>123456</b></td></tr>\n` +
+                `  <tr><td>💰 <b>Harga</b></td><td><b>Rp 1.500</b></td></tr>\n` +
                 `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
                 `</table>\n\n` +
-                `<i>⚠️ Ini pesan test Rich Message. Data tidak disimpan ke DB.</i>\n\n` +
-                // TOMBOL BERWARNA DI DALAM RICH MESSAGE
-                `<tg-button type="url" url="https://asyrofotp.vercel.app" style="success">🛒 Beli Sekarang</tg-button> ` +
-                `<tg-button type="callback" data="close_test" style="danger">❌ Tutup</tg-button>`;
+                `<i>⚠️ Ini pesan test Rich Message.</i>`;
 
-            // Tidak perlu reply_markup lagi
-            const msg = await telegramSendMessage(TELEGRAM_CHANNEL_OTP_ID, text);
+            // Tombol warna dikirim via reply_markup
+            const buttons = [
+                [
+                    { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' },
+                    { text: '❌ Tutup', callback_data: 'close_test', style: 'danger' }
+                ]
+            ];
+
+            const msg = await sendRichTest(TELEGRAM_CHANNEL_OTP_ID, text, buttons);
             return res.json({ sent: true, message_id: msg.message_id, test_id: displayId });
         }
 
         if (type === 'deposit') {
             const fakeRef = `TEST-DEP-${Date.now()}`;
             
-            // RICH MESSAGE MURNI (Tabel + Tombol di dalam HTML)
             const text =
                 `<b>💰 [TEST] SUCCESSFUL DEPOSIT</b>\n` +
                 `<table bordered striped>\n` +
@@ -6592,18 +6588,21 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 `  <tr><td>🆔 <b>User Code</b></td><td><code>SRF0000000001</code></td></tr>\n` +
                 `  <tr><td>🧾 <b>Reference</b></td><td><code>${escapeHtmlNotif(fakeRef)}</code></td></tr>\n` +
                 `  <tr><td>💳 <b>Method</b></td><td>QRIS Otomatis</td></tr>\n` +
-                `  <tr><td>📥 <b>Nominal Masuk</b></td><td><b>${toRupiahNotif(10000)}</b></td></tr>\n` +
-                `  <tr><td>💵 <b>Total Bayar</b></td><td>${toRupiahNotif(10000)}</td></tr>\n` +
-                `  <tr><td>💸 <b>Fee</b></td><td>${toRupiahNotif(0)}</td></tr>\n` +
+                `  <tr><td>📥 <b>Nominal Masuk</b></td><td><b>Rp 10.000</b></td></tr>\n` +
+                `  <tr><td>💵 <b>Total Bayar</b></td><td>Rp 10.000</td></tr>\n` +
+                `  <tr><td>💸 <b>Fee</b></td><td>Rp 0</td></tr>\n` +
                 `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
                 `</table>\n\n` +
-                `<i>⚠️ Ini pesan test Rich Message. Data tidak disimpan ke DB.</i>\n\n` +
-                // TOMBOL BERWARNA DI DALAM RICH MESSAGE
-                `<tg-button type="url" url="https://asyrofotp.vercel.app" style="primary">💰 Isi Saldo</tg-button> ` +
-                `<tg-button type="callback" data="close_test" style="danger">❌ Tutup</tg-button>`;
+                `<i>⚠️ Ini pesan test Rich Message.</i>`;
 
-            // Tidak perlu reply_markup lagi
-            const msg = await telegramSendMessage(TELEGRAM_CHANNEL_DEPOSIT_ID, text);
+            const buttons = [
+                [
+                    { text: '💰 Isi Saldo', url: 'https://asyrofotp.vercel.app', style: 'primary' },
+                    { text: '❌ Tutup', callback_data: 'close_test', style: 'danger' }
+                ]
+            ];
+
+            const msg = await sendRichTest(TELEGRAM_CHANNEL_DEPOSIT_ID, text, buttons);
             return res.json({ sent: true, message_id: msg.message_id, test_id: fakeRef });
         }
 
