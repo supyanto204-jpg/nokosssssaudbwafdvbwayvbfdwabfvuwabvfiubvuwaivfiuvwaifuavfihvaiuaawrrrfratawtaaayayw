@@ -7357,6 +7357,20 @@ app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     }
 }));
 
+// ==========================================
+// ENDPOINT LOGIN KHUSUS ADMIN DASHBOARD
+// ==========================================
+app.post('/api/admin/login-unik', (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PW_UNIK || 'nisaimut'; // Fallback kalo env kosong
+    
+    if (password === adminPassword) {
+        res.json({ ok: true, message: 'Login Berhasil' });
+    } else {
+        res.status(401).json({ ok: false, error: 'Password Salah!' });
+    }
+});
+
 // cron sync stats
 app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
     try {
