@@ -743,28 +743,48 @@ async function notifyOtpSuccess(order, user = null) {
     const displayId = order.otp_id || order.order_id || '-';
     const serverLabel = order.server === 'premium' ? 'Server 2' : 'Server 1';
 
+    // 1. Bikin HTML Tabel
     const text =
         `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        (user ? `<u>• User:</u> <b>${escapeHtmlNotif(user.username || user.name || '-')}</b>\n` : '') +
-        (user ? `<u>• User ID:</u> <code>${escapeHtmlNotif(user.user_code || '-')}</code>\n` : '') +
-        `<u>• OTP ID:</u> <b>${escapeHtmlNotif(displayId)}</b>\n` +
-        `<u>• Server:</u> <b>${escapeHtmlNotif(serverLabel)}</b>\n` +
-        `<u>• Service:</u> <b>${escapeHtmlNotif(order.service_name || order.service || '-')} - ${escapeHtmlNotif(order.country_name || order.country || '-')}</b>\n` +
-        `<u>• Phone:</u> <b>${escapeHtmlNotif(censorPhoneNotif(order.phone_number))}</b>\n` +
-        `<u>• Kode:</u> <b>${escapeHtmlNotif(order.otp_code || '-')}</b>\n` +
-        (order.otp_code_2 ? `<u>• Kode 2:</u> <b>${escapeHtmlNotif(order.otp_code_2)}</b>\n` : '') +
-        `<u>• Harga:</u> <b>${toRupiahNotif(order.price)}</b>\n` +
-        `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
+        `<table bordered striped>\n` +
+        `  <thead><tr><th>Informasi</th><th>Detail</th></tr></thead>\n` +
+        (user ? `  <tr><td>👤 <b>User</b></td><td>${escapeHtmlNotif(user.username || user.name || '-')}</td></tr>\n` : '') +
+        (user ? `  <tr><td>🆔 <b>User ID</b></td><td><code>${escapeHtmlNotif(user.user_code || '-')}</code></td></tr>\n` : '') +
+        `  <tr><td>📦 <b>OTP ID</b></td><td><b>${escapeHtmlNotif(displayId)}</b></td></tr>\n` +
+        `  <tr><td>🖥️ <b>Server</b></td><td>${escapeHtmlNotif(serverLabel)}</td></tr>\n` +
+        `  <tr><td>📱 <b>Service</b></td><td>${escapeHtmlNotif(order.service_name || order.service || '-')} - ${escapeHtmlNotif(order.country_name || order.country || '-')}</td></tr>\n` +
+        `  <tr><td>📞 <b>Phone</b></td><td><code>${escapeHtmlNotif(censorPhoneNotif(order.phone_number))}</code></td></tr>\n` +
+        `  <tr><td>🔑 <b>Kode</b></td><td><b>${escapeHtmlNotif(order.otp_code || '-')}</b></td></tr>\n` +
+        (order.otp_code_2 ? `  <tr><td>🔑 <b>Kode 2</b></td><td><b>${escapeHtmlNotif(order.otp_code_2)}</b></td></tr>\n` : '') +
+        `  <tr><td>💰 <b>Harga</b></td><td><b>${toRupiahNotif(order.price)}</b></td></tr>\n` +
+        `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
+        `</table>`;
 
+    // 2. Bikin Tombol Warna
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
+            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' }]
         ]
     };
 
     try {
-        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
+        // 3. Tembak ke sendRichMessage
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
+        const payload = {
+            chat_id: channelId,
+            rich_message: { html: text },
+            reply_markup: replyMarkup
+        };
+
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await r.json();
+        if (!data.ok) throw new Error(`Telegram Error: ${data.description}`);
+        const msg = data.result;
 
         await pool.query(
             `UPDATE orders SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
@@ -788,24 +808,44 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         return { sent: false, reason: 'ALREADY_NOTIFIED' };
     }
 
+    // 1. Bikin HTML Tabel
     const text =
         `<b>💰 SUCCESSFUL DEPOSIT</b>\n` +
-        `━━━━━━━━━━━━━━━━━━━━━━\n` +
-        `<u>• User:</u> <b>${escapeHtmlNotif(user?.username || user?.name || '-')}</b>\n` +
-        `<u>• User ID:</u> <code>${escapeHtmlNotif(user?.user_code || '-')}</code>\n` +
-        `<u>• Deposit ID:</u> <code>${escapeHtmlNotif(deposit.reference_id)}</code>\n` +
-        `<u>• Method:</u> <b>QRIS Otomatis</b>\n` +
-        `<u>• Nominal:</u> <b>${toRupiahNotif(saldoMasuk)}</b>\n` +
-        `<u>• Waktu:</u> <code>${formatWaktuJakarta()}</code>`;
+        `<table bordered striped>\n` +
+        `  <thead><tr><th>Informasi</th><th>Detail</th></tr></thead>\n` +
+        `  <tr><td>👤 <b>User</b></td><td>${escapeHtmlNotif(user?.username || user?.name || '-')}</td></tr>\n` +
+        `  <tr><td>🆔 <b>User ID</b></td><td><code>${escapeHtmlNotif(user?.user_code || '-')}</code></td></tr>\n` +
+        `  <tr><td>🧾 <b>Deposit ID</b></td><td><code>${escapeHtmlNotif(deposit.reference_id)}</code></td></tr>\n` +
+        `  <tr><td>💳 <b>Method</b></td><td>QRIS Otomatis</td></tr>\n` +
+        `  <tr><td>📥 <b>Nominal</b></td><td><b>${toRupiahNotif(saldoMasuk)}</b></td></tr>\n` +
+        `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
+        `</table>`;
 
+    // 2. Bikin Tombol Warna
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app' }]
+            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' }]
         ]
     };
 
     try {
-        const msg = await telegramSendMessage(channelId, text, { reply_markup: replyMarkup });
+        // 3. Tembak ke sendRichMessage
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
+        const payload = {
+            chat_id: channelId,
+            rich_message: { html: text },
+            reply_markup: replyMarkup
+        };
+
+        const r = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await r.json();
+        if (!data.ok) throw new Error(`Telegram Error: ${data.description}`);
+        const msg = data.result;
 
         await pool.query(
             `UPDATE deposits SET notified_at = NOW() WHERE id = $1 AND notified_at IS NULL`,
@@ -819,20 +859,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         return { sent: false, reason: 'SEND_ERROR', error: err.message };
     }
 }
-
-// general helpers
-function isValidUsername(username) {
-    return /^[a-zA-Z0-9_]{3,20}$/.test(username);
-}
-
-function signToken(user) {
-    return jwt.sign(
-        { id: user.id, username: user.username, role: user.role, jti: crypto.randomBytes(16).toString('hex') },
-        JWT_SECRET_FINAL,
-        { expiresIn: JWT_EXPIRES }
-    );
-}
-
 // generateUniqueCode() DIHAPUS — eksklusif QRIS DANA (MoonRed)
 
 async function generateUniqueReferenceId(maxRetries = 3) {
