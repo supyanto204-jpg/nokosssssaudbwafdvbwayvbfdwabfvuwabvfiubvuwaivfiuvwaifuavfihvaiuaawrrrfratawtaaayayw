@@ -123,7 +123,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-Signature, x-server1-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-Signature, x-server1-signature, x-banana-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -3177,7 +3177,10 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
-        const signature = req.headers['x-server1-signature'] || req.headers['x-otp1-signature'];
+                // --- UBAH BARIS INI ---
+        const signature = req.headers['x-banana-signature'] || req.headers['x-server1-signature'] || req.headers['x-otp1-signature'];
+        // ----------------------
+        
         if (!signature) {
             await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
             return res.status(401).json({ error: 'No signature' });
