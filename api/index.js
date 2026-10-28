@@ -949,7 +949,7 @@ function requireAdmin(req, res, next) {
 
 // === WRAPPER UNTUK BOT TELEGRAM ===
 async function createDeposit(amount) {
-    const data = await qrispyFetch('/api/payment/qris/create', {
+    const data = await qrispyFetch('/api/payment/qris/generate', {
         method: 'POST',
         body: JSON.stringify({ amount })
     });
