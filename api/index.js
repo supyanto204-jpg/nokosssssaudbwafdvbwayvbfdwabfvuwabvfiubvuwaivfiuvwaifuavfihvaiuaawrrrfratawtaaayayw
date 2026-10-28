@@ -3454,6 +3454,9 @@ const depositSaveHandler = async (req, res) => {
     }
 };
 
+
+
+app.locals.internalHandlers = app.locals.internalHandlers || {};
 // === PUBLIC API: CREATE DEPOSIT ===
 const depositCreateHandler = async (req, res) => {
     const { amount } = req.body;
@@ -3528,7 +3531,6 @@ const depositCreateHandler = async (req, res) => {
 };
 
 app.locals.internalHandlers.depositCreate = depositCreateHandler;
-app.locals.internalHandlers = app.locals.internalHandlers || {};
 app.locals.internalHandlers.depositSave = depositSaveHandler;
 app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(depositSaveHandler));
 
