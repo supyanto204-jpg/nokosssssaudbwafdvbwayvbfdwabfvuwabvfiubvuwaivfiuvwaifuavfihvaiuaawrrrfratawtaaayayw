@@ -198,64 +198,10 @@
       </div>
     </div>
 
-    <!-- ============ API KEY ============ -->
-    <div class="info-card reveal" id="apiKeyCard">
-      <div class="card-header">
-        <div>
-          <h2>API Key</h2>
-          <p>Buat integrasi dengan layanan pihak ketiga</p>
-        </div>
-      </div>
-      <div class="apikey-box">
-        <div class="apikey-row">
-          <code class="apikey-value" id="apiKeyValue">Memuat…</code>
-          <button class="copy-inline-btn" type="button" id="btnCopyApiKey" title="Copy API Key" style="display:none">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          </button>
-        </div>
-        <div class="apikey-status" id="apiKeyStatus"></div>
-        <div class="apikey-actions">
-          <button class="btn btn-sm" type="button" id="btnRotateApiKey">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.85 3.36L1 14"/></svg>
-            Rotate API Key
-          </button>
-          <a class="btn btn-sm" href="/doc/v1" target="_blank" rel="noopener">
-            <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-            API Docs
-          </a>
-        </div>
-        <div class="apikey-hint">
-          Gunakan header <code>X-API-Key</code> atau <code>Authorization: Bearer</code> di setiap request ke <code>/api/v1/*</code>.
-        </div>
-      </div>
-    </div>
-
-    <!-- ============ WEBHOOK ============ -->
-    <div class="info-card reveal" id="webhookCard">
-      <div class="card-header">
-        <div>
-          <h2>Webhook</h2>
-          <p>Terima notifikasi event dari AsyrofOTP</p>
-        </div>
-        <button class="btn btn-sm btn-primary" type="button" id="btnAddWebhook">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Tambah Webhook
-        </button>
-      </div>
-      <div class="webhook-list" id="webhookList">
-        <div class="wh-empty">Memuat…</div>
-      </div>
-      <div class="webhook-hint">
-        Setiap pengiriman menyertakan header <code>X-Asyrof-Signature</code> = <code>sha256=HMAC(body, secret)</code>.
-        Verifikasi pakai secret kamu. Retry otomatis 3× jika gagal.
-      </div>
-    </div>
-
     <footer class="site-footer">
       <div class="site-footer-links">
         <a href="/syarat">Syarat</a>
         <a href="/ketentuan">Ketentuan</a>
-        <a href="/doc/v1">API Docs</a>
       </div>
       <span>© 2026 AsyrofOTP.</span>
     </footer>
@@ -367,52 +313,6 @@
         <button type="submit" class="btn btn-primary" id="btnSaveEmail">
           <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
          Simpan
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ============ WEBHOOK MODAL ============ -->
-<div class="modal-overlay" id="modalWebhook">
-  <div class="modal">
-    <div class="modal-icon">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/><path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/><path d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/></svg>
-    </div>
-    <h2 id="modalWebhookTitle">Tambah Webhook</h2>
-    <p class="modal-subtitle">Event akan diposting ke URL kamu dengan signature</p>
-    <div class="alert" id="alertWebhook"><span id="alertWebhookText"></span></div>
-    <form id="formWebhook" autocomplete="off">
-      <div class="form-group">
-        <label class="form-label" for="inputWebhookUrl">URL Penerima</label>
-        <input type="url" class="form-control" id="inputWebhookUrl" placeholder="https://domain-kamu.com/webhook" required autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label class="form-label" for="inputWebhookDesc">Catatan (opsional)</label>
-        <input type="text" class="form-control" id="inputWebhookDesc" placeholder="misal: bot whatsapp" maxlength="200" autocomplete="off">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Event</label>
-        <div class="wh-events">
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="all" checked> <span>Semua Event</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="order.otp_received"> <span>OTP Masuk</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="order.completed"> <span>Order Selesai</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="order.cancelled"> <span>Order Dibatalkan</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="order.expired"> <span>Order Expired</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="order.refunded"> <span>Order Refund</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="deposit.success"> <span>Deposit Sukses</span></label>
-          <label class="wh-check"><input type="checkbox" name="webhookEvent" value="deposit.expired"> <span>Deposit Expired</span></label>
-        </div>
-      </div>
-      <div class="form-group" style="display:flex;align-items:center;gap:8px">
-        <input type="checkbox" id="inputWebhookActive" checked>
-        <label class="form-label" for="inputWebhookActive" style="margin:0;text-transform:none;letter-spacing:0">Aktif</label>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn" data-modal-close>Batal</button>
-        <button type="submit" class="btn btn-primary" id="btnSaveWebhook">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          Simpan
         </button>
       </div>
     </form>
