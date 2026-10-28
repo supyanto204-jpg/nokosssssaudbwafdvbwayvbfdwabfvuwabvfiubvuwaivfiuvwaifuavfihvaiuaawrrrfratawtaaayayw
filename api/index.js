@@ -3459,7 +3459,7 @@ const depositSaveHandler = async (req, res) => {
 app.locals.internalHandlers = app.locals.internalHandlers || {};
 // === PUBLIC API: CREATE DEPOSIT ===
 const depositCreateHandler = async (req, res) => {
-    const { amount } = req.body;
+    const { amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!amount) {
         return res.status(400).json({ error: 'amount wajib diisi' });
@@ -3470,55 +3470,74 @@ const depositCreateHandler = async (req, res) => {
         return res.status(400).json({ error: 'Nominal tidak valid (min 1000, max 10.000.000)' });
     }
 
+    // Validasi input dari frontend
+    if (!qris_id || !qris_url) {
+        return res.status(400).json({ error: 'qris_id dan qris_url wajib (dari QRISpy frontend)' });
+    }
+
     try {
-        // 1. Minta QRIS baru ke provider (depo1)
-        const data = await createDeposit(amt);
-        
-        // Validasi response dari provider
-        if (!data || !data.id || !data.qr_image) {
-            console.error('Provider create deposit error: invalid response', data);
-            return res.status(500).json({ error: 'Gagal membuat QRIS dari provider' });
+        // 1. Generate reference ID unik
+        const referenceId = await generateUniqueReferenceId();
+        const expiredAt = expired_at ? new Date(expired_at) : new Date(Date.now() + 15 * 60 * 1000);
+        const ourFee = calculateDepositFee(amt);
+
+        // 2. AUTO SAVE ke database (langsung pending)
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            const insertRes = await client.query(
+                `INSERT INTO deposits 
+                 (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+                 RETURNING id, reference_id`,
+                [
+                    req.user.id, 
+                    referenceId, 
+                    'qrispy',
+                    amt,
+                    amt + ourFee,
+                    ourFee,
+                    'pending', 
+                    qris_id, 
+                    qris_url, 
+                    referenceId, 
+                    expiredAt
+                ]
+            );
+
+            await client.query(
+                `INSERT INTO status_logs (entity_type, entity_id, user_id, old_status, new_status, reason, metadata)
+                 VALUES ('deposit', $1, $2, NULL, 'pending', 'api_v1_created', $3)`,
+                [
+                    referenceId, 
+                    req.user.id, 
+                    JSON.stringify({ amount: amt, method: 'qrispy', qris_id, our_fee: ourFee })
+                ]
+            );
+
+            await client.query('COMMIT');
+            console.log(`✅ Deposit auto-saved: ${referenceId} (Rp${amt})`);
+
+        } catch (dbErr) {
+            await client.query('ROLLBACK');
+            console.error('DB save deposit error:', dbErr.message);
+            // Kalau save gagal, jangan lupa batalkan QRIS di provider
+            try { await qrispyFetch(`/api/payment/qris/${qris_id}/cancel`, { method: 'POST' }); } catch (e) {}
+            return res.status(500).json({ error: 'Gagal menyimpan deposit ke database' });
+        } finally {
+            client.release();
         }
 
-        // 2. Generate reference ID unik buat internal kita
-        const referenceId = await generateUniqueReferenceId();
-        const expiredAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
-
-        // 3. Simpan ke database (langsung pending)
-        const ourFee = calculateDepositFee(amt);
-        
-        await pool.query(
-            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [
-                req.user.id, 
-                referenceId, 
-                'qrispy',
-                amt,
-                amt + ourFee,
-                ourFee,
-                'pending', 
-                data.id, 
-                data.qr_image, 
-                referenceId, 
-                expiredAt
-            ]
-        );
-
-        await logStatusChange({
-            entityType: 'deposit', entityId: referenceId, userId: req.user.id,
-            oldStatus: null, newStatus: 'pending', reason: 'api_v1_created',
-            metadata: { amount: amt, method: 'qrispy', qris_id: data.id, our_fee: ourFee },
-        });
-
-        // 4. Return response sesuai format docs v1
+        // 4. Return response ke frontend
         res.json({
             status: 'ok',
             reference_id: referenceId,
-            qris_id: data.id,
-            qris_url: data.qr_image,
+            qris_id: qris_id,
+            qris_url: qris_url,
             amount: amt,
-            expired_at: expiredAt.toISOString()
+            expired_at: expiredAt.toISOString(),
+            expires_in_seconds: expires_in_seconds || 900
         });
 
     } catch (err) {
