@@ -19,7 +19,8 @@
     { "source": "/syarat.html", "destination": "/syarat", "permanent": true },
     { "source": "/link-telegram.html", "destination": "/link-telegram", "permanent": true },
     { "source": "/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html", "destination": "/reset", "permanent": true },
-    { "source": "/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html", "destination": "/forgot", "permanent": true }
+    { "source": "/8nDk-YY9NlMpvtYcFnI31O1aMYdcXit5iZYItXkI7ogforgot.html", "destination": "/forgot", "permanent": true },
+    { "source": "/e-DUtOSieLk8HqVVfh2wVA8QFfXoeFRWzZtkprj2Rb8doc-v1.html", "destination": "/doc/v1", "permanent": true }
   ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.js" },
@@ -37,6 +38,7 @@
     { "source": "/syarat", "destination": "/public/syarat.html" },
     { "source": "/link-telegram", "destination": "/public/link-telegram.html" },
     { "source": "/reset", "destination": "/public/JonFx-sNSLS1MHEW_iRykjNkN_8gxMxg3k3MsggSZdYreset.html" },
+    { "source": "/doc/v1", "destination": "/public/e-DUtOSieLk8HqVVfh2wVA8QFfXoeFRWzZtkprj2Rb8doc-v1.html" },
     { "source": "/(.*)", "destination": "/public/$1" }
   ]
 }
