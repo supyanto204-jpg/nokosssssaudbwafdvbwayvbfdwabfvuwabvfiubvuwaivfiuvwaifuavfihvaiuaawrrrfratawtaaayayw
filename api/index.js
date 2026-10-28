@@ -1,3 +1,7 @@
+// ============================================================
+// PART 1 — Imports, Security, Pool, Config, Helper, Schema
+// ============================================================
+
 const express = require('express');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
@@ -123,7 +127,7 @@ app.use((req, res, next) => {
         res.header('Access-Control-Allow-Credentials', 'true');
     }
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-qrispy-Signature, x-server1-signature, x-banana-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-qrispy-Signature, x-server1-signature, x-banana-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
     if (req.method === 'OPTIONS') return res.sendStatus(204);
     next();
@@ -195,7 +199,7 @@ const JWT_EXPIRES = '30m';
 const REFRESH_EXPIRES_DAYS = 30;
 const SESSION_MAX_AGE_MS = REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
 
-// === SIGN TOKEN HELPER (WAJIB ADA) ===
+// === SIGN TOKEN HELPER ===
 function signToken(user) {
     return jwt.sign(
         {
@@ -207,6 +211,104 @@ function signToken(user) {
         JWT_SECRET_FINAL,
         { expiresIn: JWT_EXPIRES }
     );
+}
+
+// === API KEY PER USER (asyrofotp-16char) ===
+const API_KEY_PREFIX = 'asyrofotp-';
+const API_KEY_RANDOM_LENGTH = 16;
+const API_KEY_CHARSET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+
+function generateApiKey() {
+    const bytes = crypto.randomBytes(API_KEY_RANDOM_LENGTH);
+    let s = '';
+    for (let i = 0; i < API_KEY_RANDOM_LENGTH; i++) s += API_KEY_CHARSET[bytes[i] % API_KEY_CHARSET.length];
+    return API_KEY_PREFIX + s;
+}
+
+function isValidUsername(username) {
+    return /^[a-z0-9_]{3,20}$/i.test(String(username || ''));
+}
+
+async function generateUniqueApiKey(executor = pool, maxRetries = 5) {
+    for (let i = 0; i < maxRetries; i++) {
+        const key = generateApiKey();
+        try {
+            const check = await executor.query('SELECT 1 FROM users WHERE api_key = $1 LIMIT 1', [key]);
+            if (check.rows.length === 0) return key;
+        } catch (err) { /* table belum ada saat boot */ }
+    }
+    return API_KEY_PREFIX + Date.now().toString(36) + crypto.randomBytes(4).toString('hex');
+}
+
+async function ensureUserApiKey(userId) {
+    if (!userId) return null;
+    try {
+        const res = await pool.query('SELECT api_key FROM users WHERE id = $1 LIMIT 1', [userId]);
+        if (res.rows.length === 0) return null;
+        if (res.rows[0].api_key) return res.rows[0].api_key;
+        const newKey = await generateUniqueApiKey();
+        await pool.query(
+            `UPDATE users SET api_key = $1, api_key_created_at = NOW(), updated_at = NOW()
+             WHERE id = $2 AND api_key IS NULL`,
+            [newKey, userId]
+        );
+        return newKey;
+    } catch (err) {
+        console.error('ensureUserApiKey error:', err.message);
+        return null;
+    }
+}
+
+// middleware: autentikasi via API key (buat /api/v1/*)
+async function requireApiKey(req, res, next) {
+    let apiKey = null;
+    const authHeader = req.headers.authorization;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '').trim();
+        if (token.startsWith(API_KEY_PREFIX)) apiKey = token;
+    }
+    if (!apiKey) apiKey = req.headers['x-api-key'];
+    if (!apiKey) apiKey = req.query.api_key;
+
+    if (!apiKey || typeof apiKey !== 'string' || !apiKey.startsWith(API_KEY_PREFIX)) {
+        return res.status(401).json({
+            error: 'API key wajib',
+            hint: 'Format: asyrofotp-XXXXXXXXXXXXXXXX',
+            usage: {
+                bearer: 'Authorization: Bearer asyrofotp-xxx',
+                header: 'X-API-Key: asyrofotp-xxx',
+                query: '?api_key=asyrofotp-xxx',
+            },
+            docs: '/api/v1/docs',
+        });
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT id, username, name, user_code, role, status, balance, api_key
+             FROM users WHERE api_key = $1 LIMIT 1`,
+            [apiKey]
+        );
+        if (result.rows.length === 0) return res.status(401).json({ error: 'API key tidak valid' });
+
+        const user = result.rows[0];
+        if (user.status === 'banned') return res.status(403).json({ error: 'Akun diblokir' });
+
+        // throttle last_used_at: maks 1x per menit
+        pool.query(
+            `UPDATE users SET api_key_last_used_at = NOW()
+             WHERE id = $1 AND (api_key_last_used_at IS NULL OR api_key_last_used_at < NOW() - INTERVAL '1 minute')`,
+            [user.id]
+        ).catch(() => {});
+
+        req.user = { id: user.id, username: user.username, role: user.role || 'user' };
+        req.apiUser = user;
+        next();
+    } catch (err) {
+        console.error('requireApiKey error:', err.message);
+        return res.status(500).json({ error: 'Server error' });
+    }
 }
 
 const CRON_SECRET = process.env.CRON_SECRET;
@@ -224,9 +326,8 @@ const SMScode_PUBLIC_KEY = process.env.SMScode_PUBLIC_KEY;
 if (!PREMIUM_API_KEY) console.error('⚠️  API_SERVER_PREMIUM belum di-set!');
 if (!PREMIUM_WEBHOOK_SECRET) console.error('⚠️  WEBHOOK_OTP2 belum di-set!');
 
-// cuma 2 server
 const SERVER_CONFIG = {
-        ekonomi: {
+    ekonomi: {
         label: 'Server 1',
         desc: 'Harga terjangkau, khusus Indonesia',
         badge: 'MURAH',
@@ -249,7 +350,6 @@ const COUNTRY_NAMES = {
     uk: 'United Kingdom', de: 'Germany', fr: 'France', br: 'Brazil', ng: 'Nigeria',
 };
 
-// depo1 = payment gateway QRIS. nama env tetap biar gak break deploy lama
 const QRISPY_BASE = 'https://cloudflareworkerdeploydidashcloudflarecomexportdef.rahayucahyapurwa.workers.dev';
 const QRISPY_WEBHOOK_SECRET = process.env.PW_WEBHOOK;
 const WEBHOOK_OTP1_SECRET = process.env.WEBHOOK_OTP1;
@@ -281,7 +381,6 @@ function calculateDepositFee(amount) {
     return Math.max(DEPOSIT_FEE_MIN, Math.min(DEPOSIT_FEE_MAX, fee));
 }
 
-// markup 10% pure, dibulatkan ke rupiah. max deviasi 0.5rp dari ideal
 function applyMarkup(providerPrice) {
     const p = Number(providerPrice) || 0;
     if (p <= 0) return 0;
@@ -304,9 +403,7 @@ setInterval(() => {
     for (const [k, v] of cache.entries()) if (now > v.expiresAt) cache.delete(k);
 }, 5 * 60 * 1000);
 
-// price lock — persist tanpa TTL, diganti saat /prices dipanggil ulang.
-// tujuan: user bayar persis sesuai harga di list, gak ada selisih.
-// FIFO 10k entries biar gak numpuk selamanya
+// price lock — persist tanpa TTL
 const PRICE_LOCK_MAX_SIZE = 10000;
 const priceLockCache = new Map();
 
@@ -336,14 +433,527 @@ function getPriceLock(providerId) {
     return priceLockCache.get(String(providerId)) || null;
 }
 
+// schema definitions
+const SCHEMA = {
+    tables: [
+        {
+            name: 'users',
+            create: `CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                name TEXT,
+                balance BIGINT DEFAULT 0,
+                role TEXT DEFAULT 'user',
+                status TEXT DEFAULT 'active',
+                user_code TEXT,
+                last_login_at TIMESTAMPTZ,
+                last_login_ip TEXT,
+                last_device TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'google_id', def: 'TEXT' },
+                { name: 'email', def: 'TEXT' },
+                { name: 'user_code', def: 'TEXT' },
+                { name: 'role', def: "TEXT DEFAULT 'user'" },
+                { name: 'status', def: "TEXT DEFAULT 'active'" },
+                { name: 'name', def: 'TEXT' },
+                { name: 'balance', def: 'BIGINT DEFAULT 0' },
+                { name: 'last_login_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_login_ip', def: 'TEXT' },
+                { name: 'last_device', def: 'TEXT' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'api_key', def: 'TEXT' },
+                { name: 'api_key_created_at', def: 'TIMESTAMPTZ' },
+                { name: 'api_key_last_used_at', def: 'TIMESTAMPTZ' },
+            ],
+        },
+        {
+            name: 'sessions',
+            create: `CREATE TABLE IF NOT EXISTS sessions (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                refresh_token_hash TEXT UNIQUE NOT NULL,
+                jti TEXT NOT NULL,
+                device TEXT,
+                user_agent TEXT,
+                ip_address TEXT,
+                expires_at TIMESTAMPTZ NOT NULL,
+                revoked_at TIMESTAMPTZ,
+                last_used_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'device', def: 'TEXT' },
+                { name: 'user_agent', def: 'TEXT' },
+                { name: 'ip_address', def: 'TEXT' },
+                { name: 'revoked_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_used_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+            ],
+        },
+        {
+            name: 'orders',
+            create: `CREATE TABLE IF NOT EXISTS orders (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                order_id TEXT UNIQUE,
+                otp_id TEXT UNIQUE,
+                server TEXT,
+                service TEXT,
+                service_name TEXT,
+                icon_code TEXT,
+                country TEXT,
+                country_name TEXT,
+                country_flag TEXT,
+                operator TEXT,
+                phone_number TEXT,
+                otp_code TEXT,
+                otp_code_2 TEXT,
+                full_sms TEXT,
+                price BIGINT NOT NULL DEFAULT 0,
+                provider_price BIGINT DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                expires_in INTEGER DEFAULT 0,
+                resend_count INTEGER DEFAULT 0,
+                refunded_at BIGINT,
+                refunded_amount BIGINT,
+                refund_reason TEXT,
+                revived_at TIMESTAMPTZ,
+                revived_count INTEGER DEFAULT 0,
+                notified_at TIMESTAMPTZ,
+                last_synced_at TIMESTAMPTZ,
+                sync_attempt_count INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                received_at TIMESTAMPTZ,
+                last_checked_at TIMESTAMPTZ,
+                expired_at TIMESTAMPTZ
+            );`,
+            columns: [
+                { name: 'otp_id', def: 'TEXT' },
+                { name: 'server', def: 'TEXT' },
+                { name: 'service', def: 'TEXT' },
+                { name: 'service_name', def: 'TEXT' },
+                { name: 'icon_code', def: 'TEXT' },
+                { name: 'country', def: 'TEXT' },
+                { name: 'country_name', def: 'TEXT' },
+                { name: 'country_flag', def: 'TEXT' },
+                { name: 'operator', def: 'TEXT' },
+                { name: 'phone_number', def: 'TEXT' },
+                { name: 'otp_code', def: 'TEXT' },
+                { name: 'otp_code_2', def: 'TEXT' },
+                { name: 'full_sms', def: 'TEXT' },
+                { name: 'price', def: 'BIGINT DEFAULT 0' },
+                { name: 'provider_price', def: 'BIGINT DEFAULT 0' },
+                { name: 'status', def: "TEXT DEFAULT 'pending'" },
+                { name: 'expires_in', def: 'INTEGER DEFAULT 0' },
+                { name: 'resend_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'refunded_at', def: 'BIGINT' },
+                { name: 'refunded_amount', def: 'BIGINT' },
+                { name: 'refund_reason', def: 'TEXT' },
+                { name: 'revived_at', def: 'TIMESTAMPTZ' },
+                { name: 'revived_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'notified_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
+                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'received_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_checked_at', def: 'TIMESTAMPTZ' },
+                { name: 'expired_at', def: 'TIMESTAMPTZ' },
+            ],
+        },
+        {
+            name: 'transactions',
+            create: `CREATE TABLE IF NOT EXISTS transactions (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                order_id TEXT,
+                service_name TEXT,
+                country TEXT,
+                country_flag TEXT,
+                phone_number TEXT,
+                otp_code TEXT,
+                status TEXT DEFAULT 'pending',
+                price BIGINT NOT NULL DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'order_id', def: 'TEXT' },
+                { name: 'service_name', def: 'TEXT' },
+                { name: 'country', def: 'TEXT' },
+                { name: 'country_flag', def: 'TEXT' },
+                { name: 'phone_number', def: 'TEXT' },
+                { name: 'otp_code', def: 'TEXT' },
+                { name: 'status', def: "TEXT DEFAULT 'pending'" },
+                { name: 'price', def: 'BIGINT DEFAULT 0' },
+                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
+            ],
+        },
+        {
+            name: 'rate_limits',
+            create: `CREATE TABLE IF NOT EXISTS rate_limits (
+                id SERIAL PRIMARY KEY,
+                ip_address TEXT,
+                device_id TEXT,
+                action TEXT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: []
+        },
+        {
+            name: 'password_resets',
+            create: `CREATE TABLE IF NOT EXISTS password_resets (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                token TEXT UNIQUE NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                used_at TIMESTAMPTZ,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: []
+        },
+        {
+            name: 'deposits',
+            create: `CREATE TABLE IF NOT EXISTS deposits (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                reference_id TEXT UNIQUE,
+                method TEXT NOT NULL,
+                amount BIGINT NOT NULL,
+                total_amount BIGINT,
+                fee BIGINT DEFAULT 0,
+                status TEXT DEFAULT 'pending',
+                qris_id TEXT,
+                qris_url TEXT,
+                payment_reference TEXT,
+                paid_at TIMESTAMPTZ,
+                expires_at TIMESTAMPTZ,
+                notified_at TIMESTAMPTZ,
+                last_synced_at TIMESTAMPTZ,
+                sync_attempt_count INTEGER DEFAULT 0,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'total_amount', def: 'BIGINT' },
+                { name: 'fee', def: 'BIGINT DEFAULT 0' },
+                { name: 'qris_id', def: 'TEXT' },
+                { name: 'qris_url', def: 'TEXT' },
+                { name: 'payment_reference', def: 'TEXT' },
+                { name: 'paid_at', def: 'TIMESTAMPTZ' },
+                { name: 'expires_at', def: 'TIMESTAMPTZ' },
+                { name: 'notified_at', def: 'TIMESTAMPTZ' },
+                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
+                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
+            ],
+        },
+        {
+            name: 'status_logs',
+            create: `CREATE TABLE IF NOT EXISTS status_logs (
+                id SERIAL PRIMARY KEY,
+                entity_type TEXT NOT NULL,
+                entity_id TEXT NOT NULL,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                old_status TEXT,
+                new_status TEXT NOT NULL,
+                reason TEXT,
+                metadata JSONB,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [],
+        },
+        {
+            name: 'token_blacklist',
+            create: `CREATE TABLE IF NOT EXISTS token_blacklist (
+                jti TEXT PRIMARY KEY,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [],
+        },
+        {
+            name: 'webhook_events',
+            create: `CREATE TABLE IF NOT EXISTS webhook_events (
+                id SERIAL PRIMARY KEY,
+                source TEXT NOT NULL,
+                event_type TEXT,
+                signature_valid BOOLEAN DEFAULT FALSE,
+                ip_address TEXT,
+                user_agent TEXT,
+                payload JSONB,
+                raw_body TEXT,
+                processed BOOLEAN DEFAULT FALSE,
+                process_note TEXT,
+                related_entity_type TEXT,
+                related_entity_id TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );`,
+            columns: [
+                { name: 'event_type', def: 'TEXT' },
+                { name: 'signature_valid', def: 'BOOLEAN DEFAULT FALSE' },
+                { name: 'ip_address', def: 'TEXT' },
+                { name: 'user_agent', def: 'TEXT' },
+                { name: 'payload', def: 'JSONB' },
+                { name: 'raw_body', def: 'TEXT' },
+                { name: 'processed', def: 'BOOLEAN DEFAULT FALSE' },
+                { name: 'process_note', def: 'TEXT' },
+                { name: 'related_entity_type', def: 'TEXT' },
+                { name: 'related_entity_id', def: 'TEXT' },
+            ],
+        },
+    ],
+    indexes: [
+        'CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC)',
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL',
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_api_key ON users(api_key) WHERE api_key IS NOT NULL',
+        'CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_notified ON orders(notified_at, status)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_pending_sync ON orders(status, last_synced_at)',
+        'CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_notified ON deposits(notified_at, status)',
+        'CREATE INDEX IF NOT EXISTS idx_deposits_pending_sync ON deposits(status, last_synced_at)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_created ON status_logs(created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_status_logs_admin ON status_logs(entity_type, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_refresh ON sessions(refresh_token_hash)',
+        'CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(user_id, revoked_at, expires_at)',
+        'CREATE INDEX IF NOT EXISTS idx_webhook_events_source ON webhook_events(source, created_at DESC)',
+        'CREATE INDEX IF NOT EXISTS idx_webhook_events_entity ON webhook_events(related_entity_type, related_entity_id)',
+    ],
+};
+
+let schemaEnsured = false;
+let schemaPromise = null;
+
+async function ensureSchema() {
+    if (schemaEnsured) return;
+    if (schemaPromise) return schemaPromise;
+
+    schemaPromise = (async () => {
+        const start = Date.now();
+        try {
+            console.log('🔧 Ensuring schema...');
+
+            await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
+                if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
+            })));
+
+            const colPromises = [];
+            for (const table of SCHEMA.tables) {
+                if (!table.columns || table.columns.length === 0) continue;
+                for (const col of table.columns) {
+                    colPromises.push(
+                        pool.query(`ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`)
+                            .catch(err => {
+                                if (!err.message.includes('already exists')) {
+                                    console.error(`Add col ${table.name}.${col.name}:`, err.message);
+                                }
+                            })
+                    );
+                }
+            }
+            await Promise.all(colPromises);
+
+            await Promise.all(SCHEMA.indexes.map(idxSql =>
+                pool.query(idxSql).catch(err => {
+                    if (!err.message.includes('already exists')) {
+                        console.error('Index error:', err.message);
+                    }
+                })
+            ));
+
+            await pool.query(`
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'orders_otp_id_key') THEN
+                        BEGIN
+                            ALTER TABLE orders ADD CONSTRAINT orders_otp_id_key UNIQUE (otp_id);
+                        EXCEPTION WHEN others THEN NULL;
+                        END;
+                    END IF;
+                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key') THEN
+                        BEGIN
+                            ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
+                        EXCEPTION WHEN others THEN NULL;
+                        END;
+                    END IF;
+                END $$;
+            `);
+
+            await pool.query(`
+                CREATE OR REPLACE FUNCTION generate_user_code()
+                RETURNS TEXT AS $$
+                DECLARE new_code TEXT; exists_check BOOLEAN;
+                BEGIN
+                    LOOP
+                        new_code := 'SRF' || LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0');
+                        SELECT EXISTS(SELECT 1 FROM users WHERE user_code = new_code) INTO exists_check;
+                        EXIT WHEN NOT exists_check;
+                    END LOOP;
+                    RETURN new_code;
+                END;
+                $$ LANGUAGE plpgsql;
+            `);
+
+            await pool.query(`
+                CREATE OR REPLACE FUNCTION set_user_code()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    IF NEW.user_code IS NULL THEN
+                        NEW.user_code := generate_user_code();
+                    END IF;
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+            `);
+
+            await pool.query(`DROP TRIGGER IF EXISTS trigger_set_user_code ON users;`);
+            await pool.query(`
+                CREATE TRIGGER trigger_set_user_code
+                    BEFORE INSERT ON users
+                    FOR EACH ROW
+                    EXECUTE FUNCTION set_user_code();
+            `);
+
+            await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`).catch(() => {});
+            await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`).catch(() => {});
+
+            // auto-fix data lama
+            await pool.query(`
+                UPDATE orders SET status = 'expired', updated_at = NOW()
+                WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() - INTERVAL '5 minutes'
+            `).catch(err => console.error('Auto-fix expired orders:', err.message));
+
+            await pool.query(`
+                UPDATE orders SET status = 'failed', updated_at = NOW()
+                WHERE status = 'received' AND (otp_code IS NULL OR TRIM(otp_code) = '')
+            `).catch(err => console.error('Auto-fix received no otp:', err.message));
+
+            await pool.query(`
+                UPDATE deposits SET status = 'expired', updated_at = NOW()
+                WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW() - INTERVAL '5 minutes'
+            `).catch(err => console.error('Auto-fix expired deposits:', err.message));
+
+            await pool.query(`
+                UPDATE orders SET notified_at = NULL
+                WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL
+                  AND notified_at IS NOT NULL
+                  AND notified_at < NOW() - INTERVAL '7 days'
+            `).catch(() => {});
+
+            // backfill api_key user lama
+            try {
+                const noKey = await pool.query('SELECT id FROM users WHERE api_key IS NULL LIMIT 200');
+                let filled = 0;
+                for (const u of noKey.rows) {
+                    const k = await generateUniqueApiKey();
+                    const upd = await pool.query(
+                        'UPDATE users SET api_key = $1, api_key_created_at = NOW() WHERE id = $2 AND api_key IS NULL',
+                        [k, u.id]
+                    ).catch(() => null);
+                    if (upd && upd.rowCount > 0) filled++;
+                }
+                if (filled > 0) console.log(`✅ Backfilled api_key untuk ${filled} user lama`);
+            } catch (err) {
+                console.error('Backfill api_key error:', err.message);
+            }
+
+            schemaEnsured = true;
+            console.log(`✅ Schema ensured in ${Date.now() - start}ms`);
+        } catch (err) {
+            console.error('❌ Ensure schema failed:', err.message);
+            schemaPromise = null;
+            throw err;
+        }
+    })();
+
+    return schemaPromise;
+}
+
+// withDB wrapper — pastikan schema siap sebelum handler jalan
+function withDB(handler) {
+    return async (req, res, next) => {
+        if (!schemaEnsured) {
+            try {
+                await ensureSchema();
+            } catch (err) {
+                console.error('withDB error:', err.message);
+                return res.status(500).json({ error: 'Database tidak siap' });
+            }
+        }
+        return handler(req, res, next);
+    };
+}
+
+// cron auth
+function requireCron(req, res, next) {
+    if (!CRON_SECRET) {
+        return res.status(500).json({ error: 'CRON_SECRET belum di-set' });
+    }
+    const provided = req.headers['x-cron-secret'] || req.query.secret;
+    if (!provided) return res.status(401).json({ error: 'Cron secret wajib' });
+    if (provided !== CRON_SECRET) return res.status(401).json({ error: 'Cron secret invalid' });
+    next();
+}
+
+// auth middleware JWT
+async function requireAuth(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const token = authHeader.replace('Bearer ', '');
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET_FINAL);
+
+        if (decoded.jti) {
+            const blacklisted = await isTokenBlacklisted(decoded.jti);
+            if (blacklisted) {
+                return res.status(401).json({ error: 'Token sudah di-logout' });
+            }
+        }
+
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Token invalid atau expired' });
+    }
+}
+
+function requireAdmin(req, res, next) {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+    next();
+}
+
+// ============================================================
+// PART 2 — Provider Fetch, Telegram, Deposit/Refund, Session
+// ============================================================
+
 // === WRAPPER UNTUK BOT TELEGRAM ===
 async function createDeposit(amount) {
-    // Sesuaikan endpoint & body dengan API QRISpy lo
     const data = await qrispyFetch('/api/payment/qris/create', {
         method: 'POST',
         body: JSON.stringify({ amount })
     });
-    return data.data; // return { id, qr_image, diterima, ... }
+    return data.data;
 }
 
 async function checkDepositStatus(depositId) {
@@ -560,7 +1170,6 @@ async function dibananaFetch(endpoint, options = {}) {
     } finally { clearTimeout(timeout); }
 }
 
-// server2 fetch. v1 money = integer IDR, gak ada konversi
 async function premiumFetch(endpoint, options = {}) {
     if (!PREMIUM_API_KEY) throw new Error('API_SERVER_PREMIUM belum di-set');
     const controller = new AbortController();
@@ -703,6 +1312,13 @@ function formatWaktuJakarta() {
     });
 }
 
+function toRpShort(n) {
+    const num = Number(n) || 0;
+    if (num >= 1_000_000) return `Rp${(num / 1_000_000).toFixed(1)}jt`;
+    if (num >= 1_000) return `Rp${(num / 1_000).toFixed(0)}rb`;
+    return `Rp${num}`;
+}
+
 async function telegramSendMessage(channelId, text, options = {}) {
     if (!TELEGRAM_BOT_TOKEN || !channelId) {
         throw new Error('Telegram notif belum dikonfigurasi');
@@ -757,7 +1373,6 @@ async function notifyOtpSuccess(order, user = null) {
     const displayId = order.otp_id || order.order_id || '-';
     const serverLabel = order.server === 'premium' ? 'Server 2' : 'Server 1';
 
-    // 1. Bikin HTML Tabel
     const text =
         `<b>🔔 SUCCESSFULLY GET OTP</b>\n` +
         `<table bordered striped>\n` +
@@ -774,7 +1389,6 @@ async function notifyOtpSuccess(order, user = null) {
         `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
         `</table>`;
 
-    // 2. Bikin Tombol Warna
     const replyMarkup = {
         inline_keyboard: [
             [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' }]
@@ -782,7 +1396,6 @@ async function notifyOtpSuccess(order, user = null) {
     };
 
     try {
-        // 3. Tembak ke sendRichMessage
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
         const payload = {
             chat_id: channelId,
@@ -795,7 +1408,7 @@ async function notifyOtpSuccess(order, user = null) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         const data = await r.json();
         if (!data.ok) throw new Error(`Telegram Error: ${data.description}`);
         const msg = data.result;
@@ -813,7 +1426,7 @@ async function notifyOtpSuccess(order, user = null) {
     }
 }
 
-// notif deposit sukses. identifier pakai reference_id
+// notif deposit sukses
 async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, unique_id) {
     const channelId = TELEGRAM_CHANNEL_DEPOSIT_ID;
     if (!channelId) return { sent: false, reason: 'NO_CHANNEL' };
@@ -822,7 +1435,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         return { sent: false, reason: 'ALREADY_NOTIFIED' };
     }
 
-    // 1. Bikin HTML Tabel
     const text =
         `<b>💰 SUCCESSFUL DEPOSIT</b>\n` +
         `<table bordered striped>\n` +
@@ -835,7 +1447,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         `  <tr><td>⏰ <b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n` +
         `</table>`;
 
-    // 2. Bikin Tombol Warna
     const replyMarkup = {
         inline_keyboard: [
             [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' }]
@@ -843,7 +1454,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
     };
 
     try {
-        // 3. Tembak ke sendRichMessage
         const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
         const payload = {
             chat_id: channelId,
@@ -856,7 +1466,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
-        
+
         const data = await r.json();
         if (!data.ok) throw new Error(`Telegram Error: ${data.description}`);
         const msg = data.result;
@@ -873,7 +1483,6 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
         return { sent: false, reason: 'SEND_ERROR', error: err.message };
     }
 }
-// generateUniqueCode() DIHAPUS — eksklusif QRIS DANA (MoonRed)
 
 async function generateUniqueReferenceId(maxRetries = 3) {
     for (let i = 0; i < maxRetries; i++) {
@@ -1068,503 +1677,11 @@ async function revokeAllUserSessions(userId, exceptSessionId = null) {
     }
 }
 
-// schema definitions
-const SCHEMA = {
-    tables: [
-        {
-            name: 'users',
-            create: `CREATE TABLE IF NOT EXISTS users (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                name TEXT,
-                balance BIGINT DEFAULT 0,
-                role TEXT DEFAULT 'user',
-                status TEXT DEFAULT 'active',
-                user_code TEXT,
-                last_login_at TIMESTAMPTZ,
-                last_login_ip TEXT,
-                last_device TEXT,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [
-                { name: 'google_id', def: 'TEXT' },
-                { name: 'email', def: 'TEXT' },
-                { name: 'user_code', def: 'TEXT' },
-                { name: 'role', def: "TEXT DEFAULT 'user'" },
-                { name: 'status', def: "TEXT DEFAULT 'active'" },
-                { name: 'name', def: 'TEXT' },
-                { name: 'balance', def: 'BIGINT DEFAULT 0' },
-                { name: 'last_login_at', def: 'TIMESTAMPTZ' },
-                { name: 'last_login_ip', def: 'TEXT' },
-                { name: 'last_device', def: 'TEXT' },
-                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-            ],
-        },
-        {
-            name: 'sessions',
-            create: `CREATE TABLE IF NOT EXISTS sessions (
-                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                refresh_token_hash TEXT UNIQUE NOT NULL,
-                jti TEXT NOT NULL,
-                device TEXT,
-                user_agent TEXT,
-                ip_address TEXT,
-                expires_at TIMESTAMPTZ NOT NULL,
-                revoked_at TIMESTAMPTZ,
-                last_used_at TIMESTAMPTZ DEFAULT NOW(),
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [
-                { name: 'device', def: 'TEXT' },
-                { name: 'user_agent', def: 'TEXT' },
-                { name: 'ip_address', def: 'TEXT' },
-                { name: 'revoked_at', def: 'TIMESTAMPTZ' },
-                { name: 'last_used_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-            ],
-        },
-        {
-            name: 'orders',
-            create: `CREATE TABLE IF NOT EXISTS orders (
-                id SERIAL PRIMARY KEY,
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                order_id TEXT UNIQUE,
-                otp_id TEXT UNIQUE,
-                server TEXT,
-                service TEXT,
-                service_name TEXT,
-                icon_code TEXT,
-                country TEXT,
-                country_name TEXT,
-                country_flag TEXT,
-                operator TEXT,
-                phone_number TEXT,
-                otp_code TEXT,
-                otp_code_2 TEXT,
-                full_sms TEXT,
-                price BIGINT NOT NULL DEFAULT 0,
-                provider_price BIGINT DEFAULT 0,
-                status TEXT DEFAULT 'pending',
-                expires_in INTEGER DEFAULT 0,
-                resend_count INTEGER DEFAULT 0,
-                refunded_at BIGINT,
-                refunded_amount BIGINT,
-                refund_reason TEXT,
-                revived_at TIMESTAMPTZ,
-                revived_count INTEGER DEFAULT 0,
-                notified_at TIMESTAMPTZ,
-                last_synced_at TIMESTAMPTZ,
-                sync_attempt_count INTEGER DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW(),
-                received_at TIMESTAMPTZ,
-                last_checked_at TIMESTAMPTZ,
-                expired_at TIMESTAMPTZ
-            );`,
-            columns: [
-                { name: 'otp_id', def: 'TEXT' },
-                { name: 'server', def: 'TEXT' },
-                { name: 'service', def: 'TEXT' },
-                { name: 'service_name', def: 'TEXT' },
-                { name: 'icon_code', def: 'TEXT' },
-                { name: 'country', def: 'TEXT' },
-                { name: 'country_name', def: 'TEXT' },
-                { name: 'country_flag', def: 'TEXT' },
-                { name: 'operator', def: 'TEXT' },
-                { name: 'phone_number', def: 'TEXT' },
-                { name: 'otp_code', def: 'TEXT' },
-                { name: 'otp_code_2', def: 'TEXT' },
-                { name: 'full_sms', def: 'TEXT' },
-                { name: 'price', def: 'BIGINT DEFAULT 0' },
-                { name: 'provider_price', def: 'BIGINT DEFAULT 0' },
-                { name: 'status', def: "TEXT DEFAULT 'pending'" },
-                { name: 'expires_in', def: 'INTEGER DEFAULT 0' },
-                { name: 'resend_count', def: 'INTEGER DEFAULT 0' },
-                { name: 'refunded_at', def: 'BIGINT' },
-                { name: 'refunded_amount', def: 'BIGINT' },
-                { name: 'refund_reason', def: 'TEXT' },
-                { name: 'revived_at', def: 'TIMESTAMPTZ' },
-                { name: 'revived_count', def: 'INTEGER DEFAULT 0' },
-                { name: 'notified_at', def: 'TIMESTAMPTZ' },
-                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
-                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
-                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-                { name: 'received_at', def: 'TIMESTAMPTZ' },
-                { name: 'last_checked_at', def: 'TIMESTAMPTZ' },
-                { name: 'expired_at', def: 'TIMESTAMPTZ' },
-            ],
-        },
-        {
-            name: 'transactions',
-            create: `CREATE TABLE IF NOT EXISTS transactions (
-                id SERIAL PRIMARY KEY,
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                order_id TEXT,
-                service_name TEXT,
-                country TEXT,
-                country_flag TEXT,
-                phone_number TEXT,
-                otp_code TEXT,
-                status TEXT DEFAULT 'pending',
-                price BIGINT NOT NULL DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [
-                { name: 'order_id', def: 'TEXT' },
-                { name: 'service_name', def: 'TEXT' },
-                { name: 'country', def: 'TEXT' },
-                { name: 'country_flag', def: 'TEXT' },
-                { name: 'phone_number', def: 'TEXT' },
-                { name: 'otp_code', def: 'TEXT' },
-                { name: 'status', def: "TEXT DEFAULT 'pending'" },
-                { name: 'price', def: 'BIGINT DEFAULT 0' },
-                { name: 'created_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-                { name: 'updated_at', def: 'TIMESTAMPTZ DEFAULT NOW()' },
-            ],
-        },
-                {
-            name: 'rate_limits',
-            create: `CREATE TABLE IF NOT EXISTS rate_limits (
-                id SERIAL PRIMARY KEY,
-                ip_address TEXT,
-                device_id TEXT,
-                action TEXT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: []
-        },
-                {
-            name: 'password_resets',
-            create: `CREATE TABLE IF NOT EXISTS password_resets (
-                id SERIAL PRIMARY KEY,
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                token TEXT UNIQUE NOT NULL,
-                expires_at TIMESTAMPTZ NOT NULL,
-                used_at TIMESTAMPTZ,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: []
-        },
-        {
-            name: 'deposits',
-            // unique_code & qris_string dihapus — eksklusif QRIS DANA
-            create: `CREATE TABLE IF NOT EXISTS deposits (
-                id SERIAL PRIMARY KEY,
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                reference_id TEXT UNIQUE,
-                method TEXT NOT NULL,
-                amount BIGINT NOT NULL,
-                total_amount BIGINT,
-                fee BIGINT DEFAULT 0,
-                status TEXT DEFAULT 'pending',
-                qris_id TEXT,
-                qris_url TEXT,
-                payment_reference TEXT,
-                paid_at TIMESTAMPTZ,
-                expires_at TIMESTAMPTZ,
-                notified_at TIMESTAMPTZ,
-                last_synced_at TIMESTAMPTZ,
-                sync_attempt_count INTEGER DEFAULT 0,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [
-                { name: 'total_amount', def: 'BIGINT' },
-                { name: 'fee', def: 'BIGINT DEFAULT 0' },
-                { name: 'qris_id', def: 'TEXT' },
-                { name: 'qris_url', def: 'TEXT' },
-                { name: 'payment_reference', def: 'TEXT' },
-                { name: 'paid_at', def: 'TIMESTAMPTZ' },
-                { name: 'expires_at', def: 'TIMESTAMPTZ' },
-                { name: 'notified_at', def: 'TIMESTAMPTZ' },
-                { name: 'last_synced_at', def: 'TIMESTAMPTZ' },
-                { name: 'sync_attempt_count', def: 'INTEGER DEFAULT 0' },
-            ],
-        },
-        {
-            name: 'status_logs',
-            create: `CREATE TABLE IF NOT EXISTS status_logs (
-                id SERIAL PRIMARY KEY,
-                entity_type TEXT NOT NULL,
-                entity_id TEXT NOT NULL,
-                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
-                old_status TEXT,
-                new_status TEXT NOT NULL,
-                reason TEXT,
-                metadata JSONB,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [],
-        },
-        {
-            name: 'token_blacklist',
-            create: `CREATE TABLE IF NOT EXISTS token_blacklist (
-                jti TEXT PRIMARY KEY,
-                expires_at TIMESTAMPTZ NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [],
-        },
-        {
-            name: 'webhook_events',
-            create: `CREATE TABLE IF NOT EXISTS webhook_events (
-                id SERIAL PRIMARY KEY,
-                source TEXT NOT NULL,
-                event_type TEXT,
-                signature_valid BOOLEAN DEFAULT FALSE,
-                ip_address TEXT,
-                user_agent TEXT,
-                payload JSONB,
-                raw_body TEXT,
-                processed BOOLEAN DEFAULT FALSE,
-                process_note TEXT,
-                related_entity_type TEXT,
-                related_entity_id TEXT,
-                created_at TIMESTAMPTZ DEFAULT NOW()
-            );`,
-            columns: [
-                { name: 'event_type', def: 'TEXT' },
-                { name: 'signature_valid', def: 'BOOLEAN DEFAULT FALSE' },
-                { name: 'ip_address', def: 'TEXT' },
-                { name: 'user_agent', def: 'TEXT' },
-                { name: 'payload', def: 'JSONB' },
-                { name: 'raw_body', def: 'TEXT' },
-                { name: 'processed', def: 'BOOLEAN DEFAULT FALSE' },
-                { name: 'process_note', def: 'TEXT' },
-                { name: 'related_entity_type', def: 'TEXT' },
-                { name: 'related_entity_id', def: 'TEXT' },
-            ],
-        },
-    ],
-    indexes: [
-        'CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id, created_at DESC)',
-        'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL',
-        'CREATE INDEX IF NOT EXISTS idx_orders_order_id ON orders(order_id)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_otp_id ON orders(otp_id)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_status_expiry ON orders(status, expired_at)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_refunded ON orders(user_id, refunded_at)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_user_status ON orders(user_id, status, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_notified ON orders(notified_at, status)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_pending_sync ON orders(status, last_synced_at)',
-        'CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_user ON deposits(user_id, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_ref ON deposits(reference_id)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_qris ON deposits(qris_id)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_status ON deposits(status, expires_at)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_notified ON deposits(notified_at, status)',
-        'CREATE INDEX IF NOT EXISTS idx_deposits_pending_sync ON deposits(status, last_synced_at)',
-        'CREATE INDEX IF NOT EXISTS idx_status_logs_entity ON status_logs(entity_type, entity_id, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_status_logs_user ON status_logs(user_id, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_status_logs_created ON status_logs(created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_status_logs_admin ON status_logs(entity_type, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at)',
-        'CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_sessions_refresh ON sessions(refresh_token_hash)',
-        'CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(user_id, revoked_at, expires_at)',
-        'CREATE INDEX IF NOT EXISTS idx_webhook_events_source ON webhook_events(source, created_at DESC)',
-        'CREATE INDEX IF NOT EXISTS idx_webhook_events_entity ON webhook_events(related_entity_type, related_entity_id)',
-    ],
-};
-
-let schemaEnsured = false;
-let schemaPromise = null;
-
-async function ensureSchema() {
-    if (schemaEnsured) return;
-    if (schemaPromise) return schemaPromise;
-
-    schemaPromise = (async () => {
-        const start = Date.now();
-        try {
-            console.log('🔧 Ensuring schema...');
-
-            await Promise.all(SCHEMA.tables.map(t => pool.query(t.create).catch(err => {
-                if (!err.message.includes('already exists')) console.error(`Create ${t.name}:`, err.message);
-            })));
-
-            const colPromises = [];
-            for (const table of SCHEMA.tables) {
-                if (!table.columns || table.columns.length === 0) continue;
-                for (const col of table.columns) {
-                    colPromises.push(
-                        pool.query(`ALTER TABLE ${table.name} ADD COLUMN IF NOT EXISTS ${col.name} ${col.def}`)
-                            .catch(err => {
-                                if (!err.message.includes('already exists')) {
-                                    console.error(`Add col ${table.name}.${col.name}:`, err.message);
-                                }
-                            })
-                    );
-                }
-            }
-            await Promise.all(colPromises);
-
-            await Promise.all(SCHEMA.indexes.map(idxSql =>
-                pool.query(idxSql).catch(err => {
-                    if (!err.message.includes('already exists')) {
-                        console.error('Index error:', err.message);
-                    }
-                })
-            ));
-
-            await pool.query(`
-                DO $$
-                BEGIN
-                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'orders_otp_id_key') THEN
-                        BEGIN
-                            ALTER TABLE orders ADD CONSTRAINT orders_otp_id_key UNIQUE (otp_id);
-                        EXCEPTION WHEN others THEN NULL;
-                        END;
-                    END IF;
-                    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'users_user_code_key') THEN
-                        BEGIN
-                            ALTER TABLE users ADD CONSTRAINT users_user_code_key UNIQUE (user_code);
-                        EXCEPTION WHEN others THEN NULL;
-                        END;
-                    END IF;
-                END $$;
-            `);
-
-            await pool.query(`
-                CREATE OR REPLACE FUNCTION generate_user_code()
-                RETURNS TEXT AS $$
-                DECLARE new_code TEXT; exists_check BOOLEAN;
-                BEGIN
-                    LOOP
-                        new_code := 'SRF' || LPAD(FLOOR(RANDOM() * 10000000000)::TEXT, 10, '0');
-                        SELECT EXISTS(SELECT 1 FROM users WHERE user_code = new_code) INTO exists_check;
-                        EXIT WHEN NOT exists_check;
-                    END LOOP;
-                    RETURN new_code;
-                END;
-                $$ LANGUAGE plpgsql;
-            `);
-
-            await pool.query(`
-                CREATE OR REPLACE FUNCTION set_user_code()
-                RETURNS TRIGGER AS $$
-                BEGIN
-                    IF NEW.user_code IS NULL THEN
-                        NEW.user_code := generate_user_code();
-                    END IF;
-                    RETURN NEW;
-                END;
-                $$ LANGUAGE plpgsql;
-            `);
-
-            await pool.query(`DROP TRIGGER IF EXISTS trigger_set_user_code ON users;`);
-            await pool.query(`
-                CREATE TRIGGER trigger_set_user_code
-                    BEFORE INSERT ON users
-                    FOR EACH ROW
-                    EXECUTE FUNCTION set_user_code();
-            `);
-
-            await pool.query(`UPDATE users SET user_code = generate_user_code() WHERE user_code IS NULL;`).catch(() => {});
-            await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`).catch(() => {});
-
-            // auto-fix data lama yang stale
-            await pool.query(`
-                UPDATE orders SET status = 'expired', updated_at = NOW()
-                WHERE status = 'pending' AND expired_at IS NOT NULL AND expired_at < NOW() - INTERVAL '5 minutes'
-            `).catch(err => console.error('Auto-fix expired orders:', err.message));
-
-            await pool.query(`
-                UPDATE orders SET status = 'failed', updated_at = NOW()
-                WHERE status = 'received' AND (otp_code IS NULL OR TRIM(otp_code) = '')
-            `).catch(err => console.error('Auto-fix received no otp:', err.message));
-
-            await pool.query(`
-                UPDATE deposits SET status = 'expired', updated_at = NOW()
-                WHERE status = 'pending' AND expires_at IS NOT NULL AND expires_at < NOW() - INTERVAL '5 minutes'
-            `).catch(err => console.error('Auto-fix expired deposits:', err.message));
-
-            await pool.query(`
-                UPDATE orders SET notified_at = NULL
-                WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL
-                  AND notified_at IS NOT NULL
-                  AND notified_at < NOW() - INTERVAL '7 days'
-            `).catch(() => {});
-
-            schemaEnsured = true;
-            console.log(`✅ Schema ensured in ${Date.now() - start}ms`);
-        } catch (err) {
-            console.error('❌ Ensure schema failed:', err.message);
-            schemaPromise = null;
-            throw err;
-        }
-    })();
-
-    return schemaPromise;
-}
-
-// withDB wrapper — pastikan schema siap sebelum handler jalan
-function withDB(handler) {
-    return async (req, res, next) => {
-        if (!schemaEnsured) {
-            try {
-                await ensureSchema();
-            } catch (err) {
-                console.error('withDB error:', err.message);
-                return res.status(500).json({ error: 'Database tidak siap' });
-            }
-        }
-        return handler(req, res, next);
-    };
-}
-
-// cron auth
-function requireCron(req, res, next) {
-    if (!CRON_SECRET) {
-        return res.status(500).json({ error: 'CRON_SECRET belum di-set' });
-    }
-    const provided = req.headers['x-cron-secret'] || req.query.secret;
-    if (!provided) return res.status(401).json({ error: 'Cron secret wajib' });
-    if (provided !== CRON_SECRET) return res.status(401).json({ error: 'Cron secret invalid' });
-    next();
-}
-
-// auth middleware
-async function requireAuth(req, res, next) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const token = authHeader.replace('Bearer ', '');
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET_FINAL);
-
-        if (decoded.jti) {
-            const blacklisted = await isTokenBlacklisted(decoded.jti);
-            if (blacklisted) {
-                return res.status(401).json({ error: 'Token sudah di-logout' });
-            }
-        }
-
-        req.user = decoded;
-        next();
-    } catch (err) {
-        return res.status(401).json({ error: 'Token invalid atau expired' });
-    }
-}
-
-function requireAdmin(req, res, next) {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
-    next();
-}
-
-
 // mark deposit paid. dipanggil dari webhook / sync / admin approve
 async function markDepositPaid(deposit, receivedAmount, paidAt) {
     const saldoMasuk = Number(deposit.amount);
     const totalBayar = Number(receivedAmount) || Number(deposit.total_amount) || saldoMasuk;
 
-    // fee = gateway + profit kita (digabung biar user lihat 1 angka)
     const gatewayFee = Math.max(0, totalBayar - saldoMasuk);
     const storedFee = Number(deposit.fee) || 0;
     const ourFee = storedFee > 0 ? storedFee : calculateDepositFee(saldoMasuk);
@@ -1634,7 +1751,7 @@ async function markDepositPaid(deposit, receivedAmount, paidAt) {
     return { alreadyProcessed: false, saldoMasuk, totalBayar, fee, gatewayFee, ourFee, freshDeposit, userData };
 }
 
-// sync deposit — qrispy only. qris_dana sudah dihapus.
+// sync deposit — qrispy only
 async function syncDepositStatus(deposit) {
     if (['success', 'cancelled', 'failed', 'refunded'].includes(deposit.status)) return deposit;
 
@@ -1642,7 +1759,6 @@ async function syncDepositStatus(deposit) {
     const expiresAt = deposit.expires_at ? new Date(deposit.expires_at) : null;
 
     if (deposit.method === 'qrispy' && deposit.status === 'pending') {
-        // expired dulu, tapi cek dulu ke provider siapa tau udah dibayar
         if (expiresAt && expiresAt < now) {
             if (deposit.qris_id) {
                 try {
@@ -1707,7 +1823,7 @@ async function syncDepositStatus(deposit) {
     return deposit;
 }
 
-// refund order. idempotent, aman kalau double-call
+// refund order. idempotent
 async function refundOrder(order, reason = 'auto_refund') {
     const o = order;
 
@@ -1766,7 +1882,7 @@ async function refundOrder(order, reason = 'auto_refund') {
     }
 }
 
-// cancel + refund. dipakai cron, cek-otp, sync
+// cancel + refund
 async function autoCancelAndRefund(order) {
     const fresh = await pool.query('SELECT * FROM orders WHERE id = $1', [order.id]);
     if (fresh.rows.length === 0) return { refunded: false };
@@ -1812,7 +1928,6 @@ async function autoCancelAndRefund(order) {
     return { refunded: refundRes.refunded, refundedAmount: refundRes.amount, orderId: o.order_id, otpId: o.otp_id };
 }
 
-// cek + refund semua order pending milik user
 async function checkAndRefundUserOrders(userId) {
     const refunded = [];
 
@@ -1858,7 +1973,7 @@ async function checkAndRefundUserOrders(userId) {
     return refunded;
 }
 
-// cari order user. terima otp_id atau order_id provider
+// cari order user
 async function findUserOrder(userId, identifier) {
     if (!identifier) return null;
     const idStr = String(identifier).trim();
@@ -1878,7 +1993,7 @@ async function findUserOrder(userId, identifier) {
     return null;
 }
 
-// sync 1 order. no-op kalau udah final state
+// sync 1 order
 async function autoSyncOrder(order) {
     if (['received', 'success', 'confirmed', 'cancelled', 'failed', 'expired', 'refunded'].includes(order.status)) {
         if (['received', 'success', 'confirmed'].includes(order.status) && order.otp_code && !order.notified_at) {
@@ -1949,7 +2064,7 @@ async function autoSyncOrder(order) {
     }
 }
 
-// webhook logger — simpan event apa pun (valid/invalid) buat audit
+// webhook logger
 async function logWebhookEvent({
     source, eventType, signatureValid, req, payload, processed,
     processNote, relatedEntityType, relatedEntityId
@@ -1978,6 +2093,10 @@ async function logWebhookEvent({
     }
 }
 
+// ============================================================
+// PART 3 — Health, Auth, User, API Key Management
+// ============================================================
+
 // health
 app.get('/api/health', withDB(async (req, res) => {
     try {
@@ -1987,7 +2106,7 @@ app.get('/api/health', withDB(async (req, res) => {
         const base = { status: 'ok', time: result.rows[0].time };
         if (wantsDetail) {
             Object.assign(base, {
-                version: 'v18-depo1-only',
+                version: 'v19-apikey-integrated',
                 hasDibananaKey: !!DIBANANA_API_KEY,
                 hasPremiumKey: !!PREMIUM_API_KEY,
                 hasWebhookSecret: !!QRISPY_WEBHOOK_SECRET,
@@ -2011,6 +2130,8 @@ app.get('/api/health', withDB(async (req, res) => {
                 priceLockSize: priceLockCache.size,
                 priceLockMax: PRICE_LOCK_MAX_SIZE,
                 servers: Object.keys(SERVER_CONFIG),
+                apiKeyPrefix: API_KEY_PREFIX,
+                apiKeyLength: API_KEY_RANDOM_LENGTH,
             });
         }
         res.json(base);
@@ -2022,33 +2143,27 @@ app.get('/api/health', withDB(async (req, res) => {
 // 1. ENDPOINT BUAT MINTA URL LOGIN (Dipanggil dari Frontend)
 app.get('/api/auth/google/url', withDB(async (req, res) => {
     try {
-        // Bikin code_verifier (string random)
         const codeVerifier = crypto.randomBytes(32).toString('base64url');
-        
-        // Bikin code_challenge (hash dari verifier)
         const codeChallenge = crypto.createHash('sha256')
             .update(codeVerifier)
             .digest('base64url');
 
-        // Simpen code_verifier ke database sementara (pake tabel sessions atau bikin tabel baru)
-        // Di sini gw pake tabel sessions biar simpel
         const stateId = crypto.randomBytes(16).toString('hex');
         await pool.query(
             'INSERT INTO sessions (user_id, refresh_token_hash, jti, expires_at) VALUES (NULL, $1, $2, NOW() + INTERVAL \'5 minutes\')',
-            [stateId, codeVerifier] // Simpen verifier di kolom jti sementara
+            [stateId, codeVerifier]
         );
 
         const clientId = process.env.CLIENT_ID_GOOGLE_LOGIN;
-        // PASTIIN INI SAMA DENGAN DI GOOGLE CONSOLE
         const redirectUri = 'https://asyrofotp.vercel.app/api/auth/google/callback';
-        
-        const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + 
+
+        const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' +
             'client_id=' + encodeURIComponent(clientId) +
             '&redirect_uri=' + encodeURIComponent(redirectUri) +
             '&response_type=code' +
             '&scope=email%20profile' +
             '&prompt=select_account' +
-            '&state=' + stateId + // Kirim stateId biar tau verifier mana yang dipake
+            '&state=' + stateId +
             '&code_challenge=' + codeChallenge +
             '&code_challenge_method=S256';
 
@@ -2059,25 +2174,20 @@ app.get('/api/auth/google/url', withDB(async (req, res) => {
     }
 }));
 
-
 // 2. ENDPOINT CALLBACK (Yang ditembak sama Google)
 app.get('/api/auth/google/callback', withDB(async (req, res) => {
     const { code, state } = req.query;
     if (!code || !state) return res.redirect('/login?error=missing_code');
 
     try {
-        // 1. Ambil code_verifier dari DB berdasarkan state
         const sessionRes = await pool.query('SELECT jti FROM sessions WHERE refresh_token_hash = $1 LIMIT 1', [state]);
         if (sessionRes.rows.length === 0) throw new Error('Sesi verifikasi hilang atau expired.');
-        
-        const codeVerifier = sessionRes.rows[0].jti;
 
-        // Hapus state dari DB biar gak bisa dipake 2x
+        const codeVerifier = sessionRes.rows[0].jti;
         await pool.query('DELETE FROM sessions WHERE refresh_token_hash = $1', [state]);
 
-        const redirectUri = 'https://asyrofotp.vercel.app/api/auth/google/callback'; // HARUS SAMA
+        const redirectUri = 'https://asyrofotp.vercel.app/api/auth/google/callback';
 
-        // 2. Tuker Code ke Google
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -2087,7 +2197,7 @@ app.get('/api/auth/google/callback', withDB(async (req, res) => {
                 client_secret: process.env.CLIENT_SECRET_GOOGLE_LOGIN,
                 redirect_uri: redirectUri,
                 grant_type: 'authorization_code',
-                code_verifier: codeVerifier // <--- INI WAJIB
+                code_verifier: codeVerifier
             })
         });
 
@@ -2097,15 +2207,13 @@ app.get('/api/auth/google/callback', withDB(async (req, res) => {
             throw new Error('Gagal dapet token dari Google');
         }
 
-        // 3. Pake Access Token buat ngambil data User
         const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
             headers: { Authorization: `Bearer ${tokenData.access_token}` }
         });
         const googleUser = await userRes.json();
-        
+
         if (!googleUser.id || !googleUser.email) throw new Error('Gagal dapet email');
 
-        // 4. CARI / SIMPEN USER KE DATABASE
         const googleId = String(googleUser.id);
         const email = String(googleUser.email).toLowerCase();
         const displayName = String(googleUser.name || '').trim() || email.split('@')[0];
@@ -2114,21 +2222,21 @@ app.get('/api/auth/google/callback', withDB(async (req, res) => {
         let user = userResDb.rows[0];
 
         if (!user) {
-            // Cek email (kalau user lama login pake password)
             userResDb = await pool.query('SELECT * FROM users WHERE LOWER(email) = $1 LIMIT 1', [email]);
             user = userResDb.rows[0];
-            
+
             if (user) {
                 await pool.query('UPDATE users SET google_id = $1 WHERE id = $2 AND google_id IS NULL', [googleId, user.id]);
             } else {
-                // Bikin user baru
                 const base = email.split('@')[0].replace(/[^a-z0-9_]/g, '').slice(0, 16) || 'user';
                 let candidate = base.length >= 3 ? base : base + '000';
                 const randomHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
-                
+                const apiKey = await generateUniqueApiKey();
+
                 const ins = await pool.query(
-                    `INSERT INTO users (username, password_hash, name, email, google_id) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-                    [candidate, randomHash, displayName, email, googleId]
+                    `INSERT INTO users (username, password_hash, name, email, google_id, api_key, api_key_created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, NOW()) RETURNING *`,
+                    [candidate, randomHash, displayName, email, googleId, apiKey]
                 );
                 user = ins.rows[0];
             }
@@ -2136,19 +2244,19 @@ app.get('/api/auth/google/callback', withDB(async (req, res) => {
 
         if (user.status === 'banned') return res.redirect('/login?error=banned');
 
-        // 5. BIKIN SESSION JWT & SET COOKIE
+        // pastikan user lama punya api key
+        const apiKey = user.api_key || (await ensureUserApiKey(user.id));
+
         const token = signToken(user);
-        
-        // Set cookie biar frontend otomatis login
-        res.cookie('token', token, { 
-            httpOnly: true, 
-            secure: true, 
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: true,
             sameSite: 'lax',
-            maxAge: 30 * 60 * 1000 
+            maxAge: 30 * 60 * 1000
         });
 
-        // 6. REDIRECT KE DASHBOARD
-        res.redirect('/login?token=' + token + '&refresh=' + (user.refresh || ''));
+        res.redirect('/login?token=' + encodeURIComponent(token) + '&api_key=' + encodeURIComponent(apiKey || ''));
 
     } catch (err) {
         console.error('Google Redirect Error:', err.message);
@@ -2177,7 +2285,6 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
     const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
     const device = req.headers['x-device-id'] || 'unknown';
 
-    // 1. Validasi Input Dasar
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         return res.status(400).json({ error: 'Format email tidak valid' });
     }
@@ -2187,9 +2294,8 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
     }
 
     try {
-        // 2. CEK TURNSTILE TOKEN (Anti Robot)
         const cfForm = new URLSearchParams();
-        cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY); 
+        cfForm.append('secret', process.env.TURNSTILE_SECRET_KEY);
         cfForm.append('response', cf_token);
         cfForm.append('remoteip', ip);
 
@@ -2203,7 +2309,6 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
             return res.status(400).json({ error: 'Verifikasi keamanan gagal. Kamu terdeteksi sebagai robot.' });
         }
 
-        // 3. Cek Rate Limit (Maksimal 3 request per 1 jam berdasarkan IP atau Device)
         const checkLimit = await pool.query(
             `SELECT COUNT(*) as total FROM rate_limits 
              WHERE (ip_address = $1 OR device_id = $2) 
@@ -2213,24 +2318,22 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
         );
 
         if (Number(checkLimit.rows[0].total) >= 3) {
-            return res.status(429).json({ 
-                error: 'Batas permintaan habis. Coba lagi 1 jam kemudian.' 
+            return res.status(429).json({
+                error: 'Batas permintaan habis. Coba lagi 1 jam kemudian.'
             });
         }
 
-        // 4. Catat request ke DB
         await pool.query(
             `INSERT INTO rate_limits (ip_address, device_id, action) VALUES ($1, $2, $3)`,
             [ip, device, 'forgot_password']
         );
 
-        // 5. Cari user dan kirim email
         const uRes = await pool.query('SELECT id, username FROM users WHERE LOWER(email) = LOWER($1) LIMIT 1', [email]);
-        
+
         if (uRes.rows.length > 0) {
             const user = uRes.rows[0];
             const token = crypto.randomBytes(32).toString('hex');
-            
+
             await pool.query('DELETE FROM password_resets WHERE user_id = $1', [user.id]);
             await pool.query(
                 'INSERT INTO password_resets (user_id, token, expires_at) VALUES ($1, $2, NOW() + INTERVAL \'15 minutes\')',
@@ -2246,7 +2349,7 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
             });
 
             const resetLink = `https://asyrofotp.vercel.app/reset.html?token=${token}`;
-            
+
             await transporter.sendMail({
                 from: `"AsyrofOTP" <${process.env.EMAIL_USER}>`,
                 to: email,
@@ -2263,7 +2366,6 @@ app.post('/api/auth/forgot', withDB(async (req, res) => {
             });
         }
 
-        // Selalu balas sukses biar gak bisa ditebak email mana yang terdaftar
         res.json({ message: 'Jika email terdaftar, link reset telah dikirim.' });
 
     } catch (err) {
@@ -2283,7 +2385,6 @@ app.post('/api/auth/reset-password', rateLimit(5, 60 * 1000), withDB(async (req,
     }
 
     try {
-        // Cari token yang valid & belum expired
         const result = await pool.query(
             `SELECT user_id FROM password_resets 
              WHERE token = $1 AND expires_at > NOW() AND used_at IS NULL LIMIT 1`,
@@ -2297,13 +2398,8 @@ app.post('/api/auth/reset-password', rateLimit(5, 60 * 1000), withDB(async (req,
         const userId = result.rows[0].user_id;
         const hash = await bcrypt.hash(new_password, 10);
 
-        // 1. Update password user
         await pool.query('UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2', [hash, userId]);
-
-        // 2. Tandai token sudah dipakai (biar gak bisa dipake 2x)
         await pool.query('UPDATE password_resets SET used_at = NOW() WHERE token = $1', [token]);
-
-        // 3. Logout semua device (biar aman)
         await revokeAllUserSessions(userId);
 
         res.json({ message: 'Password berhasil diubah. Silakan login.' });
@@ -2326,11 +2422,13 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
 
     try {
         const hash = await bcrypt.hash(password, 10);
+        const apiKey = await generateUniqueApiKey();
+
         const result = await pool.query(
-            `INSERT INTO users (username, password_hash, name)
-             VALUES ($1, $2, $3)
-             RETURNING username, name, balance, user_code`,
-            [username.toLowerCase(), hash, name || username]
+            `INSERT INTO users (username, password_hash, name, api_key, api_key_created_at)
+             VALUES ($1, $2, $3, $4, NOW())
+             RETURNING username, name, balance, user_code, api_key`,
+            [username.toLowerCase(), hash, name || username, apiKey]
         );
         const u = result.rows[0];
         res.json({
@@ -2340,6 +2438,7 @@ app.post('/api/auth/register', rateLimit(10, 60 * 1000), withDB(async (req, res)
                 name: u.name,
                 balance: Number(u.balance) || 0,
                 user_code: u.user_code,
+                api_key: u.api_key,
             },
         });
     } catch (err) {
@@ -2359,9 +2458,9 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
 
     try {
         const result = await pool.query(
-    'SELECT id, username, name, balance, role, status, user_code, password_hash FROM users WHERE username = $1 LIMIT 1',
-    [username.toLowerCase()]
-);
+            'SELECT id, username, name, balance, role, status, user_code, password_hash, api_key FROM users WHERE username = $1 LIMIT 1',
+            [username.toLowerCase()]
+        );
         if (result.rows.length === 0) return res.status(401).json({ error: 'Username/Email atau password salah' });
 
         const user = result.rows[0];
@@ -2382,6 +2481,9 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
             [req.ip || null, device, user.id]
         );
 
+        // pastikan user lama punya api key
+        const apiKey = user.api_key || (await ensureUserApiKey(user.id));
+
         const token = signToken(user);
 
         res.json({
@@ -2397,6 +2499,7 @@ app.post('/api/auth/login', rateLimit(20, 60 * 1000), withDB(async (req, res) =>
                 name: user.name,
                 balance: Number(user.balance) || 0,
                 user_code: user.user_code,
+                api_key: apiKey,
             }
         });
     } catch (err) {
@@ -2436,7 +2539,7 @@ app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) =
         const displayName = String(payload.name || '').trim() || email.split('@')[0];
 
         let userRes = await pool.query(
-            `SELECT id, username, name, balance, role, status, user_code
+            `SELECT id, username, name, balance, role, status, user_code, api_key
              FROM users WHERE google_id = $1 LIMIT 1`,
             [googleId]
         );
@@ -2445,7 +2548,7 @@ app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) =
 
         if (!user) {
             userRes = await pool.query(
-                `SELECT id, username, name, balance, role, status, user_code
+                `SELECT id, username, name, balance, role, status, user_code, api_key
                  FROM users WHERE LOWER(email) = $1 LIMIT 1`,
                 [email]
             );
@@ -2472,12 +2575,13 @@ app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) =
             }
 
             const randomHash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10);
+            const apiKey = await generateUniqueApiKey();
 
             const insertRes = await pool.query(
-                `INSERT INTO users (username, password_hash, name, email, google_id)
-                 VALUES ($1, $2, $3, $4, $5)
-                 RETURNING id, username, name, balance, role, status, user_code`,
-                [candidate, randomHash, displayName, email, googleId]
+                `INSERT INTO users (username, password_hash, name, email, google_id, api_key, api_key_created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, NOW())
+                 RETURNING id, username, name, balance, role, status, user_code, api_key`,
+                [candidate, randomHash, displayName, email, googleId, apiKey]
             );
             user = insertRes.rows[0];
             isNewUser = true;
@@ -2499,6 +2603,9 @@ app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) =
             [req.ip || null, device, user.id]
         );
 
+        // pastikan user lama punya api key
+        const apiKey = user.api_key || (await ensureUserApiKey(user.id));
+
         const token = signToken(user);
 
         res.json({
@@ -2515,6 +2622,7 @@ app.post('/api/auth/google', rateLimit(20, 60 * 1000), withDB(async (req, res) =
                 name: user.name,
                 balance: Number(user.balance) || 0,
                 user_code: user.user_code,
+                api_key: apiKey,
             },
         });
     } catch (err) {
@@ -2604,16 +2712,17 @@ app.get('/api/auth/sessions', requireAuth, withDB(async (req, res) => {
 app.get('/api/user', requireAuth, withDB(async (req, res) => {
     try {
         const result = await pool.query(
-            'SELECT username, name, balance, role, user_code, status, email, created_at FROM users WHERE id = $1 LIMIT 1',
+            'SELECT username, name, balance, role, user_code, status, email, created_at, api_key, api_key_created_at, api_key_last_used_at FROM users WHERE id = $1 LIMIT 1',
             [req.user.id]
         );
-        
+
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'User tidak ditemukan' });
         }
-        
+
         const u = result.rows[0];
-        
+        const apiKey = u.api_key || (await ensureUserApiKey(req.user.id));
+
         res.set('Content-Type', 'application/json');
         res.end(JSON.stringify({
             username: u.username,
@@ -2622,8 +2731,11 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
             role: u.role,
             user_code: u.user_code,
             status: u.status,
-            email: u.email || null, // <--- Tambahan
+            email: u.email || null,
             created_at: u.created_at,
+            api_key: apiKey,
+            api_key_created_at: u.api_key_created_at,
+            api_key_last_used_at: u.api_key_last_used_at,
         }));
     } catch (err) {
         console.error('User error:', err.message);
@@ -2633,8 +2745,7 @@ app.get('/api/user', requireAuth, withDB(async (req, res) => {
 
 app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(async (req, res) => {
     const { name } = req.body;
-    
-    // Validasi secepat mungkin sebelum nyentuh DB
+
     if (!name || name.trim().length < 2) return res.status(400).json({ error: 'Nama minimal 2 karakter' });
     if (name.trim().length > 50) return res.status(400).json({ error: 'Nama maksimal 50 karakter' });
 
@@ -2643,13 +2754,13 @@ app.post('/api/user/update', requireAuth, userRateLimit(20, 60 * 1000), withDB(a
             'UPDATE users SET name = $1, updated_at = NOW() WHERE id = $2 RETURNING username, name, balance, user_code',
             [name.trim(), req.user.id]
         );
-        
+
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'User tidak ditemukan' });
         }
-        
+
         const u = result.rows[0];
-        
+
         res.set('Content-Type', 'application/json');
         res.end(JSON.stringify({
             message: 'Profil berhasil diupdate',
@@ -2676,7 +2787,6 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
     const cleanEmail = email.trim().toLowerCase();
 
     try {
-        // 1. Cek apakah email udah dipake user LAIN
         const checkEmail = await pool.query(
             'SELECT id FROM users WHERE LOWER(email) = $1 AND id != $2 LIMIT 1',
             [cleanEmail, req.user.id]
@@ -2685,7 +2795,6 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
             return res.status(400).json({ error: 'Email sudah terdaftar di akun lain' });
         }
 
-        // 2. Setup Transporter
         if (!process.env.EMAIL_USER || !process.env.APP_PASS_RESET_PASSWORD) {
             console.error('Email env not set');
             return res.status(500).json({ error: 'Layanan email belum dikonfigurasi' });
@@ -2699,13 +2808,10 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
             }
         });
 
-        // 3. Ambil data user buat nama di email
         const userRes = await pool.query('SELECT username, name FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         const user = userRes.rows[0];
         const displayName = user.name || user.username || 'User';
 
-        // 4. Kirim email verifikasi / notifikasi
-        // Kalau email gak valid, nodemailer bakal throw error (catch di bawah)
         const mailOptions = {
             from: `"AsyrofOTP" <${process.env.EMAIL_USER}>`,
             to: cleanEmail,
@@ -2722,7 +2828,6 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
 
         await transporter.sendMail(mailOptions);
 
-        // 5. Kalau email sukses terkirim, baru update DB
         const oldEmailRes = await pool.query('SELECT email FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
         const oldEmail = oldEmailRes.rows[0] ? oldEmailRes.rows[0].email : null;
 
@@ -2731,7 +2836,6 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
             [cleanEmail, req.user.id]
         );
 
-        // 6. Log
         await logStatusChange({
             entityType: 'user',
             entityId: req.user.id,
@@ -2745,12 +2849,11 @@ app.post('/api/user/link-email', requireAuth, userRateLimit(5, 60 * 1000), withD
         res.json({ message: 'Email berhasil ditautkan!', email: cleanEmail });
     } catch (err) {
         console.error('Link email error:', err.message);
-        
-        // Handle error spesifik dari Nodemailer (email gak valid / gak ada)
+
         if (err.code === 'EENVELOPE' || (err.response && err.response.includes('550'))) {
             return res.status(400).json({ error: 'Email tidak ditemukan atau tidak valid' });
         }
-        
+
         res.status(500).json({ error: 'Gagal memproses email. Coba lagi nanti.' });
     }
 }));
@@ -2776,9 +2879,74 @@ app.post('/api/user/change-password', requireAuth, userRateLimit(5, 60 * 1000), 
     }
 }));
 
+// === API KEY MANAGEMENT ===
+app.get('/api/user/api-key', requireAuth, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT api_key, api_key_created_at, api_key_last_used_at FROM users WHERE id = $1 LIMIT 1',
+            [req.user.id]
+        );
+        if (result.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        let row = result.rows[0];
+        if (!row.api_key) {
+            const newKey = await ensureUserApiKey(req.user.id);
+            row = { api_key: newKey, api_key_created_at: new Date(), api_key_last_used_at: null };
+        }
+
+        res.json({
+            api_key: row.api_key,
+            created_at: row.api_key_created_at,
+            last_used_at: row.api_key_last_used_at,
+            prefix: API_KEY_PREFIX,
+            format: `${API_KEY_PREFIX}XXXXXXXXXXXXXXXX`,
+            usage: {
+                bearer: `Authorization: Bearer ${row.api_key}`,
+                header: `X-API-Key: ${row.api_key}`,
+                query: `?api_key=${row.api_key}`,
+            },
+            example_curl: `curl -X GET "https://asyrofotp.vercel.app/api/v1/me" -H "Authorization: Bearer ${row.api_key}"`,
+            docs: '/api/v1/docs',
+        });
+    } catch (err) {
+        console.error('Get api-key error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/user/api-key/regenerate', requireAuth, userRateLimit(3, 60 * 60 * 1000), withDB(async (req, res) => {
+    try {
+        const newKey = await generateUniqueApiKey();
+        const result = await pool.query(
+            `UPDATE users SET api_key = $1, api_key_created_at = NOW(), api_key_last_used_at = NULL, updated_at = NOW()
+             WHERE id = $2 RETURNING api_key, api_key_created_at`,
+            [newKey, req.user.id]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await logStatusChange({
+            entityType: 'user',
+            entityId: req.user.id,
+            userId: req.user.id,
+            oldStatus: 'api_key_old',
+            newStatus: 'api_key_regenerated',
+            reason: 'user_rotate_api_key',
+            metadata: { rotated_at: new Date().toISOString() },
+        });
+
+        res.json({
+            message: 'API key berhasil di-regenerate. Simpan key baru, yang lama sudah tidak valid.',
+            api_key: result.rows[0].api_key,
+            created_at: result.rows[0].api_key_created_at,
+        });
+    } catch (err) {
+        console.error('Regenerate api-key error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
 app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     try {
-        // 1. Hitung semua statistik langsung di database (1 query)
         const statsRes = await pool.query(`
             SELECT 
                 COUNT(*) as total,
@@ -2793,7 +2961,6 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
 
         const s = statsRes.rows[0];
 
-        // 2. Tarik 5 transaksi terbaru aja
         const recentRes = await pool.query(`
             SELECT service_name, country, country_flag, phone_number, status, price, otp_code, created_at
             FROM transactions 
@@ -2802,7 +2969,6 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
             LIMIT 5
         `, [req.user.id]);
 
-        // 3. Kirim respon
         res.set('Content-Type', 'application/json');
         res.end(JSON.stringify({
             stats: {
@@ -2822,7 +2988,394 @@ app.get('/api/dashboard', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// deposit routes
+// ============================================================
+// PART 4 — Deposit, Webhooks (Provider + User), CekOTP, Nokos Stats
+// ============================================================
+
+// === USER WEBHOOK DELIVERY HELPER (fire-and-forget) ===
+// Signature: sha256={HMAC(rawBody, secret)}
+// Header: X-Asyrof-Signature, X-Asyrof-Event, X-Asyrof-Delivery-Id
+async function dispatchUserWebhook(userId, event, payload) {
+    if (!userId || !event) return;
+
+    // fire and forget — jangan await di caller
+    (async () => {
+        try {
+            const res = await pool.query(
+                `SELECT id, url, secret, events, active FROM user_webhooks
+                 WHERE user_id = $1 AND active = TRUE
+                   AND ($2 = ANY(events) OR 'all' = ANY(events))`,
+                [userId, event]
+            );
+            if (res.rows.length === 0) return;
+
+            const rawBody = JSON.stringify({
+                event,
+                delivered_at: new Date().toISOString(),
+                data: payload,
+            });
+
+            for (const hook of res.rows) {
+                const deliveryId = 'whd_' + crypto.randomBytes(12).toString('hex');
+                const sig = 'sha256=' + crypto
+                    .createHmac('sha256', hook.secret)
+                    .update(rawBody)
+                    .digest('hex');
+
+                const attempt = async (n) => {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 8000);
+                    try {
+                        const r = await fetch(hook.url, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'User-Agent': 'AsyrofOTP-Webhook/1.0',
+                                'X-Asyrof-Signature': sig,
+                                'X-Asyrof-Event': event,
+                                'X-Asyrof-Delivery-Id': deliveryId,
+                            },
+                            body: rawBody,
+                            signal: controller.signal,
+                        });
+                        clearTimeout(timeout);
+
+                        const ok = r.status >= 200 && r.status < 300;
+                        await pool.query(
+                            `INSERT INTO user_webhook_logs (webhook_id, user_id, event, delivery_id, url, status_code, success, attempt)
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                            [hook.id, userId, event, deliveryId, hook.url, r.status, ok, n]
+                        ).catch(() => {});
+
+                        if (!ok && n < 3) {
+                            await new Promise(rs => setTimeout(rs, 1500 * n));
+                            return attempt(n + 1);
+                        }
+                    } catch (err) {
+                        clearTimeout(timeout);
+                        await pool.query(
+                            `INSERT INTO user_webhook_logs (webhook_id, user_id, event, delivery_id, url, status_code, success, attempt, error)
+                             VALUES ($1, $2, $3, $4, $5, NULL, FALSE, $6, $7)`,
+                            [hook.id, userId, event, deliveryId, hook.url, n, String(err.message || err).slice(0, 300)]
+                        ).catch(() => {});
+                        if (n < 3) {
+                            await new Promise(rs => setTimeout(rs, 1500 * n));
+                            return attempt(n + 1);
+                        }
+                    }
+                };
+
+                attempt(1).catch(() => {});
+            }
+        } catch (err) {
+            console.error('dispatchUserWebhook error:', err.message);
+        }
+    })();
+}
+
+// === SCHEMA PATCH: user_webhooks & user_webhook_logs (idempotent) ===
+// Dipanggil sekali di startup; aman kalau dijalankan berkali-kali
+async function ensureUserWebhookSchema() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_webhooks (
+                id SERIAL PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                url TEXT NOT NULL,
+                secret TEXT NOT NULL,
+                events TEXT[] NOT NULL DEFAULT ARRAY['all'],
+                active BOOLEAN NOT NULL DEFAULT TRUE,
+                description TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                last_triggered_at TIMESTAMPTZ,
+                failure_count INTEGER DEFAULT 0
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_user_webhooks_user ON user_webhooks(user_id, active)`);
+        await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_user_webhooks_user_url ON user_webhooks(user_id, url)`);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_webhook_logs (
+                id BIGSERIAL PRIMARY KEY,
+                webhook_id INTEGER REFERENCES user_webhooks(id) ON DELETE CASCADE,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                event TEXT NOT NULL,
+                delivery_id TEXT NOT NULL,
+                url TEXT NOT NULL,
+                status_code INTEGER,
+                success BOOLEAN NOT NULL DEFAULT FALSE,
+                attempt INTEGER DEFAULT 1,
+                error TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_uwl_webhook ON user_webhook_logs(webhook_id, created_at DESC)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_uwl_user ON user_webhook_logs(user_id, created_at DESC)`);
+    } catch (err) {
+        console.error('ensureUserWebhookSchema error:', err.message);
+    }
+}
+
+// Panggil non-blocking saat startup (aman kalau diulang)
+ensureUserWebhookSchema().catch(() => {});
+
+// === WEBHOOK SECRET GENERATOR (whsecao-STRING) ===
+const WEBHOOK_SECRET_PREFIX = 'whsecao-';
+function generateWebhookSecret() {
+    return WEBHOOK_SECRET_PREFIX + crypto.randomBytes(24).toString('hex');
+}
+
+// === ENDPOINT USER WEBHOOK (JWT) ===
+app.get('/api/user/webhooks', requireAuth, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, url, secret, events, active, description, created_at, updated_at, last_triggered_at, failure_count
+             FROM user_webhooks WHERE user_id = $1 ORDER BY created_at DESC`,
+            [req.user.id]
+        );
+        res.json({
+            webhooks: result.rows,
+            available_events: [
+                'all',
+                'order.otp_received',
+                'order.completed',
+                'order.cancelled',
+                'order.expired',
+                'order.refunded',
+                'deposit.success',
+                'deposit.expired',
+            ],
+            signature_format: 'sha256={HMAC_SHA256(rawBody, secret)}',
+            headers: ['X-Asyrof-Signature', 'X-Asyrof-Event', 'X-Asyrof-Delivery-Id'],
+        });
+    } catch (err) {
+        console.error('List webhooks error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/user/webhooks', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
+    const { url, events, description } = req.body || {};
+
+    if (!url || typeof url !== 'string') return res.status(400).json({ error: 'url wajib' });
+
+    let parsed;
+    try { parsed = new URL(url); }
+    catch { return res.status(400).json({ error: 'URL tidak valid' }); }
+
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+        return res.status(400).json({ error: 'URL harus http(s)' });
+    }
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') {
+        return res.status(400).json({ error: 'URL localhost tidak diizinkan' });
+    }
+
+    const allowed = [
+        'all',
+        'order.otp_received', 'order.completed', 'order.cancelled', 'order.expired', 'order.refunded',
+        'deposit.success', 'deposit.expired',
+    ];
+    let evs = Array.isArray(events) && events.length > 0 ? events : ['all'];
+    evs = evs.filter(e => allowed.includes(e));
+    if (evs.length === 0) evs = ['all'];
+
+    try {
+        const countRes = await pool.query(
+            'SELECT COUNT(*) FROM user_webhooks WHERE user_id = $1',
+            [req.user.id]
+        );
+        if (Number(countRes.rows[0].count) >= 10) {
+            return res.status(400).json({ error: 'Maksimal 10 webhook per user' });
+        }
+
+        const secret = generateWebhookSecret();
+        const ins = await pool.query(
+            `INSERT INTO user_webhooks (user_id, url, secret, events, description)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, url, secret, events, active, description, created_at`,
+            [req.user.id, url.trim(), secret, evs, (description || '').slice(0, 200) || null]
+        );
+
+        res.json({
+            message: 'Webhook berhasil dibuat',
+            webhook: ins.rows[0],
+            example_verify: `sha256={HMAC_SHA256(rawBody, "${secret}")}`,
+        });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: 'URL sudah terdaftar untuk user ini' });
+        console.error('Create webhook error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/user/webhooks/:id/rotate', requireAuth, userRateLimit(10, 60 * 60 * 1000), withDB(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'id tidak valid' });
+
+    try {
+        const secret = generateWebhookSecret();
+        const upd = await pool.query(
+            `UPDATE user_webhooks SET secret = $1, updated_at = NOW()
+             WHERE id = $2 AND user_id = $3
+             RETURNING id, url, secret`,
+            [secret, id, req.user.id]
+        );
+        if (upd.rowCount === 0) return res.status(404).json({ error: 'Webhook tidak ditemukan' });
+        res.json({ message: 'Secret dirotasi. Update verifikasi di server kamu.', webhook: upd.rows[0] });
+    } catch (err) {
+        console.error('Rotate webhook error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.patch('/api/user/webhooks/:id', requireAuth, withDB(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'id tidak valid' });
+
+    const { url, events, active, description } = req.body || {};
+    const fields = [];
+    const params = [];
+
+    if (typeof url === 'string') {
+        try {
+            const p = new URL(url);
+            if (!['http:', 'https:'].includes(p.protocol)) return res.status(400).json({ error: 'URL harus http(s)' });
+            if (p.hostname === 'localhost' || p.hostname === '127.0.0.1') return res.status(400).json({ error: 'URL localhost tidak diizinkan' });
+        } catch { return res.status(400).json({ error: 'URL tidak valid' }); }
+        params.push(url.trim());
+        fields.push(`url = $${params.length}`);
+    }
+    if (Array.isArray(events)) {
+        const allowed = ['all', 'order.otp_received', 'order.completed', 'order.cancelled', 'order.expired', 'order.refunded', 'deposit.success', 'deposit.expired'];
+        const evs = events.filter(e => allowed.includes(e));
+        params.push(evs.length > 0 ? evs : ['all']);
+        fields.push(`events = $${params.length}`);
+    }
+    if (typeof active === 'boolean') {
+        params.push(active);
+        fields.push(`active = $${params.length}`);
+    }
+    if (typeof description === 'string') {
+        params.push(description.slice(0, 200));
+        fields.push(`description = $${params.length}`);
+    }
+
+    if (fields.length === 0) return res.status(400).json({ error: 'Tidak ada field yang diupdate' });
+
+    params.push(id);
+    params.push(req.user.id);
+    const sql = `UPDATE user_webhooks SET ${fields.join(', ')}, updated_at = NOW()
+                 WHERE id = $${params.length - 1} AND user_id = $${params.length}
+                 RETURNING id, url, events, active, description, updated_at`;
+
+    try {
+        const upd = await pool.query(sql, params);
+        if (upd.rowCount === 0) return res.status(404).json({ error: 'Webhook tidak ditemukan' });
+        res.json({ message: 'Webhook diupdate', webhook: upd.rows[0] });
+    } catch (err) {
+        if (err.code === '23505') return res.status(400).json({ error: 'URL sudah terdaftar untuk user ini' });
+        console.error('Update webhook error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.delete('/api/user/webhooks/:id', requireAuth, withDB(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'id tidak valid' });
+
+    try {
+        const del = await pool.query(
+            `DELETE FROM user_webhooks WHERE id = $1 AND user_id = $2 RETURNING id`,
+            [id, req.user.id]
+        );
+        if (del.rowCount === 0) return res.status(404).json({ error: 'Webhook tidak ditemukan' });
+        res.json({ message: 'Webhook dihapus' });
+    } catch (err) {
+        console.error('Delete webhook error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.get('/api/user/webhooks/:id/logs', requireAuth, withDB(async (req, res) => {
+    const id = Number(req.params.id);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    if (!id) return res.status(400).json({ error: 'id tidak valid' });
+
+    try {
+        const own = await pool.query('SELECT id FROM user_webhooks WHERE id = $1 AND user_id = $2 LIMIT 1', [id, req.user.id]);
+        if (own.rows.length === 0) return res.status(404).json({ error: 'Webhook tidak ditemukan' });
+
+        const logs = await pool.query(
+            `SELECT id, event, delivery_id, url, status_code, success, attempt, error, created_at
+             FROM user_webhook_logs WHERE webhook_id = $1 ORDER BY created_at DESC LIMIT $2`,
+            [id, limit]
+        );
+        res.json({ logs: logs.rows });
+    } catch (err) {
+        console.error('Webhook logs error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.post('/api/user/webhooks/:id/test', requireAuth, userRateLimit(5, 60 * 1000), withDB(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) return res.status(400).json({ error: 'id tidak valid' });
+
+    try {
+        const own = await pool.query(
+            'SELECT id, url, secret FROM user_webhooks WHERE id = $1 AND user_id = $2 LIMIT 1',
+            [id, req.user.id]
+        );
+        if (own.rows.length === 0) return res.status(404).json({ error: 'Webhook tidak ditemukan' });
+        const hook = own.rows[0];
+
+        const rawBody = JSON.stringify({
+            event: 'test.ping',
+            delivered_at: new Date().toISOString(),
+            data: { message: 'Ini pesan test dari AsyrofOTP', user_id: req.user.id },
+        });
+        const deliveryId = 'whd_' + crypto.randomBytes(12).toString('hex');
+        const sig = 'sha256=' + crypto.createHmac('sha256', hook.secret).update(rawBody).digest('hex');
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        let statusCode = null, ok = false, errorMsg = null;
+        try {
+            const r = await fetch(hook.url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'AsyrofOTP-Webhook/1.0',
+                    'X-Asyrof-Signature': sig,
+                    'X-Asyrof-Event': 'test.ping',
+                    'X-Asyrof-Delivery-Id': deliveryId,
+                },
+                body: rawBody,
+                signal: controller.signal,
+            });
+            statusCode = r.status;
+            ok = r.status >= 200 && r.status < 300;
+        } catch (e) {
+            errorMsg = String(e.message || e).slice(0, 300);
+        } finally {
+            clearTimeout(timeout);
+        }
+
+        await pool.query(
+            `INSERT INTO user_webhook_logs (webhook_id, user_id, event, delivery_id, url, status_code, success, attempt, error)
+             VALUES ($1, $2, 'test.ping', $3, $4, $5, $6, 1, $7)`,
+            [hook.id, req.user.id, deliveryId, hook.url, statusCode, ok, errorMsg]
+        ).catch(() => {});
+
+        res.json({ ok, status_code: statusCode, delivery_id: deliveryId, error: errorMsg });
+    } catch (err) {
+        console.error('Test webhook error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// === DEPOSIT ROUTES ===
 app.get('/api/deposit/methods', requireAuth, (req, res) => {
     res.json({ methods: DEPOSIT_METHODS });
 });
@@ -2840,8 +3393,7 @@ app.post('/api/deposit/generate-ref', requireAuth, userRateLimit(20, 60 * 1000),
     }
 }));
 
-// simpan deposit QRIS (via depo1). path `/save` biar netral, gak bawa nama provider.
-app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
+const depositSaveHandler = async (req, res) => {
     const { reference_id, amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
 
     if (!reference_id || !amount || !qris_id) return res.status(400).json({ error: 'Data tidak lengkap' });
@@ -2900,11 +3452,12 @@ app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(
         console.error('deposit/save error:', err.message);
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
-}));
+};
+app.locals.internalHandlers = app.locals.internalHandlers || {};
+app.locals.internalHandlers.depositSave = depositSaveHandler;
+app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(depositSaveHandler));
 
-// /api/deposit/qris-dana DIHAPUS — pakai /api/deposit/save (qrispy via depo1) saja
-
-app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res) => {
+const depositStatusHandler = async (req, res) => {
     const { referenceId } = req.params;
     try {
         const result = await pool.query(
@@ -2923,7 +3476,9 @@ app.get('/api/deposit/:referenceId/status', requireAuth, withDB(async (req, res)
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-}));
+};
+app.locals.internalHandlers.depositStatus = depositStatusHandler;
+app.get('/api/deposit/:referenceId/status', requireAuth, withDB(depositStatusHandler));
 
 app.post('/api/deposit/:referenceId/update-fee', requireAuth, withDB(async (req, res) => {
     const { referenceId } = req.params;
@@ -2976,6 +3531,12 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
                     if (!result2.alreadyProcessed && result2.freshDeposit) {
                         notifyDepositSuccess(result2.freshDeposit, result2.saldoMasuk, result2.totalBayar, result2.fee, result2.userData)
                             .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                        dispatchUserWebhook(deposit.user_id, 'deposit.success', {
+                            reference_id: deposit.reference_id,
+                            amount: result2.saldoMasuk,
+                            total_amount: result2.totalBayar,
+                            fee: result2.fee,
+                        });
                     }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.json({ message: 'Deposit sudah dibayar', deposit: sanitizeDepositForUser(fresh.rows[0]) });
@@ -2993,6 +3554,10 @@ app.post('/api/deposit/:referenceId/expire', requireAuth, withDB(async (req, res
             await logStatusChange({
                 entityType: 'deposit', entityId: deposit.reference_id, userId: req.user.id,
                 oldStatus: 'pending', newStatus: 'expired', reason: 'manual_expire',
+            });
+            dispatchUserWebhook(deposit.user_id, 'deposit.expired', {
+                reference_id: deposit.reference_id,
+                amount: Number(deposit.amount),
             });
         }
 
@@ -3025,6 +3590,12 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
                     if (!result2.alreadyProcessed && result2.freshDeposit) {
                         notifyDepositSuccess(result2.freshDeposit, result2.saldoMasuk, result2.totalBayar, result2.fee, result2.userData)
                             .catch(err => console.error('notifyDepositSuccess error:', err.message));
+                        dispatchUserWebhook(deposit.user_id, 'deposit.success', {
+                            reference_id: deposit.reference_id,
+                            amount: result2.saldoMasuk,
+                            total_amount: result2.totalBayar,
+                            fee: result2.fee,
+                        });
                     }
                     const fresh = await pool.query('SELECT * FROM deposits WHERE id = $1', [deposit.id]);
                     return res.status(400).json({
@@ -3060,7 +3631,7 @@ app.post('/api/deposit/:referenceId/cancel', requireAuth, withDB(async (req, res
     }
 }));
 
-app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
+const depositHistoryHandler = async (req, res) => {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 5));
     const status = req.query.status;
@@ -3099,7 +3670,9 @@ app.get('/api/deposit/history', requireAuth, withDB(async (req, res) => {
         console.error('List deposits error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
-}));
+};
+app.locals.internalHandlers.depositHistory = depositHistoryHandler;
+app.get('/api/deposit/history', requireAuth, withDB(depositHistoryHandler));
 
 app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     const { reference_ids } = req.body;
@@ -3133,7 +3706,7 @@ app.post('/api/deposit/sync-batch', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// webhook depo1 (QRIS)
+// === WEBHOOK DEPO1 (QRIS) ===
 app.post('/api/webhook/depo1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -3195,11 +3768,20 @@ app.post('/api/webhook/depo1', withDB(async (req, res) => {
             }
 
             if (markResult.freshDeposit) {
+                // notif telegram (await karena ini murah)
                 try {
                     await notifyDepositSuccess(markResult.freshDeposit, markResult.saldoMasuk, markResult.totalBayar, markResult.fee, markResult.userData);
                 } catch (err) {
                     console.error('Notif deposit error:', err.message);
                 }
+                // user webhook — fire & forget
+                dispatchUserWebhook(deposit.user_id, 'deposit.success', {
+                    reference_id: deposit.reference_id,
+                    amount: markResult.saldoMasuk,
+                    total_amount: markResult.totalBayar,
+                    fee: markResult.fee,
+                    paid_at: markResult.freshDeposit.paid_at,
+                });
             }
 
             await logWebhookEvent({ source: 'depo1', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'DEPOSIT_MARKED_PAID', relatedEntityType: 'deposit', relatedEntityId: deposit.reference_id });
@@ -3215,7 +3797,7 @@ app.post('/api/webhook/depo1', withDB(async (req, res) => {
     }
 }));
 
-// webhook otp1 (server1)
+// === WEBHOOK OTP1 (server1) ===
 app.post('/api/webhook/otp1', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -3224,10 +3806,8 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
             return res.status(500).json({ error: 'Webhook secret not configured' });
         }
 
-                // --- UBAH BARIS INI ---
         const signature = req.headers['x-banana-signature'] || req.headers['x-server1-signature'] || req.headers['x-otp1-signature'];
-        // ----------------------
-        
+
         if (!signature) {
             await logWebhookEvent({ source: 'otp1', signatureValid: false, req, payload: req.body, processed: false, processNote: 'NO_SIGNATURE' });
             return res.status(401).json({ error: 'No signature' });
@@ -3250,14 +3830,12 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
         const data = req.body;
         console.log('📥 Webhook OTP1:', JSON.stringify(data));
 
-        // 1. Tangkap test webhook dari dibanana (order_id 0 atau ada flag test)
         if (data.test === true || data.order_id === 0) {
             console.log('🧪 Test webhook diterima, balas 200 OK.');
             await logWebhookEvent({ source: 'otp1', eventType: 'test', signatureValid: true, req, payload: req.body, processed: true, processNote: 'TEST_WEBHOOK' });
             return res.status(200).json({ status: 'ok', message: 'Test received' });
         }
 
-        // 2. Lanjut proses normal
         const providerOrderId = data.order_id || data.orderId || data.reference;
         const otpCode = data.otp_code || data.otpCode || data.code || data.otp;
         const fullSms = data.full_sms || data.fullSms || data.message || data.sms || '';
@@ -3407,6 +3985,24 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
                 if (freshOrderRes.rows[0]) {
                     const user = await fetchUserForOrder(freshOrderRes.rows[0]);
                     await notifyOtpSuccess(freshOrderRes.rows[0], user);
+
+                    // user webhook — fire & forget
+                    dispatchUserWebhook(freshOrderRes.rows[0].user_id, 'order.otp_received', {
+                        otp_id: freshOrderRes.rows[0].otp_id,
+                        order_id: freshOrderRes.rows[0].order_id,
+                        server: freshOrderRes.rows[0].server,
+                        service: freshOrderRes.rows[0].service,
+                        service_name: freshOrderRes.rows[0].service_name,
+                        country: freshOrderRes.rows[0].country,
+                        country_name: freshOrderRes.rows[0].country_name,
+                        phone_number: freshOrderRes.rows[0].phone_number,
+                        otp_code: freshOrderRes.rows[0].otp_code,
+                        otp_code_2: freshOrderRes.rows[0].otp_code_2,
+                        full_sms: freshOrderRes.rows[0].full_sms,
+                        price: Number(freshOrderRes.rows[0].price) || 0,
+                        status: freshOrderRes.rows[0].status,
+                        received_at: freshOrderRes.rows[0].received_at,
+                    });
                 }
             } catch (err) {
                 console.error('❌ Notif OTP error:', err.message);
@@ -3423,7 +4019,7 @@ app.post('/api/webhook/otp1', withDB(async (req, res) => {
     }
 }));
 
-// webhook otp2 (server2). header x-webhook-signature = "sha256={HMAC(body, secret)}"
+// === WEBHOOK OTP2 (server2) ===
 app.post('/api/webhook/otp2', withDB(async (req, res) => {
     let signatureValid = false;
     try {
@@ -3469,7 +4065,6 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
         const otpCode = data.otp_code || null;
         const fullSms = data.otp_message || null;
 
-        // otp received
         if (event === 'order.otp_received' && (otpCode || fullSms)) {
             const isRevivable = ['cancelled', 'refunded', 'expired', 'failed'].includes(order.status);
             let revived = false;
@@ -3581,6 +4176,23 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
                     if (freshOrderRes.rows[0]) {
                         const user = await fetchUserForOrder(freshOrderRes.rows[0]);
                         await notifyOtpSuccess(freshOrderRes.rows[0], user);
+
+                        dispatchUserWebhook(freshOrderRes.rows[0].user_id, 'order.otp_received', {
+                            otp_id: freshOrderRes.rows[0].otp_id,
+                            order_id: freshOrderRes.rows[0].order_id,
+                            server: freshOrderRes.rows[0].server,
+                            service: freshOrderRes.rows[0].service,
+                            service_name: freshOrderRes.rows[0].service_name,
+                            country: freshOrderRes.rows[0].country,
+                            country_name: freshOrderRes.rows[0].country_name,
+                            phone_number: freshOrderRes.rows[0].phone_number,
+                            otp_code: freshOrderRes.rows[0].otp_code,
+                            otp_code_2: freshOrderRes.rows[0].otp_code_2,
+                            full_sms: freshOrderRes.rows[0].full_sms,
+                            price: Number(freshOrderRes.rows[0].price) || 0,
+                            status: freshOrderRes.rows[0].status,
+                            received_at: freshOrderRes.rows[0].received_at,
+                        });
                     }
                 } catch (err) {
                     console.error('❌ Notif OTP (otp2) error:', err.message);
@@ -3591,7 +4203,6 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
             return res.status(200).json({ status: 'ok', message: 'received', revived });
         }
 
-        // completed
         if (event === 'order.completed') {
             if (order.status !== 'success' && order.status !== 'received') {
                 await pool.query(
@@ -3603,12 +4214,16 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
                     oldStatus: order.status, newStatus: 'success', reason: 'webhook_otp2_completed',
                     metadata: { otp_id: order.otp_id },
                 });
+                dispatchUserWebhook(order.user_id, 'order.completed', {
+                    otp_id: order.otp_id,
+                    order_id: order.order_id,
+                    status: 'success',
+                });
             }
             await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_COMPLETED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
             return res.json({ status: 'ok' });
         }
 
-        // expired
         if (event === 'order.expired') {
             if (!['expired', 'refunded'].includes(order.status)) {
                 await pool.query(
@@ -3626,12 +4241,17 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
                     oldStatus: order.status, newStatus: 'expired', reason: 'webhook_otp2_expired',
                     metadata: { otp_id: order.otp_id },
                 });
+                dispatchUserWebhook(order.user_id, 'order.expired', {
+                    otp_id: order.otp_id,
+                    order_id: order.order_id,
+                    status: 'expired',
+                    refunded_amount: Number(order.price) || 0,
+                });
             }
             await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_EXPIRED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
             return res.json({ status: 'ok' });
         }
 
-        // canceled
         if (event === 'order.canceled') {
             if (!['cancelled', 'refunded'].includes(order.status)) {
                 await pool.query(
@@ -3649,6 +4269,12 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
                     oldStatus: order.status, newStatus: 'cancelled', reason: 'webhook_otp2_cancelled',
                     metadata: { otp_id: order.otp_id },
                 });
+                dispatchUserWebhook(order.user_id, 'order.cancelled', {
+                    otp_id: order.otp_id,
+                    order_id: order.order_id,
+                    status: 'cancelled',
+                    refunded_amount: Number(order.price) || 0,
+                });
             }
             await logWebhookEvent({ source: 'otp2', eventType: event, signatureValid: true, req, payload: req.body, processed: true, processNote: 'ORDER_CANCELLED', relatedEntityType: 'order', relatedEntityId: providerOrderId });
             return res.json({ status: 'ok' });
@@ -3664,8 +4290,8 @@ app.post('/api/webhook/otp2', withDB(async (req, res) => {
     }
 }));
 
-// cek OTP. terima order_id atau otp_id
-app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async (req, res) => {
+// === CEK OTP ===
+const cekotpHandler = async (req, res) => {
     const { order_id, otp_id } = req.body;
     if (!order_id && !otp_id) return res.status(400).json({ error: 'order_id atau otp_id wajib' });
 
@@ -3766,6 +4392,23 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
                     try {
                         const user = await fetchUserForOrder(fresh.rows[0]);
                         await notifyOtpSuccess(fresh.rows[0], user);
+
+                        dispatchUserWebhook(fresh.rows[0].user_id, 'order.otp_received', {
+                            otp_id: fresh.rows[0].otp_id,
+                            order_id: fresh.rows[0].order_id,
+                            server: fresh.rows[0].server,
+                            service: fresh.rows[0].service,
+                            service_name: fresh.rows[0].service_name,
+                            country: fresh.rows[0].country,
+                            country_name: fresh.rows[0].country_name,
+                            phone_number: fresh.rows[0].phone_number,
+                            otp_code: fresh.rows[0].otp_code,
+                            otp_code_2: fresh.rows[0].otp_code_2,
+                            full_sms: fresh.rows[0].full_sms,
+                            price: Number(fresh.rows[0].price) || 0,
+                            status: fresh.rows[0].status,
+                            received_at: fresh.rows[0].received_at,
+                        });
                     } catch (err) {
                         console.error('❌ Notif OTP (cekotp) error:', err.message);
                     }
@@ -3832,9 +4475,11 @@ app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(async 
         console.error('CekOTP error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
-}));
+};
+app.locals.internalHandlers.cekotp = cekotpHandler;
+app.post('/api/cekotp', requireAuth, userRateLimit(60, 60 * 1000), withDB(cekotpHandler));
 
-// nokos stats / check refunds
+// === NOKOS STATS / CHECK REFUNDS ===
 app.post('/api/nokos/check-refunds', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
     try {
         const refunded = await checkAndRefundUserOrders(req.user.id);
@@ -3850,7 +4495,7 @@ app.post('/api/nokos/check-refunds', requireAuth, userRateLimit(10, 60 * 1000), 
     }
 }));
 
-app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
+const nokosOrdersStatsHandler = async (req, res) => {
     try {
         const [ordersResult, depositsResult] = await Promise.all([
             pool.query(
@@ -3883,7 +4528,9 @@ app.get('/api/nokos/orders/stats', requireAuth, withDB(async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrdersStats = nokosOrdersStatsHandler;
+app.get('/api/nokos/orders/stats', requireAuth, withDB(nokosOrdersStatsHandler));
 
 app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     const { entity_type, entity_id, page = 1, limit = 50 } = req.query;
@@ -3927,7 +4574,11 @@ app.get('/api/status-logs', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// nokos — servers, services, countries
+// ============================================================
+// PART 5 — Nokos (services/countries/prices/order flow) + API v1
+// ============================================================
+
+// === NOKOS SERVERS / SERVICES / COUNTRIES ===
 app.get('/api/nokos/servers', requireAuth, (req, res) => {
     res.json({ servers: SERVERS_LIST });
 });
@@ -4100,6 +4751,7 @@ app.get('/api/nokos/countries', requireAuth, withDB(async (req, res) => {
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
 app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     const { server = 'ekonomi', service, country } = req.query;
     if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
@@ -4199,8 +4851,8 @@ app.get('/api/nokos/prices', requireAuth, withDB(async (req, res) => {
     }
 }));
 
-// preview harga. pakai lock kalau ada, fallback kalau gak ada
-app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
+// === ORDER PREVIEW (reusable handler) ===
+const nokosOrderPreviewHandler = async (req, res) => {
     const { id, server, service, country, provider_price } = req.body;
 
     if (!server || !SERVER_CONFIG[server]) {
@@ -4309,7 +4961,9 @@ app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), 
             code: isClientErr ? err.code : 'PREVIEW_ERROR',
         });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrderPreview = nokosOrderPreviewHandler;
+app.post('/api/nokos/order/preview', requireAuth, userRateLimit(30, 60 * 1000), withDB(nokosOrderPreviewHandler));
 
 // helper buat kirim email banding ke WA Support
 async function sendWhatsAppAppealEmail(phoneNumber) {
@@ -4319,13 +4973,12 @@ async function sendWhatsAppAppealEmail(phoneNumber) {
             return;
         }
 
-        // Tembak ke dua email support WA
         const WA_SUPPORT_EMAILS = [
             'business_support@whatsapp.com',
             'support@support.whatsapp.com',
             'accessibility@support.whatsapp.com',
             'android_web@support.whatsapp.com'
-        ]; 
+        ];
 
         const transporter = nodemailer.createTransport({
             service: 'gmail',
@@ -4353,7 +5006,7 @@ I kindly request your immediate assistance to restore access. Thank you for your
 
         await transporter.sendMail({
             from: `"User Appeal" <${process.env.EMAIL_USER}>`,
-            to: WA_SUPPORT_EMAILS.join(', '), // Gabungin array jadi string dipisah koma
+            to: WA_SUPPORT_EMAILS.join(', '),
             subject: `Appeal for Phone Number: ${phoneNumber}`,
             text: textBody,
             html: htmlBody
@@ -4365,8 +5018,8 @@ I kindly request your immediate assistance to restore access. Thank you for your
     }
 }
 
-// create order. pakai price lock kalau ada
-app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(async (req, res) => {
+// === CREATE ORDER (reusable handler) ===
+const nokosOrderHandler = async (req, res) => {
     const startTime = Date.now();
     const {
         id, server, service, country, service_name, country_flag,
@@ -4400,7 +5053,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
         }
 
-        // kirim order ke provider
         let data;
         if (isEkonomi) {
             try {
@@ -4465,7 +5117,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             return res.status(500).json({ error: 'Provider memberikan harga tidak valid', code: 'INVALID_PRICE' });
         }
 
-        // ambil harga jual dari lock cache
         const lockKey = String(id || '').trim();
         if (lockKey) {
             const locked = getPriceLock(lockKey);
@@ -4476,7 +5127,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             price = lockedPrice;
             usedLock = true;
 
-            // provider harga > lock → rugi, cancel
             if (providerPrice > lockedPrice) {
                 console.warn(`⚠️ RUGI: provider=${providerPrice} > locked=${lockedPrice}. Cancel order.`);
                 try {
@@ -4501,7 +5151,6 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
 
         console.log(`💰 Order ${providerOrderId} (${server}): provider=${providerPrice}, jual=${price}, profit=${profit} ${usedLock ? '[LOCKED]' : '[FALLBACK]'}`);
 
-        // guard expected_price cuma kalau tidak pakai lock
         if (!usedLock && expected_price && Number(expected_price) > 0) {
             const diff = Math.abs(price - Number(expected_price));
             const tolerance = Number(expected_price) * 0.01;
@@ -4656,17 +5305,15 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             });
 
             console.log(`⏱️ Order ${providerOrderId} (${server}) in ${Date.now() - startTime}ms`);
-                        // Kirim email banding di background (fire and forget)
-            // HANYA JIKA service-nya WhatsApp
+
             if (phoneNumber) {
                 const serviceStr = String(service || '').toLowerCase();
                 const serviceNameStr = String(service_name || '').toLowerCase();
-                
-                // Cek apakah ini WhatsApp (bisa dari code 'wa'/'whatsapp' atau dari namanya)
-                const isWhatsApp = 
-                    serviceStr === 'wa' || 
-                    serviceStr === 'whatsapp' || 
-                    serviceNameStr.includes('whatsapp') || 
+
+                const isWhatsApp =
+                    serviceStr === 'wa' ||
+                    serviceStr === 'whatsapp' ||
+                    serviceNameStr.includes('whatsapp') ||
                     serviceNameStr.includes('wa ');
 
                 if (isWhatsApp) {
@@ -4705,10 +5352,12 @@ app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(a
             code: isClientErr ? err.code : undefined,
         });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrder = nokosOrderHandler;
+app.post('/api/nokos/order', requireAuth, userRateLimit(15, 60 * 1000), withDB(nokosOrderHandler));
 
-// cek status order
-app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
+// === CHECK ORDER STATUS (reusable) ===
+const nokosOrderStatusHandler = async (req, res) => {
     const { orderId } = req.params;
     try {
         const order = await findUserOrder(req.user.id, orderId);
@@ -4762,6 +5411,23 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
                     try {
                         const user = await fetchUserForOrder(fresh.rows[0]);
                         await notifyOtpSuccess(fresh.rows[0], user);
+
+                        dispatchUserWebhook(fresh.rows[0].user_id, 'order.otp_received', {
+                            otp_id: fresh.rows[0].otp_id,
+                            order_id: fresh.rows[0].order_id,
+                            server: fresh.rows[0].server,
+                            service: fresh.rows[0].service,
+                            service_name: fresh.rows[0].service_name,
+                            country: fresh.rows[0].country,
+                            country_name: fresh.rows[0].country_name,
+                            phone_number: fresh.rows[0].phone_number,
+                            otp_code: fresh.rows[0].otp_code,
+                            otp_code_2: fresh.rows[0].otp_code_2,
+                            full_sms: fresh.rows[0].full_sms,
+                            price: Number(fresh.rows[0].price) || 0,
+                            status: fresh.rows[0].status,
+                            received_at: fresh.rows[0].received_at,
+                        });
                     } catch (err) {
                         console.error('❌ Notif OTP (check status) error:', err.message);
                     }
@@ -4816,10 +5482,12 @@ app.get('/api/nokos/order/:orderId', requireAuth, withDB(async (req, res) => {
             code: isClientErr ? err.code : undefined,
         });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrderStatus = nokosOrderStatusHandler;
+app.get('/api/nokos/order/:orderId', requireAuth, withDB(nokosOrderStatusHandler));
 
-// resend SMS
-app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
+// === RESEND SMS (reusable) ===
+const nokosOrderResendHandler = async (req, res) => {
     const { orderId } = req.params;
     try {
         const order = await findUserOrder(req.user.id, orderId);
@@ -4876,10 +5544,12 @@ app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 *
             code: isClientErr ? err.code : undefined,
         });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrderResend = nokosOrderResendHandler;
+app.post('/api/nokos/order/:orderId/resend', requireAuth, userRateLimit(10, 60 * 1000), withDB(nokosOrderResendHandler));
 
-// konfirmasi OTP diterima
-app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, res) => {
+// === CONFIRM ORDER (reusable) ===
+const nokosOrderConfirmHandler = async (req, res) => {
     const { orderId } = req.params;
     const client = await pool.connect();
     try {
@@ -4934,10 +5604,12 @@ app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(async (req, re
     } finally {
         client.release();
     }
-}));
+};
+app.locals.internalHandlers.nokosOrderConfirm = nokosOrderConfirmHandler;
+app.post('/api/nokos/order/:orderId/confirm', requireAuth, withDB(nokosOrderConfirmHandler));
 
-// cancel order manual
-app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(async (req, res) => {
+// === CANCEL ORDER (reusable) ===
+const nokosOrderCancelHandler = async (req, res) => {
     const { orderId } = req.params;
     try {
         const order = await findUserOrder(req.user.id, orderId);
@@ -4964,6 +5636,13 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
         const fresh = await pool.query('SELECT * FROM orders WHERE id = $1 LIMIT 1', [order.id]);
         if (fresh.rows[0]) await refundOrder(fresh.rows[0], 'manual_cancel');
 
+        dispatchUserWebhook(req.user.id, 'order.cancelled', {
+            otp_id: order.otp_id,
+            order_id: order.order_id,
+            status: 'cancelled',
+            refunded_amount: Number(order.price) || 0,
+        });
+
         const userRes = await pool.query('SELECT balance FROM users WHERE id = $1 LIMIT 1', [req.user.id]);
 
         res.json({
@@ -4978,10 +5657,12 @@ app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 *
             code: isClientErr ? err.code : undefined,
         });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrderCancel = nokosOrderCancelHandler;
+app.post('/api/nokos/order/:orderId/cancel', requireAuth, userRateLimit(10, 60 * 1000), withDB(nokosOrderCancelHandler));
 
-// list orders (nokos + deposit)
-app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
+// === LIST ORDERS (reusable) ===
+const nokosOrdersListHandler = async (req, res) => {
     const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limitNum = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
     const status = String(req.query.status || 'all');
@@ -5064,9 +5745,11 @@ app.get('/api/nokos/orders', requireAuth, withDB(async (req, res) => {
         console.error('List orders error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
-}));
+};
+app.locals.internalHandlers.nokosOrdersList = nokosOrdersListHandler;
+app.get('/api/nokos/orders', requireAuth, withDB(nokosOrdersListHandler));
 
-// sync batch order (max 10)
+// === SYNC BATCH ORDER (JWT only) ===
 app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), withDB(async (req, res) => {
     const { order_ids } = req.body;
     if (!Array.isArray(order_ids) || order_ids.length === 0) {
@@ -5127,6 +5810,23 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
                             try {
                                 const user = await fetchUserForOrder(fresh.rows[0]);
                                 await notifyOtpSuccess(fresh.rows[0], user);
+
+                                dispatchUserWebhook(fresh.rows[0].user_id, 'order.otp_received', {
+                                    otp_id: fresh.rows[0].otp_id,
+                                    order_id: fresh.rows[0].order_id,
+                                    server: fresh.rows[0].server,
+                                    service: fresh.rows[0].service,
+                                    service_name: fresh.rows[0].service_name,
+                                    country: fresh.rows[0].country,
+                                    country_name: fresh.rows[0].country_name,
+                                    phone_number: fresh.rows[0].phone_number,
+                                    otp_code: fresh.rows[0].otp_code,
+                                    otp_code_2: fresh.rows[0].otp_code_2,
+                                    full_sms: fresh.rows[0].full_sms,
+                                    price: Number(fresh.rows[0].price) || 0,
+                                    status: fresh.rows[0].status,
+                                    received_at: fresh.rows[0].received_at,
+                                });
                             } catch (err) {
                                 console.error('❌ Notif OTP (sync batch) error:', err.message);
                             }
@@ -5144,6 +5844,272 @@ app.post('/api/nokos/sync-batch', requireAuth, userRateLimit(30, 60 * 1000), wit
         res.status(500).json({ error: 'Server error' });
     }
 }));
+
+// ============================================
+// PUBLIC API v1 — auth via API key (asyrofotp-xxx)
+// ============================================
+app.get('/api/v1/docs', (req, res) => {
+    res.json({
+        name: 'AsyrofOTP Public API',
+        version: 'v1',
+        auth: {
+            format: `${API_KEY_PREFIX}XXXXXXXXXXXXXXXX`,
+            bearer: 'Authorization: Bearer asyrofotp-xxx',
+            header: 'X-API-Key: asyrofotp-xxx',
+            query: '?api_key=asyrofotp-xxx',
+            get_key: 'GET /api/user/api-key (setelah login JWT)',
+        },
+        base_url: '/api/v1',
+        endpoints: {
+            me: 'GET /me',
+            servers: 'GET /servers',
+            services: 'GET /services?server=ekonomi',
+            countries: 'GET /countries?server=ekonomi&service=wa',
+            prices: 'GET /prices?server=ekonomi&service=wa&country=id',
+            order_preview: 'POST /order/preview {id,server,service,country}',
+            order: 'POST /order {id,server,service,country,service_name,icon_code,operator,expected_price}',
+            order_status: 'GET /order/:otp_id',
+            order_cancel: 'POST /order/:otp_id/cancel',
+            order_resend: 'POST /order/:otp_id/resend',
+            order_confirm: 'POST /order/:otp_id/confirm',
+            orders: 'GET /orders?page=1&limit=20&status=all',
+            orders_stats: 'GET /orders/stats',
+            deposit_save: 'POST /deposit/save',
+            deposit_status: 'GET /deposit/:reference_id/status',
+            deposit_history: 'GET /deposit/history?page=1&limit=5',
+            cekotp: 'POST /cekotp {otp_id}',
+        },
+    });
+});
+
+app.get('/api/v1/me', requireApiKey, withDB(async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT username, name, balance, user_code, role, created_at, api_key_last_used_at FROM users WHERE id = $1',
+            [req.user.id]
+        );
+        const u = result.rows[0];
+        res.json({
+            ok: true,
+            user: {
+                username: u.username,
+                name: u.name,
+                balance: Number(u.balance) || 0,
+                user_code: u.user_code,
+                role: u.role,
+                created_at: u.created_at,
+                api_key_last_used_at: u.api_key_last_used_at,
+            },
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+app.get('/api/v1/servers', requireApiKey, (req, res) => {
+    res.json({ ok: true, servers: SERVERS_LIST });
+});
+
+// helper delegate ke internal handler (req.user udah di-set requireApiKey bentuk sama kayak JWT)
+function delegateTo(handlerName, paramMap) {
+    return (req, res) => {
+        const h = app.locals.internalHandlers && app.locals.internalHandlers[handlerName];
+        if (!h) return res.status(503).json({ error: 'Endpoint belum siap', code: 'NOT_READY', handler: handlerName });
+        if (paramMap) {
+            for (const [from, to] of Object.entries(paramMap)) {
+                if (req.params[from] !== undefined) req.params[to] = req.params[from];
+            }
+        }
+        return h(req, res);
+    };
+}
+
+app.get('/api/v1/services', requireApiKey, withDB(async (req, res) => {
+    const { server = 'ekonomi' } = req.query;
+    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
+
+    try {
+        let services = [];
+        if (server === 'ekonomi') {
+            const data = await dibananaFetch('/services?server=ekonomi');
+            services = await enrichServicesWithCode(data.services || [], 'ekonomi');
+            services = services.map(s => s.price_idr ? { ...s, price_idr: applyMarkup(Number(s.price_idr)) } : s);
+        } else {
+            const raw = await premiumFetch('/catalog/services');
+            services = (raw || []).map(s => {
+                const code = String(s.code || '').trim().toLowerCase();
+                return { code, name: s.name || code, icon_code: code || null, active: s.active !== false };
+            });
+        }
+        res.json({ ok: true, server, services });
+    } catch (err) {
+        console.error('[v1/services]', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.get('/api/v1/countries', requireApiKey, withDB(async (req, res) => {
+    const { server = 'ekonomi', service } = req.query;
+    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
+
+    try {
+        let countries = [];
+        if (server === 'ekonomi') {
+            try {
+                const params = new URLSearchParams({ server: 'ekonomi' });
+                if (service) params.append('service', service);
+                const data = await dibananaFetch(`/countries?${params.toString()}`);
+                if (data.countries) {
+                    return res.json({
+                        ok: true, server,
+                        countries: data.countries.map(c => ({
+                            ...c,
+                            min_price: c.min_price != null && Number(c.min_price) > 0 ? applyMarkup(Number(c.min_price)) : null,
+                        })),
+                    });
+                }
+            } catch (e) { /* fallback */ }
+            countries = (SERVER_CONFIG.ekonomi.countries || []).map(c => ({
+                code: c, name: COUNTRY_NAMES[c] || c.toUpperCase(), min_price: null,
+            }));
+        } else {
+            const [rawCountries, rawServices] = await Promise.all([
+                premiumFetch('/catalog/countries'),
+                premiumFetch('/catalog/services'),
+            ]);
+            let minPriceByCountry = {};
+            if (service) {
+                const serviceObj = (rawServices || []).find(s => String(s.code).toLowerCase() === String(service).toLowerCase());
+                if (serviceObj) {
+                    try {
+                        const p = new URLSearchParams({ platform_id: String(serviceObj.id), limit: '10000', page: '1', sort: 'price_asc' });
+                        const productsRaw = await premiumFetchPublic(`/catalog/products?${p.toString()}`);
+                        for (const prod of (productsRaw || []).filter(x => x.active !== false)) {
+                            if (prod.country_id == null) continue;
+                            const price = Number(prod.price) || 0;
+                            if (price <= 0) continue;
+                            const cid = String(prod.country_id);
+                            if (!minPriceByCountry[cid] || price < minPriceByCountry[cid]) minPriceByCountry[cid] = price;
+                        }
+                    } catch (e) {}
+                }
+            }
+            countries = (rawCountries || []).map(c => {
+                const rawMin = minPriceByCountry[String(c.id)];
+                return {
+                    code: String(c.code || '').toLowerCase(),
+                    name: c.name || c.code,
+                    dial_code: c.dial_code || null,
+                    emoji: c.emoji || null,
+                    min_price: (rawMin != null && rawMin > 0) ? applyMarkup(rawMin) : null,
+                };
+            });
+        }
+        res.json({ ok: true, server, countries });
+    } catch (err) {
+        console.error('[v1/countries]', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+app.get('/api/v1/prices', requireApiKey, withDB(async (req, res) => {
+    const { server = 'ekonomi', service, country } = req.query;
+    if (!SERVER_CONFIG[server]) return res.status(400).json({ error: 'Server tidak valid' });
+    if (!service || !country) return res.status(400).json({ error: 'service dan country wajib' });
+
+    try {
+        let providers = [];
+        if (server === 'ekonomi') {
+            const data = await dibananaFetch(
+                `/prices?server=ekonomi&service=${encodeURIComponent(service)}&country=${encodeURIComponent(country)}`
+            );
+            providers = (data.providers || []).map(p => {
+                const pp = Number(p.price_idr) || 0;
+                const sp = applyMarkup(pp);
+                const pid = String(p.id || p.provider_id || '').trim();
+                if (pid && sp > 0) setPriceLock(pid, sp, pp, { server, service, country, provider: 'server1' });
+                return { ...p, price_idr: sp };
+            });
+        } else {
+            const [countriesRaw, servicesRaw] = await Promise.all([
+                premiumFetch('/catalog/countries'),
+                premiumFetch('/catalog/services'),
+            ]);
+            const cObj = (countriesRaw || []).find(c => String(c.code).toLowerCase() === String(country).toLowerCase());
+            const sObj = (servicesRaw || []).find(s => String(s.code).toLowerCase() === String(service).toLowerCase());
+            if (!cObj || !sObj) return res.json({ ok: true, server, service, country, providers: [] });
+
+            const p = new URLSearchParams({ country_id: String(cObj.id), platform_id: String(sObj.id), limit: '500', page: '1' });
+            const products = await premiumFetch(`/catalog/products?${p.toString()}`);
+            providers = (products || []).filter(x => x.active !== false).map(prod => {
+                const pp = premiumMoneyToIdr(prod.price);
+                const sp = applyMarkup(pp);
+                const pid = String(prod.id || prod.product_id || '').trim();
+                if (pid && sp > 0) setPriceLock(pid, sp, pp, {
+                    server, service, country, provider: 'server2',
+                    product_id: pid, catalog_product_id: prod.catalog_product_id || null, operator_id: prod.operator_id || null,
+                });
+                return {
+                    id: pid, provider_id: pid, product_id: pid,
+                    catalog_product_id: prod.catalog_product_id || null,
+                    operator_id: prod.operator_id || null,
+                    operator_name: prod.operator_name || null,
+                    name: prod.name || `${sObj.name} ${cObj.name}`,
+                    available: Number(prod.available) || 0,
+                    stock: Number(prod.available) || 0,
+                    active: prod.active !== false,
+                    price_idr: sp,
+                };
+            });
+        }
+        res.json({ ok: true, server, service, country, providers });
+    } catch (err) {
+        console.error('[v1/prices]', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// --- v1 delegate ---
+app.post('/api/v1/order/preview', requireApiKey, userRateLimit(60, 60 * 1000), withDB(
+    delegateTo('nokosOrderPreview')
+));
+app.post('/api/v1/order', requireApiKey, userRateLimit(30, 60 * 1000), withDB(
+    delegateTo('nokosOrder')
+));
+app.get('/api/v1/order/:otpId', requireApiKey, withDB(
+    delegateTo('nokosOrderStatus', { otpId: 'orderId' })
+));
+app.post('/api/v1/order/:otpId/cancel', requireApiKey, userRateLimit(20, 60 * 1000), withDB(
+    delegateTo('nokosOrderCancel', { otpId: 'orderId' })
+));
+app.post('/api/v1/order/:otpId/resend', requireApiKey, userRateLimit(20, 60 * 1000), withDB(
+    delegateTo('nokosOrderResend', { otpId: 'orderId' })
+));
+app.post('/api/v1/order/:otpId/confirm', requireApiKey, withDB(
+    delegateTo('nokosOrderConfirm', { otpId: 'orderId' })
+));
+app.get('/api/v1/orders', requireApiKey, withDB(
+    delegateTo('nokosOrdersList')
+));
+app.get('/api/v1/orders/stats', requireApiKey, withDB(
+    delegateTo('nokosOrdersStats')
+));
+app.get('/api/v1/deposit/history', requireApiKey, withDB(
+    delegateTo('depositHistory')
+));
+app.post('/api/v1/deposit/save', requireApiKey, userRateLimit(10, 60 * 1000), withDB(
+    delegateTo('depositSave')
+));
+app.get('/api/v1/deposit/:referenceId/status', requireApiKey, withDB(
+    delegateTo('depositStatus')
+));
+app.post('/api/v1/cekotp', requireApiKey, userRateLimit(60, 60 * 1000), withDB(
+    delegateTo('cekotp')
+));
+
+// ============================================================
+// PART 6 — Admin Routes
+// ============================================================
 
 // admin middleware & helpers
 const ADMIN_USERNAMES = ['asyrofc'];
@@ -5265,13 +6231,14 @@ async function logBalanceAdjust({ executor, entityId, userId, oldBalance, action
 // admin stats
 app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     try {
-        const [usersRes, ordersRes, depositsRes, balanceRes, pendingDepositsRes, pendingOrdersRes] = await Promise.all([
+        const [usersRes, ordersRes, depositsRes, balanceRes, pendingDepositsRes, pendingOrdersRes, webhooksRes] = await Promise.all([
             pool.query('SELECT COUNT(*) AS c FROM users'),
             pool.query('SELECT COUNT(*) AS c FROM orders'),
             pool.query('SELECT COUNT(*) AS c FROM deposits'),
             pool.query('SELECT COALESCE(SUM(balance), 0) AS total FROM users'),
             pool.query("SELECT COUNT(*) AS c FROM deposits WHERE status = 'pending'"),
             pool.query("SELECT COUNT(*) AS c FROM orders WHERE status = 'pending'"),
+            pool.query('SELECT COUNT(*) AS c FROM user_webhooks WHERE active = TRUE').catch(() => ({ rows: [{ c: 0 }] })),
         ]);
 
         res.json({
@@ -5281,6 +6248,7 @@ app.get('/api/admin/stats', requireAuth, requireAdminFlex, withDB(async (req, re
             total_balance: Number(balanceRes.rows[0].total) || 0,
             pending_deposits: Number(pendingDepositsRes.rows[0].c) || 0,
             pending_orders: Number(pendingOrdersRes.rows[0].c) || 0,
+            active_user_webhooks: Number(webhooksRes.rows[0].c) || 0,
             price_lock_size: priceLockCache.size,
             price_lock_max: PRICE_LOCK_MAX_SIZE,
         });
@@ -5401,6 +6369,7 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
                 LOWER(username) LIKE $1 OR
                 LOWER(COALESCE(name, '')) LIKE $1 OR
                 LOWER(COALESCE(user_code, '')) LIKE $1 OR
+                LOWER(COALESCE(api_key, '')) LIKE $1 OR
                 CAST(id AS TEXT) LIKE $1
             )`;
         }
@@ -5408,8 +6377,10 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
         const listQuery = `
             SELECT 
                 u.id, u.username, u.name, u.user_code, u.balance, u.role, u.status, u.created_at,
+                u.api_key, u.api_key_created_at, u.api_key_last_used_at,
                 COALESCE(o.cnt, 0) AS total_orders,
-                COALESCE(d.cnt, 0) AS total_deposits
+                COALESCE(d.cnt, 0) AS total_deposits,
+                COALESCE(w.cnt, 0) AS total_webhooks
             FROM users u
             LEFT JOIN (
                 SELECT user_id, COUNT(*) AS cnt FROM orders GROUP BY user_id
@@ -5417,6 +6388,9 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
             LEFT JOIN (
                 SELECT user_id, COUNT(*) AS cnt FROM deposits GROUP BY user_id
             ) d ON d.user_id = u.id
+            LEFT JOIN (
+                SELECT user_id, COUNT(*) AS cnt FROM user_webhooks GROUP BY user_id
+            ) w ON w.user_id = u.id
             ${where}
             ORDER BY u.created_at DESC
             LIMIT $${params.length + 1} OFFSET $${params.length + 2}
@@ -5442,8 +6416,12 @@ app.get('/api/admin/users', requireAuth, requireAdminFlex, withDB(async (req, re
                 role: u.role,
                 status: u.status,
                 created_at: u.created_at,
+                api_key: u.api_key,
+                api_key_created_at: u.api_key_created_at,
+                api_key_last_used_at: u.api_key_last_used_at,
                 total_orders: Number(u.total_orders) || 0,
                 total_deposits: Number(u.total_deposits) || 0,
+                total_webhooks: Number(u.total_webhooks) || 0,
             })),
             total,
             page,
@@ -5463,14 +6441,14 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
 
     try {
         const userRes = await pool.query(
-            'SELECT id, username, name, user_code, balance, role, status, created_at, updated_at FROM users WHERE id = $1 LIMIT 1',
+            'SELECT id, username, name, user_code, balance, role, status, created_at, updated_at, api_key, api_key_created_at, api_key_last_used_at FROM users WHERE id = $1 LIMIT 1',
             [userId]
         );
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
 
         const user = userRes.rows[0];
 
-        const [orderStats, depositStats, balanceLogs] = await Promise.all([
+        const [orderStats, depositStats, balanceLogs, webhookCount] = await Promise.all([
             pool.query(
                 `SELECT 
                     COUNT(*) AS total,
@@ -5504,9 +6482,10 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                  LIMIT 100`,
                 [userId]
             ),
+            pool.query('SELECT COUNT(*) FROM user_webhooks WHERE user_id = $1', [userId]).catch(() => ({ rows: [{ count: 0 }] })),
         ]);
 
-        const [recentOrders, recentDeposits] = await Promise.all([
+        const [recentOrders, recentDeposits, webhooks] = await Promise.all([
             pool.query(
                 `SELECT order_id, otp_id, service_name, service, icon_code, country, country_name, phone_number,
                         otp_code, price, provider_price, status, server, created_at, refunded_at, refunded_amount
@@ -5519,6 +6498,11 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                  FROM deposits WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
                 [userId]
             ),
+            pool.query(
+                `SELECT id, url, events, active, description, created_at, updated_at, last_triggered_at, failure_count
+                 FROM user_webhooks WHERE user_id = $1 ORDER BY created_at DESC`,
+                [userId]
+            ).catch(() => ({ rows: [] })),
         ]);
 
         res.json({
@@ -5538,6 +6522,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                     pending: Number(depositStats.rows[0].pending) || 0,
                     total_deposit: Number(depositStats.rows[0].total_deposit) || 0,
                 },
+                webhooks: Number(webhookCount.rows[0].count) || 0,
             },
             balance_logs: balanceLogs.rows,
             recent_orders: recentOrders.rows.map(o => ({
@@ -5552,6 +6537,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
                 total_amount: Number(d.total_amount) || 0,
                 fee: Number(d.fee) || 0,
             })),
+            webhooks: webhooks.rows,
         });
     } catch (err) {
         console.error('Admin user detail error:', err.message);
@@ -5559,6 +6545,7 @@ app.get('/api/admin/users/:id', requireAuth, requireAdminFlex, withDB(async (req
     }
 }));
 
+// admin cleanup users
 app.post('/api/admin/cleanup-users', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const { dry_run = false, days = 30 } = req.body || {};
     const dayNum = Math.min(365, Math.max(1, parseInt(days) || 30));
@@ -5728,7 +6715,7 @@ app.post('/api/admin/users/:id/balance', requireAuth, requireAdminFlex, withDB(a
     }
 }));
 
-// admin role / status / reset password
+// admin change role
 app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { role } = req.body;
@@ -5757,6 +6744,7 @@ app.post('/api/admin/users/:id/role', requireAuth, requireAdminFlex, withDB(asyn
     }
 }));
 
+// admin change status
 app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { status } = req.body;
@@ -5789,6 +6777,7 @@ app.post('/api/admin/users/:id/status', requireAuth, requireAdminFlex, withDB(as
     }
 }));
 
+// admin reset user password
 app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const userId = String(req.params.id || '').trim();
     const { new_password } = req.body;
@@ -5815,6 +6804,79 @@ app.post('/api/admin/users/:id/reset-password', requireAuth, requireAdminFlex, w
         res.json({ message: 'Password berhasil direset', user: result.rows[0] });
     } catch (err) {
         console.error('Admin reset password error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// admin rotate user api key
+app.post('/api/admin/users/:id/rotate-api-key', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const userId = String(req.params.id || '').trim();
+    if (!userId) return res.status(400).json({ error: 'User ID wajib' });
+
+    try {
+        const newKey = await generateUniqueApiKey();
+        const result = await pool.query(
+            `UPDATE users SET api_key = $1, api_key_created_at = NOW(), api_key_last_used_at = NULL, updated_at = NOW()
+             WHERE id = $2 RETURNING id, username, api_key`,
+            [newKey, userId]
+        );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'User tidak ditemukan' });
+
+        await logAdminAction({
+            adminId: req.admin.id,
+            adminUsername: req.admin.username,
+            action: 'rotate_api_key',
+            targetType: 'user',
+            targetId: userId,
+        });
+
+        res.json({ message: 'API key berhasil dirotasi', user: result.rows[0] });
+    } catch (err) {
+        console.error('Admin rotate api key error:', err.message);
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
+// admin list all user webhooks
+app.get('/api/admin/user-webhooks', requireAuth, requireAdminFlex, withDB(async (req, res) => {
+    const { page, limit, offset } = parsePagination(req, 20, 100);
+    const userId = String(req.query.user_id || '').trim();
+
+    try {
+        const params = [];
+        let where = '';
+        if (userId) {
+            params.push(userId);
+            where = `WHERE w.user_id = $${params.length}`;
+        }
+
+        const listQuery = `
+            SELECT w.id, w.user_id, w.url, w.events, w.active, w.description,
+                   w.created_at, w.updated_at, w.last_triggered_at, w.failure_count,
+                   u.username, u.user_code
+            FROM user_webhooks w
+            LEFT JOIN users u ON u.id = w.user_id
+            ${where}
+            ORDER BY w.created_at DESC
+            LIMIT $${params.length + 1} OFFSET $${params.length + 2}
+        `;
+        const countQuery = `SELECT COUNT(*) AS c FROM user_webhooks w ${where}`;
+
+        const [listRes, countRes] = await Promise.all([
+            pool.query(listQuery, [...params, limit, offset]),
+            pool.query(countQuery, params),
+        ]);
+
+        const total = Number(countRes.rows[0].c) || 0;
+        res.json({
+            webhooks: listRes.rows,
+            total,
+            page,
+            limit,
+            total_pages: Math.ceil(total / limit),
+        });
+    } catch (err) {
+        console.error('Admin user webhooks list error:', err.message);
         res.status(500).json({ error: 'Server error' });
     }
 }));
@@ -6093,6 +7155,16 @@ app.post('/api/admin/order/:orderId/status', requireAuth, requireAdminFlex, with
 
         await client.query('COMMIT');
 
+        // dispatch webhook setelah commit (fire & forget)
+        if (ORDER_FAIL_STATUSES.includes(newStatus) && !ORDER_FAIL_STATUSES.includes(oldStatus)) {
+            dispatchUserWebhook(order.user_id, 'order.refunded', {
+                otp_id: order.otp_id,
+                order_id: orderId,
+                status: newStatus,
+                refunded_amount: price,
+            });
+        }
+
         res.json({
             message: 'Status order berhasil diubah',
             order: {
@@ -6352,6 +7424,21 @@ app.post('/api/admin/deposit/:referenceId/status', requireAuth, requireAdminFlex
 
         await client.query('COMMIT');
 
+        // dispatch webhook setelah commit
+        if (newStatus === 'success' && oldStatus !== 'success') {
+            dispatchUserWebhook(deposit.user_id, 'deposit.success', {
+                reference_id: referenceId,
+                amount,
+                total_amount: Number(updatedDeposit.rows[0].total_amount) || amount,
+                fee: Number(updatedDeposit.rows[0].fee) || 0,
+            });
+        } else if (newStatus === 'expired' && oldStatus !== 'expired') {
+            dispatchUserWebhook(deposit.user_id, 'deposit.expired', {
+                reference_id: referenceId,
+                amount,
+            });
+        }
+
         res.json({
             message: 'Status deposit berhasil diubah',
             deposit: {
@@ -6480,6 +7567,12 @@ app.post('/api/admin/deposit/:referenceId/approve', requireAuth, requireAdminFle
             } catch (err) {
                 console.error('❌ Notif deposit (approve) error:', err.message);
             }
+            dispatchUserWebhook(deposit.user_id, 'deposit.success', {
+                reference_id: referenceId,
+                amount,
+                total_amount: Number(updated.rows[0].total_amount) || amount,
+                fee: Number(updated.rows[0].fee) || 0,
+            });
         }
 
         res.json({
@@ -6562,11 +7655,9 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
 
     try {
         if (type === 'stats') {
-            // ... (biarkan sama seperti kodemu sebelumnya)
             return res.json({ ok: true });
         }
 
-        // FUNGSI BANTUAN KHUSUS RICH MESSAGE
         async function sendRichTest(chatId, htmlContent, buttons = []) {
             const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
             const payload = {
@@ -6586,10 +7677,8 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
         }
 
         if (type === 'otp') {
-            const fakeOrder = { /* ... data fake ... */ };
             const displayId = `TEST-OTP-${Date.now()}`;
-            
-            // Tabel doang di dalam HTML
+
             const text =
                 `<b>🔔 [TEST] SUCCESSFULLY GET OTP</b>\n` +
                 `<table bordered striped>\n` +
@@ -6605,7 +7694,6 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
                 `</table>\n\n` +
                 `<i>⚠️ Ini pesan test Rich Message.</i>`;
 
-            // Tombol warna dikirim via reply_markup
             const buttons = [
                 [
                     { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' },
@@ -6619,7 +7707,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
 
         if (type === 'deposit') {
             const fakeRef = `TEST-DEP-${Date.now()}`;
-            
+
             const text =
                 `<b>💰 [TEST] SUCCESSFUL DEPOSIT</b>\n` +
                 `<table bordered striped>\n` +
@@ -6652,7 +7740,7 @@ app.post('/api/admin/test-notif', requireAuth, requireAdminFlex, withDB(async (r
     }
 }));
 
-// admin backfill notif
+// admin backfill notifs
 app.post('/api/admin/backfill-notifs', requireAuth, requireAdminFlex, withDB(async (req, res) => {
     const {
         type = 'all',
@@ -7203,7 +8291,24 @@ app.post('/api/admin/batch-send-notif', requireAuth, requireAdminFlex, withDB(as
     });
 }));
 
-// cron endpoints
+// admin login unik (dashboard)
+app.post('/api/admin/login-unik', (req, res) => {
+    const { password } = req.body;
+    const adminPassword = process.env.ADMIN_PW_UNIK || 'nisaimut';
+
+    if (password === adminPassword) {
+        res.json({ ok: true, message: 'Login Berhasil' });
+    } else {
+        res.status(401).json({ ok: false, error: 'Password Salah!' });
+    }
+});
+
+// ============================================================
+// PART 7 (FINAL) — Cron, Auto-Sync Report, Backup, Telegram Link,
+//                  Export, Global Error, Startup Warmup
+// ============================================================
+
+// === CRON ENDPOINTS ===
 app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, res) => {
     try {
         const result = await pool.query(
@@ -7274,6 +8379,23 @@ app.post('/api/cron/validate-pending-orders', requireCron, withDB(async (req, re
                                     try {
                                         const user = await fetchUserForOrder(fresh.rows[0]);
                                         await notifyOtpSuccess(fresh.rows[0], user);
+
+                                        dispatchUserWebhook(fresh.rows[0].user_id, 'order.otp_received', {
+                                            otp_id: fresh.rows[0].otp_id,
+                                            order_id: fresh.rows[0].order_id,
+                                            server: fresh.rows[0].server,
+                                            service: fresh.rows[0].service,
+                                            service_name: fresh.rows[0].service_name,
+                                            country: fresh.rows[0].country,
+                                            country_name: fresh.rows[0].country_name,
+                                            phone_number: fresh.rows[0].phone_number,
+                                            otp_code: fresh.rows[0].otp_code,
+                                            otp_code_2: fresh.rows[0].otp_code_2,
+                                            full_sms: fresh.rows[0].full_sms,
+                                            price: Number(fresh.rows[0].price) || 0,
+                                            status: fresh.rows[0].status,
+                                            received_at: fresh.rows[0].received_at,
+                                        });
                                     } catch (err) {
                                         console.error('❌ Notif OTP (cron) error:', err.message);
                                     }
@@ -7393,9 +8515,7 @@ app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) =
     }
 }));
 
-// ============================================
-// AUTO SYNC ALL — Full report to Telegram (RICH MESSAGE)
-// ============================================
+// === AUTO SYNC ALL (full report to Telegram) ===
 const AUTO_SYNC_REPORT_CHAT_ID = process.env.AUTO_SYNC_REPORT_CHAT_ID || '8182530431';
 
 async function autoSyncAll() {
@@ -7574,7 +8694,7 @@ async function autoSyncAll() {
 
     console.log(`🔄 autoSyncAll: orders=${report.orders.updated}/${report.orders.checked}, deposits=${report.deposits.updated}/${report.deposits.checked}, errors=${report.errors.length}, ${report.duration_ms}ms`);
 
-    // ─── 7. KIRIM LAPORAN KE TELEGRAM (RICH MESSAGE) ─────────────
+    // ─── 7. KIRIM LAPORAN KE TELEGRAM ─────────────
     try {
         await sendAutoSyncReport(report);
     } catch (err) {
@@ -7583,9 +8703,8 @@ async function autoSyncAll() {
 
     return report;
 }
-// ============================================
-// HELPER: Kirim laporan auto-sync ke Telegram (Rich Message)
-// ============================================
+
+// helper: kirim laporan auto-sync ke Telegram
 async function sendAutoSyncReport(report) {
     if (!TELEGRAM_BOT_TOKEN) {
         console.warn('⚠️ TELEGRAM_BOT_TOKEN belum di-set, skip report');
@@ -7595,10 +8714,8 @@ async function sendAutoSyncReport(report) {
     const statusEmoji = report.status === 'ok' ? '✅' : '⚠️';
     const statusLabel = report.status === 'ok' ? 'OK' : 'DEGRADED';
 
-    // 1. BIKIN HTML TABEL (Full Rich Message)
     let html = '';
 
-    // Header Info
     html += `<b>${statusEmoji} AUTO-SYNC REPORT</b>\n`;
     html += `<table bordered striped>\n`;
     html += `  <thead><tr><th>Metrik</th><th>Nilai</th></tr></thead>\n`;
@@ -7607,7 +8724,6 @@ async function sendAutoSyncReport(report) {
     html += `  <tr><td><b>Durasi</b></td><td><b>${report.duration_ms} ms</b></td></tr>\n`;
     html += `</table>\n\n`;
 
-    // Tabel Orders
     html += `<b>📦 ORDERS</b>\n`;
     html += `<table bordered striped>\n`;
     html += `  <thead><tr><th>Status</th><th>Jumlah</th></tr></thead>\n`;
@@ -7632,7 +8748,6 @@ async function sendAutoSyncReport(report) {
     }
     html += `\n`;
 
-    // Tabel Deposits
     html += `<b>💰 DEPOSITS</b>\n`;
     html += `<table bordered striped>\n`;
     html += `  <thead><tr><th>Status</th><th>Jumlah</th></tr></thead>\n`;
@@ -7655,7 +8770,6 @@ async function sendAutoSyncReport(report) {
     }
     html += `\n`;
 
-    // Tabel New Today
     html += `<b>🆕 24 JAM TERAKHIR</b>\n`;
     html += `<table bordered striped>\n`;
     html += `  <thead><tr><th>Kategori</th><th>Jumlah</th></tr></thead>\n`;
@@ -7678,7 +8792,6 @@ async function sendAutoSyncReport(report) {
     }
     html += `\n`;
 
-    // Tabel Saldo
     html += `<b>💵 SALDO</b>\n`;
     html += `<table bordered striped>\n`;
     html += `  <thead><tr><th>Info</th><th>Nilai</th></tr></thead>\n`;
@@ -7699,7 +8812,6 @@ async function sendAutoSyncReport(report) {
     }
     html += `\n`;
 
-    // Tabel Provider
     const dib = report.provider_check.dibanana;
     const prem = report.provider_check.premium;
     html += `<b>🏢 PROVIDER HEALTH</b>\n`;
@@ -7716,7 +8828,6 @@ async function sendAutoSyncReport(report) {
         html += `\n<i>⚠️ Premium error: ${escapeHtmlNotif(prem.error.slice(0, 100))}</i>\n`;
     }
 
-    // Tabel Errors
     if (report.errors.length > 0) {
         html += `\n<b>❌ ERRORS (${report.errors.length})</b>\n`;
         html += `<table bordered striped>\n`;
@@ -7730,7 +8841,6 @@ async function sendAutoSyncReport(report) {
         html += `</table>\n`;
     }
 
-    // 2. BIKIN TOMBOL WARNA
     const replyMarkup = {
         inline_keyboard: [
             [
@@ -7740,7 +8850,6 @@ async function sendAutoSyncReport(report) {
         ]
     };
 
-    // 3. TEMBAK KE sendRichMessage
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15000);
 
@@ -7767,14 +8876,6 @@ async function sendAutoSyncReport(report) {
     }
 }
 
-// Helper: format rupiah ringkas buat report
-function toRpShort(n) {
-    const num = Number(n) || 0;
-    if (num >= 1_000_000) return `Rp${(num / 1_000_000).toFixed(1)}jt`;
-    if (num >= 1_000) return `Rp${(num / 1_000).toFixed(0)}rb`;
-    return `Rp${num}`;
-}
-
 // cron auto sync all
 app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     try {
@@ -7796,12 +8897,33 @@ app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     }
 }));
 
+// cron sync stats
+app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
+    try {
+        const [ordersPending, depositsPending, ordersNotified, depositsNotified] = await Promise.all([
+            pool.query(`SELECT COUNT(*) FROM orders WHERE status = 'pending'`),
+            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'pending'`),
+            pool.query(`SELECT COUNT(*) FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
+            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
+        ]);
+        res.json({
+            pending_orders: Number(ordersPending.rows[0].count),
+            pending_deposits: Number(depositsPending.rows[0].count),
+            unnotified_orders: Number(ordersNotified.rows[0].count),
+            unnotified_deposits: Number(depositsNotified.rows[0].count),
+            price_lock_size: priceLockCache.size,
+            price_lock_max: PRICE_LOCK_MAX_SIZE,
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Server error' });
+    }
+}));
+
 // ============================================
-// AUTO BACKUP DB — Full dump semua tabel ke JSON
+// AUTO BACKUP DB — full dump ke JSON
 // ============================================
 const BACKUP_REPORT_CHAT_ID = process.env.AUTO_SYNC_REPORT_CHAT_ID || '8182530431';
 
-// Daftar tabel yang mau di-backup (urut biar gak ada FK issue)
 const BACKUP_TABLES = [
     'users',
     'sessions',
@@ -7813,6 +8935,8 @@ const BACKUP_TABLES = [
     'status_logs',
     'token_blacklist',
     'webhook_events',
+    'user_webhooks',
+    'user_webhook_logs',
 ];
 
 async function backupDatabaseFull() {
@@ -7821,7 +8945,7 @@ async function backupDatabaseFull() {
         meta: {
             generated_at: new Date().toISOString(),
             generated_at_jakarta: formatWaktuJakarta(),
-            version: 'v18-depo1-only',
+            version: 'v19-apikey-integrated',
             tables: [],
             total_tables: 0,
             total_rows: 0,
@@ -7833,10 +8957,8 @@ async function backupDatabaseFull() {
 
     for (const tableName of BACKUP_TABLES) {
         try {
-            // Ambil semua kolom dan row
             const res = await pool.query(`SELECT * FROM ${tableName} ORDER BY 1 ASC`);
-            
-            // Ambil struktur kolom (buat info schema)
+
             const colsRes = await pool.query(
                 `SELECT column_name, data_type, is_nullable, column_default
                  FROM information_schema.columns
@@ -7875,13 +8997,12 @@ async function backupDatabaseFull() {
     return backup;
 }
 
-// Endpoint: trigger backup + kirim ke Telegram
+// endpoint: trigger backup + kirim ke Telegram
 app.post('/api/cron/backup-db', requireCron, withDB(async (req, res) => {
     const startTime = Date.now();
     try {
         const backup = await backupDatabaseFull();
 
-        // 1. Kirim ke Telegram sebagai file
         const fileName = `asyrofotp-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
         const fileBuffer = Buffer.from(JSON.stringify(backup, null, 2), 'utf8');
         const caption =
@@ -7896,7 +9017,6 @@ app.post('/api/cron/backup-db', requireCron, withDB(async (req, res) => {
         let telegramFileSent = false;
         if (TELEGRAM_BOT_TOKEN && BACKUP_REPORT_CHAT_ID) {
             try {
-                // Pakai FormData (native Node 18+)
                 const form = new FormData();
                 form.append('chat_id', BACKUP_REPORT_CHAT_ID);
                 form.append('document', new Blob([fileBuffer], { type: 'application/json' }), fileName);
@@ -7923,7 +9043,6 @@ app.post('/api/cron/backup-db', requireCron, withDB(async (req, res) => {
             }
         }
 
-        // 2. Balikin response JSON info (bukan file penuh, biar response ringan)
         res.json({
             message: 'Backup selesai',
             file_name: fileName,
@@ -7941,7 +9060,7 @@ app.post('/api/cron/backup-db', requireCron, withDB(async (req, res) => {
     }
 }));
 
-// Endpoint: download backup sebagai file (buat manual)
+// endpoint: download backup manual
 app.get('/api/cron/backup-db/download', requireCron, withDB(async (req, res) => {
     try {
         const backup = await backupDatabaseFull();
@@ -7952,42 +9071,6 @@ app.get('/api/cron/backup-db/download', requireCron, withDB(async (req, res) => 
     } catch (err) {
         console.error('backup-db download error:', err);
         res.status(500).json({ error: 'Backup gagal', detail: err.message });
-    }
-}));
-
-// ==========================================
-// ENDPOINT LOGIN KHUSUS ADMIN DASHBOARD
-// ==========================================
-app.post('/api/admin/login-unik', (req, res) => {
-    const { password } = req.body;
-    const adminPassword = process.env.ADMIN_PW_UNIK || 'nisaimut'; // Fallback kalo env kosong
-    
-    if (password === adminPassword) {
-        res.json({ ok: true, message: 'Login Berhasil' });
-    } else {
-        res.status(401).json({ ok: false, error: 'Password Salah!' });
-    }
-});
-
-// cron sync stats
-app.post('/api/cron/sync-stats', requireCron, withDB(async (req, res) => {
-    try {
-        const [ordersPending, depositsPending, ordersNotified, depositsNotified] = await Promise.all([
-            pool.query(`SELECT COUNT(*) FROM orders WHERE status = 'pending'`),
-            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'pending'`),
-            pool.query(`SELECT COUNT(*) FROM orders WHERE status IN ('received','success','confirmed') AND otp_code IS NOT NULL AND notified_at IS NULL`),
-            pool.query(`SELECT COUNT(*) FROM deposits WHERE status = 'success' AND notified_at IS NULL`),
-        ]);
-        res.json({
-            pending_orders: Number(ordersPending.rows[0].count),
-            pending_deposits: Number(depositsPending.rows[0].count),
-            unnotified_orders: Number(ordersNotified.rows[0].count),
-            unnotified_deposits: Number(depositsNotified.rows[0].count),
-            price_lock_size: priceLockCache.size,
-            price_lock_max: PRICE_LOCK_MAX_SIZE,
-        });
-    } catch (err) {
-        res.status(500).json({ error: 'Server error' });
     }
 }));
 
@@ -8031,7 +9114,7 @@ app.get('/api/telegram/status', requireAuth, withDB(async (req, res) => {
     res.json(result.rows[0]);
 }));
 
-// === ENDPOINT MERGE TELEGRAM GUEST ===
+// === MERGE TELEGRAM GUEST ===
 app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
     const { telegram_id, telegram_username } = req.body;
     if (!telegram_id) return res.status(400).json({ error: 'telegram_id wajib' });
@@ -8043,12 +9126,11 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
         const webUserRes = await client.query('SELECT id, balance, username FROM users WHERE id = $1 FOR UPDATE', [req.user.id]);
         const webUser = webUserRes.rows[0];
 
-        // Cari user Guest yang telegram_id-nya cocok DAN telegram_linked_at masih NULL
         const guestUserRes = await client.query(
-            'SELECT id, balance FROM users WHERE telegram_id = $1 AND telegram_linked_at IS NULL AND id != $2 FOR UPDATE', 
+            'SELECT id, balance FROM users WHERE telegram_id = $1 AND telegram_linked_at IS NULL AND id != $2 FOR UPDATE',
             [telegram_id, webUser.id]
         );
-        
+
         if (guestUserRes.rows.length > 0) {
             const guestUser = guestUserRes.rows[0];
 
@@ -8058,11 +9140,11 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
             await client.query('UPDATE orders SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
             await client.query('UPDATE transactions SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
             await client.query('UPDATE deposits SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]);
+            await client.query('UPDATE user_webhooks SET user_id = $1 WHERE user_id = $2', [webUser.id, guestUser.id]).catch(() => {});
 
             await client.query('DELETE FROM users WHERE id = $1', [guestUser.id]);
         }
 
-        // Tautkan ke akun web, dan SET telegram_linked_at
         await client.query(
             `UPDATE users SET telegram_id = $1, telegram_username = $2, telegram_linked_at = NOW() WHERE id = $3`,
             [telegram_id, telegram_username || null, webUser.id]
@@ -8080,16 +9162,15 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
 }));
 
 // ==========================================
-// 1. EXPORT DULU (WAJIB DI ATAS)
+// EXPORT DULU (WAJIB DI ATAS)
 // ==========================================
 module.exports = app;
 
 module.exports._deps = { pool };
 
-// 3. BARU PANGGIL BOT (SETELAH DEPS DI-SET)
+// Bot webhook (mount) — setelah module.exports
 const setupBotWebhook = require('./bot-webhook');
 setupBotWebhook(app, module.exports._deps);
-
 
 // global error handler + 404
 app.use((err, req, res, next) => {
@@ -8112,16 +9193,20 @@ app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint tidak ditemukan' });
 });
 
-// startup warmup + background auto sync
+// startup warmup
 (async () => {
     try {
         await ensureSchema();
         await getServiceCodeMap().catch(() => {});
-        console.log('🚀 Server ready v18 (depo1 only, qris dana removed)');
+        await ensureUserWebhookSchema().catch(() => {});
+
+        console.log('🚀 Server ready v19 (depo1 only + api key + user webhook)');
         console.log(`💰 Markup nokos: ${MARKUP_PERCENT * 100}% PURE (round to rupiah)`);
         console.log(`💰 Fee deposit: Rp${DEPOSIT_FEE_MIN}-${DEPOSIT_FEE_MAX}`);
         console.log(`🔒 Price lock: persistent (no TTL), max ${PRICE_LOCK_MAX_SIZE} entries`);
         console.log(`🌐 Servers: ${Object.keys(SERVER_CONFIG).join(', ')}`);
+        console.log(`🔑 API key prefix: ${API_KEY_PREFIX}XXXXXXXXXXXXXXXX (${API_KEY_RANDOM_LENGTH} char)`);
+        console.log(`🪝 Webhook secret prefix: ${WEBHOOK_SECRET_PREFIX}STRING (48 hex)`);
         if (TELEGRAM_BOT_TOKEN && TELEGRAM_CHANNEL_ID) {
             console.log(`📢 Telegram notif aktif → channel OTP: ${TELEGRAM_CHANNEL_OTP_ID}, deposit: ${TELEGRAM_CHANNEL_DEPOSIT_ID}`);
         } else {
@@ -8138,5 +9223,6 @@ setInterval(async () => {
         await pool.query(`DELETE FROM token_blacklist WHERE expires_at < NOW()`);
         await pool.query(`DELETE FROM sessions WHERE expires_at < NOW() - INTERVAL '7 days' OR (revoked_at IS NOT NULL AND revoked_at < NOW() - INTERVAL '7 days')`);
         await pool.query(`DELETE FROM webhook_events WHERE created_at < NOW() - INTERVAL '90 days'`);
+        await pool.query(`DELETE FROM user_webhook_logs WHERE created_at < NOW() - INTERVAL '30 days'`).catch(() => {});
     } catch (err) {}
 }, 60 * 60 * 1000);
