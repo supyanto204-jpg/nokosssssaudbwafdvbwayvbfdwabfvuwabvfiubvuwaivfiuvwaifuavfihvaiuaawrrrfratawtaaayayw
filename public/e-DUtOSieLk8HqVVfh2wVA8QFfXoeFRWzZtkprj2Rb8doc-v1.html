@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<meta name="theme-color" content="#0a84ff">
+<meta name="color-scheme" content="light dark">
+<meta name="robots" content="index,follow">
+<title>API Documentation v1 — AsyrofOTP</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/-WaZjaQIdf-L_iCsGxLnsBVaFLV2mOqiSHiauH9chHgdoc-v1.css">
+<script>
+(function(){
+  var d = document.documentElement;
+  try{
+    var pref = localStorage.getItem('asyrofotp_theme_pref');
+    if (!pref) {
+      var old = localStorage.getItem('asyrofotp_theme');
+      pref = (old==='light'||old==='dark') ? old : 'system';
+    }
+    var resolved = pref==='system'
+      ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    d.setAttribute('data-theme', resolved);
+    d.setAttribute('data-theme-pref', pref);
+  }catch(e){ d.setAttribute('data-theme','light'); d.setAttribute('data-theme-pref','system'); }
+})();
+</script>
+</head>
+<body>
+
+<header class="topnav">
+  <div class="topnav-inner">
+    <a href="/" class="brand">
+      <div class="brand-icon">A</div>
+      <span class="brand-text">Asyrof<span>OTP</span></span>
+      <span class="brand-tag">API v1</span>
+    </a>
+    <div class="topnav-actions">
+      <a href="/profile" class="nav-link">Dashboard</a>
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="Ganti tema">
+        <svg class="ic i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+        <svg class="ic i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="ic i-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- SIDEBAR NAV -->
+  <aside class="sidenav" id="sidenav">
+    <div class="sidenav-section">
+      <div class="sidenav-title">Getting Started</div>
+      <a href="#intro" class="sidenav-link">Introduction</a>
+      <a href="#auth" class="sidenav-link">Authentication</a>
+      <a href="#errors" class="sidenav-link">Errors &amp; Codes</a>
+    </div>
+    <div class="sidenav-section">
+      <div class="sidenav-title">Account</div>
+      <a href="#me" class="sidenav-link"><span class="method-mini get">GET</span> /me</a>
+    </div>
+    <div class="sidenav-section">
+      <div class="sidenav-title">Catalog</div>
+      <a href="#servers" class="sidenav-link"><span class="method-mini get">GET</span> /servers</a>
+      <a href="#services" class="sidenav-link"><span class="method-mini get">GET</span> /services</a>
+      <a href="#countries" class="sidenav-link"><span class="method-mini get">GET</span> /countries</a>
+      <a href="#prices" class="sidenav-link"><span class="method-mini get">GET</span> /prices</a>
+    </div>
+    <div class="sidenav-section">
+      <div class="sidenav-title">Orders</div>
+      <a href="#order-preview" class="sidenav-link"><span class="method-mini post">POST</span> /order/preview</a>
+      <a href="#order-create" class="sidenav-link"><span class="method-mini post">POST</span> /order</a>
+      <a href="#order-status" class="sidenav-link"><span class="method-mini get">GET</span> /order/:otp_id</a>
+      <a href="#order-cancel" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/cancel</a>
+      <a href="#order-resend" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/resend</a>
+      <a href="#order-confirm" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/confirm</a>
+      <a href="#orders-list" class="sidenav-link"><span class="method-mini get">GET</span> /orders</a>
+      <a href="#orders-stats" class="sidenav-link"><span class="method-mini get">GET</span> /orders/stats</a>
+      <a href="#cekotp" class="sidenav-link"><span class="method-mini post">POST</span> /cekotp</a>
+    </div>
+    <div class="sidenav-section">
+      <div class="sidenav-title">Deposit</div>
+      <a href="#deposit-save" class="sidenav-link"><span class="method-mini post">POST</span> /deposit/save</a>
+      <a href="#deposit-status" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/:ref/status</a>
+      <a href="#deposit-history" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/history</a>
+    </div>
+    <div class="sidenav-section">
+      <div class="sidenav-title">Webhooks</div>
+      <a href="#webhook-overview" class="sidenav-link">Overview</a>
+      <a href="#webhook-events" class="sidenav-link">Events</a>
+      <a href="#webhook-signature" class="sidenav-link">Signature &amp; Retry</a>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="content">
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-badge">API v1 · REST · JSON</div>
+      <h1>AsyrofOTP API</h1>
+      <p class="hero-sub">Integrasikan layanan OTP virtual number langsung dari aplikasi kamu. Autentikasi pakai API key, tanpa ribet OAuth.</p>
+      <div class="hero-actions">
+        <a href="/profile" class="btn btn-primary">Ambil API Key</a>
+        <a href="#auth" class="btn">Baca Authentication →</a>
+      </div>
+      <div class="hero-meta">
+        <div><span class="label">Base URL</span><code>https://asyrofotp.vercel.app/api/v1</code></div>
+        <div><span class="label">Format</span><code>application/json</code></div>
+        <div><span class="label">Rate Limit</span><code>30 req/menit (order), 60 req/menit (baca)</code></div>
+      </div>
+    </section>
+
+    <!-- INTRO -->
+    <section id="intro" class="doc-section">
+      <h2>Introduction</h2>
+      <p>API AsyrofOTP menggunakan style <strong>REST</strong> dengan payload <strong>JSON</strong>. Semua request yang sukses mengembalikan objek dengan field <code>ok: true</code>, error mengembalikan <code>error</code>.</p>
+
+      <h3>Base URL</h3>
+      <div class="code-block">
+        <div class="code-header"><span>Base URL</span><button class="copy-btn" data-copy="https://asyrofotp.vercel.app/api/v1">Copy</button></div>
+        <pre><code>https://asyrofotp.vercel.app/api/v1</code></pre>
+      </div>
+
+      <h3>Flow standar</h3>
+      <ol class="flow">
+        <li><strong>Cek saldo</strong> — <code>GET /me</code></li>
+        <li><strong>Pilih layanan</strong> — <code>GET /services?server=ekonomi</code></li>
+        <li><strong>Pilih negara</strong> — <code>GET /countries?server=ekonomi&amp;service=wa</code></li>
+        <li><strong>Cek harga &amp; stok</strong> — <code>GET /prices?server=ekonomi&amp;service=wa&amp;country=id</code></li>
+        <li><strong>Order</strong> — <code>POST /order</code> (saldo auto-deduct)</li>
+        <li><strong>Polling OTP</strong> — <code>GET /order/:otp_id</code> tiap 5 detik, atau pakai <a href="#webhook-overview">webhook</a></li>
+        <li><strong>Confirm</strong> — <code>POST /order/:otp_id/confirm</code></li>
+      </ol>
+    </section>
+
+    <!-- AUTH -->
+    <section id="auth" class="doc-section">
+      <h2>Authentication</h2>
+      <p>Semua endpoint butuh <strong>API key</strong>. Format key: <code>asyrofotp-XXXXXXXXXXXXXXXX</code> (16 karakter alfanumerik).</p>
+
+      <h3>Dapatkan API key</h3>
+      <p>Login ke <a href="/profile">dashboard</a> → klik <strong>API Key → Rotate API Key</strong>. Atau:</p>
+      <div class="code-block">
+        <div class="code-header"><span>Response GET /api/user/api-key</span><button class="copy-btn" data-copy="curl -H &quot;Authorization: Bearer &lt;JWT&gt;&quot; https://asyrofotp.vercel.app/api/user/api-key">Copy curl</button></div>
+        <pre><code>{
+  "api_key": "asyrofotp-aB3xY9kLmN2pQr7s",
+  "created_at": "2026-01-15T08:30:00.000Z",
+  "last_used_at": null
+}</code></pre>
+      </div>
+
+      <h3>Kirim API key di request</h3>
+      <p>3 cara, pilih salah satu:</p>
+      <div class="code-block">
+        <div class="code-header"><span>Authorization Bearer (recommended)</span><button class="copy-btn" data-copy="Authorization: Bearer asyrofotp-aB3xY9kLmN2pQr7s">Copy</button></div>
+        <pre><code>Authorization: Bearer asyrofotp-aB3xY9kLmN2pQr7s</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>X-API-Key header</span><button class="copy-btn" data-copy="X-API-Key: asyrofotp-aB3xY9kLmN2pQr7s">Copy</button></div>
+        <pre><code>X-API-Key: asyrofotp-aB3xY9kLmN2pQr7s</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Query param (kurang aman, cuma buat debug)</span><button class="copy-btn" data-copy="?api_key=asyrofotp-aB3xY9kLmN2pQr7s">Copy</button></div>
+        <pre><code>GET /api/v1/me?api_key=asyrofotp-aB3xY9kLmN2pQr7s</code></pre>
+      </div>
+
+      <div class="callout callout-warn">
+        <strong>⚠️ Jangan expose API key di frontend</strong>
+        <p>Key ini rahasia. Kalau bocor, orang lain bisa order pakai saldo kamu. Rotate dari dashboard jika bocor.</p>
+      </div>
+    </section>
+
+    <!-- ERRORS -->
+    <section id="errors" class="doc-section">
+      <h2>Errors &amp; Codes</h2>
+      <p>Semua error punya HTTP status + field <code>error</code>. Beberapa endpoint juga kirim <code>code</code> untuk programmatic handling.</p>
+      <table class="doc-table">
+        <thead><tr><th>HTTP</th><th>Code</th><th>Artinya</th></tr></thead>
+        <tbody>
+          <tr><td><code>200</code></td><td>—</td><td>Sukses</td></tr>
+          <tr><td><code>400</code></td><td><code>INVALID_PARAMS</code></td><td>Parameter kurang/salah</td></tr>
+          <tr><td><code>401</code></td><td><code>NO_API_KEY</code></td><td>API key tidak dikirim</td></tr>
+          <tr><td><code>401</code></td><td><code>INVALID_API_KEY</code></td><td>API key tidak dikenal</td></tr>
+          <tr><td><code>403</code></td><td><code>BANNED</code></td><td>Akun diblokir</td></tr>
+          <tr><td><code>404</code></td><td><code>NOT_FOUND</code></td><td>Data tidak ditemukan</td></tr>
+          <tr><td><code>409</code></td><td><code>PRICE_CHANGED</code></td><td>Harga berubah dari preview, refresh</td></tr>
+          <tr><td><code>409</code></td><td><code>PROVIDER_PRICE_JUMPED</code></td><td>Harga provider naik, coba provider lain</td></tr>
+          <tr><td><code>429</code></td><td><code>RATE_LIMIT</code></td><td>Kena rate limit</td></tr>
+          <tr><td><code>500</code></td><td><code>SERVER_ERROR</code></td><td>Server error (retry)</td></tr>
+          <tr><td><code>503</code></td><td><code>NOT_READY</code></td><td>Endpoint belum ready (jarang)</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== /me ===== -->
+    <section id="me" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/me</code>
+      </div>
+      <p>Info akun + saldo user yang punya API key.</p>
+
+      <h4>Request</h4>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;Authorization: Bearer asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/me">Copy</button></div>
+        <pre><code>curl -H "Authorization: Bearer asyrofotp-xxx" \
+  https://asyrofotp.vercel.app/api/v1/me</code></pre>
+      </div>
+
+      <h4>Response 200</h4>
+      <div class="code-block">
+        <div class="code-header"><span>JSON</span><button class="copy-btn" data-copy='{"ok":true,"user":{"username":"asyrofc","name":"Asyrof","balance":50000,"user_code":"SRF1234567890","role":"user","created_at":"2026-01-01T00:00:00.000Z","api_key_last_used_at":null}}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "user": {
+    "username": "asyrofc",
+    "name": "Asyrof",
+    "balance": 50000,
+    "user_code": "SRF1234567890",
+    "role": "user",
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "api_key_last_used_at": null
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /servers ===== -->
+    <section id="servers" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/servers</code>
+      </div>
+      <p>List server yang tersedia (<code>ekonomi</code> = murah, <code>premium</code> = semua negara).</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/servers">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  https://asyrofotp.vercel.app/api/v1/servers</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"servers":[{"id":"ekonomi","label":"Server 1","badge":"MURAH"},{"id":"premium","label":"Server 2","badge":"PREMIUM"}]}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "servers": [
+    { "id": "ekonomi", "label": "Server 1", "badge": "MURAH", "desc": "Harga terjangkau, khusus Indonesia" },
+    { "id": "premium", "label": "Server 2", "badge": "PREMIUM", "desc": "Semua negara, stok lengkap, real SIM" }
+  ]
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /services ===== -->
+    <section id="services" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/services</code>
+      </div>
+      <p>List layanan (WhatsApp, Telegram, dll) di server tertentu.</p>
+
+      <h4>Query Parameters</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>server</code></td><td>string</td><td>opsional</td><td><code>ekonomi</code> (default) atau <code>premium</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; &quot;https://asyrofotp.vercel.app/api/v1/services?server=ekonomi&quot;">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  "https://asyrofotp.vercel.app/api/v1/services?server=ekonomi"</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"server":"ekonomi","services":[{"code":"wa","name":"WhatsApp","icon_code":"wa","active":true}]}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "server": "ekonomi",
+  "services": [
+    { "code": "wa", "name": "WhatsApp", "icon_code": "wa", "active": true },
+    { "code": "tg", "name": "Telegram", "icon_code": "tg", "active": true }
+  ]
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /countries ===== -->
+    <section id="countries" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/countries</code>
+      </div>
+      <p>List negara yang tersedia untuk layanan tertentu.</p>
+
+      <h4>Query Parameters</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>server</code></td><td>string</td><td>opsional</td><td><code>ekonomi</code> (default) / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td>opsional</td><td>Filter per layanan (misal <code>wa</code>)</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; &quot;https://asyrofotp.vercel.app/api/v1/countries?server=ekonomi&amp;service=wa&quot;">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  "https://asyrofotp.vercel.app/api/v1/countries?server=ekonomi&amp;service=wa"</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"server":"ekonomi","countries":[{"code":"id","name":"Indonesia","min_price":1500}]}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "server": "ekonomi",
+  "countries": [
+    { "code": "id", "name": "Indonesia", "min_price": 1500 },
+    { "code": "my", "name": "Malaysia", "min_price": 1200 }
+  ]
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /prices ===== -->
+    <section id="prices" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/prices</code>
+      </div>
+      <p>List provider (nomor) yang ready untuk service + country tertentu, dengan harga jual final.</p>
+
+      <h4>Query Parameters</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>server</code></td><td>opsional</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td><strong>wajib</strong></td><td>misal <code>wa</code></td></tr>
+          <tr><td><code>country</code></td><td><strong>wajib</strong></td><td>misal <code>id</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; &quot;https://asyrofotp.vercel.app/api/v1/prices?server=ekonomi&amp;service=wa&amp;country=id&quot;">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  "https://asyrofotp.vercel.app/api/v1/prices?server=ekonomi&amp;service=wa&amp;country=id"</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"providers":[{"id":"prod_123","name":"WhatsApp Indonesia","price_idr":1650,"stock":12}]}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "server": "ekonomi",
+  "service": "wa",
+  "country": "id",
+  "providers": [
+    {
+      "id": "prod_123",
+      "provider_id": "prod_123",
+      "name": "WhatsApp Indonesia",
+      "price_idr": 1650,
+      "available": 12,
+      "stock": 12,
+      "active": true
+    }
+  ]
+}</code></pre>
+      </div>
+
+      <div class="callout callout-info">
+        <strong>💡 Price lock</strong>
+        <p>Harga yang lo lihat dari <code>/prices</code> di-lock. Kalau langsung <code>POST /order</code> pakai <code>id</code> yang sama, lo bayar sesuai harga itu — kecuali harga provider naik di antara preview &amp; order (maka dapat error <code>PROVIDER_PRICE_JUMPED</code>).</p>
+      </div>
+    </section>
+
+    <!-- ===== /order/preview ===== -->
+    <section id="order-preview" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/order/preview</code>
+      </div>
+      <p>Cek harga + saldo cukup sebelum order. Opsional, tapi recommended.</p>
+
+      <h4>Body</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>string</td><td>wajib</td><td>ID provider dari <code>/prices</code></td></tr>
+          <tr><td><code>server</code></td><td>string</td><td>wajib</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td>kondisional</td><td>Wajib kalau id tidak di-lock</td></tr>
+          <tr><td><code>country</code></td><td>string</td><td>kondisional</td><td>Wajib kalau id tidak di-lock</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"id":"prod_123","server":"ekonomi","service":"wa","country":"id"}&apos; https://asyrofotp.vercel.app/api/v1/order/preview'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/preview \
+  -H "X-API-Key: asyrofotp-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"prod_123","server":"ekonomi","service":"wa","country":"id"}'</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"price_idr":1650,"user_balance":50000,"sufficient_balance":true,"source":"locked"}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "provider_id": "prod_123",
+  "price_idr": 1650,
+  "markup_percent": 10,
+  "user_balance": 50000,
+  "sufficient_balance": true,
+  "source": "locked",
+  "server": "ekonomi"
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /order ===== -->
+    <section id="order-create" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/order</code>
+      </div>
+      <p>Buat order. Saldo auto-deduct. ID provider harus dari <code>/prices</code>.</p>
+
+      <h4>Body</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>string</td><td>wajib</td><td>Provider ID dari /prices</td></tr>
+          <tr><td><code>server</code></td><td>string</td><td>wajib</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td>opsional</td><td>misal <code>wa</code></td></tr>
+          <tr><td><code>country</code></td><td>string</td><td>opsional</td><td>misal <code>id</code></td></tr>
+          <tr><td><code>service_name</code></td><td>string</td><td>opsional</td><td>Display name (misal <code>WhatsApp</code>)</td></tr>
+          <tr><td><code>icon_code</code></td><td>string</td><td>opsional</td><td>Icon code</td></tr>
+          <tr><td><code>operator</code></td><td>string</td><td>opsional</td><td>Operator (kalau ada)</td></tr>
+          <tr><td><code>expected_price</code></td><td>number</td><td>opsional</td><td>Kalau diisi, order dibatalkan kalau harga beda &gt; 1%</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"id":"prod_123","server":"ekonomi","service":"wa","country":"id","service_name":"WhatsApp"}&apos; https://asyrofotp.vercel.app/api/v1/order'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order \
+  -H "X-API-Key: asyrofotp-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "prod_123",
+    "server": "ekonomi",
+    "service": "wa",
+    "country": "id",
+    "service_name": "WhatsApp"
+  }'</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"ok":true,"order":{"otp_id":"OTP12345678","phone_number":"+62812...","price_idr":1650,"status":"pending","expires_in":1200},"balance":48350}'>Copy</button></div>
+        <pre><code>{
+  "ok": true,
+  "order": {
+    "otp_id": "OTP12345678",
+    "phone_number": "+6281234567890",
+    "price_idr": 1650,
+    "server": "ekonomi",
+    "service": "wa",
+    "service_name": "WhatsApp",
+    "status": "pending",
+    "expires_in": 1200,
+    "expired_at": "2026-01-01T12:20:00.000Z"
+  },
+  "balance": 48350,
+  "price_source": "locked"
+}</code></pre>
+      </div>
+
+      <div class="callout callout-warn">
+        <strong>⚠️ Simpan otp_id</strong>
+        <p>Field <code>otp_id</code> itu identifier order kamu (bukan <code>order.id</code> dari provider). Pakai itu buat polling / cancel / confirm.</p>
+      </div>
+    </section>
+
+    <!-- ===== /order/:otpId ===== -->
+    <section id="order-status" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/order/:otp_id</code>
+      </div>
+      <p>Cek status order + OTP. Polling tiap 5 detik sampai <code>status: "received"</code>.</p>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  https://asyrofotp.vercel.app/api/v1/order/OTP12345678</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200 (OTP masuk)</span><button class="copy-btn" data-copy='{"status":"received","otp_code":"123456","phone_number":"+62812...","full_sms":"Kode WhatsApp kamu: 123456"}'>Copy</button></div>
+        <pre><code>{
+  "status": "received",
+  "otp_id": "OTP12345678",
+  "phone_number": "+6281234567890",
+  "otp_code": "123456",
+  "otp_code_2": null,
+  "full_sms": "Kode WhatsApp kamu: 123456",
+  "price_idr": 1650,
+  "service_name": "WhatsApp",
+  "received_at": "2026-01-01T12:02:00.000Z",
+  "expires_in": 0,
+  "expired_at": "2026-01-01T12:20:00.000Z"
+}</code></pre>
+      </div>
+
+      <h4>Status yang mungkin</h4>
+      <table class="doc-table">
+        <thead><tr><th>Status</th><th>Artinya</th></tr></thead>
+        <tbody>
+          <tr><td><code>pending</code></td><td>Menunggu SMS masuk</td></tr>
+          <tr><td><code>received</code></td><td>OTP sudah masuk</td></tr>
+          <tr><td><code>success</code></td><td>Order selesai</td></tr>
+          <tr><td><code>confirmed</code></td><td>Lo konfirmasi manual</td></tr>
+          <tr><td><code>cancelled</code></td><td>Dibatalkan (auto/manual)</td></tr>
+          <tr><td><code>expired</code></td><td>Habis waktu, saldo direfund</td></tr>
+          <tr><td><code>refunded</code></td><td>Refund karena provider error</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== cancel ===== -->
+    <section id="order-cancel" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/order/:otp_id/cancel</code>
+      </div>
+      <p>Batalkan order sebelum OTP masuk. Saldo otomatis direfund penuh.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -X POST -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678/cancel">Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/OTP12345678/cancel \
+  -H "X-API-Key: asyrofotp-xxx"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"otp_id":"OTP12345678","balance":50000}'>Copy</button></div>
+        <pre><code>{
+  "otp_id": "OTP12345678",
+  "refunded": 1650,
+  "balance": 50000
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== resend ===== -->
+    <section id="order-resend" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/order/:otp_id/resend</code>
+      </div>
+      <p>Minta SMS dikirim ulang. Max 3× per order.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -X POST -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678/resend">Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/OTP12345678/resend \
+  -H "X-API-Key: asyrofotp-xxx"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"otp_id":"OTP12345678","resend_count":1,"status":"pending"}'>Copy</button></div>
+        <pre><code>{
+  "otp_id": "OTP12345678",
+  "resend_count": 1,
+  "status": "pending"
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== confirm ===== -->
+    <section id="order-confirm" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/order/:otp_id/confirm</code>
+      </div>
+      <p>Tandai order sudah selesai manual. Status jadi <code>confirmed</code>.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -X POST -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678/confirm">Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/OTP12345678/confirm \
+  -H "X-API-Key: asyrofotp-xxx"</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"message":"Order berhasil dikonfirmasi","status":"confirmed"}'>Copy</button></div>
+        <pre><code>{
+  "message": "Order berhasil dikonfirmasi",
+  "status": "confirmed"
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /orders list ===== -->
+    <section id="orders-list" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/orders</code>
+      </div>
+      <p>Riwayat order + deposit user.</p>
+
+      <h4>Query Parameters</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Default</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>page</code></td><td>1</td><td>Halaman</td></tr>
+          <tr><td><code>limit</code></td><td>20</td><td>Max 100</td></tr>
+          <tr><td><code>status</code></td><td>all</td><td><code>all</code>, <code>nokos</code>, <code>deposit</code>, <code>pending</code>, <code>success</code>, <code>failed</code>, <code>expired</code>, <code>cancelled</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; &quot;https://asyrofotp.vercel.app/api/v1/orders?page=1&amp;limit=10&amp;status=all&quot;">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  "https://asyrofotp.vercel.app/api/v1/orders?page=1&amp;limit=10&amp;status=all"</code></pre>
+      </div>
+
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"orders":[{"order_id":"OTP12345678","order_type":"nokos","status":"received"}],"total":1,"page":1,"limit":10}'>Copy</button></div>
+        <pre><code>{
+  "orders": [
+    {
+      "order_id": "OTP12345678",
+      "order_type": "nokos",
+      "status": "received",
+      "otp_code": "123456",
+      "price": 1650,
+      "created_at": "2026-01-01T12:00:00.000Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "limit": 10
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== stats ===== -->
+    <section id="orders-stats" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/orders/stats</code>
+      </div>
+      <p>Statistik order + deposit user.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/orders/stats">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  https://asyrofotp.vercel.app/api/v1/orders/stats</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"all":10,"nokos":8,"deposit":2,"pending":1,"success":7,"failed":0,"expired":1,"cancelled":1}'>Copy</button></div>
+        <pre><code>{
+  "all": 10,
+  "nokos": 8,
+  "deposit": 2,
+  "pending": 1,
+  "success": 7,
+  "failed": 0,
+  "expired": 1,
+  "cancelled": 1
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== /cekotp ===== -->
+    <section id="cekotp" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/cekotp</code>
+      </div>
+      <p>Alias untuk cek OTP — sama persis dengan <code>GET /order/:otp_id</code> tapi pakai <code>POST</code> body (bisa kirim <code>order_id</code> atau <code>otp_id</code>).</p>
+
+      <h4>Body</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>otp_id</code></td><td>salah satu</td><td>Identifier order kamu</td></tr>
+          <tr><td><code>order_id</code></td><td>salah satu</td><td>Identifier order provider</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"otp_id":"OTP12345678"}&apos; https://asyrofotp.vercel.app/api/v1/cekotp'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/cekotp \
+  -H "X-API-Key: asyrofotp-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"otp_id":"OTP12345678"}'</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== deposit save ===== -->
+    <section id="deposit-save" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method post">POST</span>
+        <code class="endpoint-path">/deposit/save</code>
+      </div>
+      <p>Simpan deposit QRIS setelah kamu create QRIS dari provider.</p>
+
+      <h4>Body</h4>
+      <table class="doc-table">
+        <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
+        <tbody>
+          <tr><td><code>reference_id</code></td><td>wajib</td><td>Dari <code>/api/deposit/generate-ref</code> (JWT)</td></tr>
+          <tr><td><code>amount</code></td><td>wajib</td><td>Nominal (min 1000, max 10jt)</td></tr>
+          <tr><td><code>qris_id</code></td><td>wajib</td><td>Dari provider QRIS</td></tr>
+          <tr><td><code>qris_url</code></td><td>opsional</td><td>URL gambar QR</td></tr>
+          <tr><td><code>expired_at</code></td><td>wajib</td><td>ISO date</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"reference_id":"DEP123","amount":10000,"qris_id":"qr_xxx","qris_url":"https://...","expired_at":"2026-01-01T13:00:00.000Z"}&apos; https://asyrofotp.vercel.app/api/v1/deposit/save'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/deposit/save \
+  -H "X-API-Key: asyrofotp-xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "reference_id": "DEP123",
+    "amount": 10000,
+    "qris_id": "qr_xxx",
+    "qris_url": "https://...",
+    "expired_at": "2026-01-01T13:00:00.000Z"
+  }'</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== deposit status ===== -->
+    <section id="deposit-status" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/deposit/:reference_id/status</code>
+      </div>
+      <p>Cek status deposit + auto-sync dengan provider QRIS.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/deposit/DEP123/status">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  https://asyrofotp.vercel.app/api/v1/deposit/DEP123/status</code></pre>
+      </div>
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"status":"ok","deposit":{"reference_id":"DEP123","status":"success","amount":10000}}'>Copy</button></div>
+        <pre><code>{
+  "status": "ok",
+  "deposit": {
+    "reference_id": "DEP123",
+    "status": "success",
+    "amount": 10000,
+    "paid_at": "2026-01-01T12:15:00.000Z"
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== deposit history ===== -->
+    <section id="deposit-history" class="doc-section api-endpoint">
+      <div class="endpoint-header">
+        <span class="method get">GET</span>
+        <code class="endpoint-path">/deposit/history</code>
+      </div>
+      <p>Riwayat deposit user.</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -H &quot;X-API-Key: asyrofotp-xxx&quot; &quot;https://asyrofotp.vercel.app/api/v1/deposit/history?page=1&amp;limit=5&quot;">Copy</button></div>
+        <pre><code>curl -H "X-API-Key: asyrofotp-xxx" \
+  "https://asyrofotp.vercel.app/api/v1/deposit/history?page=1&amp;limit=5"</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== WEBHOOK OVERVIEW ===== -->
+    <section id="webhook-overview" class="doc-section">
+      <h2>Webhooks</h2>
+      <p>Daripada polling terus, lo bisa daftar webhook. AsyrofOTP akan <strong>POST</strong> ke URL kamu setiap ada event.</p>
+
+      <h3>Daftar webhook</h3>
+      <p>Dari <a href="/profile">dashboard profile</a> → section <strong>Webhook</strong> → Tambah Webhook. Atau via API:</p>
+      <div class="code-block">
+        <div class="code-header"><span>curl (butuh JWT, bukan API key)</span><button class="copy-btn" data-copy='curl -X POST -H "Authorization: Bearer &lt;JWT&gt;" -H "Content-Type: application/json" -d &apos;{"url":"https://domain-kamu.com/webhook","events":["order.otp_received","deposit.success"]}&apos; https://asyrofotp.vercel.app/api/user/webhooks'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/user/webhooks \
+  -H "Authorization: Bearer &lt;JWT&gt;" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://domain-kamu.com/webhook",
+    "events": ["order.otp_received", "deposit.success"]
+  }'</code></pre>
+      </div>
+
+      <h3>Payload yang dikirim</h3>
+      <p>Setiap event dikirim sebagai <code>POST</code> body JSON:</p>
+      <div class="code-block">
+        <div class="code-header"><span>Request headers + body</span><button class="copy-btn" data-copy='{"event":"order.otp_received","delivered_at":"2026-01-01T12:02:00.000Z","data":{"otp_id":"OTP12345678","otp_code":"123456","phone_number":"+62812..."}}'>Copy body</button></div>
+        <pre><code>POST https://domain-kamu.com/webhook
+Content-Type: application/json
+X-Asyrof-Signature: sha256=abc123...
+X-Asyrof-Event: order.otp_received
+X-Asyrof-Delivery-Id: whd_abc123...
+
+{
+  "event": "order.otp_received",
+  "delivered_at": "2026-01-01T12:02:00.000Z",
+  "data": {
+    "otp_id": "OTP12345678",
+    "order_id": "provider_xxx",
+    "server": "ekonomi",
+    "service": "wa",
+    "service_name": "WhatsApp",
+    "country": "id",
+    "country_name": "Indonesia",
+    "phone_number": "+6281234567890",
+    "otp_code": "123456",
+    "otp_code_2": null,
+    "full_sms": "Kode WhatsApp kamu: 123456",
+    "price": 1650,
+    "status": "received",
+    "received_at": "2026-01-01T12:02:00.000Z"
+  }
+}</code></pre>
+      </div>
+    </section>
+
+    <!-- ===== WEBHOOK EVENTS ===== -->
+    <section id="webhook-events" class="doc-section">
+      <h2>Event Types</h2>
+      <table class="doc-table">
+        <thead><tr><th>Event</th><th>Kapan dikirim</th></tr></thead>
+        <tbody>
+          <tr><td><code>all</code></td><td>Subscribe ke semua event</td></tr>
+          <tr><td><code>order.otp_received</code></td><td>OTP / SMS masuk</td></tr>
+          <tr><td><code>order.completed</code></td><td>Order selesai (provider <code>COMPLETED</code>)</td></tr>
+          <tr><td><code>order.cancelled</code></td><td>Order dibatalkan (manual / provider)</td></tr>
+          <tr><td><code>order.expired</code></td><td>Order expired, saldo direfund</td></tr>
+          <tr><td><code>order.refunded</code></td><td>Refund karena provider error</td></tr>
+          <tr><td><code>deposit.success</code></td><td>Deposit QRIS sukses, saldo masuk</td></tr>
+          <tr><td><code>deposit.expired</code></td><td>Deposit QRIS expired tanpa pembayaran</td></tr>
+          <tr><td><code>test.ping</code></td><td>Hanya dari tombol "Test" di dashboard</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ===== SIGNATURE ===== -->
+    <section id="webhook-signature" class="doc-section">
+      <h2>Signature &amp; Retry</h2>
+
+      <h3>Verifikasi signature</h3>
+      <p>Setiap request punya header <code>X-Asyrof-Signature</code> berisi <code>sha256=HMAC_SHA256(rawBody, secret)</code>. Secret bisa dilihat di dashboard (tombol Copy Secret / Rotate).</p>
+
+      <div class="code-block">
+        <div class="code-header"><span>Node.js</span><button class="copy-btn" data-copy='const crypto = require("crypto");
+const secret = "whsecao-xxxxx";
+const rawBody = req.rawBody; // string, bukan parsed JSON
+const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+if (req.headers["x-asyrof-signature"] !== expected) return res.status(401).end();'>Copy</button></div>
+        <pre><code>const crypto = require("crypto");
+
+const secret = "whsecao-xxxxx";
+const rawBody = req.rawBody;  // string, bukan parsed JSON
+
+const expected = "sha256=" + crypto
+  .createHmac("sha256", secret)
+  .update(rawBody)
+  .digest("hex");
+
+if (req.headers["x-asyrof-signature"] !== expected) {
+  return res.status(401).end();
+}</code></pre>
+      </div>
+
+      <div class="callout callout-info">
+        <strong>💡 Pakai raw body</strong>
+        <p>Kalau lo parse JSON dulu lalu re-stringify, HMAC-nya beda (urutan key / whitespace beda). Simpan <code>req.rawBody</code> (Express: <code>express.json({ verify: (req, res, buf) =&gt; req.rawBody = buf })</code>).</p>
+      </div>
+
+      <h3>Retry</h3>
+      <p>Kalau URL kamu tidak return 2xx, AsyrofOTP retry 3× dengan delay 1.5s, 3s, 4.5s. Total window ~9 detik. Kalau 3× gagal, event <strong>dibuang</strong> (tidak di-queue). Log bisa dicek di dashboard.</p>
+
+      <h3>Rotate secret</h3>
+      <p>Kalau secret bocor, rotate dari dashboard. Secret baru langsung aktif, yang lama tidak valid.</p>
+    </section>
+
+    <footer class="doc-footer">
+      <div>© 2026 AsyrofOTP · <a href="/syarat">Syarat</a> · <a href="/ketentuan">Ketentuan</a></div>
+      <div><a href="/profile">Dashboard</a> · <a href="/doc/v1">API Docs</a></div>
+    </footer>
+  </main>
+</div>
+
+<script src="/js/WYDa-CsMhJYS-vayqBdzDKenTrltNlN7gOKlbTop0u4doc-v1.js" defer></script>
+</body>
+</html>
