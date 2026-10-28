@@ -1128,8 +1128,18 @@ async function qrispyFetch(endpoint, options = {}) {
         const res = await fetch(fullUrl, {
             ...options,
             signal: controller.signal,
-            headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+            headers: {
+                'Content-Type': 'application/json',
+                // TAMBAHIN INI BIAR GAK KE-DETECT BOT
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Origin': 'https://asyrofotp.vercel.app',
+                'Referer': 'https://asyrofotp.vercel.app/',
+                ...(options.headers || {}),
+            },
         });
+        // ... sisa kode sama
         const text = await res.text();
         let data;
         try { data = JSON.parse(text); }
@@ -3459,7 +3469,7 @@ const depositSaveHandler = async (req, res) => {
 app.locals.internalHandlers = app.locals.internalHandlers || {};
 // === PUBLIC API: CREATE DEPOSIT ===
 const depositCreateHandler = async (req, res) => {
-    const { amount, qris_id, qris_url, expired_at, expires_in_seconds } = req.body;
+    const { amount } = req.body;
 
     if (!amount) {
         return res.status(400).json({ error: 'amount wajib diisi' });
@@ -3470,18 +3480,23 @@ const depositCreateHandler = async (req, res) => {
         return res.status(400).json({ error: 'Nominal tidak valid (min 1000, max 10.000.000)' });
     }
 
-    // Validasi input dari frontend
-    if (!qris_id || !qris_url) {
-        return res.status(400).json({ error: 'qris_id dan qris_url wajib (dari QRISpy frontend)' });
-    }
-
     try {
-        // 1. Generate reference ID unik
+        // 1. Minta QRIS baru ke provider (depo1)
+        //    Fungsi createDeposit() udah gue kasih User-Agent browser di qrispyFetch biar gak kena block
+        const data = await createDeposit(amt);
+        
+        // 2. Validasi response dari provider
+        if (!data || !data.id || !data.qr_image) {
+            console.error('Provider create deposit error: invalid response', data);
+            return res.status(500).json({ error: 'Gagal membuat QRIS dari provider' });
+        }
+
+        // 3. Generate reference ID unik
         const referenceId = await generateUniqueReferenceId();
-        const expiredAt = expired_at ? new Date(expired_at) : new Date(Date.now() + 15 * 60 * 1000);
+        const expiredAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
         const ourFee = calculateDepositFee(amt);
 
-        // 2. AUTO SAVE ke database (langsung pending)
+        // 4. AUTO SAVE ke database (langsung pending)
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
@@ -3499,8 +3514,8 @@ const depositCreateHandler = async (req, res) => {
                     amt + ourFee,
                     ourFee,
                     'pending', 
-                    qris_id, 
-                    qris_url, 
+                    data.id,          // qris_id dari provider
+                    data.qr_image,    // qris_url dari provider
                     referenceId, 
                     expiredAt
                 ]
@@ -3512,7 +3527,7 @@ const depositCreateHandler = async (req, res) => {
                 [
                     referenceId, 
                     req.user.id, 
-                    JSON.stringify({ amount: amt, method: 'qrispy', qris_id, our_fee: ourFee })
+                    JSON.stringify({ amount: amt, method: 'qrispy', qris_id: data.id, our_fee: ourFee })
                 ]
             );
 
@@ -3522,22 +3537,22 @@ const depositCreateHandler = async (req, res) => {
         } catch (dbErr) {
             await client.query('ROLLBACK');
             console.error('DB save deposit error:', dbErr.message);
-            // Kalau save gagal, jangan lupa batalkan QRIS di provider
-            try { await qrispyFetch(`/api/payment/qris/${qris_id}/cancel`, { method: 'POST' }); } catch (e) {}
+            // Kalau save gagal, batalkan QRIS di provider biar gak nyampah
+            try { await cancelDeposit(data.id); } catch (e) {}
             return res.status(500).json({ error: 'Gagal menyimpan deposit ke database' });
         } finally {
             client.release();
         }
 
-        // 4. Return response ke frontend
+        // 5. Return response sesuai format docs v1
         res.json({
             status: 'ok',
             reference_id: referenceId,
-            qris_id: qris_id,
-            qris_url: qris_url,
+            qris_id: data.id,
+            qris_url: data.qr_image,
             amount: amt,
             expired_at: expiredAt.toISOString(),
-            expires_in_seconds: expires_in_seconds || 900
+            expires_in_seconds: 900
         });
 
     } catch (err) {
