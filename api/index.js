@@ -5904,7 +5904,7 @@ app.get('/api/v1/me', requireApiKey, withDB(async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: 'Server error' });
     }
-});
+}));
 
 app.get('/api/v1/servers', requireApiKey, (req, res) => {
     res.json({ ok: true, servers: SERVERS_LIST });
