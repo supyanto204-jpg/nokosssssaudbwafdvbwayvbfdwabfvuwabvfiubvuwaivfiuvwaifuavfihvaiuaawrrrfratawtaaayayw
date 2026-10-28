@@ -67,7 +67,10 @@ var _cfg = {
     linkEmail: '/api/user/link-email',
     logout: '/api/auth/logout',
     orderStats: '/api/nokos/orders/stats',
-    saldoActivity: '/api/user/saldo-activity'
+    saldoActivity: '/api/user/saldo-activity',
+    apiKey: '/api/user/api-key',
+    rotateApiKey: '/api/user/api-key/regenerate',
+    webhooks: '/api/user/webhooks'
   },
   ttl: { user: 5 * 60 * 1000, chart: 2 * 60 * 1000 },
   fetchTimeout: 12000
@@ -152,14 +155,20 @@ async function getRecaptchaToken(action) {
     });
   } catch (e) { return null; }
 }
-async function securePost(url, body, action) {
+async function securePost(url, body, action, method) {
   body = body || {};
   action = action || 'profile';
   var rc = await getRecaptchaToken(action);
   return fetchWithTimeout(url, {
-    method: 'POST',
+    method: method || 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify(Object.assign({}, body, { recaptcha_token: rc }))
+  });
+}
+async function secureDelete(url) {
+  return fetchWithTimeout(url, {
+    method: 'DELETE',
+    headers: { 'Authorization': 'Bearer ' + token }
   });
 }
 
@@ -173,6 +182,21 @@ function unlockBody() {
     document.body.classList.remove('modal-open');
     document.body.style.removeProperty('--scrollbar-width');
   }
+}
+
+function showToast(msg, type) {
+  var existing = document.getElementById('_toast');
+  if (existing) existing.remove();
+  var div = document.createElement('div');
+  div.id = '_toast';
+  div.textContent = msg;
+  div.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:99999;padding:12px 20px;border-radius:10px;font-weight:600;font-size:.88rem;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw;text-align:center;' +
+    (type === 'success' ? 'background:#1f9d55;color:#fff;' :
+     type === 'error' ? 'background:#c0392b;color:#fff;' :
+     'background:#0a84ff;color:#fff;');
+  document.body.appendChild(div);
+  setTimeout(function () { div.style.transition = 'opacity .3s'; div.style.opacity = '0'; }, 2200);
+  setTimeout(function () { div.remove(); }, 2600);
 }
 
 (function themeInit() {
@@ -333,23 +357,21 @@ function renderUser(user) {
   var emailEl = $('infoEmail');
   if (emailEl) {
     if (user.email) {
-      // Udah ada email: tampilin teks + tombol ganti
-      emailEl.innerHTML = 
+      emailEl.innerHTML =
         '<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">' +
           '<span>' + escapeHtml(user.email) + '</span>' +
           '<button class="btn btn-primary" id="btnChangeEmail" type="button" style="padding:2px 10px;font-size:0.7rem;min-height:28px;background:var(--surface-2);color:var(--txt2);border-color:var(--border);">Ganti</button>' +
         '</span>';
       var btnChange = $('btnChangeEmail');
       if (btnChange) {
-        btnChange.addEventListener('click', function() { 
+        btnChange.addEventListener('click', function() {
           var input = $('inputEmail');
-          if (input) input.value = user.email; // Pre-fill email lama
-          openModal('modalEmail'); 
+          if (input) input.value = user.email;
+          openModal('modalEmail');
         });
       }
     } else {
-      // Belum ada email: tampilin tombol tautkan
-      emailEl.innerHTML = 
+      emailEl.innerHTML =
         '<button class="btn btn-primary" id="btnLinkEmail" type="button" style="padding:4px 12px;font-size:0.75rem;min-height:32px;background:var(--surface-2);color:var(--warn);border-color:var(--border);">Tautkan Email</button>';
       var btnLink = $('btnLinkEmail');
       if (btnLink) {
@@ -548,23 +570,23 @@ function hideAlert(id) {
     var email = ($('inputEmail').value || '').trim();
     var btn = $('btnSaveEmail');
     var orig = btn.innerHTML;
-    
+
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showAlert('alertEmail', 'Format email tidak valid', 'error');
       return;
     }
-    
+
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-sm"></span> Loading...';
-    
+
     try {
       var res = await securePost(_cfg.ep.linkEmail, { email: email }, 'link_email');
       var data = await safeJson(res);
-      
+
       if (!res.ok || data.error) throw new Error(data.error || 'Gagal menyimpan email');
-      
+
       showAlert('alertEmail', 'Email berhasil ditautkan!', 'success');
-      
+
       setTimeout(function () {
         closeModal($('modalEmail'));
         hideAlert('alertEmail');
@@ -572,7 +594,7 @@ function hideAlert(id) {
         Cache.remove('user');
         loadUser(true);
       }, 2000);
-      
+
     } catch (err) {
       showAlert('alertEmail', err.message || 'Gagal menautkan email', 'error');
     } finally {
@@ -623,8 +645,311 @@ async function handleLogout() {
   });
 })();
 
+// ============================================================
+// API KEY SECTION
+// ============================================================
+function maskKey(key) {
+  if (!key) return '—';
+  if (key.length <= 22) return key;
+  return key.slice(0, 13) + '••••' + key.slice(-4);
+}
+
+function renderApiKey(data) {
+  var el = $('apiKeyValue');
+  var statusEl = $('apiKeyStatus');
+  var copyBtn = $('btnCopyApiKey');
+  if (el && data) {
+    el.textContent = maskKey(data.api_key);
+    el.setAttribute('data-full', data.api_key || '');
+  }
+  if (copyBtn) copyBtn.style.display = data && data.api_key ? 'inline-flex' : 'none';
+  if (statusEl && data) {
+    var used = data.last_used_at ? new Date(data.last_used_at).toLocaleString('id-ID') : 'Belum pernah dipakai';
+    var created = data.created_at ? new Date(data.created_at).toLocaleString('id-ID') : '—';
+    statusEl.innerHTML = 'Dibuat <code>' + escapeHtml(created) + '</code> · Terakhir dipakai <code>' + escapeHtml(used) + '</code>';
+  }
+}
+
+async function loadApiKey() {
+  try {
+    var res = await fetchWithTimeout(_cfg.ep.apiKey, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    var data = await safeJson(res);
+    renderApiKey(data);
+  } catch (e) {}
+}
+
+async function rotateApiKey() {
+  var btn = $('btnRotateApiKey');
+  if (!btn) return;
+  if (!window.confirm('Rotate API key? Key lama langsung tidak valid dan integrasi yang pakai key lama akan error.')) return;
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span> Rotating...';
+  try {
+    var res = await securePost(_cfg.ep.rotateApiKey, {}, 'rotate_api_key');
+    var data = await safeJson(res);
+    if (!res.ok || data.error) throw new Error(data.error || 'Gagal rotate API key');
+    renderApiKey({ api_key: data.api_key, created_at: data.created_at, last_used_at: null });
+    showToast('API key di-rotate. Simpan key baru.', 'success');
+  } catch (err) {
+    showToast(err.message || 'Gagal rotate API key', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+(function apiKeyInit() {
+  var btnCopy = $('btnCopyApiKey');
+  if (btnCopy) {
+    btnCopy.addEventListener('click', function () {
+      var el = $('apiKeyValue');
+      var full = el && el.getAttribute('data-full');
+      if (!full) return;
+      copyToClipboard(full, btnCopy, '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>');
+    });
+  }
+  var btnRotate = $('btnRotateApiKey');
+  if (btnRotate) btnRotate.addEventListener('click', rotateApiKey);
+})();
+
+// ============================================================
+// WEBHOOK SECTION
+// ============================================================
+var WEBHOOK_EVENTS = [
+  { id: 'all', label: 'Semua Event' },
+  { id: 'order.otp_received', label: 'OTP Masuk' },
+  { id: 'order.completed', label: 'Order Selesai' },
+  { id: 'order.cancelled', label: 'Order Dibatalkan' },
+  { id: 'order.expired', label: 'Order Expired' },
+  { id: 'order.refunded', label: 'Order Refund' },
+  { id: 'deposit.success', label: 'Deposit Sukses' },
+  { id: 'deposit.expired', label: 'Deposit Expired' }
+];
+
+var _whState = { list: [], editing: null };
+
+function renderWebhookList(list) {
+  var wrap = $('webhookList');
+  if (!wrap) return;
+  if (!list || list.length === 0) {
+    wrap.innerHTML = '<div class="wh-empty">Belum ada webhook. Klik "Tambah Webhook" buat mulai.</div>';
+    return;
+  }
+  var html = '';
+  list.forEach(function (w) {
+    var evLabels = (w.events || []).map(function (e) {
+      var f = WEBHOOK_EVENTS.filter(function (x) { return x.id === e; })[0];
+      return f ? f.label : e;
+    }).join(', ');
+    html +=
+      '<div class="wh-card" data-id="' + w.id + '">' +
+        '<div class="wh-head">' +
+          '<div class="wh-url"><code>' + escapeHtml(w.url) + '</code></div>' +
+          '<span class="wh-badge ' + (w.active ? 'on' : 'off') + '">' + (w.active ? 'Aktif' : 'Off') + '</span>' +
+        '</div>' +
+        '<div class="wh-row"><span class="wh-label">Events</span><span class="wh-value">' + escapeHtml(evLabels || 'Semua') + '</span></div>' +
+        '<div class="wh-row"><span class="wh-label">Secret</span><code class="wh-secret" data-full="' + escapeHtml(w.secret) + '">' + escapeHtml(maskKey(w.secret)) + '</code></div>' +
+        (w.description ? '<div class="wh-row"><span class="wh-label">Catatan</span><span class="wh-value">' + escapeHtml(w.description) + '</span></div>' : '') +
+        '<div class="wh-actions">' +
+          '<button class="btn btn-sm" type="button" data-act="copy" data-id="' + w.id + '">Copy Secret</button>' +
+          '<button class="btn btn-sm" type="button" data-act="rotate" data-id="' + w.id + '">Rotate</button>' +
+          '<button class="btn btn-sm" type="button" data-act="test" data-id="' + w.id + '">Test</button>' +
+          '<button class="btn btn-sm" type="button" data-act="edit" data-id="' + w.id + '">Edit</button>' +
+          '<button class="btn btn-sm btn-danger" type="button" data-act="delete" data-id="' + w.id + '">Hapus</button>' +
+        '</div>' +
+      '</div>';
+  });
+  wrap.innerHTML = html;
+}
+
+async function loadWebhooks() {
+  try {
+    var res = await fetchWithTimeout(_cfg.ep.webhooks, {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return;
+    var data = await safeJson(res);
+    _whState.list = data.webhooks || [];
+    renderWebhookList(_whState.list);
+  } catch (e) {}
+}
+
+function openWebhookModal(id) {
+  _whState.editing = null;
+  var title = $('modalWebhookTitle');
+  var form = $('formWebhook');
+  var inputUrl = $('inputWebhookUrl');
+  var inputDesc = $('inputWebhookDesc');
+  var inputActive = $('inputWebhookActive');
+  hideAlert('alertWebhook');
+  if (form) form.reset();
+
+  if (id) {
+    var w = _whState.list.filter(function (x) { return x.id === id; })[0];
+    if (w) {
+      _whState.editing = w;
+      if (title) title.textContent = 'Edit Webhook';
+      if (inputUrl) inputUrl.value = w.url || '';
+      if (inputDesc) inputDesc.value = w.description || '';
+      if (inputActive) inputActive.checked = !!w.active;
+      document.querySelectorAll('input[name="webhookEvent"]').forEach(function (cb) {
+        cb.checked = (w.events || []).indexOf(cb.value) !== -1;
+      });
+    }
+  } else {
+    if (title) title.textContent = 'Tambah Webhook';
+    if (inputActive) inputActive.checked = true;
+    document.querySelectorAll('input[name="webhookEvent"]').forEach(function (cb) {
+      cb.checked = cb.value === 'all';
+    });
+  }
+  openModal('modalWebhook');
+}
+
+async function saveWebhook() {
+  var btn = $('btnSaveWebhook');
+  var url = ($('inputWebhookUrl').value || '').trim();
+  var desc = ($('inputWebhookDesc').value || '').trim();
+  var active = $('inputWebhookActive') ? $('inputWebhookActive').checked : true;
+
+  var events = [];
+  document.querySelectorAll('input[name="webhookEvent"]:checked').forEach(function (cb) {
+    events.push(cb.value);
+  });
+  if (events.length === 0) events = ['all'];
+
+  hideAlert('alertWebhook');
+  if (!url) { showAlert('alertWebhook', 'URL wajib diisi', 'error'); return; }
+  if (!/^https?:\/\//i.test(url)) { showAlert('alertWebhook', 'URL harus diawali http:// atau https://', 'error'); return; }
+
+  var orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-sm"></span> Menyimpan...';
+
+  try {
+    var endpoint = _cfg.ep.webhooks;
+    var method = 'POST';
+    if (_whState.editing) {
+      endpoint += '/' + _whState.editing.id;
+      method = 'PATCH';
+    }
+
+    var res = await securePost(endpoint, {
+      url: url,
+      description: desc,
+      events: events,
+      active: active
+    }, 'save_webhook', method);
+
+    var data = await safeJson(res);
+    if (!res.ok || data.error) throw new Error(data.error || 'Gagal simpan webhook');
+
+    showToast(_whState.editing ? 'Webhook diupdate' : 'Webhook ditambah', 'success');
+    closeModal($('modalWebhook'));
+    await loadWebhooks();
+  } catch (err) {
+    showAlert('alertWebhook', err.message || 'Gagal simpan webhook', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+async function deleteWebhook(id) {
+  if (!window.confirm('Hapus webhook ini? Pengiriman ke URL ini akan berhenti.')) return;
+  try {
+    var res = await secureDelete(_cfg.ep.webhooks + '/' + id);
+    var data = await safeJson(res);
+    if (!res.ok || data.error) throw new Error(data.error || 'Gagal hapus');
+    showToast('Webhook dihapus', 'success');
+    await loadWebhooks();
+  } catch (err) {
+    showToast(err.message || 'Gagal hapus webhook', 'error');
+  }
+}
+
+async function rotateWebhookSecret(id) {
+  if (!window.confirm('Rotate secret? Server penerima harus update secret baru.')) return;
+  try {
+    var res = await securePost(_cfg.ep.webhooks + '/' + id + '/rotate', {}, 'rotate_webhook_secret');
+    var data = await safeJson(res);
+    if (!res.ok || data.error) throw new Error(data.error || 'Gagal rotate secret');
+    showToast('Secret di-rotate. Update verifikasi di server kamu.', 'success');
+    await loadWebhooks();
+  } catch (err) {
+    showToast(err.message || 'Gagal rotate secret', 'error');
+  }
+}
+
+async function testWebhook(id) {
+  try {
+    showToast('Mengirim test...', 'info');
+    var res = await securePost(_cfg.ep.webhooks + '/' + id + '/test', {}, 'test_webhook');
+    var data = await safeJson(res);
+    if (!res.ok) throw new Error(data.error || 'Gagal kirim test');
+    if (data.ok) showToast('Test berhasil (HTTP ' + data.status_code + ')', 'success');
+    else showToast('Test gagal (HTTP ' + (data.status_code || '-') + ')', 'error');
+  } catch (err) {
+    showToast(err.message || 'Gagal test webhook', 'error');
+  }
+}
+
+(function webhookInit() {
+  var btnAdd = $('btnAddWebhook');
+  if (btnAdd) btnAdd.addEventListener('click', function () { openWebhookModal(null); });
+
+  var form = $('formWebhook');
+  if (form) {
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      saveWebhook();
+    });
+  }
+
+  var wrap = $('webhookList');
+  if (wrap) {
+    wrap.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var id = parseInt(btn.getAttribute('data-id'), 10);
+      var act = btn.getAttribute('data-act');
+      if (act === 'copy') {
+        var card = btn.closest('.wh-card');
+        var codeEl = card && card.querySelector('.wh-secret');
+        var full = codeEl && codeEl.getAttribute('data-full');
+        if (full) copyToClipboard(full, btn, 'Copied!');
+        return;
+      }
+      if (act === 'edit') return openWebhookModal(id);
+      if (act === 'delete') return deleteWebhook(id);
+      if (act === 'rotate') return rotateWebhookSecret(id);
+      if (act === 'test') return testWebhook(id);
+    });
+  }
+
+  // mutual exclusive: 'all' vs specific events
+  document.querySelectorAll('input[name="webhookEvent"]').forEach(function (cb) {
+    cb.addEventListener('change', function () {
+      if (cb.value === 'all' && cb.checked) {
+        document.querySelectorAll('input[name="webhookEvent"]').forEach(function (o) {
+          if (o !== cb) o.checked = false;
+        });
+      } else if (cb.value !== 'all' && cb.checked) {
+        var allCb = document.querySelector('input[name="webhookEvent"][value="all"]');
+        if (allCb) allCb.checked = false;
+      }
+    });
+  });
+})();
+
 function init() {
   loadUser(false);
+  loadApiKey();
+  loadWebhooks();
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
@@ -632,7 +957,11 @@ if (document.readyState === 'loading') {
   init();
 }
 document.addEventListener('visibilitychange', function () {
-  if (!document.hidden) loadUser(false);
+  if (!document.hidden) {
+    loadUser(false);
+    loadApiKey();
+    loadWebhooks();
+  }
 });
 
 })(window);
