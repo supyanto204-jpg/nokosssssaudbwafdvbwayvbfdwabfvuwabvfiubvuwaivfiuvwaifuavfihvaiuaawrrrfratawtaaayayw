@@ -195,6 +195,20 @@ const JWT_EXPIRES = '30m';
 const REFRESH_EXPIRES_DAYS = 30;
 const SESSION_MAX_AGE_MS = REFRESH_EXPIRES_DAYS * 24 * 60 * 60 * 1000;
 
+// === SIGN TOKEN HELPER (WAJIB ADA) ===
+function signToken(user) {
+    return jwt.sign(
+        {
+            id: user.id,
+            username: user.username,
+            role: user.role || 'user',
+            jti: crypto.randomBytes(16).toString('hex'),
+        },
+        JWT_SECRET_FINAL,
+        { expiresIn: JWT_EXPIRES }
+    );
+}
+
 const CRON_SECRET = process.env.CRON_SECRET;
 if (!CRON_SECRET) console.error('⚠️  CRON_SECRET belum di-set!');
 
