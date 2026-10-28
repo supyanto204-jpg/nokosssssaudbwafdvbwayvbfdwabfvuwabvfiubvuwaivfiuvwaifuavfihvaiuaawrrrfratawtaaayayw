@@ -7,7 +7,6 @@
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="theme-color" content="#0a84ff">
 <meta name="color-scheme" content="light dark">
-<meta name="robots" content="index,follow">
 <title>API Documentation v1 — AsyrofOTP</title>
 <link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,46 +54,46 @@
 <div class="layout">
   <!-- SIDEBAR NAV -->
   <aside class="sidenav" id="sidenav">
-    <div class="sidenav-section">
-      <div class="sidenav-title">Getting Started</div>
-      <a href="#intro" class="sidenav-link">Introduction</a>
-      <a href="#auth" class="sidenav-link">Authentication</a>
-      <a href="#errors" class="sidenav-link">Errors &amp; Codes</a>
-    </div>
-    <div class="sidenav-section">
-      <div class="sidenav-title">Account</div>
-      <a href="#me" class="sidenav-link"><span class="method-mini get">GET</span> /me</a>
-    </div>
-    <div class="sidenav-section">
-      <div class="sidenav-title">Catalog</div>
-      <a href="#servers" class="sidenav-link"><span class="method-mini get">GET</span> /servers</a>
-      <a href="#services" class="sidenav-link"><span class="method-mini get">GET</span> /services</a>
-      <a href="#countries" class="sidenav-link"><span class="method-mini get">GET</span> /countries</a>
-      <a href="#prices" class="sidenav-link"><span class="method-mini get">GET</span> /prices</a>
-    </div>
-    <div class="sidenav-section">
-      <div class="sidenav-title">Orders</div>
-      <a href="#order-preview" class="sidenav-link"><span class="method-mini post">POST</span> /order/preview</a>
-      <a href="#order-create" class="sidenav-link"><span class="method-mini post">POST</span> /order</a>
-      <a href="#order-status" class="sidenav-link"><span class="method-mini get">GET</span> /order/:otp_id</a>
-      <a href="#order-cancel" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/cancel</a>
-      <a href="#order-resend" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/resend</a>
-      <a href="#order-confirm" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/confirm</a>
-      <a href="#orders-list" class="sidenav-link"><span class="method-mini get">GET</span> /orders</a>
-      <a href="#orders-stats" class="sidenav-link"><span class="method-mini get">GET</span> /orders/stats</a>
-      <a href="#cekotp" class="sidenav-link"><span class="method-mini post">POST</span> /cekotp</a>
-    </div>
-    <div class="sidenav-section">
-      <div class="sidenav-title">Deposit</div>
-      <a href="#deposit-save" class="sidenav-link"><span class="method-mini post">POST</span> /deposit/save</a>
-      <a href="#deposit-status" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/:ref/status</a>
-      <a href="#deposit-history" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/history</a>
-    </div>
-    <div class="sidenav-section">
-      <div class="sidenav-title">Webhooks</div>
-      <a href="#webhook-overview" class="sidenav-link">Overview</a>
-      <a href="#webhook-events" class="sidenav-link">Events</a>
-      <a href="#webhook-signature" class="sidenav-link">Signature &amp; Retry</a>
+    <div class="sidenav-inner">
+      <div class="sidenav-section">
+        <div class="sidenav-title">Getting Started</div>
+        <a href="#intro" class="sidenav-link">Introduction</a>
+        <a href="#auth" class="sidenav-link">Authentication</a>
+        <a href="#errors" class="sidenav-link">Errors &amp; Codes</a>
+      </div>
+      <div class="sidenav-section">
+        <div class="sidenav-title">Account</div>
+        <a href="#me" class="sidenav-link"><span class="method-mini get">GET</span> /me</a>
+      </div>
+      <div class="sidenav-section">
+        <div class="sidenav-title">Catalog</div>
+        <a href="#servers" class="sidenav-link"><span class="method-mini get">GET</span> /servers</a>
+        <a href="#services" class="sidenav-link"><span class="method-mini get">GET</span> /services</a>
+        <a href="#countries" class="sidenav-link"><span class="method-mini get">GET</span> /countries</a>
+        <a href="#prices" class="sidenav-link"><span class="method-mini get">GET</span> /prices</a>
+      </div>
+      <div class="sidenav-section">
+        <div class="sidenav-title">Orders</div>
+        <a href="#order-preview" class="sidenav-link"><span class="method-mini post">POST</span> /order/preview</a>
+        <a href="#order-create" class="sidenav-link"><span class="method-mini post">POST</span> /order</a>
+        <a href="#order-status" class="sidenav-link"><span class="method-mini get">GET</span> /order/:otp_id</a>
+        <a href="#order-cancel" class="sidenav-link"><span class="method-mini post">POST</span> /order/:otp_id/cancel</a>
+        <a href="#orders-list" class="sidenav-link"><span class="method-mini get">GET</span> /orders</a>
+        <a href="#orders-stats" class="sidenav-link"><span class="method-mini get">GET</span> /orders/stats</a>
+        <a href="#cekotp" class="sidenav-link"><span class="method-mini post">POST</span> /cekotp</a>
+      </div>
+      <div class="sidenav-section">
+        <div class="sidenav-title">Deposit</div>
+        <a href="#deposit-create" class="sidenav-link"><span class="method-mini post">POST</span> /deposit/create</a>
+        <a href="#deposit-status" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/:ref/status</a>
+        <a href="#deposit-history" class="sidenav-link"><span class="method-mini get">GET</span> /deposit/history</a>
+      </div>
+      <div class="sidenav-section">
+        <div class="sidenav-title">Webhooks</div>
+        <a href="#webhook-overview" class="sidenav-link">Overview</a>
+        <a href="#webhook-events" class="sidenav-link">Events</a>
+        <a href="#webhook-signature" class="sidenav-link">Signature &amp; Retry</a>
+      </div>
     </div>
   </aside>
 
@@ -105,10 +104,10 @@
     <section class="hero">
       <div class="hero-badge">API v1 · REST · JSON</div>
       <h1>AsyrofOTP API</h1>
-      <p class="hero-sub">Integrasikan layanan OTP virtual number langsung dari aplikasi kamu. Autentikasi pakai API key, tanpa ribet OAuth.</p>
+      <p class="hero-sub">Panduan integrasi OTP virtual number. Autentikasi pakai API key, gak pakai OAuth yang ribet.</p>
       <div class="hero-actions">
         <a href="/profile" class="btn btn-primary">Ambil API Key</a>
-        <a href="#auth" class="btn">Baca Authentication →</a>
+        <a href="#auth" class="btn">Baca Authentication</a>
       </div>
       <div class="hero-meta">
         <div><span class="label">Base URL</span><code>https://asyrofotp.vercel.app/api/v1</code></div>
@@ -120,7 +119,7 @@
     <!-- INTRO -->
     <section id="intro" class="doc-section">
       <h2>Introduction</h2>
-      <p>API AsyrofOTP menggunakan style <strong>REST</strong> dengan payload <strong>JSON</strong>. Semua request yang sukses mengembalikan objek dengan field <code>ok: true</code>, error mengembalikan <code>error</code>.</p>
+      <p>API AsyrofOTP pakai gaya REST dengan payload JSON. Semua respons sukses bakal ada field <code>ok: true</code>. Kalau gagal, bakal ada field <code>error</code> sama HTTP status yang sesuai.</p>
 
       <h3>Base URL</h3>
       <div class="code-block">
@@ -136,17 +135,16 @@
         <li><strong>Cek harga &amp; stok</strong> — <code>GET /prices?server=ekonomi&amp;service=wa&amp;country=id</code></li>
         <li><strong>Order</strong> — <code>POST /order</code> (saldo auto-deduct)</li>
         <li><strong>Polling OTP</strong> — <code>GET /order/:otp_id</code> tiap 5 detik, atau pakai <a href="#webhook-overview">webhook</a></li>
-        <li><strong>Confirm</strong> — <code>POST /order/:otp_id/confirm</code></li>
       </ol>
     </section>
 
     <!-- AUTH -->
     <section id="auth" class="doc-section">
       <h2>Authentication</h2>
-      <p>Semua endpoint butuh <strong>API key</strong>. Format key: <code>asyrofotp-XXXXXXXXXXXXXXXX</code> (16 karakter alfanumerik).</p>
+      <p>Semua endpoint butuh API key. Formatnya: <code>asyrofotp-XXXXXXXXXXXXXXXX</code> (16 karakter).</p>
 
       <h3>Dapatkan API key</h3>
-      <p>Login ke <a href="/profile">dashboard</a> → klik <strong>API Key → Rotate API Key</strong>. Atau:</p>
+      <p>Buka <a href="/profile">dashboard</a> → bagian <strong>API Key → Rotate API Key</strong>. Atau lewat endpoint:</p>
       <div class="code-block">
         <div class="code-header"><span>Response GET /api/user/api-key</span><button class="copy-btn" data-copy="curl -H &quot;Authorization: Bearer &lt;JWT&gt;&quot; https://asyrofotp.vercel.app/api/user/api-key">Copy curl</button></div>
         <pre><code>{
@@ -157,7 +155,7 @@
       </div>
 
       <h3>Kirim API key di request</h3>
-      <p>3 cara, pilih salah satu:</p>
+      <p>Ada 3 cara, pilih salah satu:</p>
       <div class="code-block">
         <div class="code-header"><span>Authorization Bearer (recommended)</span><button class="copy-btn" data-copy="Authorization: Bearer asyrofotp-aB3xY9kLmN2pQr7s">Copy</button></div>
         <pre><code>Authorization: Bearer asyrofotp-aB3xY9kLmN2pQr7s</code></pre>
@@ -180,7 +178,7 @@
     <!-- ERRORS -->
     <section id="errors" class="doc-section">
       <h2>Errors &amp; Codes</h2>
-      <p>Semua error punya HTTP status + field <code>error</code>. Beberapa endpoint juga kirim <code>code</code> untuk programmatic handling.</p>
+      <p>Semua error punya HTTP status + field <code>error</code>. Beberapa endpoint juga kirim <code>code</code> buat di-handle manual.</p>
       <table class="doc-table">
         <thead><tr><th>HTTP</th><th>Code</th><th>Artinya</th></tr></thead>
         <tbody>
@@ -194,7 +192,6 @@
           <tr><td><code>409</code></td><td><code>PROVIDER_PRICE_JUMPED</code></td><td>Harga provider naik, coba provider lain</td></tr>
           <tr><td><code>429</code></td><td><code>RATE_LIMIT</code></td><td>Kena rate limit</td></tr>
           <tr><td><code>500</code></td><td><code>SERVER_ERROR</code></td><td>Server error (retry)</td></tr>
-          <tr><td><code>503</code></td><td><code>NOT_READY</code></td><td>Endpoint belum ready (jarang)</td></tr>
         </tbody>
       </table>
     </section>
@@ -268,7 +265,7 @@
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>server</code></td><td>string</td><td>opsional</td><td><code>ekonomi</code> (default) atau <code>premium</code></td></tr>
+          <tr><td><code>server</code></td><td>string</td><td><strong>wajib</strong></td><td><code>ekonomi</code> atau <code>premium</code></td></tr>
         </tbody>
       </table>
 
@@ -303,8 +300,8 @@
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>server</code></td><td>string</td><td>opsional</td><td><code>ekonomi</code> (default) / <code>premium</code></td></tr>
-          <tr><td><code>service</code></td><td>string</td><td>opsional</td><td>Filter per layanan (misal <code>wa</code>)</td></tr>
+          <tr><td><code>server</code></td><td>string</td><td><strong>wajib</strong></td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td><strong>wajib</strong></td><td>Filter per layanan (misal <code>wa</code>)</td></tr>
         </tbody>
       </table>
 
@@ -333,13 +330,13 @@
         <span class="method get">GET</span>
         <code class="endpoint-path">/prices</code>
       </div>
-      <p>List provider (nomor) yang ready untuk service + country tertentu, dengan harga jual final.</p>
+      <p>List provider (nomor) yang ready untuk service + country tertentu, beserta harga jual final.</p>
 
       <h4>Query Parameters</h4>
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>server</code></td><td>opsional</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>server</code></td><td><strong>wajib</strong></td><td><code>ekonomi</code> / <code>premium</code></td></tr>
           <tr><td><code>service</code></td><td><strong>wajib</strong></td><td>misal <code>wa</code></td></tr>
           <tr><td><code>country</code></td><td><strong>wajib</strong></td><td>misal <code>id</code></td></tr>
         </tbody>
@@ -386,14 +383,14 @@
       </div>
       <p>Cek harga + saldo cukup sebelum order. Opsional, tapi recommended.</p>
 
-      <h4>Body</h4>
+      <h4>Body Parameters</h4>
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>id</code></td><td>string</td><td>wajib</td><td>ID provider dari <code>/prices</code></td></tr>
-          <tr><td><code>server</code></td><td>string</td><td>wajib</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
-          <tr><td><code>service</code></td><td>string</td><td>kondisional</td><td>Wajib kalau id tidak di-lock</td></tr>
-          <tr><td><code>country</code></td><td>string</td><td>kondisional</td><td>Wajib kalau id tidak di-lock</td></tr>
+          <tr><td><code>id</code></td><td>string</td><td><strong>wajib</strong></td><td>ID provider dari <code>/prices</code></td></tr>
+          <tr><td><code>server</code></td><td>string</td><td><strong>wajib</strong></td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td><strong>wajib</strong></td><td>Wajib diisi</td></tr>
+          <tr><td><code>country</code></td><td>string</td><td><strong>wajib</strong></td><td>Wajib diisi</td></tr>
         </tbody>
       </table>
 
@@ -428,14 +425,14 @@
       </div>
       <p>Buat order. Saldo auto-deduct. ID provider harus dari <code>/prices</code>.</p>
 
-      <h4>Body</h4>
+      <h4>Body Parameters</h4>
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Tipe</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>id</code></td><td>string</td><td>wajib</td><td>Provider ID dari /prices</td></tr>
-          <tr><td><code>server</code></td><td>string</td><td>wajib</td><td><code>ekonomi</code> / <code>premium</code></td></tr>
-          <tr><td><code>service</code></td><td>string</td><td>opsional</td><td>misal <code>wa</code></td></tr>
-          <tr><td><code>country</code></td><td>string</td><td>opsional</td><td>misal <code>id</code></td></tr>
+          <tr><td><code>id</code></td><td>string</td><td><strong>wajib</strong></td><td>Provider ID dari /prices</td></tr>
+          <tr><td><code>server</code></td><td>string</td><td><strong>wajib</strong></td><td><code>ekonomi</code> / <code>premium</code></td></tr>
+          <tr><td><code>service</code></td><td>string</td><td><strong>wajib</strong></td><td>misal <code>wa</code></td></tr>
+          <tr><td><code>country</code></td><td>string</td><td><strong>wajib</strong></td><td>misal <code>id</code></td></tr>
           <tr><td><code>service_name</code></td><td>string</td><td>opsional</td><td>Display name (misal <code>WhatsApp</code>)</td></tr>
           <tr><td><code>icon_code</code></td><td>string</td><td>opsional</td><td>Icon code</td></tr>
           <tr><td><code>operator</code></td><td>string</td><td>opsional</td><td>Operator (kalau ada)</td></tr>
@@ -479,7 +476,7 @@
 
       <div class="callout callout-warn">
         <strong>⚠️ Simpan otp_id</strong>
-        <p>Field <code>otp_id</code> itu identifier order kamu (bukan <code>order.id</code> dari provider). Pakai itu buat polling / cancel / confirm.</p>
+        <p>Field <code>otp_id</code> itu identifier order kamu (bukan <code>order.id</code> dari provider). Pakai itu buat polling / cancel.</p>
       </div>
     </section>
 
@@ -521,7 +518,6 @@
           <tr><td><code>pending</code></td><td>Menunggu SMS masuk</td></tr>
           <tr><td><code>received</code></td><td>OTP sudah masuk</td></tr>
           <tr><td><code>success</code></td><td>Order selesai</td></tr>
-          <tr><td><code>confirmed</code></td><td>Lo konfirmasi manual</td></tr>
           <tr><td><code>cancelled</code></td><td>Dibatalkan (auto/manual)</td></tr>
           <tr><td><code>expired</code></td><td>Habis waktu, saldo direfund</td></tr>
           <tr><td><code>refunded</code></td><td>Refund karena provider error</td></tr>
@@ -547,49 +543,6 @@
   "otp_id": "OTP12345678",
   "refunded": 1650,
   "balance": 50000
-}</code></pre>
-      </div>
-    </section>
-
-    <!-- ===== resend ===== -->
-    <section id="order-resend" class="doc-section api-endpoint">
-      <div class="endpoint-header">
-        <span class="method post">POST</span>
-        <code class="endpoint-path">/order/:otp_id/resend</code>
-      </div>
-      <p>Minta SMS dikirim ulang. Max 3× per order.</p>
-      <div class="code-block">
-        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -X POST -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678/resend">Copy</button></div>
-        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/OTP12345678/resend \
-  -H "X-API-Key: asyrofotp-xxx"</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"otp_id":"OTP12345678","resend_count":1,"status":"pending"}'>Copy</button></div>
-        <pre><code>{
-  "otp_id": "OTP12345678",
-  "resend_count": 1,
-  "status": "pending"
-}</code></pre>
-      </div>
-    </section>
-
-    <!-- ===== confirm ===== -->
-    <section id="order-confirm" class="doc-section api-endpoint">
-      <div class="endpoint-header">
-        <span class="method post">POST</span>
-        <code class="endpoint-path">/order/:otp_id/confirm</code>
-      </div>
-      <p>Tandai order sudah selesai manual. Status jadi <code>confirmed</code>.</p>
-      <div class="code-block">
-        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy="curl -X POST -H &quot;X-API-Key: asyrofotp-xxx&quot; https://asyrofotp.vercel.app/api/v1/order/OTP12345678/confirm">Copy</button></div>
-        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/order/OTP12345678/confirm \
-  -H "X-API-Key: asyrofotp-xxx"</code></pre>
-      </div>
-      <div class="code-block">
-        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"message":"Order berhasil dikonfirmasi","status":"confirmed"}'>Copy</button></div>
-        <pre><code>{
-  "message": "Order berhasil dikonfirmasi",
-  "status": "confirmed"
 }</code></pre>
       </div>
     </section>
@@ -673,7 +626,7 @@
       </div>
       <p>Alias untuk cek OTP — sama persis dengan <code>GET /order/:otp_id</code> tapi pakai <code>POST</code> body (bisa kirim <code>order_id</code> atau <code>otp_id</code>).</p>
 
-      <h4>Body</h4>
+      <h4>Body Parameters</h4>
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
@@ -691,38 +644,40 @@
       </div>
     </section>
 
-    <!-- ===== deposit save ===== -->
-    <section id="deposit-save" class="doc-section api-endpoint">
+    <!-- ===== deposit create ===== -->
+    <section id="deposit-create" class="doc-section api-endpoint">
       <div class="endpoint-header">
         <span class="method post">POST</span>
-        <code class="endpoint-path">/deposit/save</code>
+        <code class="endpoint-path">/deposit/create</code>
       </div>
-      <p>Simpan deposit QRIS setelah kamu create QRIS dari provider.</p>
+      <p>Bikin QRIS baru buat deposit saldo.</p>
 
-      <h4>Body</h4>
+      <h4>Body Parameters</h4>
       <table class="doc-table">
         <thead><tr><th>Nama</th><th>Wajib</th><th>Keterangan</th></tr></thead>
         <tbody>
-          <tr><td><code>reference_id</code></td><td>wajib</td><td>Dari <code>/api/deposit/generate-ref</code> (JWT)</td></tr>
-          <tr><td><code>amount</code></td><td>wajib</td><td>Nominal (min 1000, max 10jt)</td></tr>
-          <tr><td><code>qris_id</code></td><td>wajib</td><td>Dari provider QRIS</td></tr>
-          <tr><td><code>qris_url</code></td><td>opsional</td><td>URL gambar QR</td></tr>
-          <tr><td><code>expired_at</code></td><td>wajib</td><td>ISO date</td></tr>
+          <tr><td><code>amount</code></td><td><strong>wajib</strong></td><td>Nominal deposit (min 1000, max 10.000.000)</td></tr>
         </tbody>
       </table>
 
       <div class="code-block">
-        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"reference_id":"DEP123","amount":10000,"qris_id":"qr_xxx","qris_url":"https://...","expired_at":"2026-01-01T13:00:00.000Z"}&apos; https://asyrofotp.vercel.app/api/v1/deposit/save'>Copy</button></div>
-        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/deposit/save \
+        <div class="code-header"><span>curl</span><button class="copy-btn" data-copy='curl -X POST -H "X-API-Key: asyrofotp-xxx" -H "Content-Type: application/json" -d &apos;{"amount":10000}&apos; https://asyrofotp.vercel.app/api/v1/deposit/create'>Copy</button></div>
+        <pre><code>curl -X POST https://asyrofotp.vercel.app/api/v1/deposit/create \
   -H "X-API-Key: asyrofotp-xxx" \
   -H "Content-Type: application/json" \
-  -d '{
-    "reference_id": "DEP123",
-    "amount": 10000,
-    "qris_id": "qr_xxx",
-    "qris_url": "https://...",
-    "expired_at": "2026-01-01T13:00:00.000Z"
-  }'</code></pre>
+  -d '{"amount": 10000}'</code></pre>
+      </div>
+      
+      <div class="code-block">
+        <div class="code-header"><span>Response 200</span><button class="copy-btn" data-copy='{"status":"ok","reference_id":"DEP123","qris_id":"qr_xxx","qris_url":"https://...","amount":10000,"expired_at":"2026-01-01T13:00:00.000Z"}'>Copy</button></div>
+        <pre><code>{
+  "status": "ok",
+  "reference_id": "DEP123",
+  "qris_id": "qr_xxx",
+  "qris_url": "https://...",
+  "amount": 10000,
+  "expired_at": "2026-01-01T13:00:00.000Z"
+}</code></pre>
       </div>
     </section>
 
@@ -772,7 +727,7 @@
       <p>Daripada polling terus, lo bisa daftar webhook. AsyrofOTP akan <strong>POST</strong> ke URL kamu setiap ada event.</p>
 
       <h3>Daftar webhook</h3>
-      <p>Dari <a href="/profile">dashboard profile</a> → section <strong>Webhook</strong> → Tambah Webhook. Atau via API:</p>
+      <p>Buka <a href="/profile">dashboard profile</a> → section <strong>Webhook</strong> → Tambah Webhook. Atau via API:</p>
       <div class="code-block">
         <div class="code-header"><span>curl (butuh JWT, bukan API key)</span><button class="copy-btn" data-copy='curl -X POST -H "Authorization: Bearer &lt;JWT&gt;" -H "Content-Type: application/json" -d &apos;{"url":"https://domain-kamu.com/webhook","events":["order.otp_received","deposit.success"]}&apos; https://asyrofotp.vercel.app/api/user/webhooks'>Copy</button></div>
         <pre><code>curl -X POST https://asyrofotp.vercel.app/api/user/webhooks \
