@@ -4,7 +4,7 @@
 function $(id){ return document.getElementById(id); }
 function $all(sel){ return document.querySelectorAll(sel); }
 
-// Theme toggle (sinkron dengan dashboard)
+// Theme toggle
 (function themeInit(){
   var btn = $('themeBtn');
   if (!btn) return;
@@ -81,43 +81,54 @@ function $all(sel){ return document.querySelectorAll(sel); }
   }
 })();
 
-// Scroll-spy untuk sidenav active state
+// Scroll-spy pakai IntersectionObserver
 (function scrollSpyInit(){
   var links = Array.prototype.slice.call($all('.sidenav-link[href^="#"]'));
   if (links.length === 0) return;
 
-  var sections = links.map(function(link){
+  var map = {};
+  links.forEach(function(link){
     var id = link.getAttribute('href').slice(1);
     var el = document.getElementById(id);
-    return el ? { id: id, el: el, link: link } : null;
-  }).filter(Boolean);
+    if (el) map[id] = { link: link, el: el };
+  });
 
-  function update(){
-    var scrollY = window.scrollY + 100;
-    var current = null;
-    for (var i = 0; i < sections.length; i++) {
-      var s = sections[i];
-      if (s.el.offsetTop <= scrollY) current = s;
-    }
-    links.forEach(function(l){ l.classList.remove('active'); });
-    if (current) current.link.classList.add('active');
+  var ids = Object.keys(map);
+  if (ids.length === 0) return;
+
+  // Set active awal
+  var activeId = null;
+  function setActive(id){
+    if (activeId === id) return;
+    ids.forEach(function(i){ map[i].link.classList.remove('active'); });
+    if (id && map[id]) map[id].link.classList.add('active');
+    activeId = id;
   }
 
-  var ticking = false;
+  var observer = new IntersectionObserver(function(entries){
+    // Cari entry yang paling atas & intersecting
+    var visible = entries.filter(function(e){ return e.isIntersecting; });
+    if (visible.length > 0) {
+      // Sort berdasarkan posisi top
+      visible.sort(function(a,b){ return a.boundingClientRect.top - b.boundingClientRect.top; });
+      setActive(visible[0].target.id);
+    }
+  }, {
+    rootMargin: '-80px 0px -60% 0px',
+    threshold: 0
+  });
+
+  ids.forEach(function(id){ observer.observe(map[id].el); });
+
+  // Fallback kalau user scroll mentok paling bawah, pastikan link terakhir aktif
   window.addEventListener('scroll', function(){
-    if (!ticking) {
-      ticking = true;
-      requestAnimationFrame(function(){
-        update();
-        ticking = false;
-      });
+    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50) {
+      setActive(ids[ids.length - 1]);
     }
   }, { passive: true });
-
-  update();
 })();
 
-// Intercept hash link biar smooth scroll (browser default kadang kurang smooth)
+// Smooth scroll
 (function smoothScrollInit(){
   document.addEventListener('click', function(e){
     var a = e.target.closest('a[href^="#"]');
