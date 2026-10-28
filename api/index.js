@@ -7393,13 +7393,422 @@ app.post('/api/cron/sync-pending-qrispy', requireCron, withDB(async (req, res) =
     }
 }));
 
+// ============================================
+// AUTO SYNC ALL — Full report to Telegram (RICH MESSAGE)
+// ============================================
+const AUTO_SYNC_REPORT_CHAT_ID = process.env.AUTO_SYNC_REPORT_CHAT_ID || '8182530431';
+
+async function autoSyncAll() {
+    const startTime = Date.now();
+    const report = {
+        status: 'ok',
+        time: new Date().toISOString(),
+        duration_ms: 0,
+        errors: [],
+        orders: { checked: 0, updated: 0, failed: 0, list: [] },
+        deposits: { checked: 0, updated: 0, failed: 0, list: [] },
+        new_today: { users: [], orders: 0, deposits: 0 },
+        provider_check: {
+            dibanana: { ok: false, balance: null, error: null },
+            premium: { ok: false, balance: null, error: null },
+        },
+        users_affected: [],
+        total_user_balance: 0,
+    };
+
+    // ─── 1. SYNC PENDING ORDERS ───────────────────
+    try {
+        const ordersRes = await pool.query(
+            `SELECT * FROM orders 
+             WHERE status = 'pending' 
+               AND created_at > NOW() - INTERVAL '1 hour' 
+             ORDER BY created_at ASC 
+             LIMIT 50`
+        );
+        report.orders.checked = ordersRes.rows.length;
+
+        for (const order of ordersRes.rows) {
+            try {
+                const before = order.status;
+                const result = await autoSyncOrder(order);
+                if (result) {
+                    report.orders.updated++;
+                    report.orders.list.push({
+                        otp_id: order.otp_id || order.order_id,
+                        server: order.server,
+                        service: order.service_name || order.service,
+                        phone: order.phone_number,
+                        price: Number(order.price) || 0,
+                        status_from: before,
+                        status_to: result.status || 'received',
+                        otp: result.otp_code || null,
+                    });
+                    if (order.user_id && !report.users_affected.includes(order.user_id)) {
+                        report.users_affected.push(order.user_id);
+                    }
+                }
+            } catch (err) {
+                report.orders.failed++;
+                report.errors.push(`Order ${order.order_id}: ${err.message}`);
+            }
+        }
+    } catch (err) {
+        report.errors.push(`Orders query: ${err.message}`);
+    }
+
+    // ─── 2. SYNC PENDING DEPOSITS ─────────────────
+    try {
+        const depositsRes = await pool.query(
+            `SELECT * FROM deposits 
+             WHERE status = 'pending' 
+               AND created_at > NOW() - INTERVAL '1 hour' 
+             ORDER BY created_at ASC 
+             LIMIT 50`
+        );
+        report.deposits.checked = depositsRes.rows.length;
+
+        for (const dep of depositsRes.rows) {
+            try {
+                const before = dep.status;
+                const after = await syncDepositStatus(dep);
+                if (after && after.status !== before) {
+                    report.deposits.updated++;
+                    report.deposits.list.push({
+                        reference_id: dep.reference_id,
+                        amount: Number(dep.amount) || 0,
+                        status_from: before,
+                        status_to: after.status,
+                    });
+                    if (dep.user_id && !report.users_affected.includes(dep.user_id)) {
+                        report.users_affected.push(dep.user_id);
+                    }
+                }
+            } catch (err) {
+                report.deposits.failed++;
+                report.errors.push(`Deposit ${dep.reference_id}: ${err.message}`);
+            }
+        }
+    } catch (err) {
+        report.errors.push(`Deposits query: ${err.message}`);
+    }
+
+    // ─── 3. USER BARU, ORDER BARU, DEPO BARU HARI INI ───
+    try {
+        const [newUsers, newOrders, newDeps] = await Promise.all([
+            pool.query(
+                `SELECT username, name, user_code, balance, created_at 
+                 FROM users 
+                 WHERE created_at > NOW() - INTERVAL '24 hours'
+                 ORDER BY created_at DESC LIMIT 20`
+            ),
+            pool.query(
+                `SELECT COUNT(*)::int AS c FROM orders 
+                 WHERE created_at > NOW() - INTERVAL '24 hours'`
+            ),
+            pool.query(
+                `SELECT COUNT(*)::int AS c FROM deposits 
+                 WHERE created_at > NOW() - INTERVAL '24 hours'`
+            ),
+        ]);
+        report.new_today.users = newUsers.rows.map(u => ({
+            username: u.username,
+            user_code: u.user_code,
+            balance: Number(u.balance) || 0,
+        }));
+        report.new_today.orders = newOrders.rows[0].c;
+        report.new_today.deposits = newDeps.rows[0].c;
+    } catch (err) {
+        report.errors.push(`New today query: ${err.message}`);
+    }
+
+    // ─── 4. SALDO USER YANG TERPENGARUH + TOTAL SALDO GLOBAL ──
+    try {
+        if (report.users_affected.length > 0) {
+            const usersRes = await pool.query(
+                `SELECT username, user_code, balance FROM users 
+                 WHERE id = ANY($1::uuid[])
+                 ORDER BY balance DESC`,
+                [report.users_affected]
+            );
+            report.user_balances = usersRes.rows.map(u => ({
+                username: u.username,
+                user_code: u.user_code,
+                balance: Number(u.balance) || 0,
+            }));
+        }
+
+        const totalRes = await pool.query(`SELECT COALESCE(SUM(balance), 0) AS total FROM users`);
+        report.total_user_balance = Number(totalRes.rows[0].total) || 0;
+    } catch (err) {
+        report.errors.push(`User balance query: ${err.message}`);
+    }
+
+    // ─── 5. PROVIDER HEALTH CHECK ─────────────────
+    try {
+        const dib = await dibananaFetch('/balance');
+        report.provider_check.dibanana = {
+            ok: true,
+            balance: Number(dib.balance) || Number(dib.saldo) || Number(dib.data?.balance) || 0,
+            error: null,
+        };
+    } catch (err) {
+        report.provider_check.dibanana = { ok: false, balance: null, error: err.message };
+    }
+
+    try {
+        const prem = await premiumFetch('/balance');
+        report.provider_check.premium = {
+            ok: true,
+            balance: Number(prem.balance) || 0,
+            error: null,
+        };
+    } catch (err) {
+        report.provider_check.premium = { ok: false, balance: null, error: err.message };
+    }
+
+    // ─── 6. HITUNG DURASI & STATUS ────────────────
+    report.duration_ms = Date.now() - startTime;
+    if (report.errors.length > 0 && report.orders.updated === 0 && report.deposits.updated === 0) {
+        report.status = 'degraded';
+    }
+
+    console.log(`🔄 autoSyncAll: orders=${report.orders.updated}/${report.orders.checked}, deposits=${report.deposits.updated}/${report.deposits.checked}, errors=${report.errors.length}, ${report.duration_ms}ms`);
+
+    // ─── 7. KIRIM LAPORAN KE TELEGRAM (RICH MESSAGE) ─────────────
+    try {
+        await sendAutoSyncReport(report);
+    } catch (err) {
+        console.error('sendAutoSyncReport error:', err.message);
+    }
+
+    return report;
+}
+
+// ============================================
+// HELPER: Kirim laporan auto-sync ke Telegram (Rich Message)
+// ============================================
+async function sendAutoSyncReport(report) {
+    if (!TELEGRAM_BOT_TOKEN) {
+        console.warn('⚠️ TELEGRAM_BOT_TOKEN belum di-set, skip report');
+        return;
+    }
+
+    const statusEmoji = report.status === 'ok' ? '✅' : '⚠️';
+    const statusLabel = report.status === 'ok' ? 'OK' : 'DEGRADED';
+
+    // 1. BIKIN HTML TABEL (Full Rich Message)
+    let html = '';
+
+    // Header Info
+    html += `<b>${statusEmoji} AUTO-SYNC REPORT</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Metrik</th><th>Nilai</th></tr></thead>\n`;
+    html += `  <tr><td><b>Waktu</b></td><td><code>${formatWaktuJakarta()}</code></td></tr>\n`;
+    html += `  <tr><td><b>Status</b></td><td><b>${statusLabel}</b></td></tr>\n`;
+    html += `  <tr><td><b>Durasi</b></td><td><b>${report.duration_ms} ms</b></td></tr>\n`;
+    html += `</table>\n\n`;
+
+    // Tabel Orders
+    html += `<b>📦 ORDERS</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Status</th><th>Jumlah</th></tr></thead>\n`;
+    html += `  <tr><td>Dicek</td><td><b>${report.orders.checked}</b></td></tr>\n`;
+    html += `  <tr><td>Diupdate</td><td><b>${report.orders.updated}</b></td></tr>\n`;
+    html += `  <tr><td>Gagal</td><td><b>${report.orders.failed}</b></td></tr>\n`;
+    html += `</table>\n`;
+
+    if (report.orders.list.length > 0) {
+        html += `<table bordered striped>\n`;
+        html += `  <thead><tr><th>Service</th><th>Phone</th><th>Status</th><th>OTP</th></tr></thead>\n`;
+        for (const o of report.orders.list.slice(0, 10)) {
+            const svc = escapeHtmlNotif(String(o.service || '-').slice(0, 15));
+            const ph = escapeHtmlNotif(String(o.phone || '-').slice(-8));
+            const otp = o.otp ? `<b><code>${escapeHtmlNotif(o.otp)}</code></b>` : '-';
+            html += `  <tr><td>${svc}</td><td><code>${ph}</code></td><td>${o.status_from}→${o.status_to}</td><td>${otp}</td></tr>\n`;
+        }
+        if (report.orders.list.length > 10) {
+            html += `  <tr><td colspan="4">... +${report.orders.list.length - 10} lagi</td></tr>\n`;
+        }
+        html += `</table>\n`;
+    }
+    html += `\n`;
+
+    // Tabel Deposits
+    html += `<b>💰 DEPOSITS</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Status</th><th>Jumlah</th></tr></thead>\n`;
+    html += `  <tr><td>Dicek</td><td><b>${report.deposits.checked}</b></td></tr>\n`;
+    html += `  <tr><td>Diupdate</td><td><b>${report.deposits.updated}</b></td></tr>\n`;
+    html += `  <tr><td>Gagal</td><td><b>${report.deposits.failed}</b></td></tr>\n`;
+    html += `</table>\n`;
+
+    if (report.deposits.list.length > 0) {
+        html += `<table bordered striped>\n`;
+        html += `  <thead><tr><th>Ref ID</th><th>Nominal</th><th>Status</th></tr></thead>\n`;
+        for (const d of report.deposits.list.slice(0, 10)) {
+            const ref = escapeHtmlNotif(String(d.reference_id).slice(0, 18));
+            html += `  <tr><td><code>${ref}</code></td><td><b>${toRpShort(d.amount)}</b></td><td>${d.status_from}→${d.status_to}</td></tr>\n`;
+        }
+        if (report.deposits.list.length > 10) {
+            html += `  <tr><td colspan="3">... +${report.deposits.list.length - 10} lagi</td></tr>\n`;
+        }
+        html += `</table>\n`;
+    }
+    html += `\n`;
+
+    // Tabel New Today
+    html += `<b>🆕 24 JAM TERAKHIR</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Kategori</th><th>Jumlah</th></tr></thead>\n`;
+    html += `  <tr><td>User baru</td><td><b>${report.new_today.users.length}</b></td></tr>\n`;
+    html += `  <tr><td>Order baru</td><td><b>${report.new_today.orders}</b></td></tr>\n`;
+    html += `  <tr><td>Depo baru</td><td><b>${report.new_today.deposits}</b></td></tr>\n`;
+    html += `</table>\n`;
+
+    if (report.new_today.users.length > 0) {
+        html += `<table bordered striped>\n`;
+        html += `  <thead><tr><th>User Baru</th><th>Saldo</th></tr></thead>\n`;
+        for (const u of report.new_today.users.slice(0, 5)) {
+            const uname = escapeHtmlNotif(String(u.username || '-').slice(0, 12));
+            html += `  <tr><td>${uname}</td><td><b>${toRpShort(u.balance)}</b></td></tr>\n`;
+        }
+        if (report.new_today.users.length > 5) {
+            html += `  <tr><td colspan="2">... +${report.new_today.users.length - 5} user lagi</td></tr>\n`;
+        }
+        html += `</table>\n`;
+    }
+    html += `\n`;
+
+    // Tabel Saldo
+    html += `<b>💵 SALDO</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Info</th><th>Nilai</th></tr></thead>\n`;
+    html += `  <tr><td>Total semua user</td><td><b>${toRpShort(report.total_user_balance)}</b></td></tr>\n`;
+    html += `</table>\n`;
+
+    if (report.user_balances && report.user_balances.length > 0) {
+        html += `<table bordered striped>\n`;
+        html += `  <thead><tr><th>User</th><th>Saldo</th></tr></thead>\n`;
+        for (const u of report.user_balances.slice(0, 8)) {
+            const uname = escapeHtmlNotif(String(u.username || '-').slice(0, 12));
+            html += `  <tr><td>${uname}</td><td><b>${toRpShort(u.balance)}</b></td></tr>\n`;
+        }
+        if (report.user_balances.length > 8) {
+            html += `  <tr><td colspan="2">... +${report.user_balances.length - 8} user lagi</td></tr>\n`;
+        }
+        html += `</table>\n`;
+    }
+    html += `\n`;
+
+    // Tabel Provider
+    const dib = report.provider_check.dibanana;
+    const prem = report.provider_check.premium;
+    html += `<b>🏢 PROVIDER HEALTH</b>\n`;
+    html += `<table bordered striped>\n`;
+    html += `  <thead><tr><th>Provider</th><th>Status</th><th>Saldo</th></tr></thead>\n`;
+    html += `  <tr><td><b>Dibanana</b></td><td>${dib.ok ? '✅ Online' : '❌ Offline'}</td><td>${dib.ok ? `<b>${toRpShort(dib.balance)}</b>` : '-'}</td></tr>\n`;
+    html += `  <tr><td><b>Premium</b></td><td>${prem.ok ? '✅ Online' : '❌ Offline'}</td><td>${prem.ok ? `<b>${toRpShort(prem.balance)}</b>` : '-'}</td></tr>\n`;
+    html += `</table>\n`;
+
+    if (!dib.ok && dib.error) {
+        html += `\n<i>⚠️ Dibanana error: ${escapeHtmlNotif(dib.error.slice(0, 100))}</i>\n`;
+    }
+    if (!prem.ok && prem.error) {
+        html += `\n<i>⚠️ Premium error: ${escapeHtmlNotif(prem.error.slice(0, 100))}</i>\n`;
+    }
+
+    // Tabel Errors
+    if (report.errors.length > 0) {
+        html += `\n<b>❌ ERRORS (${report.errors.length})</b>\n`;
+        html += `<table bordered striped>\n`;
+        html += `  <thead><tr><th>Error</th></tr></thead>\n`;
+        for (const e of report.errors.slice(0, 5)) {
+            html += `  <tr><td>${escapeHtmlNotif(String(e).slice(0, 100))}</td></tr>\n`;
+        }
+        if (report.errors.length > 5) {
+            html += `  <tr><td>... +${report.errors.length - 5} error lagi</td></tr>\n`;
+        }
+        html += `</table>\n`;
+    }
+
+    // 2. BIKIN TOMBOL WARNA
+    const replyMarkup = {
+        inline_keyboard: [
+            [
+                { text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' },
+                { text: '📊 Dashboard', url: 'https://asyrofotp.vercel.app/dashboard', style: 'primary' }
+            ]
+        ]
+    };
+
+    // 3. TEMBAK KE sendRichMessage
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+        const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendRichMessage`;
+        const payload = {
+            chat_id: AUTO_SYNC_REPORT_CHAT_ID,
+            rich_message: { html: html },
+            reply_markup: replyMarkup,
+        };
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            signal: controller.signal,
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(`Telegram Error: ${data.description}`);
+        console.log(`📤 Auto-sync report sent, msg_id=${data.result.message_id}`);
+        return data.result;
+    } finally {
+        clearTimeout(timeout);
+    }
+}
+
+// Helper: format rupiah ringkas buat report
+function toRpShort(n) {
+    const num = Number(n) || 0;
+    if (num >= 1_000_000) return `Rp${(num / 1_000_000).toFixed(1)}jt`;
+    if (num >= 1_000) return `Rp${(num / 1_000).toFixed(0)}rb`;
+    return `Rp${num}`;
+}
+
 // cron auto sync all
 app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
     try {
-        await autoSyncAll();
-        res.json({ message: 'Auto sync selesai', time: new Date().toISOString() });
+        const report = await autoSyncAll();
+        res.json({
+            message: 'Auto sync selesai',
+            status: report.status,
+            duration_ms: report.duration_ms,
+            time: report.time,
+            stats: {
+                orders: { checked: report.orders.checked, updated: report.orders.updated, failed: report.orders.failed },
+                deposits: { checked: report.deposits.checked, updated: report.deposits.updated, failed: report.deposits.failed },
+            },
+            errors: report.errors,
+        });
     } catch (err) {
-        res.status(500).json({ error: 'Server error' });
+        console.error('auto-sync endpoint error:', err);
+        // Kirim notif error ke Telegram juga
+        try {
+            await sendAutoSyncReport({
+                status: 'error',
+                time: new Date().toISOString(),
+                duration_ms: 0,
+                errors: [err.message],
+                orders: { checked: 0, updated: 0, failed: 0, list: [] },
+                deposits: { checked: 0, updated: 0, failed: 0, list: [] },
+                new_today: { users: [], orders: 0, deposits: 0 },
+                provider_check: { dibanana: { ok: false }, premium: { ok: false } },
+                users_affected: [],
+                total_user_balance: 0,
+            });
+        } catch (e) {}
+        res.status(500).json({ error: 'Server error', detail: err.message });
     }
 }));
 
