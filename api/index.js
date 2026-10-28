@@ -3453,6 +3453,81 @@ const depositSaveHandler = async (req, res) => {
         res.status(500).json({ error: 'Gagal simpan deposit' });
     }
 };
+
+// === PUBLIC API: CREATE DEPOSIT ===
+const depositCreateHandler = async (req, res) => {
+    const { amount } = req.body;
+
+    if (!amount) {
+        return res.status(400).json({ error: 'amount wajib diisi' });
+    }
+
+    const amt = Number(amount);
+    if (!Number.isFinite(amt) || amt < 1000 || amt > 10000000) {
+        return res.status(400).json({ error: 'Nominal tidak valid (min 1000, max 10.000.000)' });
+    }
+
+    try {
+        // 1. Minta QRIS baru ke provider (depo1)
+        const data = await createDeposit(amt);
+        
+        // Validasi response dari provider
+        if (!data || !data.id || !data.qr_image) {
+            console.error('Provider create deposit error: invalid response', data);
+            return res.status(500).json({ error: 'Gagal membuat QRIS dari provider' });
+        }
+
+        // 2. Generate reference ID unik buat internal kita
+        const referenceId = await generateUniqueReferenceId();
+        const expiredAt = new Date(Date.now() + 15 * 60 * 1000); // 15 menit
+
+        // 3. Simpan ke database (langsung pending)
+        const ourFee = calculateDepositFee(amt);
+        
+        await pool.query(
+            `INSERT INTO deposits (user_id, reference_id, method, amount, total_amount, fee, status, qris_id, qris_url, payment_reference, expires_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+                req.user.id, 
+                referenceId, 
+                'qrispy',
+                amt,
+                amt + ourFee,
+                ourFee,
+                'pending', 
+                data.id, 
+                data.qr_image, 
+                referenceId, 
+                expiredAt
+            ]
+        );
+
+        await logStatusChange({
+            entityType: 'deposit', entityId: referenceId, userId: req.user.id,
+            oldStatus: null, newStatus: 'pending', reason: 'api_v1_created',
+            metadata: { amount: amt, method: 'qrispy', qris_id: data.id, our_fee: ourFee },
+        });
+
+        // 4. Return response sesuai format docs v1
+        res.json({
+            status: 'ok',
+            reference_id: referenceId,
+            qris_id: data.id,
+            qris_url: data.qr_image,
+            amount: amt,
+            expired_at: expiredAt.toISOString()
+        });
+
+    } catch (err) {
+        console.error('[v1/deposit/create] error:', err.message);
+        const isClientErr = err.status && err.status >= 400 && err.status < 500;
+        res.status(isClientErr ? err.status : 500).json({
+            error: isClientErr ? err.message : 'Gagal membuat deposit'
+        });
+    }
+};
+
+app.locals.internalHandlers.depositCreate = depositCreateHandler;
 app.locals.internalHandlers = app.locals.internalHandlers || {};
 app.locals.internalHandlers.depositSave = depositSaveHandler;
 app.post('/api/deposit/save', requireAuth, userRateLimit(10, 60 * 1000), withDB(depositSaveHandler));
@@ -5881,6 +5956,10 @@ app.get('/api/v1/docs', (req, res) => {
         },
     });
 });
+
+app.post('/api/v1/deposit/create', requireApiKey, userRateLimit(10, 60 * 1000), withDB(
+    delegateTo('depositCreate')
+));
 
 app.get('/api/v1/me', requireApiKey, withDB(async (req, res) => {
     try {
