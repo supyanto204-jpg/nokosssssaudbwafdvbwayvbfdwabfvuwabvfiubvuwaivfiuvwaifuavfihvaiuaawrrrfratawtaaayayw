@@ -9161,6 +9161,11 @@ app.post('/api/telegram/merge', requireAuth, withDB(async (req, res) => {
     }
 }));
 
+const path = require('path');
+app.get('/doc/v1', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'e-DUtOSieLk8HqVVfh2wVA8QFfXoeFRWzZtkprj2Rb8doc-v1.html'));
+});
+
 // ==========================================
 // EXPORT DULU (WAJIB DI ATAS)
 // ==========================================
