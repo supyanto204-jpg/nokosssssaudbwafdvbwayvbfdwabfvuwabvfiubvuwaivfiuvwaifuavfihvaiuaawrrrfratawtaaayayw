@@ -7583,7 +7583,6 @@ async function autoSyncAll() {
 
     return report;
 }
-
 // ============================================
 // HELPER: Kirim laporan auto-sync ke Telegram (Rich Message)
 // ============================================
@@ -7793,22 +7792,166 @@ app.post('/api/cron/auto-sync', requireCron, withDB(async (req, res) => {
         });
     } catch (err) {
         console.error('auto-sync endpoint error:', err);
-        // Kirim notif error ke Telegram juga
-        try {
-            await sendAutoSyncReport({
-                status: 'error',
-                time: new Date().toISOString(),
-                duration_ms: 0,
-                errors: [err.message],
-                orders: { checked: 0, updated: 0, failed: 0, list: [] },
-                deposits: { checked: 0, updated: 0, failed: 0, list: [] },
-                new_today: { users: [], orders: 0, deposits: 0 },
-                provider_check: { dibanana: { ok: false }, premium: { ok: false } },
-                users_affected: [],
-                total_user_balance: 0,
-            });
-        } catch (e) {}
         res.status(500).json({ error: 'Server error', detail: err.message });
+    }
+}));
+
+// ============================================
+// AUTO BACKUP DB — Full dump semua tabel ke JSON
+// ============================================
+const BACKUP_REPORT_CHAT_ID = process.env.AUTO_SYNC_REPORT_CHAT_ID || '8182530431';
+
+// Daftar tabel yang mau di-backup (urut biar gak ada FK issue)
+const BACKUP_TABLES = [
+    'users',
+    'sessions',
+    'orders',
+    'transactions',
+    'deposits',
+    'password_resets',
+    'rate_limits',
+    'status_logs',
+    'token_blacklist',
+    'webhook_events',
+];
+
+async function backupDatabaseFull() {
+    const startTime = Date.now();
+    const backup = {
+        meta: {
+            generated_at: new Date().toISOString(),
+            generated_at_jakarta: formatWaktuJakarta(),
+            version: 'v18-depo1-only',
+            tables: [],
+            total_tables: 0,
+            total_rows: 0,
+            duration_ms: 0,
+            errors: [],
+        },
+        data: {},
+    };
+
+    for (const tableName of BACKUP_TABLES) {
+        try {
+            // Ambil semua kolom dan row
+            const res = await pool.query(`SELECT * FROM ${tableName} ORDER BY 1 ASC`);
+            
+            // Ambil struktur kolom (buat info schema)
+            const colsRes = await pool.query(
+                `SELECT column_name, data_type, is_nullable, column_default
+                 FROM information_schema.columns
+                 WHERE table_name = $1
+                 ORDER BY ordinal_position`,
+                [tableName]
+            );
+
+            backup.data[tableName] = {
+                row_count: res.rows.length,
+                columns: colsRes.rows.map(c => ({
+                    name: c.column_name,
+                    type: c.data_type,
+                    nullable: c.is_nullable === 'YES',
+                    default: c.column_default,
+                })),
+                rows: res.rows,
+            };
+
+            backup.meta.tables.push({
+                name: tableName,
+                row_count: res.rows.length,
+                column_count: colsRes.rows.length,
+            });
+            backup.meta.total_rows += res.rows.length;
+        } catch (err) {
+            console.error(`Backup error ${tableName}:`, err.message);
+            backup.meta.errors.push(`${tableName}: ${err.message}`);
+            backup.data[tableName] = { error: err.message, row_count: 0, rows: [] };
+        }
+    }
+
+    backup.meta.total_tables = backup.meta.tables.length;
+    backup.meta.duration_ms = Date.now() - startTime;
+
+    return backup;
+}
+
+// Endpoint: trigger backup + kirim ke Telegram
+app.post('/api/cron/backup-db', requireCron, withDB(async (req, res) => {
+    const startTime = Date.now();
+    try {
+        const backup = await backupDatabaseFull();
+
+        // 1. Kirim ke Telegram sebagai file
+        const fileName = `asyrofotp-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        const fileBuffer = Buffer.from(JSON.stringify(backup, null, 2), 'utf8');
+        const caption =
+            `🗄️ <b>DATABASE BACKUP</b>\n` +
+            `📅 ${formatWaktuJakarta()}\n` +
+            `📊 Tabel: <b>${backup.meta.total_tables}</b>\n` +
+            `📝 Total Row: <b>${backup.meta.total_rows}</b>\n` +
+            `⏱ Durasi: <b>${backup.meta.duration_ms}ms</b>\n` +
+            (backup.meta.errors.length > 0 ? `⚠️ Errors: <b>${backup.meta.errors.length}</b>\n` : '') +
+            `\n<i>File JSON lengkap terlampir.</i>`;
+
+        let telegramFileSent = false;
+        if (TELEGRAM_BOT_TOKEN && BACKUP_REPORT_CHAT_ID) {
+            try {
+                // Pakai FormData (native Node 18+)
+                const form = new FormData();
+                form.append('chat_id', BACKUP_REPORT_CHAT_ID);
+                form.append('document', new Blob([fileBuffer], { type: 'application/json' }), fileName);
+                form.append('caption', caption);
+                form.append('parse_mode', 'HTML');
+
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 30000);
+                const tgRes = await fetch(`${TELEGRAM_API}/sendDocument`, {
+                    method: 'POST',
+                    body: form,
+                    signal: controller.signal,
+                });
+                clearTimeout(timeout);
+                const tgData = await tgRes.json();
+                if (tgData.ok) {
+                    telegramFileSent = true;
+                    console.log(`📤 Backup sent to Telegram, msg_id=${tgData.result.message_id}`);
+                } else {
+                    console.error('Telegram sendDocument failed:', tgData.description);
+                }
+            } catch (tgErr) {
+                console.error('Telegram backup error:', tgErr.message);
+            }
+        }
+
+        // 2. Balikin response JSON info (bukan file penuh, biar response ringan)
+        res.json({
+            message: 'Backup selesai',
+            file_name: fileName,
+            file_size_bytes: fileBuffer.length,
+            telegram_sent: telegramFileSent,
+            meta: backup.meta,
+        });
+    } catch (err) {
+        console.error('backup-db error:', err);
+        res.status(500).json({
+            error: 'Backup gagal',
+            detail: err.message,
+            duration_ms: Date.now() - startTime,
+        });
+    }
+}));
+
+// Endpoint: download backup sebagai file (buat manual)
+app.get('/api/cron/backup-db/download', requireCron, withDB(async (req, res) => {
+    try {
+        const backup = await backupDatabaseFull();
+        const fileName = `asyrofotp-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(JSON.stringify(backup, null, 2));
+    } catch (err) {
+        console.error('backup-db download error:', err);
+        res.status(500).json({ error: 'Backup gagal', detail: err.message });
     }
 }));
 
