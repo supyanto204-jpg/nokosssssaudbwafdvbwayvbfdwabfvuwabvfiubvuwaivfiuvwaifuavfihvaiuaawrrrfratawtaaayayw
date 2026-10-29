@@ -1459,7 +1459,7 @@ async function notifyDepositSuccess(deposit, saldoMasuk, totalBayar, fee, user, 
 
     const replyMarkup = {
         inline_keyboard: [
-            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'success' }]
+            [{ text: '🛒 Beli Sekarang', url: 'https://asyrofotp.vercel.app', style: 'primary' }]
         ]
     };
 
