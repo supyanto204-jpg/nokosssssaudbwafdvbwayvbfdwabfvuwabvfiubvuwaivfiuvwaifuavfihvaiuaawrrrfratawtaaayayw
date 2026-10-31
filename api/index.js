@@ -5435,20 +5435,6 @@ const nokosOrderHandler = async (req, res) => {
 
             console.log(`⏱️ Order ${providerOrderId} (${server}) in ${Date.now() - startTime}ms`);
 
-            if (phoneNumber) {
-                const serviceStr = String(service || '').toLowerCase();
-                const serviceNameStr = String(service_name || '').toLowerCase();
-
-                const isWhatsApp =
-                    serviceStr === 'wa' ||
-                    serviceStr === 'whatsapp' ||
-                    serviceNameStr.includes('whatsapp') ||
-                    serviceNameStr.includes('wa ');
-
-                if (isWhatsApp) {
-                    sendWhatsAppAppealEmail(phoneNumber).catch(() => {});
-                }
-            }
         } catch (dbErr) {
             await client.query('ROLLBACK');
             console.error('DB insert error:', dbErr.message);
