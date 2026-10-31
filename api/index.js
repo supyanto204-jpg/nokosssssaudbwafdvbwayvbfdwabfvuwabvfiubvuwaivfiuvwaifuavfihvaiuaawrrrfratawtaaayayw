@@ -129,15 +129,25 @@ const ALLOWED_ORIGINS = [
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
+    
+    // Cek apakah origin ada di whitelist
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Vary', 'Origin');
         res.header('Access-Control-Allow-Credentials', 'true');
     }
+
+    // Header ini aman ditaruh di luar IF, karena webhook server-to-server 
+    // nggak butuh header ini, dan browser butuh ini buat preflight request.
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key, x-qrispy-Signature, x-server1-signature, x-banana-signature, x-server2-signature, x-webhook-signature, x-cron-secret, x-encrypt, x-refresh-token, x-device-id');
     res.header('Access-Control-Max-Age', '86400');
-    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    
+    // Handle Preflight (OPTIONS)
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
+    }
+    
     next();
 });
 
