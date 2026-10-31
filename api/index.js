@@ -9,12 +9,20 @@ const jwt = require('jsonwebtoken');
 const { OAuth2Client } = require('google-auth-library');
 const nodemailer = require('nodemailer');
 const crypto = require('crypto');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 
 const app = express();
 
 app.disable('x-powered-by');
 app.set('etag', false);
 app.set('trust proxy', 1);
+
+app.use(helmet({
+  contentSecurityPolicy: false, 
+  crossOriginEmbedderPolicy: false, 
+}));
+app.use(cookieParser());
 
 // security headers
 app.use((req, res, next) => {
